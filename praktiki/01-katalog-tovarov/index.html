@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>ПР-01 Каталог товаров · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    .task { margin: 26px 0; border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--leaf); background: var(--page); }
+    .task__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 18px; background: var(--ink); color: var(--leaf-pale); font: 600 11px/1.4 var(--pixel); letter-spacing: 1.3px; text-transform: uppercase; }
+    .task__body { padding: 18px 20px 6px; }
+    .task__body h3:first-child { margin-top: 0; }
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps b { display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Практическая работа 01 · после модуля 1</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · практика · после модуля 1</p>
+          <p class="running__folio">ПР-01</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">ПР-01</span>
+          <h1>Каталог товаров:<br>витрина и правки</h1>
+          <p class="lead">Две задачи, которые бэкендер решает в первую неделю на проекте: отдать фронтенду страницу списка товаров и провести приёмку поставки — с отчётом, повторным запуском и проверкой, что ничего лишнего не изменилось.</p>
+          <blockquote class="quote"><p>«Учебная задача отличается от рабочей одним: в рабочей кто-то потом смотрит на числа.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>После модуля</dt><dd>1 · подключение и первые данные</dd></div>
+          <div><dt>Базы</dt><dd><code>shop</code> — читаем, <code>sandbox</code> — меняем</dd></div>
+          <div><dt>Время</dt><dd>90 минут</dd></div>
+          <div><dt>Результат</dt><dd><code>solution.py</code> и <code>README.md</code> с числами</dd></div>
+        </dl>
+
+        <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/practice01">github.com/MaximBytecamp/mongodb-practice → practice01</a></p>
+        <p>В репозитории — задание, разобранное решение <code>solution.py</code> и самопроверка <code>check.py</code>, которая смотрит не на код, а на состояние базы после работы. Стенд и данные там же.</p>
+
+        <figure class="code">
+          <figcaption><span>Терминал</span><span>с нуля до проверки — четыре команды</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+python3 solution.py            <span class="c"># решение</span>
+python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+        </figure>
+
+        <h2 id="s1"><span class="sec">§1</span>Что уже умеем</h2>
+        <p>В работе не появится ни одного оператора, которого не было в модуле 1. Вот весь инструмент, который понадобится:</p>
+        <div class="ops">
+          <div><b>find + проекция</b><span>Достать нужные документы и только нужные поля.</span><i>глава 1.4–1.5</i></div>
+          <div><b>sort · skip · limit</b><span>Порядок и страницы.</span><i>глава 1.6</i></div>
+          <div><b>count_documents</b><span>Сколько всего — для «страница 2 из 5» и для проверки перед правкой.</span><i>глава 1.6</i></div>
+          <div><b>$set · $inc</b><span>Записать значение и прибавить на сервере.</span><i>глава 1.7</i></div>
+          <div><b>insert_many · delete_many</b><span>Завести новинки и снять с продажи.</span><i>главы 1.3 и 1.8</i></div>
+        </div>
+        <p>Один оператор в задании встретится раньше своего модуля — <code>$in</code> в фильтре <code>{"sku": {"$in": [...]}}</code>. Читается он ровно так, как выглядит: «значение поля есть в этом списке». Подробно — в главе 2.3.</p>
+
+        <div class="task">
+          <div class="task__head"><span>Задача 1</span><span>витрина каталога</span></div>
+          <div class="task__body">
+            <h3>Одна страница списка товаров</h3>
+            <p>Нужна функция, которая возвращает страницу каталога и общее число товаров под фильтром. Это самая частая функция в любом магазине, и в ней собирается почти весь модуль 1.</p>
+            <figure class="code">
+              <figcaption><span>Требования</span><span>что должно работать</span></figcaption>
+<pre>catalog_page(category=<span class="k">None</span>, page=<span class="n">1</span>, per_page=<span class="n">5</span>,
+             sort_field=<span class="s">"price"</span>, desc=<span class="k">True</span>) → (items, total)</pre>
+            </figure>
+            <ol class="steps">
+              <li><b>Фильтр собирается, а не пишется целиком</b>Категория необязательна: без неё возвращается весь каталог. Фильтр — обычный словарь, поэтому он собирается по условию, а не склеивается строкой.</li>
+              <li><b>Проекция обязательна</b>В ответ идут только <code>sku</code>, <code>title</code>, <code>price</code>, <code>rating</code> и без <code>_id</code>. Массив <code>stock</code> и характеристики на странице списка не нужны — значит, их не запрашивают.</li>
+              <li><b>Сортировка по двум ключам</b>Второй ключ — <code>sku</code>. Без него товары с одинаковой ценой меняются местами между запросами, и один и тот же товар появляется на двух страницах подряд.</li>
+              <li><b>total считает сервер</b><code>count_documents(query)</code> с тем же фильтром. Не <code>len(list(...))</code>: иначе ради одного числа на клиент приедет вся коллекция.</li>
+              <li><b>Страница за пределами данных — пустой список</b>Не ошибка и не исключение. <code>total</code> при этом остаётся прежним.</li>
+            </ol>
+            <figure class="code">
+              <figcaption><span>solution.py</span><span>ядро решения</span></figcaption>
+<pre><span class="k">def</span> <span class="f">catalog_page</span>(category=<span class="k">None</span>, page=<span class="n">1</span>, per_page=<span class="n">5</span>,
+                 sort_field=<span class="s">"price"</span>, desc=<span class="k">True</span>):
+    query = {}
+    <span class="k">if</span> category:
+        query[<span class="s">"category"</span>] = category
+
+    total = products.<span class="f">count_documents</span>(query)
+
+    cursor = (products
+              .<span class="f">find</span>(query, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"sku"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>,
+                            <span class="s">"price"</span>: <span class="n">1</span>, <span class="s">"rating"</span>: <span class="n">1</span>})
+              <span class="c"># второй ключ делает порядок однозначным</span>
+              .<span class="f">sort</span>([(sort_field, -<span class="n">1</span> <span class="k">if</span> desc <span class="k">else</span> <span class="n">1</span>), (<span class="s">"sku"</span>, <span class="n">1</span>)])
+              .<span class="f">skip</span>((page - <span class="n">1</span>) * per_page)
+              .<span class="f">limit</span>(per_page))
+
+    <span class="k">return</span> <span class="f">list</span>(cursor), total</pre>
+            </figure>
+            <figure class="code code--out">
+              <figcaption><span>Вывод</span><span>результат запуска на стенде</span></figcaption>
+<pre>Ноутбуки, страница 1 из 2 (всего 5):
+   114990 ₽  Ноутбук Apple MacBook Air 13     рейтинг 4.1
+    89990 ₽  Ноутбук Acer Nitro V15           рейтинг 4.6
+    67900 ₽  Ноутбук HP Pavilion 14           рейтинг 4.5
+
+Страница 2:
+    51490 ₽  Ноутбук ASUS VivoBook 15         рейтинг 4.3
+    42990 ₽  Ноутбук Lenovo IdeaPad 3         рейтинг 4.2
+
+Страница 9 из существующих 2: найдено 0 товаров, total по-прежнему 5</pre>
+            </figure>
+            <div class="margin-note">
+              <b>На полях: почему total считают отдельным запросом</b>
+              <p>Кажется избыточным — два обращения вместо одного. Но альтернатива хуже: чтобы узнать общее число из самой выборки, её пришлось бы получить целиком, без <code>limit</code>. На каталоге из 21 товара разницы нет, на 200 000 — это разница между 4 миллисекундами и минутой.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="task__head"><span>Задача 2</span><span>приёмка поставки</span></div>
+          <div class="task__body">
+            <h3>Скрипт, который принимает поставку</h3>
+            <p>Приехала машина. Нужно обновить остатки, завести новые позиции, снять с продажи то, что больше не возим, и напечатать отчёт. Работаем в песочнице.</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Шаг</th><th>Что делаем</th><th>Чем</th><th>Что проверяем</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Прибавить пришедшее к остаткам трёх артикулов</td><td><code>$inc</code></td><td><code>matched_count</code>: артикул мог не найтись</td></tr>
+                  <tr><td>2</td><td>Завести две новые позиции</td><td><code>insert_many</code></td><td>повтор не создаёт дублей</td></tr>
+                  <tr><td>3</td><td>Снять с продажи <code>SKU-CP-018</code></td><td><code>delete_many</code></td><td>сначала посчитать и посмотреть</td></tr>
+                  <tr><td>4</td><td>Бесплатная доставка всем аксессуарам</td><td><code>update_many</code></td><td><code>modified_count</code> совпал с ожиданием</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Почему <code>$inc</code>, а не «прочитать и записать»</h3>
+            <p>Соблазн понятный: прочитать текущий остаток, прибавить в Python, записать обратно. Так делать нельзя, и вот почему: пока вы читаете, вторая приёмка на соседнем складе делает то же самое. Оба прочитали 10, оба записали 15 — а приехало 5 и 5, должно быть 20. Пять штук исчезли, и никакая ошибка в логах об этом не скажет.</p>
+            <figure class="code">
+              <figcaption><span>solution.py</span><span>остатки</span></figcaption>
+<pre><span class="k">for</span> sku, qty <span class="k">in</span> ARRIVED.<span class="f">items</span>():
+    result = box.<span class="f">update_one</span>({<span class="s">"sku"</span>: sku}, {<span class="s">"$inc"</span>: {<span class="s">"qty_total"</span>: qty}})
+    <span class="k">if</span> result.matched_count == <span class="n">0</span>:
+        <span class="f">print</span>(<span class="s">f"  ВНИМАНИЕ: артикул {sku} не найден в каталоге"</span>)
+    updated += result.modified_count</pre>
+            </figure>
+
+            <h3>Повторный запуск не должен ломать данные</h3>
+            <p>Скрипт приёмки запускают повторно чаще, чем кажется: упала сеть, оператор нажал дважды, задача перезапустилась. Поэтому у новых позиций задан свой <code>_id</code> — вторая попытка упрётся в <code>E11000</code>, а не создаст копии. Ключ <code>ordered=False</code> позволяет вставить всё, что можно, а про остальное честно сообщить.</p>
+            <figure class="code">
+              <figcaption><span>solution.py</span><span>новинки</span></figcaption>
+<pre><span class="k">try</span>:
+    result = box.<span class="f">insert_many</span>(NEW_ITEMS, ordered=<span class="k">False</span>)
+    report[<span class="s">"новых позиций"</span>] = <span class="f">len</span>(result.inserted_ids)
+<span class="k">except</span> BulkWriteError <span class="k">as</span> error:
+    already = <span class="f">len</span>(error.details[<span class="s">"writeErrors"</span>])
+    report[<span class="s">"новых позиций"</span>] = <span class="f">len</span>(NEW_ITEMS) - already
+    <span class="f">print</span>(<span class="s">f"  {already} позиций уже были в каталоге — пропущены"</span>)</pre>
+            </figure>
+
+            <h3>Перед удалением — посмотреть</h3>
+            <p>Три строки, которые отделяют рабочий скрипт от опасного: посчитать, показать, удалить. На приёмке эти строки спрашивают отдельно.</p>
+            <figure class="code">
+              <figcaption><span>solution.py</span><span>снятие с продажи</span></figcaption>
+<pre>query = {<span class="s">"sku"</span>: {<span class="s">"$in"</span>: DISCONTINUED}}
+to_remove = box.<span class="f">count_documents</span>(query)
+<span class="f">print</span>(<span class="s">f"  под снятие с продажи попало: {to_remove}"</span>)
+<span class="k">for</span> doc <span class="k">in</span> box.<span class="f">find</span>(query, {<span class="s">"_id"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(<span class="s">f"    {doc}"</span>)
+report[<span class="s">"снято с продажи"</span>] = box.<span class="f">delete_many</span>(query).deleted_count</pre>
+            </figure>
+            <figure class="code code--out">
+              <figcaption><span>Вывод</span><span>отчёт о приёмке на стенде</span></figcaption>
+<pre>  под снятие с продажи попало: 1
+    {'_id': 'p-018', 'title': 'Блок питания be quiet! 650 Вт', 'price': 8490}
+
+  бесплатная доставка коснётся: 5 товаров
+
+Отчёт о приёмке:
+  остатки обновлены        3
+  новых позиций            2
+  снято с продажи          1
+  бесплатная доставка      5
+  итого в каталоге         22</pre>
+            </figure>
+          </div>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Самопроверка</h2>
+        <p>Скрипт <code>check.py</code> проверяет не ваш код, а результат — состояние базы. Так же работает и приёмка: смотрят на данные, а не на текст программы.</p>
+        <figure class="code code--out">
+          <figcaption><span>python3 check.py</span><span>результат на стенде</span></figcaption>
+<pre>Задача 1 · витрина каталога
+ ✓ товаров в каталоге shop.products               21
+ ✓ ноутбуков                                      5
+ ✓ самый дорогой товар                            'Ноутбук Apple MacBook Air 13'
+
+Задача 2 · приёмка поставки
+ ✓ всего позиций в песочнице                      22
+ ✓ новинка p-101 заведена                         1
+ ✓ новинка p-102 заведена                         1
+ ✓ снятый с продажи SKU-CP-018 удалён             0
+ ✓ бесплатная доставка у аксессуаров              5
+ ✓ остаток по SKU-NB-001                          5
+ ✓ остаток по SKU-PH-006                          12
+ ✓ остаток по SKU-PR-010                          3
+ ✓ эталонная база shop не тронута                 0
+
+Пройдено 12 из 12</pre>
+        </figure>
+        <p>Последняя проверка — главная. Она смотрит, не появилось ли поле <code>free_shipping</code> в эталонной базе <code>shop</code>. Если появилось, значит, правки ушли не туда: в учебной базе это лечится одной командой, в рабочей — разговором с руководителем.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Что сдавать</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Что</th><th>Требование</th></tr></thead>
+            <tbody>
+              <tr><td><code>solution.py</code></td><td>Ваш код обеих задач. Функция каталога с параметрами, скрипт приёмки с отчётом</td></tr>
+              <tr><td><code>README.md</code></td><td>Как запустить и какие числа получились. Пять строк, не больше</td></tr>
+              <tr><td>Проверка</td><td><code>python3 check.py</code> проходит все 12 пунктов на свежих данных</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Что спросят на приёмке</b>
+          <p>Почему сортировка по двум ключам, а не по одному. Что вернёт функция для девятой страницы. Почему остатки меняются через <code>$inc</code>. Что произойдёт при повторном запуске скрипта приёмки. Ответ «так было в примере» не принимается — на эти четыре вопроса и написана работа.</p>
+        </div>
+
+        <h3>Дальше</h3>
+        <p>Следующий шаг — контрольная точка: та же предметная область, но без разбора и с отчётом, который читает человек, не заглядывающий в базу.</p>
+
+        <div class="pager"><a href="../../temy/08-udalenie/index.html">← 1.8 Удаление</a><a href="../kt-01-inventarizaciya/index.html">КТ-01 Инвентаризация склада →</a></div>
+
+        <div class="colophon">
+          <span>Практическая работа 01 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

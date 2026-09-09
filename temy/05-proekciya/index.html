@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.5 Проекция: какие поля вернуть · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.5</span>
+          <h1>Проекция:<br>какие поля вернуть</h1>
+          <p class="lead">Второй аргумент <code>find</code> решает, что именно приедет с сервера. Разберём включающую и исключающую проекцию, единственное исключение из правила «нельзя смешивать», и посчитаем, сколько данных экономит одна фигурная скобка.</p>
+          <blockquote class="quote"><p>«Самый быстрый способ передать данные по сети — не передавать лишние.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Операции над данными</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Чтение и курсор, <code>$project</code> в агрегации</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Не тащить на клиент поля, которые никто не покажет</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Второй аргумент find</a></li>
+            <li><a href="#s2">Включающая проекция</a></li>
+            <li><a href="#s3">Как убрать <code>_id</code></a></li>
+            <li><a href="#s4">Исключающая проекция</a></li>
+            <li><a href="#s5">Смешивать нельзя</a></li>
+            <li><a href="#s6">Вложенные поля в проекции</a></li>
+            <li><a href="#s7">Сколько это экономит</a></li>
+            <li><a href="#s8">Проекция в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Второй аргумент find</h2>
+        <p>У методов <code>find</code> и <code>find_one</code> два аргумента, и оба — документы:</p>
+        <div class="ops">
+          <div><b>первый</b><span>Фильтр: <em>какие</em> документы вернуть.</span><i>какие</i></div>
+          <div><b>второй</b><span>Проекция: <em>какие поля</em> у этих документов вернуть.</span><i>что в них</i></div>
+        </div>
+        <p>Проекция — тоже документ: имя поля и <code>1</code>, если поле нужно, или <code>0</code>, если не нужно. По умолчанию, когда второго аргумента нет, возвращается документ целиком — со всеми полями, включая те, которые вам сейчас не пригодятся.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Включающая проекция</h2>
+        <p>Перечисляем поля, которые хотим видеть. Всё остальное сервер не пришлёт.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>только название и цена</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>(
+        {<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>},
+        {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'p-002', 'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
+{'_id': 'p-003', 'title': 'Ноутбук HP Pavilion 14', 'price': 67900}
+{'_id': 'p-004', 'title': 'Ноутбук Apple MacBook Air 13', 'price': 114990}
+{'_id': 'p-005', 'title': 'Ноутбук Acer Nitro V15', 'price': 89990}
+{'_id': 'p-001', 'title': 'Ноутбук Lenovo IdeaPad 3', 'price': 42990}</pre>
+          </figure>
+        </div>
+        <p>Мы просили два поля, а приехало три: <code>_id</code> добавляется всегда. Это единственное поле, которое возвращается по умолчанию даже во включающей проекции, — и убирается только явно.</p>
+        <div class="margin-note">
+          <b>На полях: вместо 1 и 0 можно писать true и false</b>
+          <p>Проекция <code>{"title": True, "price": True}</code> означает то же самое. Единица короче и привычнее по документации, но если в вашем коде уже принято писать <code>True</code>, база не возразит. Значение <code>1</code> и любое ненулевое число, и <code>True</code> — для сервера одно и то же.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Как убрать <code>_id</code></h2>
+        <p>Ключ выбрасывают, когда результат идёт наружу: в CSV-выгрузку, в ответ API, в отчёт. Для этого его указывают явным нулём.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>без ключа</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>(
+        {<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>},
+        {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}).<span class="f">limit</span>(<span class="n">2</span>):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
+{'title': 'Ноутбук HP Pavilion 14', 'price': 67900}</pre>
+          </figure>
+        </div>
+        <p>Получилось ровно два поля. Заметьте: в одном документе встретились и <code>1</code>, и <code>0</code> — и сервер не возразил. Это то самое исключение, о котором речь в §5: <code>_id</code> разрешено выключать в любой проекции.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Исключающая проекция</h2>
+        <p>Обратный подход: вернуть документ целиком, но без нескольких тяжёлых полей. Так делают, когда полей много и перечислять нужные дольше, чем ненужные.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>всё, кроме трёх полей</span></figcaption>
+<pre>doc = products.<span class="f">find_one</span>(
+    {<span class="s">"_id"</span>: <span class="s">"p-020"</span>},
+    {<span class="s">"stock"</span>: <span class="n">0</span>, <span class="s">"specs"</span>: <span class="n">0</span>, <span class="s">"added"</span>: <span class="n">0</span>})
+<span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'p-020',
+ 'sku': 'SKU-AC-020',
+ 'title': 'Кабель USB-C 2 м',
+ 'brand': 'OEM',
+ 'category': 'аксессуары',
+ 'price': 790,
+ 'rating': 4.0,
+ 'reviews': 39}</pre>
+          </figure>
+        </div>
+        <p>Три поля исчезли, остальные вернулись как есть. У этого подхода есть особенность, о которой стоит помнить: <strong>новое поле, добавленное в документы завтра, попадёт в такой ответ автоматически</strong>. Иногда это удобно, иногда — способ случайно отдать наружу поле, которое отдавать не собирались. В ответах API надёжнее перечислять нужные поля явно.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Смешивать нельзя</h2>
+        <p>В одной проекции нельзя одновременно включать одни поля и исключать другие. Сервер откажется выполнять такой запрос.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Так нельзя</span><span>включение и исключение вместе</span></figcaption>
+<pre>products.<span class="f">find_one</span>({}, {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"stock"</span>: <span class="n">0</span>})</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
+<pre>OperationFailure: Cannot do exclusion on field stock
+in inclusion projection</pre>
+          </figure>
+        </div>
+        <p>Логика простая: вы либо перечисляете белый список, либо чёрный. Смешение неоднозначно — непонятно, что делать с полями, которых нет ни в одном списке. Единственное исключение — <code>_id</code>: его разрешено выключать в любой проекции, потому что он подразумевается всегда.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Проекция</th><th>Что вернётся</th><th>Допустимо</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"title": 1, "price": 1}</code></td><td><code>_id</code>, <code>title</code>, <code>price</code></td><td>да</td></tr>
+              <tr><td><code>{"_id": 0, "title": 1}</code></td><td>только <code>title</code></td><td>да, <code>_id</code> — исключение</td></tr>
+              <tr><td><code>{"stock": 0, "specs": 0}</code></td><td>всё, кроме этих двух полей</td><td>да</td></tr>
+              <tr><td><code>{"title": 1, "stock": 0}</code></td><td>—</td><td>нет, <code>OperationFailure</code></td></tr>
+              <tr><td><code>{}</code></td><td>документ целиком</td><td>да, то же, что без проекции</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Вложенные поля в проекции</h2>
+        <p>Путь через точку работает и здесь: можно забрать одно поле из вложенного документа, не вытаскивая его целиком.</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>город доставки и сумма</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">find</span>(
+        {<span class="s">"status"</span>: <span class="s">"доставлен"</span>},
+        {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>, <span class="s">"delivery.city"</span>: <span class="n">1</span>}).<span class="f">limit</span>(<span class="n">3</span>):
+    <span class="f">print</span>(doc)</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0001', 'total': 5980, 'delivery': {'city': 'Ярославль'}}
+{'number': '2026-0011', 'total': 85980, 'delivery': {'city': 'Санкт-Петербург'}}
+{'number': '2026-0012', 'total': 222740, 'delivery': {'city': 'Новосибирск'}}</pre>
+        </figure>
+        <p>Структура сохраняется: <code>delivery</code> остаётся вложенным документом, просто с одним полем внутри. «Поднять» значение на верхний уровень проекция не умеет — для этого нужен <code>$project</code> в агрегации, глава 4.2.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Сколько это экономит</h2>
+        <p>На двадцати одном товаре разницы не почувствуешь. Посчитаем на заказах: полный документ заказа против трёх полей.</p>
+        <div class="stat">
+          <span><strong>565</strong><em>байт — средний размер документа заказа</em></span>
+          <span><strong>85</strong><em>байт — те же три поля с проекцией</em></span>
+          <span><strong>120</strong><em>заказов в коллекции сейчас</em></span>
+        </div>
+        <p>При выводе списка заказов на экран разница — 68 килобайт против 10: в шесть с половиной раз меньше по сети и в памяти. На коллекции в миллион документов та же проекция превращает гигабайты в сотни мегабайт. И это ещё до всякой оптимизации запросов.</p>
+        <p>Правило, к которому стоит привыкнуть сразу: <strong>если поле не показывают и по нему не считают — его не запрашивают</strong>. Особенно это касается больших массивов вроде <code>items</code> в заказе: список позиций не нужен, когда на экране только номер и сумма.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Проекция в Compass</h2>
+        <p>В Compass проекция живёт в поле <b>Project</b> — оно раскрывается кнопкой <b>Options</b> справа от строки фильтра. Пишется туда ровно тот же документ.</p>
+        <figure class="shot">
+          <img src="../../shots/07-projection.png" alt="Строка Project в MongoDB Compass с проекцией title и price, документы показаны с двумя полями">
+          <figcaption>Compass · <code>shop.products</code> — фильтр по категории и проекция <code>{ title: 1, price: 1, _id: 0 }</code></figcaption>
+        </figure>
+        <p>Приём для отладки: сначала подобрать фильтр без проекции, глядя на документы целиком, а потом добавить проекцию и убедиться, что нужные поля на месте. Готовый запрос переносится в код целиком — оба документа, фильтр и проекция.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>find({}, ["title", "price"])</code></td><td>Список вместо документа: PyMongo примет, но это менее очевидная форма</td><td>Писать документом: <code>{"title": 1, "price": 1}</code></td></tr>
+              <tr><td><code>{"title": 1, "stock": 0}</code></td><td><code>OperationFailure: Cannot do exclusion on field stock in inclusion projection</code></td><td>Выбрать одно: либо белый список, либо чёрный</td></tr>
+              <tr><td>Ожидание, что <code>_id</code> исчезнет сам</td><td><code>_id</code> приезжает всегда</td><td>Указать <code>"_id": 0</code> явно</td></tr>
+              <tr><td><code>{"delivery.city": 1}</code> и ожидание строки</td><td>Вернётся <code>{'delivery': {'city': ...}}</code> — структура сохраняется</td><td>Разворачивать в коде или использовать <code>$project</code> в агрегации</td></tr>
+              <tr><td>Проекция вместо фильтра: <code>find({"title": 1})</code></td><td>Ищет документы, где <code>title</code> равен числу 1. Результат пуст</td><td>Фильтр — первый аргумент, проекция — второй</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Мы попросили <code>{"title": 1}</code>, а получили два поля. Почему?</summary>
+          <p><code>_id</code> возвращается всегда, если не выключен явно. Чтобы получить только название, нужна проекция <code>{"_id": 0, "title": 1}</code>.</p>
+        </details>
+        <details>
+          <summary>Почему нельзя написать <code>{"title": 1, "stock": 0}</code>?</summary>
+          <p>Потому что непонятно, что делать с остальными полями: включать их (раз есть исключение) или исключать (раз есть включение). Сервер отказывается угадывать и возвращает <code>OperationFailure</code>. Единственное поле, которое можно выключить в любой проекции, — <code>_id</code>.</p>
+        </details>
+        <details>
+          <summary>Когда исключающая проекция опаснее включающей?</summary>
+          <p>Когда результат уходит наружу. Поле, добавленное в документы позже, автоматически попадёт в ответ — вместе с данными, которые отдавать не собирались. В API безопаснее перечислять нужные поля явно.</p>
+        </details>
+        <details>
+          <summary>Что вернёт <code>{"_id": 0, "delivery.city": 1}</code> на заказе?</summary>
+          <p>Документ вида <code>{'delivery': {'city': 'Москва'}}</code>. Проекция сохраняет вложенность: она отбирает поля, но не меняет форму документа.</p>
+        </details>
+        <details>
+          <summary>Зачем нужна проекция, если можно отбросить лишние поля в Python?</summary>
+          <p>Потому что лишние поля к этому моменту уже проехали по сети и заняли память. Проекция отсекает их на сервере: меньше трафика, меньше работы клиенту, меньше времени ответа.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Только нужные поля</b>
+            <code>col.find({...},</code>
+            <code>  {"_id": 0, "title": 1})</code>
+          </div>
+          <div>
+            <b>Всё, кроме тяжёлого</b>
+            <code>col.find({...},</code>
+            <code>  {"items": 0})</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>{"delivery.city": 1}</code>
+            <code># вернётся вложенным</code>
+          </div>
+          <div>
+            <b>В mongosh</b>
+            <code>db.products.find(</code>
+            <code>  {category:"ноутбуки"},</code>
+            <code>  {_id:0, title:1, price:1})</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Проекция — второй документ в <code>find</code>: единицы означают «вернуть эти поля», нули — «вернуть все, кроме этих». Смешивать нельзя, кроме <code>_id</code>, который выключается всегда и приезжает по умолчанию. Вложенные поля адресуются через точку и сохраняют структуру. Экономия начинается сразу и растёт вместе с коллекцией. Дальше — порядок и порции: сортировка, ограничение и постраничный вывод.</p>
+
+        <div class="pager"><a href="../04-find-i-kursor/index.html">← 1.4 Чтение: find и курсор</a><a href="../06-sort-limit-skip/index.html">1.6 Порядок и порции →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.5 · Проекция · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

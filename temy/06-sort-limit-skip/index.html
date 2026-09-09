@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.6 Порядок и порции · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* Страницы выборки: наглядная лента skip/limit. */
+    .pages { display: flex; flex-wrap: wrap; gap: 4px; margin: 18px 0; }
+    .pages span { flex: 1 1 42px; padding: 10px 4px; text-align: center; border: 2px solid var(--ink); background: var(--page); font: 600 12px/1.3 var(--mono); }
+    .pages span.skipped { opacity: .35; }
+    .pages span.taken { background: var(--leaf-pale); border-color: var(--leaf); }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.6</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.6</span>
+          <h1>Порядок<br>и порции</h1>
+          <p class="lead">Данных всегда больше, чем помещается на экран. Разберём сортировку по одному и нескольким полям, ограничение выборки, постраничный вывод — и почему <code>skip</code> на большой коллекции работает всё медленнее с каждой страницей.</p>
+          <blockquote class="quote"><p>«Отсортировать миллион документов, чтобы показать десять, — обычная цена невнимательности.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Операции над данными</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Курсор, индексы, <code>$sort</code> в агрегации</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Показывать списки страницами и не выгружать коллекцию целиком</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">sort: порядок задаётся явно</a></li>
+            <li><a href="#s2">Сортировка по нескольким полям</a></li>
+            <li><a href="#s3">limit: сколько вернуть</a></li>
+            <li><a href="#s4">skip: постраничный вывод</a></li>
+            <li><a href="#s5">Порядок применения</a></li>
+            <li><a href="#s6">Чем плох skip на больших данных</a></li>
+            <li><a href="#s7">count_documents: сколько всего</a></li>
+            <li><a href="#s8">Сортировка в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>sort: порядок задаётся явно</h2>
+        <p>Метод <code>sort</code> вызывается у курсора и принимает поле и направление: <code>1</code> — по возрастанию, <code>-1</code> — по убыванию.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>пять самых дорогих товаров</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}) \
+                     .<span class="f">sort</span>(<span class="s">"price"</span>, -<span class="n">1</span>) \
+                     .<span class="f">limit</span>(<span class="n">5</span>):
+    <span class="f">print</span>(<span class="s">f'{doc["price"]:>7} {doc["title"]}'</span>)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre> 114990 Ноутбук Apple MacBook Air 13
+  89990 Ноутбук Acer Nitro V15
+  79990 Смартфон Apple iPhone 15
+  67900 Ноутбук HP Pavilion 14
+  51490 Ноутбук ASUS VivoBook 15</pre>
+          </figure>
+        </div>
+        <p>В <code>mongosh</code> направление задаётся так же, но одним документом — и это ближе к тому, как запрос уходит на сервер:</p>
+        <figure class="code">
+          <figcaption><span>mongosh · оболочка</span><span>тот же запрос</span></figcaption>
+<pre>db.products.<span class="f">find</span>({}, { _id: <span class="n">0</span>, title: <span class="n">1</span>, price: <span class="n">1</span> })
+           .<span class="f">sort</span>({ price: -<span class="n">1</span> })
+           .<span class="f">limit</span>(<span class="n">5</span>)</pre>
+        </figure>
+        <div class="margin-note">
+          <b>На полях: как сортируются разные типы</b>
+          <p>Если в поле встречаются значения разных типов, сервер сортирует их в фиксированном порядке типов: сначала <code>null</code>, затем числа, затем строки, затем объекты, массивы, даты. Поэтому цена, записанная строкой <code>"9990"</code>, окажется <em>после</em> всех чисел — включая 114 990. Это ещё одна причина следить за типами при записи.</p>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Сортировка по нескольким полям</h2>
+        <p>Когда первое поле совпадает, порядок решает второе. Список пар передаётся так:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>по категории, внутри — по цене</span></figcaption>
+<pre>cursor = products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}) \
+                 .<span class="f">sort</span>([(<span class="s">"category"</span>, <span class="n">1</span>), (<span class="s">"price"</span>, -<span class="n">1</span>)])</pre>
+        </figure>
+        <p>Читается слева направо: сначала группируются категории по алфавиту, внутри каждой — товары от дорогих к дешёвым. Порядок полей в списке важен: поменяете местами — получите совсем другой список.</p>
+        <p>И ещё одна тонкость, из-за которой ломаются постраничные списки: <strong>сортировка должна быть однозначной</strong>. Если сортировать только по категории, порядок внутри категории не определён и может отличаться от запроса к запросу — а значит, один и тот же товар покажется на двух страницах подряд или не покажется вовсе. Лечится добавлением уникального поля последним ключом: <code>[("category", 1), ("_id", 1)]</code>.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>limit: сколько вернуть</h2>
+        <p><code>limit</code> ограничивает число документов в ответе. Это не «показать первые N из уже полученных» — сервер действительно прекращает работу, набрав нужное количество.</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>три самых свежих события</span></figcaption>
+<pre>events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>]
+
+<span class="k">for</span> doc <span class="k">in</span> events.<span class="f">find</span>({<span class="s">"level"</span>: <span class="s">"error"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"ts"</span>: <span class="n">1</span>, <span class="s">"service"</span>: <span class="n">1</span>, <span class="s">"status"</span>: <span class="n">1</span>}) \
+                .<span class="f">sort</span>(<span class="s">"ts"</span>, -<span class="n">1</span>).<span class="f">limit</span>(<span class="n">3</span>):
+    <span class="f">print</span>(doc)</pre>
+        </figure>
+        <p>Пара «сортировка + предел» — самый частый запрос в интерфейсах: последние заказы, топ товаров, свежие ошибки. Без <code>limit</code> тот же запрос вытянет всю коллекцию, и на 1200 событиях вы этого не заметите, а на миллионе — заметите сразу.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>skip: постраничный вывод</h2>
+        <p><code>skip</code> пропускает первые N документов. Вместе с <code>limit</code> он даёт страницы.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>вторая страница по пять</span></figcaption>
+<pre>page, per_page = <span class="n">2</span>, <span class="n">5</span>
+
+<span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>}) \
+                     .<span class="f">sort</span>(<span class="s">"title"</span>, <span class="n">1</span>) \
+                     .<span class="f">skip</span>((page - <span class="n">1</span>) * per_page) \
+                     .<span class="f">limit</span>(per_page):
+    <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Кабель USB-C 2 м
+Клавиатура Keychron K2
+Монитор Dell P2422H
+Мышь Logitech MX Master 3S
+Наушники Sony WH-1000XM5</pre>
+          </figure>
+        </div>
+        <p>Формула страницы всегда одна: <code>skip = (номер страницы − 1) × размер страницы</code>. Наглядно это выглядит так — серые документы сервер пропускает, зелёные отдаёт:</p>
+        <div class="pages">
+          <span class="skipped">1</span><span class="skipped">2</span><span class="skipped">3</span><span class="skipped">4</span><span class="skipped">5</span>
+          <span class="taken">6</span><span class="taken">7</span><span class="taken">8</span><span class="taken">9</span><span class="taken">10</span>
+          <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+        </div>
+        <p>Важное слово здесь — «пропускает». Сервер не перепрыгивает сразу к шестому документу: он честно перебирает первые пять и выбрасывает их. На второй странице это ничего не стоит, на двухтысячной — стоит уже заметно.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Порядок применения</h2>
+        <p>Методы курсора можно записывать в любой последовательности — результат от этого не изменится. Сервер всегда применяет их в одном порядке:</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>filter</b><span>Отбор документов по условию.</span><em>шаг 1</em></div>
+          <div class="pipeline__stage"><b>sort</b><span>Упорядочивание того, что отобралось.</span><em>шаг 2</em></div>
+          <div class="pipeline__stage"><b>skip</b><span>Пропуск первых N в этом порядке.</span><em>шаг 3</em></div>
+          <div class="pipeline__stage"><b>limit</b><span>Отдать не больше N документов.</span><em>шаг 4</em></div>
+        </div>
+        <p>Отсюда следует то, что часто путают: <code>.limit(5).sort("price", -1)</code> и <code>.sort("price", -1).limit(5)</code> вернут <strong>одно и то же</strong> — пять самых дорогих товаров. Сортировка выполняется до предела в обоих случаях. А вот в агрегации, где стадии идут ровно в том порядке, в каком записаны, разница будет принципиальной — это разберём в главе 4.5.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Чем плох skip на больших данных</h2>
+        <p>Проверим утверждение из §4 замером. Возьмём коллекцию на 20 000 документов и достанем десять последних двумя способами: пропуском и фильтром по «якорю» — последнему ключу с предыдущей страницы.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Способ 1</span><span>skip</span></figcaption>
+<pre>col.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">1</span>}) \
+   .<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>) \
+   .<span class="f">skip</span>(<span class="n">19990</span>).<span class="f">limit</span>(<span class="n">10</span>)</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>Способ 2</span><span>якорь</span></figcaption>
+<pre>col.<span class="f">find</span>({<span class="s">"_id"</span>: {<span class="s">"$gt"</span>: last_seen_id}}, {<span class="s">"_id"</span>: <span class="n">1</span>}) \
+   .<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>) \
+   .<span class="f">limit</span>(<span class="n">10</span>)</pre>
+          </figure>
+        </div>
+        <div class="stat">
+          <span><strong>3.94 мс</strong><em>через skip(19990)</em></span>
+          <span><strong>0.23 мс</strong><em>через якорь по <code>_id</code></em></span>
+          <span><strong>×17</strong><em>разница на 20 000 документов</em></span>
+        </div>
+        <p>Разница растёт вместе с номером страницы: <code>skip</code> тем дороже, чем дальше страница, а якорь стоит одинаково всегда, потому что сервер сразу прыгает по индексу в нужное место. Отсюда и практика: в лентах и бесконечной прокрутке «страницы» делают именно якорем, а нумерованный постраничный вывод со <code>skip</code> оставляют для админок, где данных немного.</p>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: якорь требует однозначной сортировки</b>
+          <p>Приём с якорем работает, пока поле сортировки уникально. Если сортируете по цене, у которой бывают повторы, добавляйте вторым ключом <code>_id</code>, а условие пишите по паре значений — иначе товары с одинаковой ценой будут пропадать между страницами.</p>
+        </div>
+
+        <h2 id="s7"><span class="sec">§7</span>count_documents: сколько всего</h2>
+        <p>Чтобы показать «страница 2 из 5», нужно знать общее число документов. Считает его сервер — методом <code>count_documents</code> с обязательным фильтром.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>счёт по фильтру</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"всего товаров:"</span>, products.<span class="f">count_documents</span>({}))
+<span class="f">print</span>(<span class="s">"ноутбуков:"</span>, products.<span class="f">count_documents</span>({<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>}))
+<span class="f">print</span>(<span class="s">"заказов:"</span>, orders.<span class="f">count_documents</span>({}))
+<span class="f">print</span>(<span class="s">"доставленных:"</span>, orders.<span class="f">count_documents</span>({<span class="s">"status"</span>: <span class="s">"доставлен"</span>}))</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего товаров: 21
+ноутбуков: 5
+заказов: 120
+доставленных: 69</pre>
+          </figure>
+        </div>
+        <p>Пустой документ <code>{}</code> обязателен — метод не имеет значения по умолчанию, и это сделано намеренно: «посчитать всё» должно быть написано явно. Есть ещё <code>estimated_document_count()</code> — он берёт число из служебных данных коллекции мгновенно, но не принимает фильтр и может слегка расходиться с действительностью. Для счётчика на главной странице годится, для отчёта — нет.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Сортировка в Compass</h2>
+        <p>В Compass <b>Sort</b>, <b>Limit</b> и <b>Skip</b> лежат там же, где проекция, — под кнопкой <b>Options</b>. Заполняются теми же документами.</p>
+        <figure class="shot">
+          <img src="../../shots/08-sort-limit.png" alt="Опции Sort и Limit в MongoDB Compass: сортировка по цене по убыванию, предел 5">
+          <figcaption>Compass · <code>shop.products</code> — <code>sort: { price: -1 }</code>, <code>limit: 5</code>: те же пять товаров, что и в коде</figcaption>
+        </figure>
+        <p>Обратите внимание на счётчик над списком: он показывает <code>1 – 5 of 5</code>, а не <code>of 21</code>. Предел применяется до подсчёта, поэтому «сколько всего подошло» из этого числа не узнать. Чтобы получить настоящее количество, уберите <code>limit</code> — или спросите сервер отдельно, методом <code>count_documents</code>.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>.sort("price")</code> без направления</td><td>PyMongo сортирует по возрастанию; в <code>mongosh</code> такая запись — ошибка</td><td>Указывать направление явно: <code>.sort("price", -1)</code></td></tr>
+              <tr><td><code>.sort("category", 1)</code> для постраничного вывода</td><td>Порядок внутри категории не определён — документы «прыгают» между страницами</td><td>Добавить уникальный ключ: <code>[("category", 1), ("_id", 1)]</code></td></tr>
+              <tr><td><code>count_documents()</code> без аргумента</td><td><code>TypeError: missing 1 required positional argument: 'filter'</code></td><td><code>count_documents({})</code></td></tr>
+              <tr><td>Сортировка по полю без индекса на большой коллекции</td><td>Сервер сортирует в памяти и при 100 МБ отказывается: <code>Sort exceeded memory limit</code></td><td>Построить индекс по полю сортировки — глава 3.2</td></tr>
+              <tr><td><code>skip</code> на глубоких страницах ленты</td><td>Чем дальше страница, тем медленнее ответ</td><td>Листать якорем: <code>{"_id": {"$gt": последний}}</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Отличается ли <code>.limit(5).sort("price", -1)</code> от <code>.sort("price", -1).limit(5)</code>?</summary>
+          <p>Нет. Курсор передаёт запрос серверу целиком, а сервер всегда применяет сначала фильтр, затем сортировку, затем <code>skip</code> и <code>limit</code>. Оба варианта вернут пять самых дорогих товаров.</p>
+        </details>
+        <details>
+          <summary>Какой <code>skip</code> нужен для третьей страницы по 20 записей?</summary>
+          <p><code>(3 − 1) × 20 = 40</code>. То есть <code>.skip(40).limit(20)</code>.</p>
+        </details>
+        <details>
+          <summary>Почему <code>skip(19990)</code> оказался в 17 раз медленнее фильтра по якорю?</summary>
+          <p>Потому что <code>skip</code> не перепрыгивает: сервер перебирает и отбрасывает 19 990 документов, прежде чем начать отдавать. Фильтр по <code>_id</code> использует индекс и сразу переходит к нужному месту, поэтому его стоимость не зависит от номера страницы.</p>
+        </details>
+        <details>
+          <summary>Товар с ценой, записанной строкой <code>"9990"</code>, при сортировке по убыванию окажется первым?</summary>
+          <p>Нет, он окажется впереди только относительно других строк: при сортировке по убыванию сначала идут более «старшие» типы, и строки идут после чисел. То есть по возрастанию строка будет после всех чисел, по убыванию — перед ними. Практический вывод один: не смешивайте типы в одном поле.</p>
+        </details>
+        <details>
+          <summary>Чем <code>count_documents({})</code> отличается от <code>estimated_document_count()</code>?</summary>
+          <p>Первый честно считает документы по фильтру — точно и не мгновенно. Второй берёт готовую оценку из служебных данных коллекции — мгновенно, но без фильтра и с возможной погрешностью.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Сортировка</b>
+            <code>.sort("price", -1)</code>
+            <code>.sort([("category", 1),</code>
+            <code>       ("price", -1)])</code>
+          </div>
+          <div>
+            <b>Топ-N</b>
+            <code>col.find({}).sort(</code>
+            <code>  "price", -1).limit(5)</code>
+          </div>
+          <div>
+            <b>Страница</b>
+            <code>.skip((page-1)*size)</code>
+            <code>.limit(size)</code>
+          </div>
+          <div>
+            <b>Счёт</b>
+            <code>col.count_documents({})</code>
+            <code>col.count_documents(</code>
+            <code>  {"status": "доставлен"})</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>sort</code> задаёт порядок (и без него порядка нет), <code>limit</code> ограничивает выборку, <code>skip</code> отсчитывает страницы. Сервер применяет их в фиксированном порядке — фильтр, сортировка, пропуск, предел, — поэтому запись методов у курсора можно менять местами. На больших коллекциях <code>skip</code> дорожает с каждой страницей, и листать надёжнее якорем. Читать мы научились; следующая глава — про изменение того, что уже лежит в базе.</p>
+
+        <div class="pager"><a href="../05-proekciya/index.html">← 1.5 Проекция</a><a href="../07-obnovlenie/index.html">1.7 Обновление документов →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.6 · Порядок и порции · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

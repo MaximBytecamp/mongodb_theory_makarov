@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.7 Обновление документов · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.7</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.7</span>
+          <h1>Обновление<br>документов</h1>
+          <p class="lead">Третья операция — изменить то, что уже лежит в базе. Разберём операторы <code>$set</code>, <code>$inc</code> и <code>$unset</code>, поймём разницу между «нашлось» и «изменилось», научимся менять пачку документов одним запросом и увидим, что делает <code>upsert</code>.</p>
+          <blockquote class="quote"><p>«Запрос на обновление без фильтра — самый дорогой способ узнать, что такое резервная копия.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Операции над данными</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Вставка, удаление, операторы фильтра</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Менять данные точечно и понимать, что именно изменилось</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Два документа: кого и что</a></li>
+            <li><a href="#s2">$set: задать значение</a></li>
+            <li><a href="#s3">matched против modified</a></li>
+            <li><a href="#s4">$inc и $unset</a></li>
+            <li><a href="#s5">update_many: пачкой</a></li>
+            <li><a href="#s6">upsert: обновить или создать</a></li>
+            <li><a href="#s7">Обновление без операторов</a></li>
+            <li><a href="#s8">Правка документа в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Два документа: кого и что</h2>
+        <p>У любого обновления два аргумента, и оба — документы:</p>
+        <div class="ops">
+          <div><b>фильтр</b><span>Кого менять. Тот же самый фильтр, что и в <code>find</code>, — со всеми его правилами.</span><i>кого</i></div>
+          <div><b>изменение</b><span>Что делать. Документ из <em>операторов обновления</em>: <code>$set</code>, <code>$inc</code>, <code>$unset</code> и других.</span><i>что</i></div>
+        </div>
+        <p>Методов тоже два: <code>update_one</code> меняет <strong>первый подходящий</strong> документ, <code>update_many</code> — <strong>все подходящие</strong>. Разница в одном слове, а последствия разные: если фильтр случайно подошёл к сотне документов, <code>update_one</code> испортит один, а <code>update_many</code> — сто.</p>
+        <p>Работаем, как и в главе о вставке, в песочнице:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>подключение</span></figcaption>
+<pre>box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>]</pre>
+        </figure>
+
+        <h2 id="s2"><span class="sec">§2</span>$set: задать значение</h2>
+        <p>Оператор <code>$set</code> записывает значение в поле. Если поля не было — оно появится, если было — заменится. Остальные поля документа не тронуты.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>новая цена одного товара</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(
+    {<span class="s">"_id"</span>: <span class="s">"p-101"</span>},
+    {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">2690</span>}})
+
+<span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
+<pre>db.products.<span class="f">updateOne</span>(
+  { _id: <span class="s">"p-101"</span> },
+  { <span class="o">$set</span>: { price: <span class="n">2690</span> } })</pre>
+          </figure>
+        </div>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 1 modified: 1</pre>
+        </figure>
+        <p>Одним <code>$set</code> можно задать сразу несколько полей, в том числе вложенных — через точку:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>несколько полей и вложенное</span></figcaption>
+<pre>orders_box.<span class="f">update_one</span>(
+    {<span class="s">"_id"</span>: <span class="s">"o-0001"</span>},
+    {<span class="s">"$set"</span>: {
+        <span class="s">"status"</span>: <span class="s">"доставлен"</span>,
+        <span class="s">"payment.paid"</span>: <span class="k">True</span>,        <span class="c"># поле внутри вложенного документа</span>
+        <span class="s">"delivery.days"</span>: <span class="n">2</span>,
+    }})</pre>
+        </figure>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: точка обязательна</b>
+          <p>Запись <code>{"$set": {"payment": {"paid": True}}}</code> не поменяет одно поле — она <strong>заменит весь вложенный документ</strong> <code>payment</code> на новый, в котором есть только <code>paid</code>. Способ оплаты при этом исчезнет. Чтобы изменить одно поле внутри, путь пишут через точку: <code>"payment.paid"</code>.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>matched против modified</h2>
+        <p>Результат обновления возвращает два числа, и разница между ними важнее, чем кажется.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>то же значение второй раз</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-101"</span>}, {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">2690</span>}})
+<span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
+<pre>matched: 1 modified: 0</pre>
+          </figure>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>matched</th><th>modified</th><th>Что это значит</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>1</td><td>Документ найден и изменён — обычный успешный случай</td></tr>
+              <tr><td>1</td><td>0</td><td>Документ найден, но в поле уже лежало это же значение. Запись не понадобилась</td></tr>
+              <tr><td>0</td><td>0</td><td>Фильтр не подошёл ни к одному документу. Менять было нечего</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Практический вывод: <strong>проверять надо <code>matched_count</code></strong>, а не <code>modified_count</code>. Если API отвечает «объект не найден» по нулевому <code>modified</code>, он будет врать каждый раз, когда пользователь сохранил форму, ничего в ней не поменяв.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>$inc и $unset</h2>
+        <p><code>$set</code> — не единственный оператор. Два других нужны почти так же часто.</p>
+        <div class="ops">
+          <div><b>$inc</b><span>Прибавить число к текущему значению. Отрицательное — вычесть. Если поля не было, оно появится с этим значением.</span><i>счётчики</i></div>
+          <div><b>$unset</b><span>Удалить поле целиком. Значение справа не важно — пишут пустую строку.</span><i>чистка</i></div>
+        </div>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>+1 к отзывам, скидка снята</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(
+    {<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
+    {<span class="s">"$inc"</span>: {<span class="s">"reviews"</span>: <span class="n">1</span>},
+     <span class="s">"$unset"</span>: {<span class="s">"discount"</span>: <span class="s">""</span>}})
+
+<span class="f">print</span>(box.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
+                  {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"reviews"</span>: <span class="n">1</span>, <span class="s">"discount"</span>: <span class="n">1</span>}))</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 1 modified: 1
+{'_id': 'p-003', 'title': 'Ноутбук HP Pavilion 14', 'reviews': 32}</pre>
+          </figure>
+        </div>
+        <p>Было 31 отзыв, стало 32; поля <code>discount</code> в документе больше нет — не <code>null</code>, а именно нет. Разница существенная: <code>{"discount": {"$exists": False}}</code> найдёт такой товар, а <code>{"discount": None}</code> — нет.</p>
+        <p>Почему <code>$inc</code>, а не «прочитать, прибавить, записать»? Потому что второй способ теряет данные при одновременной работе: два процесса прочитают 31, оба запишут 32, и один отзыв пропадёт. <code>$inc</code> выполняется на сервере как одно неделимое действие, и такой потери не будет. Это тот случай, когда правильный оператор заменяет блокировки.</p>
+        <p>Рядом стоит запомнить ещё два: <code>$min</code> и <code>$max</code> записывают значение, только если оно меньше (больше) текущего, а <code>$rename</code> переименовывает поле. Операторы для массивов — <code>$push</code>, <code>$pull</code>, <code>$addToSet</code> — разберём после главы о массивах в фильтрах.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>update_many: пачкой</h2>
+        <p>Одинаковая правка для всех подходящих документов — это <code>update_many</code>. Форма та же, меняется только метод.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>бесплатная доставка аксессуаров</span></figcaption>
+<pre>res = box.<span class="f">update_many</span>(
+    {<span class="s">"category"</span>: <span class="s">"аксессуары"</span>},
+    {<span class="s">"$set"</span>: {<span class="s">"free_shipping"</span>: <span class="k">True</span>}})
+
+<span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 6 modified: 6</pre>
+          </figure>
+        </div>
+        <p>Шесть документов: три исходных аксессуара, коврик и две позиции, добавленные в главе о вставке. Поле <code>free_shipping</code> появилось у них и только у них — остальные товары не изменились.</p>
+        <div class="margin-note">
+          <b>На полях: сначала посчитайте, потом меняйте</b>
+          <p>Хорошая привычка перед любым <code>update_many</code> — выполнить <code>count_documents</code> с тем же фильтром. Число покажет, скольких документов коснётся правка, до того как она произойдёт. Если ожидали шесть, а видите шестьсот — фильтр написан не так, как задумано.</p>
+        </div>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>проверка перед правкой</span></figcaption>
+<pre>query = {<span class="s">"category"</span>: <span class="s">"аксессуары"</span>}
+
+<span class="f">print</span>(<span class="s">"будет изменено:"</span>, box.<span class="f">count_documents</span>(query))   <span class="c"># 6</span>
+box.<span class="f">update_many</span>(query, {<span class="s">"$set"</span>: {<span class="s">"free_shipping"</span>: <span class="k">True</span>}})</pre>
+        </figure>
+
+        <h2 id="s6"><span class="sec">§6</span>upsert: обновить или создать</h2>
+        <p>Параметр <code>upsert=True</code> говорит: «если документ не нашёлся — создай его». Один запрос вместо связки «проверить, потом вставить».</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>документа ещё нет</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(
+    {<span class="s">"_id"</span>: <span class="s">"p-999"</span>},
+    {<span class="s">"$set"</span>: {<span class="s">"title"</span>: <span class="s">"Товар из upsert"</span>, <span class="s">"price"</span>: <span class="n">100</span>}},
+    upsert=<span class="k">True</span>)
+
+<span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count,
+      <span class="s">"modified:"</span>, res.modified_count,
+      <span class="s">"upserted_id:"</span>, res.upserted_id)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 0 modified: 0 upserted_id: p-999</pre>
+          </figure>
+        </div>
+        <p>Ноль совпадений, ноль изменений — и новый документ. Обратите внимание, откуда взялся <code>_id</code>: из фильтра. При вставке через <code>upsert</code> сервер собирает документ из полей фильтра, где стоит точное равенство, и полей из <code>$set</code>.</p>
+        <p>Где это нужно на практике: счётчики и агрегаты, которые пишутся «на лету». Например, счётчик просмотров товара за день — не нужно проверять, есть ли уже запись за сегодня:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>счётчик, который создаётся сам</span></figcaption>
+<pre>stats.<span class="f">update_one</span>(
+    {<span class="s">"product_id"</span>: <span class="s">"p-003"</span>, <span class="s">"date"</span>: today},
+    {<span class="s">"$inc"</span>: {<span class="s">"views"</span>: <span class="n">1</span>}},
+    upsert=<span class="k">True</span>)</pre>
+        </figure>
+
+        <h2 id="s7"><span class="sec">§7</span>Обновление без операторов</h2>
+        <p>Что произойдёт, если забыть <code>$set</code> и передать просто документ? В PyMongo — ошибка, и это спасает данные:</p>
+        <figure class="code code--out">
+          <figcaption><span>Ошибка</span><span>update_one без оператора</span></figcaption>
+<pre>ValueError: update only works with $ operators</pre>
+        </figure>
+        <p>А вот метод <code>replace_one</code> делает ровно это — <strong>заменяет документ целиком</strong>. Все поля, которых нет в новом документе, исчезают; сохраняется только <code>_id</code>.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Метод</th><th>Что происходит с полями, которых нет в запросе</th><th>Когда применяют</th></tr></thead>
+            <tbody>
+              <tr><td><code>update_one</code> с <code>$set</code></td><td>Остаются как были</td><td>Почти всегда: точечная правка</td></tr>
+              <tr><td><code>replace_one</code></td><td>Удаляются</td><td>Когда клиент прислал документ целиком и он — источник истины</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Ошибка «сохранили форму — половина полей пропала» — это почти всегда <code>replace_one</code> там, где нужен был <code>$set</code>.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Правка документа в Compass</h2>
+        <p>В Compass документ правится прямо в списке: наведите на него курсор и нажмите карандаш. Поля меняются на месте, можно добавить новое или удалить существующее.</p>
+        <figure class="shot">
+          <img src="../../shots/09-update.png" alt="Документ p-003 в MongoDB Compass после обновления: reviews 32, поля discount нет">
+          <figcaption>Compass · <code>sandbox.products</code> после <code>$inc</code> и <code>$unset</code>: отзывов стало 32, поля <code>discount</code> в документе больше нет — не <code>null</code>, а именно нет</figcaption>
+        </figure>
+        <p>Тот же документ можно поправить и мышью — прямо в списке:</p>
+        <div class="ops">
+          <div><b>карандаш</b><span>Появляется справа вверху документа при наведении курсора. Включает режим правки прямо в списке.</span><i>шаг 1</i></div>
+          <div><b>правка полей</b><span>Значение меняется на месте; рядом с полем появляются кнопки «добавить поле» и «удалить поле». Изменённые строки подсвечиваются.</span><i>шаг 2</i></div>
+          <div><b>UPDATE</b><span>Compass показывает, что именно изменится, и сам собирает запрос с <code>$set</code>. Рядом — Cancel, чтобы отказаться.</span><i>шаг 3</i></div>
+        </div>
+        <p>Это удобный способ разобраться с оператором: поправьте документ мышью, посмотрите, что получилось, — а потом напишите то же самое запросом. Правка мышью хороша для разбора и для единичного исправления; всё, что делается больше одного раза, должно быть запросом в коде.</p>
+        <p>А вот как выглядит результат запроса из §4 — того самого, где мы прибавили отзыв и сняли скидку:</p>
+        <figure class="shot">
+          <img src="../../shots/09-update.png" alt="Документ p-003 в Compass после обновления: reviews равно 32, поля discount в документе нет">
+          <figcaption>Compass · <code>sandbox.products</code> после <code>$inc</code> и <code>$unset</code>: <code>reviews: 32</code>, а строки <code>discount</code> в документе больше нет</figcaption>
+        </figure>
+        <p>Обратите внимание на то, чего на кадре <em>нет</em>. Поле <code>discount</code> не стало пустым и не превратилось в <code>null</code> — оно исчезло из документа. Именно так работает <code>$unset</code>, и именно поэтому такой товар найдётся по фильтру <code>{"discount": {"$exists": False}}</code>.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>update_one({...}, {"price": 100})</code></td><td><code>ValueError: update only works with $ operators</code></td><td><code>{"$set": {"price": 100}}</code></td></tr>
+              <tr><td><code>{"$set": {"payment": {"paid": True}}}</code></td><td>Вложенный документ заменён целиком, остальные его поля потеряны</td><td><code>{"$set": {"payment.paid": True}}</code></td></tr>
+              <tr><td>Проверка результата по <code>modified_count</code></td><td>«Не найдено» при сохранении без изменений</td><td>Проверять <code>matched_count</code></td></tr>
+              <tr><td><code>update_many({}, {...})</code></td><td>Изменены все документы коллекции</td><td>Пустой фильтр — только осознанно; сначала <code>count_documents</code></td></tr>
+              <tr><td><code>replace_one</code> вместо <code>update_one</code></td><td>Поля, которых нет в новом документе, исчезли</td><td><code>update_one</code> с <code>$set</code></td></tr>
+              <tr><td>Прочитать, прибавить в Python, записать</td><td>При одновременной работе изменения теряются</td><td><code>$inc</code> — сервер выполнит это неделимо</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Результат: <code>matched: 1, modified: 0</code>. Что произошло?</summary>
+          <p>Документ нашёлся, но менять было нечего: в поле уже лежало то же значение. Это успех, а не ошибка.</p>
+        </details>
+        <details>
+          <summary>Чем <code>{"$set": {"delivery.city": "Москва"}}</code> отличается от <code>{"$set": {"delivery": {"city": "Москва"}}}</code>?</summary>
+          <p>Первый меняет одно поле внутри <code>delivery</code>, остальные его поля сохраняются. Второй заменяет весь вложенный документ — <code>type</code> и <code>days</code> будут потеряны.</p>
+        </details>
+        <details>
+          <summary>Почему счётчик просмотров стоит увеличивать через <code>$inc</code>, а не читать и записывать из кода?</summary>
+          <p>Потому что между чтением и записью значение может изменить другой процесс, и одно из увеличений потеряется. <code>$inc</code> выполняется на сервере одним неделимым действием.</p>
+        </details>
+        <details>
+          <summary>Что делает <code>upsert=True</code>, если документ не найден, и откуда берётся его <code>_id</code>?</summary>
+          <p>Создаёт новый документ из полей фильтра с точным равенством и полей обновления. Ключ берётся из фильтра, если он там задан; иначе сервер сгенерирует ObjectId. Номер созданного документа возвращается в <code>upserted_id</code>.</p>
+        </details>
+        <details>
+          <summary>Как удалить поле из документа и чем это отличается от записи <code>None</code>?</summary>
+          <p>Удаляет <code>$unset</code>: <code>{"$unset": {"discount": ""}}</code>. После него поля в документе нет — его найдёт <code>{"discount": {"$exists": False}}</code>. Запись <code>None</code> оставляет поле со значением <code>null</code>, и это разные состояния.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Изменить поле</b>
+            <code>col.update_one(</code>
+            <code>  {"_id": "p-101"},</code>
+            <code>  {"$set": {"price": 2690}})</code>
+          </div>
+          <div>
+            <b>Счётчик и удаление поля</b>
+            <code>{"$inc": {"reviews": 1}}</code>
+            <code>{"$unset": {"discount": ""}}</code>
+          </div>
+          <div>
+            <b>Пачкой</b>
+            <code>col.update_many(</code>
+            <code>  {"category": "аксессуары"},</code>
+            <code>  {"$set": {...}})</code>
+          </div>
+          <div>
+            <b>Обновить или создать</b>
+            <code>col.update_one(query, upd,</code>
+            <code>  upsert=True)</code>
+            <code>res.upserted_id</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Обновление — это два документа: фильтр «кого» и операторы «что». <code>$set</code> задаёт значение, <code>$inc</code> прибавляет неделимо, <code>$unset</code> убирает поле. <code>update_one</code> меняет первый подходящий документ, <code>update_many</code> — все, поэтому фильтр стоит сначала проверить счётчиком. Проверять результат нужно по <code>matched_count</code>: ноль изменений не значит «не найдено». Осталась последняя из четырёх операций — удаление.</p>
+
+        <div class="pager"><a href="../06-sort-limit-skip/index.html">← 1.6 Порядок и порции</a><a href="../08-udalenie/index.html">1.8 Удаление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.7 · Обновление документов · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

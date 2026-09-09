@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.4 Чтение: find и курсор · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.4</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.4</span>
+          <h1>Чтение:<br>find и курсор</h1>
+          <p class="lead">Достать документы из коллекции — вторая базовая операция. Разберём разницу между <code>find_one</code> и <code>find</code>, поймём, что такое курсор и почему его нельзя пройти дважды, и увидим, что фильтр — это обычный документ.</p>
+          <blockquote class="quote"><p>«Пустой результат — это тоже ответ. Вопрос в том, на какой вопрос он получен.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Операции над данными</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Проекция, сортировка, язык фильтров</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Читать данные порциями и понимать, почему результат пуст</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">find_one: первый подходящий</a></li>
+            <li><a href="#s2">Фильтр — это документ</a></li>
+            <li><a href="#s3">find: курсор, а не список</a></li>
+            <li><a href="#s4">Курсор проходится один раз</a></li>
+            <li><a href="#s5">Порядок без сортировки не определён</a></li>
+            <li><a href="#s6">Точечная нотация: внутрь документа</a></li>
+            <li><a href="#s7">Тот же запрос в Compass</a></li>
+            <li><a href="#s8">Пустой результат: что проверить</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>find_one: первый подходящий</h2>
+        <p>Метод <code>find_one</code> возвращает <strong>один документ</strong> — как обычный словарь Python — или <code>None</code>, если ничего не нашлось.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>один документ</span></figcaption>
+<pre>products = client[<span class="s">"shop"</span>][<span class="s">"products"</span>]
+
+one = products.<span class="f">find_one</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
+<span class="f">print</span>(one[<span class="s">"title"</span>], one[<span class="s">"price"</span>])</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'p-006',
+ 'sku': 'SKU-PH-006',
+ 'title': 'Смартфон Xiaomi Redmi Note 13',
+ 'brand': 'Xiaomi',
+ 'category': 'смартфоны',
+ 'price': 18990,
+ 'specs': ['6.67"', '128 ГБ'],
+ 'stock': [{'warehouse': 'Санкт-Петербург', 'qty': 3},
+           {'warehouse': 'Москва-1', 'qty': 5}],
+ 'rating': 3.7,
+ 'reviews': 139,
+ 'added': datetime.datetime(2026, 4, 11, 0, 0)}</pre>
+          </figure>
+        </div>
+        <p>Смартфонов в коллекции четыре, а вернулся один — тот, который сервер нашёл первым. <strong>Какой именно — не определено</strong>: без сортировки «первый» означает «первый попавшийся», а не «самый дешёвый» или «самый ранний». Если вам нужен конкретный, добавляйте сортировку.</p>
+        <p>Когда совпадений нет, исключения не будет:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>ничего не нашлось</span></figcaption>
+<pre>missing = products.<span class="f">find_one</span>({<span class="s">"category"</span>: <span class="s">"велосипеды"</span>})
+<span class="f">print</span>(missing)          <span class="c"># None</span>
+
+<span class="c"># поэтому обращаться к полям можно только после проверки</span>
+<span class="k">if</span> missing <span class="k">is</span> <span class="k">not</span> <span class="k">None</span>:
+    <span class="f">print</span>(missing[<span class="s">"title"</span>])</pre>
+        </figure>
+
+        <h2 id="s2"><span class="sec">§2</span>Фильтр — это документ</h2>
+        <p>Аргумент, который мы передаём, — <span class="term">фильтр</span>. Это обычный документ: поля в нём означают условия, а не значения для записи.</p>
+        <div class="ops">
+          <div><b>{}</b><span>Пустой фильтр — условий нет, подходят все документы коллекции.</span><i>21 из 21</i></div>
+          <div><b>{"category": "ноутбуки"}</b><span>Поле <code>category</code> в точности равно этой строке.</span><i>5 из 21</i></div>
+          <div><b>{"category": "ноутбуки", "brand": "HP"}</b><span>Два поля в одном документе — это «и». Оба условия должны выполниться.</span><i>1 из 21</i></div>
+        </div>
+        <p>Перечисление полей через запятую — это всегда «и», отдельного оператора для такого случая не нужно. «Или», сравнения и условия по массивам — тоже документы, только со специальными полями-операторами; им посвящён весь модуль 2.</p>
+        <div class="margin-note">
+          <b>На полях: почему это удобно</b>
+          <p>Раз фильтр — документ, его можно собрать в коде: положить в словарь, дополнить по условию, передать дальше как параметр функции. Не нужно склеивать строку запроса, а значит, нет и целого класса ошибок, знакомых по SQL, — от кавычки в имени до подстановки чужого условия.</p>
+        </div>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>фильтр собирается по частям</span></figcaption>
+<pre><span class="k">def</span> <span class="f">search</span>(category=<span class="k">None</span>, brand=<span class="k">None</span>):
+    query = {}
+    <span class="k">if</span> category:
+        query[<span class="s">"category"</span>] = category
+    <span class="k">if</span> brand:
+        query[<span class="s">"brand"</span>] = brand
+    <span class="k">return</span> <span class="f">list</span>(products.<span class="f">find</span>(query))</pre>
+        </figure>
+
+        <h2 id="s3"><span class="sec">§3</span>find: курсор, а не список</h2>
+        <p>Метод <code>find</code> возвращает все подходящие документы — но не сразу и не списком. Он возвращает <span class="term">курсор</span>: объект, который будет подтягивать документы с сервера по мере того, как вы их перебираете.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>перебор курсора</span></figcaption>
+<pre>cursor = products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
+<span class="f">print</span>(<span class="f">type</span>(cursor).__name__)
+
+<span class="k">for</span> doc <span class="k">in</span> cursor:
+    <span class="f">print</span>(doc[<span class="s">"_id"</span>], doc[<span class="s">"title"</span>], doc[<span class="s">"price"</span>])</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Cursor
+p-006 Смартфон Xiaomi Redmi Note 13 18990
+p-007 Смартфон Samsung Galaxy A55 32990
+p-009 Смартфон realme 12 Pro 27490
+p-008 Смартфон Apple iPhone 15 79990</pre>
+          </figure>
+        </div>
+        <p>Почему не список? Потому что в коллекции может быть миллион подходящих документов, и загружать их все в память не нужно. Курсор забирает данные <strong>пачками</strong> (по умолчанию первая пачка — 101 документ), а следующую запрашивает, когда предыдущая закончилась. Программа при этом работает с обычным перебором и о пачках не знает.</p>
+        <p>Если документов заведомо немного и они нужны все сразу, курсор превращают в список явно:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>курсор → список</span></figcaption>
+<pre>items = <span class="f">list</span>(products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>}))
+<span class="f">print</span>(<span class="f">len</span>(items))        <span class="c"># 4</span></pre>
+        </figure>
+
+        <h2 id="s4"><span class="sec">§4</span>Курсор проходится один раз</h2>
+        <p>Это свойство удивляет каждого, кто впервые перепутал курсор со списком. Курсор — <strong>одноразовый</strong>: он помнит, где остановился, и после полного прохода становится пустым.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>второй проход</span></figcaption>
+<pre>cursor = products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
+
+<span class="k">for</span> doc <span class="k">in</span> cursor:
+    <span class="f">print</span>(doc[<span class="s">"_id"</span>])       <span class="c"># четыре строки</span>
+
+<span class="f">print</span>(<span class="s">"второй проход:"</span>, <span class="f">list</span>(cursor))</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй проход: []</pre>
+          </figure>
+        </div>
+        <p>Отсюда правило: <strong>если результат нужен дважды, сохраните его в список</strong>. Типичная ошибка выглядит безобидно — сначала посчитали длину, потом вывели:</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Так не работает</span><span>курсор уже пройден</span></figcaption>
+<pre>cursor = products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>})
+
+<span class="f">print</span>(<span class="s">"найдено:"</span>, <span class="f">len</span>(<span class="f">list</span>(cursor)))   <span class="c"># 5</span>
+<span class="k">for</span> doc <span class="k">in</span> cursor:                  <span class="c"># ни одной строки</span>
+    <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>Так работает</span><span>список</span></figcaption>
+<pre>items = <span class="f">list</span>(products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>}))
+
+<span class="f">print</span>(<span class="s">"найдено:"</span>, <span class="f">len</span>(items))          <span class="c"># 5</span>
+<span class="k">for</span> doc <span class="k">in</span> items:                      <span class="c"># пять строк</span>
+    <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
+          </figure>
+        </div>
+        <p>Считать количество через <code>len(list(...))</code> всё же не стоит: ради числа вы тащите на клиент все документы. Для этого есть <code>count_documents(filter)</code> — сервер посчитает сам и вернёт одно число. О нём подробно в главе 1.6.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Порядок без сортировки не определён</h2>
+        <p>Посмотрите на вывод из §3 внимательно: <code>p-006</code>, <code>p-007</code>, <code>p-009</code>, <code>p-008</code>. Порядок не по ключу и не по цене. Так и должно быть: <strong>без явной сортировки сервер не обещает никакого порядка</strong> — он отдаёт документы так, как ему удобнее их читать.</p>
+        <p>Порядок может измениться после обновления документа, после перестроения индекса, на другом сервере — и код, который на него опирался, однажды сломается без единой правки. Нужен порядок — просите его явно:</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>явный порядок</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>}).<span class="f">sort</span>(<span class="s">"price"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc[<span class="s">"price"</span>], doc[<span class="s">"title"</span>])</pre>
+        </figure>
+
+        <h2 id="s6"><span class="sec">§6</span>Точечная нотация: внутрь документа</h2>
+        <p>Условие можно поставить и на вложенное поле — путь пишется через точку и берётся в кавычки целиком.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>вложенное поле</span></figcaption>
+<pre>orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>]
+
+<span class="c"># доставка в Екатеринбург — 28 заказов</span>
+orders.<span class="f">count_documents</span>({<span class="s">"delivery.city"</span>: <span class="s">"Екатеринбург"</span>})
+
+<span class="c"># оплаченные заказы</span>
+orders.<span class="f">count_documents</span>({<span class="s">"payment.paid"</span>: <span class="k">True</span>})</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
+<pre>db.orders.<span class="f">countDocuments</span>({ <span class="s">"delivery.city"</span>: <span class="s">"Екатеринбург"</span> })
+
+db.orders.<span class="f">countDocuments</span>({ <span class="s">"payment.paid"</span>: <span class="k">true</span> })</pre>
+          </figure>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: точка — не то же, что вложенный документ</b>
+          <p>Фильтр <code>{"delivery": {"city": "Екатеринбург"}}</code> — это <strong>не</strong> то же самое, что <code>{"delivery.city": "Екатеринбург"}</code>. Первый ищет документы, у которых <code>delivery</code> в точности равен <code>{"city": "Екатеринбург"}</code> — то есть содержит ровно одно поле и ничего больше. У наших заказов в <code>delivery</code> три поля, поэтому такой фильтр не найдёт ничего. Точечная нотация проверяет одно поле внутри и на остальные не смотрит.</p>
+        </div>
+        <p>Точка работает и с массивами — но там правила свои: условие проверяется на каждом элементе, и достаточно одного совпадения. Массивам посвящена глава 2.6.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Тот же запрос в Compass</h2>
+        <p>Строка <b>Filter</b> в Compass принимает ровно тот же документ, что и <code>find</code> в коде. Это удобно: запрос отлаживают глазами в Compass, а потом переносят в программу без переписывания.</p>
+        <figure class="shot">
+          <img src="../../shots/06-find-filter.png" alt="Фильтр по категории смартфоны в MongoDB Compass, найдено 4 документа">
+          <figcaption>Compass · <code>shop.products</code>, фильтр <code>{ category: "смартфоны" }</code> — счётчик показывает 1–4 из 4</figcaption>
+        </figure>
+        <p>Счётчик над списком документов — главный ориентир на приёмке работ: он показывает, сколько документов вернул фильтр. Именно это число вы записываете в отчёт, а не «примерно столько».</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Пустой результат: что проверить</h2>
+        <p>Пустой ответ — самая частая жалоба на первой неделе. Разбирается он по шагам, и почти всегда дело в одном из пяти пунктов.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Проверка</th><th>Как проверить</th><th>Признак</th></tr></thead>
+            <tbody>
+              <tr><td>Та ли база и коллекция</td><td><code>col.count_documents({})</code></td><td>Ноль на пустом фильтре — вы не в той коллекции или имя с опечаткой</td></tr>
+              <tr><td>Тот ли тип значения</td><td><code>{"price": 18990}</code> против <code>{"price": "18990"}</code></td><td>Число не равно строке. Тип виден в Compass рядом с полем</td></tr>
+              <tr><td>Тот ли регистр и написание</td><td><code>"Смартфоны"</code> против <code>"смартфоны"</code></td><td>Сравнение строк точное, регистр важен</td></tr>
+              <tr><td>Есть ли лишние пробелы</td><td><code>{"city": "Екатеринбург "}</code></td><td>Пробел в конце — тоже символ. Часто приезжает из выгрузок</td></tr>
+              <tr><td>Не вложенный ли документ целиком</td><td><code>{"delivery": {...}}</code> вместо <code>{"delivery.city": ...}</code></td><td>Полное сравнение вложенного документа требует точного совпадения всех полей</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>find(...)[0]</code></td><td><code>TypeError</code>: курсор не индексируется как список</td><td><code>find_one(...)</code> или <code>list(find(...))[0]</code></td></tr>
+              <tr><td><code>len(cursor)</code></td><td><code>TypeError: object of type 'Cursor' has no len()</code></td><td><code>count_documents(filter)</code></td></tr>
+              <tr><td>Перебор курсора дважды</td><td>Второй раз ноль строк, ошибки нет</td><td>Сохранить в список: <code>items = list(...)</code></td></tr>
+              <tr><td><code>find_one(...)["title"]</code> без проверки</td><td><code>TypeError: 'NoneType' object is not subscriptable</code></td><td>Проверить на <code>None</code> до обращения к полям</td></tr>
+              <tr><td>Опора на порядок без <code>sort</code></td><td>Работает, пока однажды не переставится</td><td>Всегда указывать сортировку, если порядок важен</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем <code>find</code> отличается от <code>find_one</code>?</summary>
+          <p><code>find_one</code> возвращает один документ (словарь) или <code>None</code>. <code>find</code> возвращает курсор по всем подходящим документам; чтобы получить сами документы, курсор перебирают или превращают в список.</p>
+        </details>
+        <details>
+          <summary>Почему второй перебор курсора не вывел ничего, хотя ошибки не было?</summary>
+          <p>Курсор одноразовый: он помнит позицию и после полного прохода исчерпан. Данные для повторного использования сохраняют в список.</p>
+        </details>
+        <details>
+          <summary>Смартфоны вернулись в порядке p-006, p-007, p-009, p-008. Это ошибка?</summary>
+          <p>Нет. Без <code>sort</code> порядок не определён: сервер отдаёт документы так, как ему удобнее. Нужен конкретный порядок — задайте его явно.</p>
+        </details>
+        <details>
+          <summary>Чем <code>{"delivery.city": "Екатеринбург"}</code> отличается от <code>{"delivery": {"city": "Екатеринбург"}}</code>?</summary>
+          <p>Первый находит 28 заказов: он проверяет одно поле внутри вложенного документа и не смотрит на остальные. Второй требует, чтобы <code>delivery</code> был <em>в точности</em> таким документом — с единственным полем <code>city</code>, — и находит ноль: у наших заказов в <code>delivery</code> три поля.</p>
+        </details>
+        <details>
+          <summary>Как узнать число подходящих документов, не вытягивая их на клиент?</summary>
+          <p><code>col.count_documents(filter)</code> — считает сервер, возвращается одно число. <code>len(list(col.find(filter)))</code> даст тот же ответ, но сначала перекачает все документы.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Один документ</b>
+            <code>col.find_one({"_id": "p-003"})</code>
+            <code># вернёт None, если нет</code>
+          </div>
+          <div>
+            <b>Много документов</b>
+            <code>for d in col.find({...}):</code>
+            <code>    print(d["title"])</code>
+            <code>items = list(col.find({...}))</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>{"delivery.city": "Москва"}</code>
+            <code>{"payment.paid": True}</code>
+          </div>
+          <div>
+            <b>Сколько нашлось</b>
+            <code>col.count_documents({})</code>
+            <code>col.count_documents(</code>
+            <code>  {"category": "ноутбуки"})</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>find_one</code> отдаёт один документ или <code>None</code>, <code>find</code> — курсор, который подтягивает документы порциями и проходится ровно один раз. Фильтр — это документ: перечисленные поля соединяются по «и», а вложенные поля адресуются через точку. Порядок документов без явной сортировки не гарантирован. Дальше научимся забирать не весь документ целиком, а только нужные поля.</p>
+
+        <div class="pager"><a href="../03-vstavka/index.html">← 1.3 Вставка документов</a><a href="../05-proekciya/index.html">1.5 Проекция →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.4 · Чтение: find и курсор · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

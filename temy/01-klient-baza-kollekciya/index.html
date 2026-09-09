@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.1 Сервер, база, коллекция · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* Три уровня хранения: сервер → база → коллекция → документ. */
+    .levels { display: grid; gap: 0; margin: 22px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .levels > div { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px; padding: 14px 16px; border-bottom: 2px solid var(--rule); align-items: start; }
+    .levels > div:last-child { border-bottom: 0; }
+    .levels b { font: 700 13px/1.4 var(--mono); color: var(--leaf); }
+    .levels p { margin: 0 0 5px; font-size: 15px; }
+    .levels code { font-size: 13px; }
+    .levels > div:nth-child(1) { background: var(--ink); }
+    .levels > div:nth-child(1) b, .levels > div:nth-child(1) p { color: var(--leaf-pale); }
+    .levels > div:nth-child(1) b { color: var(--leaf-bright); }
+    .levels > div:nth-child(1) code { color: #fff; }
+
+    /* Разбор строки подключения на части. */
+    .uri { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .uri__line { padding: 15px 18px; border-bottom: 2px solid var(--ink); font: 700 clamp(15px, 2vw, 22px)/1.5 var(--mono); word-break: break-all; }
+    .uri__line i { font-style: normal; padding: 2px 3px; }
+    .uri__line i:nth-child(1) { background: var(--leaf-pale); }
+    .uri__line i:nth-child(2) { background: var(--clay-pale); }
+    .uri__line i:nth-child(3) { background: #E4DDF2; }
+    .uri__parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .uri__parts > div { padding: 12px 16px; border-right: 2px solid var(--rule); }
+    .uri__parts > div:last-child { border-right: 0; }
+    .uri__parts b { display: block; font: 700 13px/1.5 var(--mono); margin-bottom: 4px; }
+    .uri__parts span { font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.1</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.1</span>
+          <h1>Сервер, база,<br>коллекция</h1>
+          <p class="lead">Прежде чем писать запросы, нужно понимать, к чему они обращаются. Разберём, что такое сервер MongoDB, чем он отличается от клиента, как из программы дойти до конкретной коллекции и почему база данных создаётся сама, без единой команды на создание.</p>
+          <blockquote class="quote"><p>«Пока непонятно, где лежат данные, любой запрос — это угадывание.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Подключение и устройство базы</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Документ и BSON, вставка, чтение</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Понимать, куда именно программа кладёт и откуда берёт данные</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Сервер и клиент — разные программы</a></li>
+            <li><a href="#s2">Три уровня хранения</a></li>
+            <li><a href="#s3">Строка подключения по частям</a></li>
+            <li><a href="#s4">MongoClient: создание клиента</a></li>
+            <li><a href="#s5">Выбор базы и коллекции</a></li>
+            <li><a href="#s6">Что уже есть на сервере</a></li>
+            <li><a href="#s7">Тот же осмотр в Compass</a></li>
+            <li><a href="#s8">Один клиент на программу</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Сервер и клиент — разные программы</h2>
+        <p><span class="term">MongoDB</span> — это <strong>сервер</strong>: программа, которая держит данные на диске и слушает сетевой порт. По умолчанию порт — <code>27017</code>. Сервер ничего не показывает: он ждёт, когда к нему обратятся, и отвечает на запросы.</p>
+        <p>Обращается к нему <strong>клиент</strong> — и клиентов несколько:</p>
+        <ul>
+          <li><strong>MongoDB Compass</strong> — графическое приложение. В нём видны базы, документы, типы полей и результат запроса. С ним удобно разбираться и показывать;</li>
+          <li><strong><code>mongosh</code></strong> — консольная оболочка. Те же команды, но текстом; ей удобно автоматизировать;</li>
+          <li><strong>драйвер</strong> — библиотека внутри вашей программы. Для Python это <span class="term">PyMongo</span>. Именно так с базой работает настоящее приложение.</li>
+        </ul>
+        <p>Разница принципиальная: закроете Compass — данные останутся, потому что они на сервере, а не в клиенте. Остановите сервер — не поможет ни один клиент.</p>
+        <div class="margin-note">
+          <b>На полях: где взять сервер</b>
+          <p>На занятиях сервер уже поднят и слушает <code>localhost:27017</code> — это учебный стенд. Как поднять такой же у себя, описано в репозитории практик: там лежит и файл запуска, и данные всех четырёх учебных баз.</p>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Три уровня хранения</h2>
+        <p>Внутри сервера данные разложены по трём уровням. Ни один нельзя пропустить: документ всегда лежит в коллекции, коллекция — в базе, база — на сервере.</p>
+        <div class="levels">
+          <div>
+            <b>сервер</b>
+            <div>
+              <p>Одна установленная MongoDB. Держит все базы сразу и отвечает на порту.</p>
+              <code>mongodb://localhost:27017</code>
+            </div>
+          </div>
+          <div>
+            <b>база данных</b>
+            <div>
+              <p>Пространство имён под один проект. У нас их четыре: <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code>. Базы друг о друге ничего не знают.</p>
+              <code>shop</code>
+            </div>
+          </div>
+          <div>
+            <b>коллекция</b>
+            <div>
+              <p>Набор документов одного смысла — примерно то, чем в SQL была таблица. Но без общей схемы: форма документов может отличаться.</p>
+              <code>shop.products</code>
+            </div>
+          </div>
+          <div>
+            <b>документ</b>
+            <div>
+              <p>Единица хранения: пары «поле — значение». Его кладут и достают целиком.</p>
+              <code>{ _id: "p-003", title: "Ноутбук HP Pavilion 14", price: 67900 }</code>
+            </div>
+          </div>
+        </div>
+        <p>Полное имя коллекции пишется через точку: <code>shop.products</code> — коллекция <code>products</code> в базе <code>shop</code>. Такая запись встречается в сообщениях об ошибках и в документации, и читать её нужно справа налево: «товары, которые лежат в магазине».</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Строка подключения по частям</h2>
+        <p>Адрес сервера записывается одной строкой — её называют <span class="term">строкой подключения</span> или URI. Одна и та же строка работает и в Compass, и в <code>mongosh</code>, и в коде.</p>
+        <div class="uri">
+          <p class="uri__line"><i>mongodb://</i><i>localhost</i>:<i>27017</i></p>
+          <div class="uri__parts">
+            <div><b>mongodb://</b><span>Схема: по ней клиент понимает, каким протоколом говорить. У облачного MongoDB&nbsp;Atlas схема другая — <code>mongodb+srv://</code>.</span></div>
+            <div><b>localhost</b><span>Адрес машины с сервером. <code>localhost</code> — «эта же машина». В рабочем проекте здесь будет имя хоста или адрес в сети.</span></div>
+            <div><b>27017</b><span>Порт, который слушает сервер. Значение по умолчанию; если сервер запущен на другом порту, пишем его.</span></div>
+          </div>
+        </div>
+        <p>В настоящем проекте в строку добавляются логин и пароль: <code>mongodb://user:secret@db.example.com:27017</code>. На учебном стенде их нет — сервер поднят без проверки подлинности, и это допустимо ровно потому, что он стоит на вашей машине и наружу не смотрит.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>MongoClient: создание клиента</h2>
+        <p>В Python работа начинается с объекта <code>MongoClient</code> — это и есть клиент, живущий внутри вашей программы.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>клиент</span></figcaption>
+<pre><span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+<span class="c"># Локальный сервер учебного стенда</span>
+client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)
+
+<span class="c"># Облачный Atlas — другая схема и обязательный пароль</span>
+<span class="c"># client = MongoClient("mongodb+srv://user:pass@cluster0.mongodb.net/")</span></pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>mongosh · оболочка</span><span>подключение</span></figcaption>
+<pre><span class="c"># то же подключение из терминала</span>
+mongosh <span class="s">"mongodb://localhost:27017"</span>
+
+<span class="c"># внутри оболочки клиент уже создан,</span>
+<span class="c"># текущая база доступна как db</span></pre>
+          </figure>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: строка создаётся, соединение — нет</b>
+          <p>Строка <code>MongoClient(...)</code> выполнится мгновенно даже при выключенном сервере: клиент только запоминает адрес, а соединяется лениво — при первом настоящем запросе. Поэтому ошибка «сервер недоступен» появится не там, где вы её ждёте, а на первой операции с данными.</p>
+        </div>
+
+        <h2 id="s5"><span class="sec">§5</span>Выбор базы и коллекции</h2>
+        <p>От клиента спускаемся на уровень ниже — к базе, затем к коллекции. В PyMongo это обычное обращение по ключу.</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>спуск по трём уровням</span></figcaption>
+<pre>client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)   <span class="c"># сервер</span>
+db = client[<span class="s">"shop"</span>]                                <span class="c"># база</span>
+collection = db[<span class="s">"products"</span>]                         <span class="c"># коллекция</span>
+
+<span class="c"># Тот же смысл через методы — так пишут, когда имя лежит в переменной</span>
+db = client.<span class="f">get_database</span>(<span class="s">"shop"</span>)
+collection = db.<span class="f">get_collection</span>(<span class="s">"products"</span>)</pre>
+        </figure>
+        <p>Здесь важна одна особенность, которая сначала сбивает с толку: <strong>ни одна из этих строк не обращается к серверу</strong>. Они лишь создают объекты-указатели. Проверить легко — имена типов говорят сами за себя:</p>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Тип client: MongoClient | тип db: Database | тип collection: Collection</pre>
+        </figure>
+        <p>Отсюда следует правило, которое отличает MongoDB от привычных SQL-баз: <span class="term">база и коллекция создаются сами</span> — в тот момент, когда в них впервые что-то записали. Команды «создать базу» нет и не нужно. Обратная сторона — опечатка в имени не вызовет ошибку: запрос к <code>db["prodcuts"]</code> честно вернёт пустой результат, потому что такая коллекция просто ещё не существует.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Что уже есть на сервере</h2>
+        <p>Спросим у сервера, какие базы он держит, а у базы — какие в ней коллекции. Это первое, что делают, подключившись к незнакомой базе.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>осмотр сервера</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"Базы данных:"</span>, client.<span class="f">list_database_names</span>())
+
+db = client[<span class="s">"shop"</span>]
+<span class="f">print</span>(<span class="s">"Коллекции shop:"</span>, db.<span class="f">list_collection_names</span>())
+
+collection = db[<span class="s">"products"</span>]
+<span class="f">print</span>(<span class="s">"Документов:"</span>, collection.<span class="f">count_documents</span>({}))</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
+<pre>show dbs
+use shop
+show collections
+db.products.<span class="f">countDocuments</span>({})</pre>
+          </figure>
+        </div>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Базы данных: ['admin', 'config', 'hh', 'local', 'logs', 'org', 'shop']
+Коллекции shop: ['orders', 'customers', 'products']
+Документов: 21</pre>
+        </figure>
+        <p>Четыре базы наши: <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code>. Ещё три сервер завёл сам, и трогать их не нужно:</p>
+        <div class="ops">
+          <div><b>admin</b><span>Служебная база: пользователи, роли и административные команды сервера.</span><i>сервер</i></div>
+          <div><b>config</b><span>Внутренние настройки. Становится важной, когда данные разложены по нескольким серверам.</span><i>сервер</i></div>
+          <div><b>local</b><span>Данные, которые не покидают эту машину: журнал операций и служебные записи.</span><i>сервер</i></div>
+        </div>
+        <p>Обратите внимание и на порядок в ответе: коллекции пришли как <code>['orders', 'customers', 'products']</code> — не по алфавиту и не в порядке создания. Сервер не обещает порядок в этом списке, поэтому опираться на него нельзя: если нужен алфавит, сортируйте сами.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Тот же осмотр в Compass</h2>
+        <p>Всё, что мы сейчас получили тремя вызовами, Compass показывает одним экраном. Слева — список баз, у каждой раскрывается список коллекций, справа — размер и число документов.</p>
+        <figure class="shot">
+          <img src="../../shots/01-databases.png" alt="Список баз данных в MongoDB Compass: shop, hh, logs, org и служебные admin, config, local">
+          <figcaption>Compass 1.50 · стенд курса — четыре учебные базы и три служебные</figcaption>
+        </figure>
+        <p>Кадр — не украшение: на нём видно то, чего нет в выводе Python. У каждой базы указаны размер хранения, объём данных, число коллекций и число индексов. Сравните две наши базы: <code>logs</code> — одна коллекция и <strong>207.02 kB</strong> данных, <code>shop</code> — три коллекции и <strong>79.32 kB</strong>. Документов в <code>shop</code> больше по числу коллекций, но данных втрое меньше: объём зависит не от количества документов, а от того, что внутри них.</p>
+        <p>Отдельно стоит база <code>hh</code>: <strong>37.72 MB</strong> и десять коллекций против четырёх, которые мы перечислили. Это след прошлых занятий — в ней остались учебные коллекции на 20 000 документов, на которых мы замеряли скорость. Полезная привычка: увидев незнакомую базу, сначала посмотрите на число коллекций и объём, и только потом открывайте.</p>
+        <figure class="shot">
+          <img src="../../shots/02-collections-shop.png" alt="Коллекции базы shop в Compass: products, orders, customers с числом документов">
+          <figcaption>Compass · база <code>shop</code> — три коллекции, 21 товар, 120 заказов, 20 покупателей</figcaption>
+        </figure>
+
+        <h2 id="s8"><span class="sec">§8</span>Один клиент на программу</h2>
+        <p><code>MongoClient</code> — дорогой объект. Внутри него живёт пул соединений: несколько открытых каналов к серверу, которые переиспользуются между запросами. Создавать клиента в каждой функции — значит каждый раз поднимать этот пул заново.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Так делают</span><span>один клиент на приложение</span></figcaption>
+<pre><span class="c"># создаётся один раз при старте программы</span>
+client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)
+products = client[<span class="s">"shop"</span>][<span class="s">"products"</span>]
+
+<span class="k">def</span> <span class="f">count_all</span>():
+    <span class="k">return</span> products.<span class="f">count_documents</span>({})</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>Так не делают</span><span>клиент внутри функции</span></figcaption>
+<pre><span class="k">def</span> <span class="f">count_all</span>():
+    <span class="c"># новый пул соединений на каждый вызов</span>
+    client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)
+    <span class="k">return</span> client[<span class="s">"shop"</span>][<span class="s">"products"</span>].<span class="f">count_documents</span>({})</pre>
+          </figure>
+        </div>
+        <p>Закрывать клиента методом <code>client.close()</code> нужно в конце работы программы — в коротком скрипте это последняя строка. В веб-приложении клиент живёт всё время работы сервиса, и закрывать его вручную не нужно.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Сервер не запущен</td>
+                <td><code>ServerSelectionTimeoutError: localhost:27017: [Errno 61] Connection refused</code></td>
+                <td>Адрес верный, но по нему никто не отвечает. Проверять надо сервер, а не строку подключения</td>
+              </tr>
+              <tr>
+                <td>Опечатка в имени хоста</td>
+                <td><code>ServerSelectionTimeoutError</code> после 30 секунд ожидания</td>
+                <td>Имя не разрешилось в адрес. Отличается от предыдущего тем, что ответа нет вовсе, а не «отказ»</td>
+              </tr>
+              <tr>
+                <td>Опечатка в имени коллекции</td>
+                <td>Ошибки нет, результат пустой</td>
+                <td>Коллекция создаётся при первой записи, поэтому обращение к несуществующей — законная операция</td>
+              </tr>
+              <tr>
+                <td><code>client["shop"]["products"].count()</code></td>
+                <td><code>AttributeError: 'Collection' object has no attribute 'count'</code></td>
+                <td>Метод убран из драйвера. Считает <code>count_documents({})</code>, и фильтр обязателен</td>
+              </tr>
+              <tr>
+                <td>Клиент создан внутри цикла</td>
+                <td>Программа работает, но с каждым шагом медленнее</td>
+                <td>На каждой итерации поднимается новый пул соединений. Клиент создаётся один раз</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Compass закрыт. Что произошло с данными?</summary>
+          <p>Ничего. Compass — клиент, он только показывает то, что лежит на сервере. Данные исчезнут, если удалить их запросом или удалить хранилище сервера, но не от закрытия окна.</p>
+        </details>
+        <details>
+          <summary>Строка <code>client = MongoClient("mongodb://localhost:27017/")</code> выполнилась без ошибки. Значит ли это, что сервер доступен?</summary>
+          <p>Нет. Клиент соединяется лениво: адрес запомнен, но проверка произойдёт только на первом запросе к данным. Поэтому <code>ServerSelectionTimeoutError</code> вы увидите на строке с <code>count_documents</code> или <code>find</code>, а не на создании клиента.</p>
+        </details>
+        <details>
+          <summary>Почему в списке баз есть <code>admin</code>, <code>config</code> и <code>local</code>, хотя мы их не создавали?</summary>
+          <p>Их заводит сам сервер. <code>admin</code> хранит пользователей и роли, <code>config</code> — внутренние настройки, <code>local</code> — данные, которые не покидают эту машину. Работать с ними напрямую не нужно.</p>
+        </details>
+        <details>
+          <summary>Что вернёт <code>db["prodcuts"].count_documents({})</code> — с опечаткой в имени?</summary>
+          <p><code>0</code>, и никакой ошибки. Для сервера это обращение к пока не созданной коллекции, а не ошибка. Именно поэтому пустой результат всегда стоит проверять на опечатку: сверьте имя с <code>list_collection_names()</code>.</p>
+        </details>
+        <details>
+          <summary>Чем <code>shop.products</code> отличается от <code>products</code>?</summary>
+          <p>Первое — полное имя: коллекция <code>products</code> в базе <code>shop</code>. Второе — имя внутри уже выбранной базы. В <code>mongosh</code> текущая база выбирается командой <code>use shop</code>, после чего к коллекции обращаются как <code>db.products</code>.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Подключиться</b>
+            <code>from pymongo import MongoClient</code>
+            <code>client = MongoClient(</code>
+            <code>  "mongodb://localhost:27017/")</code>
+          </div>
+          <div>
+            <b>Спуститься к коллекции</b>
+            <code>db = client["shop"]</code>
+            <code>col = db["products"]</code>
+            <code># или client["shop"]["products"]</code>
+          </div>
+          <div>
+            <b>Осмотреться</b>
+            <code>client.list_database_names()</code>
+            <code>db.list_collection_names()</code>
+            <code>col.count_documents({})</code>
+          </div>
+          <div>
+            <b>То же в оболочке</b>
+            <code>show dbs</code>
+            <code>use shop</code>
+            <code>show collections</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Сервер держит базы, база — коллекции, коллекция — документы; клиент только спрашивает. В программе путь до данных — это три строки: клиент, база, коллекция, — и ни одна из них ещё не обращается к серверу. База и коллекция появляются сами при первой записи, поэтому опечатка в имени даёт не ошибку, а пустой результат. Дальше разберём, что именно лежит в коллекции: как устроен документ и почему он хранится не как текст.</p>
+
+        <div class="pager"><a href="../../index.html">К содержанию справочника</a><a href="../02-dokument-i-bson/index.html">1.2 Документ и BSON →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.1 · Сервер, база, коллекция · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

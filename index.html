@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>Справочник по MongoDB · Макаров Максим Николаевич</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .cover { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, .8fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+    .cover h1 { margin: 12px 0 10px; font-family: var(--display); font-size: clamp(36px, 5.6vw, 74px); line-height: 1.02; letter-spacing: -.5px; }
+    .cover__sub { margin: 0 0 22px; font-family: var(--display); font-size: clamp(17px, 1.8vw, 26px); color: var(--leaf); }
+    .cover__meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 0; }
+    .cover__meta span { padding: 8px 12px; border: 2px solid var(--ink); background: #fff; font: 600 11px/1 var(--pixel); letter-spacing: 1px; }
+
+    /* Обложка справа: лист-логотип и живой сервер. */
+    .card-stand { padding: 26px 24px 22px; border: 3px solid var(--ink); background: var(--page); box-shadow: 7px 7px 0 var(--ink); transform: rotate(-.7deg); }
+    .card-stand__tag { display: inline-block; margin: 0 0 16px; padding: 6px 11px; background: var(--ink); color: var(--leaf-bright); font: 600 10px/1 var(--pixel); letter-spacing: 1.4px; text-transform: uppercase; }
+    .card-stand blockquote { margin: 0 0 18px; font-family: var(--display); font-style: italic; font-size: clamp(18px, 1.7vw, 24px); line-height: 1.4; }
+    .card-stand__sign { display: block; padding-top: 12px; border-top: 2px solid var(--rule); font: 600 11px/1.5 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); }
+    .card-stand__live { display: flex; align-items: center; gap: 9px; margin-top: 14px; font: 600 11px/1 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; color: var(--ink-soft); }
+
+    .dbs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 22px 0 8px; }
+    .db { padding: 15px 17px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--leaf); }
+    .db b { display: block; font: 700 15px/1 var(--mono); color: var(--leaf); margin-bottom: 7px; }
+    .db p { margin: 0 0 9px; font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+    .db code { display: block; font-size: 12.5px; color: var(--ink); }
+
+    .modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; margin-top: 22px; }
+    .module { display: grid; grid-template-columns: 40px minmax(0, 1fr); border: 3px solid var(--ink); background: var(--page); box-shadow: 6px 6px 0 var(--ink); }
+    .module__spine { background: var(--ink); color: var(--leaf-bright); display: flex; align-items: center; justify-content: center; }
+    .module__spine b { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 12px/1 var(--mono); letter-spacing: 2px; }
+    .module__body { padding: 18px 20px 16px; }
+    .module h3 { margin: 0 0 6px; font-family: var(--display); font-size: 19px; }
+    .module > .module__body > p { margin: 0 0 12px; font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); }
+    .module__db { display: inline-block; margin-bottom: 12px; padding: 3px 9px; border: 2px solid var(--leaf); font: 600 10px/1.5 var(--pixel); letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
+    .toc { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--rule); }
+    .toc li { border-bottom: 2px solid var(--rule); }
+    .toc li:last-child { border-bottom: 0; }
+    .toc a, .toc s { display: flex; align-items: baseline; gap: 10px; padding: 9px 0; text-decoration: none; font-size: 15px; }
+    .toc a { color: var(--ink); font-weight: 600; }
+    .toc a:hover { color: var(--leaf); }
+    .toc s { color: var(--ink-faint); text-decoration: none; }
+    .toc a > span, .toc s > span { flex: 1 1 auto; min-width: 0; line-height: 1.35; }
+    .toc b { flex: 0 0 auto; font: 600 12px/1.4 var(--mono); color: var(--ink-faint); }
+    .toc em { flex: 0 0 auto; margin-left: auto; font: 600 10px/1 var(--pixel); letter-spacing: 1px; text-transform: uppercase; font-style: normal; color: var(--leaf); }
+    .toc s em { color: var(--ink-faint); }
+    .toc--work { margin-top: 10px; border-top: 0; }
+    .toc--work li { border-bottom: 0; }
+    .toc--work a, .toc--work s { padding: 7px 10px; margin-top: 6px; border: 2px solid var(--ink); font-size: 14px; }
+    .toc--work .work-kind { font: 600 10px/1 var(--pixel); letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
+    .toc--work s .work-kind { color: var(--ink-faint); }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Справочник по MongoDB · Макаров М. Н.</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow">Учебное издание · для старших курсов</p>
+          <p class="running__folio">Макаров Максим Николаевич</p>
+        </div>
+
+        <section class="cover">
+          <div>
+            <h1>Справочник<br>по MongoDB</h1>
+            <p class="cover__sub">От первого документа до аналитической витрины:<br>запросы, агрегация и связи</p>
+            <p>Документная база данных разбирается так, как с ней работают: сначала данные кладут и достают, потом учатся спрашивать, потом считать. Каждый оператор показан дважды — как он выглядит в оболочке и как тот же запрос пишется из Python, — и подтверждён кадром MongoDB&nbsp;Compass на реальных данных.</p>
+            <p>Порядок глав — это порядок изучения: оператор не встретится в примере раньше, чем разобран. После логически завершённого набора тем идёт практическая работа с готовым решением в репозитории, а за ней — контрольная точка: задача уровня рабочей, без разбора.</p>
+            <div class="cover__meta">
+              <span>MongoDB 7</span><span>mongosh и PyMongo</span><span>4 учебные базы</span><span>кадры Compass</span>
+            </div>
+          </div>
+
+          <aside class="card-stand">
+            <span class="card-stand__tag">Из личного дневника</span>
+            <blockquote>«База данных перестаёт быть страшной ровно в тот момент, когда вы видите, что запрос — это обычный документ.»</blockquote>
+            <span class="card-stand__sign">Макаров Максим Николаевич</span>
+            <p class="card-stand__live"><span class="pulse"></span> стенд курса · mongodb://localhost:27017</p>
+          </aside>
+        </section>
+
+        <h2><span class="sec">Базы</span>На чём мы работаем</h2>
+        <p>Все примеры выполнены на четырёх учебных базах. Они восстанавливаются одной командой из репозитория практик, данные детерминированные — числа в книге совпадут с вашими.</p>
+        <div class="dbs">
+          <article class="db">
+            <b>shop</b>
+            <p>Интернет-магазин: товары, заказы с позициями и покупатели. Основная база для CRUD и агрегации.</p>
+            <code>products 21 · orders 120 · customers 20</code>
+          </article>
+          <article class="db">
+            <b>hh</b>
+            <p>Наём: резюме, вакансии, компании и собеседования. На ней разбирается язык фильтров.</p>
+            <code>resumes 9 · vacancies 8 · companies 8 · interviews 60</code>
+          </article>
+          <article class="db">
+            <b>logs</b>
+            <p>Журнал сервиса: события с уровнем, маршрутом и длительностью. Для индексов и группировки по времени.</p>
+            <code>events 1200</code>
+          </article>
+          <article class="db">
+            <b>org</b>
+            <p>Иерархии: сотрудники с руководителями и дерево категорий. Нужны для рекурсивного поиска.</p>
+            <code>employees 15 · categories 10</code>
+          </article>
+        </div>
+        <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice">github.com/MaximBytecamp/mongodb-practice — стенд, данные и решения практик</a></p>
+
+        <h2><span class="sec">План</span>Модули и главы</h2>
+
+        <div class="modules">
+          <article class="module">
+            <div class="module__spine"><b>МОДУЛЬ 1</b></div>
+            <div class="module__body">
+              <h3>Подключение и первые данные</h3>
+              <span class="module__db">база shop</span>
+              <p>Как программа доходит до документа: клиент, база, коллекция — и четыре операции, из которых состоит вся работа с данными.</p>
+              <ul class="toc">
+                <li><a href="temy/01-klient-baza-kollekciya/index.html"><b>1.1</b><span>Сервер, база, коллекция</span><em>читать</em></a></li>
+                <li><a href="temy/02-dokument-i-bson/index.html"><b>1.2</b><span>Документ и BSON: типы и <code>_id</code></span><em>читать</em></a></li>
+                <li><a href="temy/03-vstavka/index.html"><b>1.3</b><span>Вставка: insert_one и insert_many</span><em>читать</em></a></li>
+                <li><a href="temy/04-find-i-kursor/index.html"><b>1.4</b><span>Чтение: find, find_one и курсор</span><em>читать</em></a></li>
+                <li><a href="temy/05-proekciya/index.html"><b>1.5</b><span>Проекция: какие поля вернуть</span><em>читать</em></a></li>
+                <li><a href="temy/06-sort-limit-skip/index.html"><b>1.6</b><span>Порядок и порции: sort, limit, skip</span><em>читать</em></a></li>
+                <li><a href="temy/07-obnovlenie/index.html"><b>1.7</b><span>Обновление: $set, $inc, $unset</span><em>читать</em></a></li>
+                <li><a href="temy/08-udalenie/index.html"><b>1.8</b><span>Удаление и как не удалить лишнего</span><em>читать</em></a></li>
+              </ul>
+              <ul class="toc toc--work">
+                <li><a href="praktiki/01-katalog-tovarov/index.html"><span class="work-kind">ПР-01</span><span>Каталог товаров: витрина и приёмка</span></a></li>
+                <li><a href="praktiki/kt-01-inventarizaciya/index.html"><span class="work-kind">КТ-01</span><span>Инвентаризация склада</span></a></li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module__spine"><b>МОДУЛЬ 2</b></div>
+            <div class="module__body">
+              <h3>Язык фильтров</h3>
+              <span class="module__db">базы hh и shop</span>
+              <p>Фильтр — это документ. Разбираем все операторы запроса: от сравнения до условий по элементам массива.</p>
+              <ul class="toc">
+                <li><s><b>2.1</b><span>Фильтр как документ, точечная нотация</span><em>готовится</em></s></li>
+                <li><s><b>2.2</b><span>Сравнение: $eq $ne $gt $gte $lt $lte</span><em>готовится</em></s></li>
+                <li><s><b>2.3</b><span>Списки значений: $in и $nin</span><em>готовится</em></s></li>
+                <li><s><b>2.4</b><span>Логика: $and $or $not $nor</span><em>готовится</em></s></li>
+                <li><s><b>2.5</b><span>Есть ли поле: $exists и $type</span><em>готовится</em></s></li>
+                <li><s><b>2.6</b><span>Массивы: $all, $elemMatch, $size</span><em>готовится</em></s></li>
+                <li><s><b>2.7</b><span>Текстовые шаблоны: $regex и $options</span><em>готовится</em></s></li>
+                <li><s><b>2.8</b><span>Сравнение полей между собой: $expr</span><em>готовится</em></s></li>
+              </ul>
+              <ul class="toc toc--work">
+                <li><s><span class="work-kind">ПР-02</span><span>Подбор кандидатов</span></s></li>
+                <li><s><span class="work-kind">КТ-02</span><span>Починить сломанные запросы</span></s></li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module__spine"><b>МОДУЛЬ 3</b></div>
+            <div class="module__body">
+              <h3>Форма данных и скорость</h3>
+              <span class="module__db">базы shop и logs</span>
+              <p>Что база может проверить за нас и почему один и тот же запрос выполняется то мгновенно, то за секунды.</p>
+              <ul class="toc">
+                <li><s><b>3.1</b><span>Правила на уровне базы: $jsonSchema</span><em>готовится</em></s></li>
+                <li><s><b>3.2</b><span>Индексы: одиночные, составные, уникальные</span><em>готовится</em></s></li>
+                <li><s><b>3.3</b><span>Как читать explain</span><em>готовится</em></s></li>
+                <li><s><b>3.4</b><span>Текстовый поиск: $text и $search</span><em>готовится</em></s></li>
+                <li><s><b>3.5</b><span>География: $near и $geoWithin</span><em>готовится</em></s></li>
+              </ul>
+              <ul class="toc toc--work">
+                <li><s><span class="work-kind">ПР-03</span><span>Журнал сервиса: индексы и правила</span></s></li>
+                <li><s><span class="work-kind">КТ-03</span><span>Замедлившийся отчёт</span></s></li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module__spine"><b>МОДУЛЬ 4</b></div>
+            <div class="module__body">
+              <h3>Конвейер агрегации</h3>
+              <span class="module__db">база shop</span>
+              <p>Главный инструмент отчётов: документы проходят через стадии, каждая меняет поток. Здесь считают деньги.</p>
+              <ul class="toc">
+                <li><s><b>4.1</b><span>Конвейер и стадия $match</span><em>готовится</em></s></li>
+                <li><s><b>4.2</b><span>$project: форма ответа</span><em>готовится</em></s></li>
+                <li><s><b>4.3</b><span>$addFields, $set, $unset</span><em>готовится</em></s></li>
+                <li><s><b>4.4</b><span>$group и аккумуляторы</span><em>готовится</em></s></li>
+                <li><s><b>4.5</b><span>$sort, $limit, $count, $sortByCount</span><em>готовится</em></s></li>
+                <li><s><b>4.6</b><span>$unwind: массив становится документами</span><em>готовится</em></s></li>
+                <li><s><b>4.7</b><span>$push, $addToSet, $first, $last</span><em>готовится</em></s></li>
+                <li><s><b>4.8</b><span>$bucket, $bucketAuto, $facet</span><em>готовится</em></s></li>
+                <li><s><b>4.9</b><span>$replaceRoot, $replaceWith, $redact</span><em>готовится</em></s></li>
+              </ul>
+              <ul class="toc toc--work">
+                <li><s><span class="work-kind">ПР-04</span><span>Витрина продаж за квартал</span></s></li>
+                <li><s><span class="work-kind">КТ-04</span><span>Отчёт для руководителя</span></s></li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module__spine"><b>МОДУЛЬ 5</b></div>
+            <div class="module__body">
+              <h3>Выражения над массивами</h3>
+              <span class="module__db">базы shop и logs</span>
+              <p>Массив внутри документа обрабатывается целиком, без разворачивания: выбрать, преобразовать, свернуть в число.</p>
+              <ul class="toc">
+                <li><s><b>5.1</b><span>$arrayElemAt и $slice</span><em>готовится</em></s></li>
+                <li><s><b>5.2</b><span>$filter</span><em>готовится</em></s></li>
+                <li><s><b>5.3</b><span>$map</span><em>готовится</em></s></li>
+                <li><s><b>5.4</b><span>$reduce</span><em>готовится</em></s></li>
+                <li><s><b>5.5</b><span>$let: локальные переменные</span><em>готовится</em></s></li>
+              </ul>
+              <ul class="toc toc--work">
+                <li><s><span class="work-kind">ПР-05</span><span>Чек заказа: пересчёт позиций</span></s></li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module__spine"><b>МОДУЛЬ 6</b></div>
+            <div class="module__body">
+              <h3>Связи между коллекциями</h3>
+              <span class="module__db">базы shop, org и hh</span>
+              <p>Документная база умеет соединять коллекции — и делает это иначе, чем SQL. Заканчиваем материализованной витриной.</p>
+              <ul class="toc">
+                <li><s><b>6.1</b><span>$lookup: соединение коллекций</span><em>готовится</em></s></li>
+                <li><s><b>6.2</b><span>$lookup с конвейером</span><em>готовится</em></s></li>
+                <li><s><b>6.3</b><span>$graphLookup: иерархии</span><em>готовится</em></s></li>
+                <li><s><b>6.4</b><span>$unionWith</span><em>готовится</em></s></li>
+                <li><s><b>6.5</b><span>$merge: витрина, которую пересобирают</span><em>готовится</em></s></li>
+              </ul>
+              <ul class="toc toc--work">
+                <li><s><span class="work-kind">ПР-06</span><span>Оргструктура и витрина заказов</span></s></li>
+                <li><s><span class="work-kind">КТ</span><span>Итоговая: аналитический контур</span></s></li>
+              </ul>
+            </div>
+          </article>
+        </div>
+
+        <div class="colophon">
+          <span>Справочник по MongoDB · учебное издание</span>
+          <span class="author-line">© Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

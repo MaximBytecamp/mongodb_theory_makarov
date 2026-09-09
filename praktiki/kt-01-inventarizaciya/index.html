@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>КТ-01 Инвентаризация склада · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    .steps { counter-reset: step; margin: 20px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 13px 16px 13px 54px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 12px; width: 28px; height: 28px; display: grid; place-items: center; background: var(--clay); color: #fff; font: 700 13px/1 var(--mono); }
+    .steps b { display: block; margin-bottom: 5px; }
+    .blank { margin: 20px 0; padding: 16px 18px; border: 2px dashed var(--ink); background: var(--page); }
+    .blank h4 { margin: 0 0 8px; font-family: var(--display); font-size: 17px; }
+    .blank ul { margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Контрольная точка 01 · самостоятельная работа</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · контрольная точка · после модуля 1</p>
+          <p class="running__folio">КТ-01</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">КТ-01</span>
+          <h1>Инвентаризация<br>склада</h1>
+          <p class="lead">Самостоятельная работа. Разбора нет: есть данные, требования к результату и приёмка. Задача сформулирована так, как её ставят на работе, — и оценивается так же: по числам и по отчёту, который читает человек, не заглядывающий в базу.</p>
+          <blockquote class="quote"><p>«Отчёт, в котором числа не сходятся с базой, хуже отсутствия отчёта: на него уже кто-то опёрся.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Формат</dt><dd>Самостоятельно, без разбора</dd></div>
+          <div><dt>База</dt><dd><code>sandbox.warehouse</code> — 21 позиция</dd></div>
+          <div><dt>Время</dt><dd>90 минут</dd></div>
+          <div><dt>Сдать</dt><dd><code>inventory.py</code> и <code>inventory.md</code></dd></div>
+        </dl>
+
+        <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/kt01">github.com/MaximBytecamp/mongodb-practice → kt01</a></p>
+        <p>В папке — задание, файл пересчёта <code>stocktake.json</code> и бланк отчёта <code>report_template.md</code>. Решения там нет и не будет: его разбирают на приёмке.</p>
+
+        <h2 id="s1"><span class="sec">§1</span>Ситуация</h2>
+        <p>На складе провели пересчёт. Учётные остатки лежат в базе, результат пересчёта пришёл файлом. Нужно сверить одно с другим, привести учёт в порядок и написать отчёт, по которому решение примет заведующий складом — человек, который в базу не полезет.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Источник</th><th>Что это</th><th>Поля</th></tr></thead>
+            <tbody>
+              <tr><td><code>sandbox.warehouse</code></td><td>Учёт: сколько числится</td><td><code>sku</code>, <code>title</code>, <code>category</code>, <code>qty_accounted</code>, <code>shelf</code></td></tr>
+              <tr><td><code>kt01/stocktake.json</code></td><td>Пересчёт: сколько нашли на полках</td><td><code>sku</code>, <code>counted</code>, <code>counted_by</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure class="code">
+          <figcaption><span>Терминал</span><span>подготовка</span></figcaption>
+<pre>bash ../stend/load.sh
+docker exec hh-mongo mongosh sandbox --quiet \
+  --eval <span class="s">'db.warehouse.countDocuments()'</span>      <span class="c"># 21</span></pre>
+        </figure>
+        <p>Эталонные базы <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code> в работе не участвуют и меняться не должны — это проверяется на приёмке.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Что сделать</h2>
+        <ol class="steps">
+          <li><b>Загрузить пересчёт</b>Из <code>stocktake.json</code> в коллекцию <code>sandbox.stocktake</code> — одним запросом. Повторный запуск скрипта не должен двоить данные.</li>
+          <li><b>Сверить учёт с фактом</b>По артикулу разделить позиции на три группы: сошлось, недостача, излишек. Для каждой — количество позиций и список артикулов.</li>
+          <li><b>Привести учёт в соответствие</b>Для позиций с расхождением записать фактическое количество в <code>qty_accounted</code> и добавить <code>last_stocktake</code> с датой. Позиции, где всё сошлось, не трогать — и доказать это числом <code>modified_count</code>.</li>
+          <li><b>Пометить пустые полки</b>Позициям с нулевым фактическим остатком проставить <code>available: false</code>. У позиций, где товар есть, этого поля быть не должно.</li>
+          <li><b>Записать в журнал</b>Коллекция <code>sandbox.stocktake_log</code>, один документ на инвентаризацию: дата, число позиций, число расхождений, суммарная недостача в штуках. Повторный запуск в тот же день не создаёт вторую запись.</li>
+          <li><b>Написать отчёт</b><code>inventory.md</code> по бланку: числа, запросы, которыми они получены, и вывод для заведующего складом.</li>
+        </ol>
+
+        <h2 id="s3"><span class="sec">§3</span>Требования</h2>
+        <div class="ops">
+          <div><b>числа</b><span>Каждое число в отчёте получено запросом, а не посчитано глазами. Рядом с числом — запрос.</span><i>обязательно</i></div>
+          <div><b>песочница</b><span>Изменения идут только в <code>sandbox</code>. Эталонные базы после работы совпадают с исходными.</span><i>обязательно</i></div>
+          <div><b>повторный запуск</b><span>Скрипт можно запустить дважды, и база придёт к тому же состоянию.</span><i>обязательно</i></div>
+          <div><b>счётчик перед правкой</b><span>Перед массовым обновлением и удалением — <code>count_documents</code> с тем же фильтром.</span><i>обязательно</i></div>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>Бланк отчёта</h2>
+        <p>Структура задана — она же используется на приёмке. Полностью бланк лежит в репозитории, здесь его костяк.</p>
+        <div class="blank">
+          <h4>inventory.md</h4>
+          <ul>
+            <li><b>1. Что сверяли</b> — данные, источник, число позиций в учёте и в пересчёте, артикулы, которых нет в учёте.</li>
+            <li><b>2. Результат сверки</b> — таблица «сошлось / недостача / излишек»: позиции и артикулы. Суммарная недостача и излишек в штуках.</li>
+            <li><b>3. Что изменено в базе</b> — по каждой операции: найдено, изменено, сам запрос. Если найдено и изменено различаются — объяснить почему.</li>
+            <li><b>4. Пустые полки</b> — артикул, название, полка.</li>
+            <li><b>5. Что я проверил, чтобы не ошибиться</b> — своими словами.</li>
+            <li><b>6. Вывод</b> — два-три предложения для заведующего складом.</li>
+          </ul>
+        </div>
+
+        <h2 id="s5"><span class="sec">§5</span>Как принимается</h2>
+        <p>База пересоздаётся из репозитория, запускается ваш скрипт, числа из отчёта сверяются с тем, что получилось. Расхождение любого числа — работа возвращается.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Критерий</th><th>Что смотрят</th></tr></thead>
+            <tbody>
+              <tr><td>Числа сходятся</td><td>Отчёт против базы после запуска вашего скрипта</td></tr>
+              <tr><td>Скрипт повторяем</td><td>Второй запуск не меняет результат и не плодит записи</td></tr>
+              <tr><td>Эталон не тронут</td><td><code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code> совпадают с исходными</td></tr>
+              <tr><td>Отчёт читается</td><td>Вывод понятен человеку, который не открывал базу</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Вопросы на приёмке</b>
+          <p>Почему у вас <code>modified_count</code> меньше, чем найдено документов. Что произойдёт, если запустить скрипт дважды. Как вы убедились, что не изменили эталонные базы. Какой запрос вы бы написали, если бы позиций было не 21, а миллион. Последний вопрос — про то, что перебор в Python перестанет работать, и это нормально: на него отвечают уже средствами модуля 4.</p>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Подсказки, которые не выдают решение</h2>
+        <ul>
+          <li>Сверка 21 позиции спокойно делается перебором в Python: сложите пересчёт в словарь <code>{sku: counted}</code> и пройдите по учёту.</li>
+          <li><code>$set</code> записывает значение, <code>$inc</code> меняет на разницу. Здесь честнее <code>$set</code>: вы записываете факт, а не поправку.</li>
+          <li>«Не плодить записи за ту же дату» — это <code>update_one(..., upsert=True)</code> с датой в фильтре.</li>
+          <li>Дата берётся как <code>datetime.now(timezone.utc)</code>, ключ журнала — строка вида <code>2026-09-09</code>.</li>
+          <li>Поле, которого не должно быть, убирается через <code>$unset</code>, а не записью <code>None</code>.</li>
+        </ul>
+
+        <h3>После контрольной</h3>
+        <p>Дальше — модуль 2: язык фильтров целиком. Там появятся сравнения, «или», условия по массивам и проверка существования поля, и та же инвентаризация уложится в один запрос вместо перебора.</p>
+
+        <div class="pager"><a href="../01-katalog-tovarov/index.html">← ПР-01 Каталог товаров</a><a href="../../index.html">К содержанию справочника</a></div>
+
+        <div class="colophon">
+          <span>Контрольная точка 01 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

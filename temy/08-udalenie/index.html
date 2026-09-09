@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.8 Удаление · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.8</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.8</span>
+          <h1>Удаление<br>и как не удалить лишнего</h1>
+          <p class="lead">Последняя из четырёх операций — и единственная, у которой нет кнопки «отменить». Разберём <code>delete_one</code> и <code>delete_many</code>, разницу между очисткой коллекции и её удалением, приём «мягкого удаления» и порядок действий, который защищает от потери данных.</p>
+          <blockquote class="quote"><p>«Удалить можно за миллисекунду. Восстановить — за вечер, и только если кто-то заранее подумал о копии.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Операции над данными</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Фильтры, обновление, восстановление стенда</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Удалять ровно то, что задумано, и понимать цену ошибки</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">delete_one: один документ</a></li>
+            <li><a href="#s2">delete_many: все подходящие</a></li>
+            <li><a href="#s3">Порядок «посчитать → посмотреть → удалить»</a></li>
+            <li><a href="#s4">find_one_and_delete</a></li>
+            <li><a href="#s5">Очистить или удалить: delete_many({}) и drop()</a></li>
+            <li><a href="#s6">Мягкое удаление</a></li>
+            <li><a href="#s7">Удаление в Compass</a></li>
+            <li><a href="#s8">Восстановление стенда</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>delete_one: один документ</h2>
+        <p>Аргумент один — фильтр. Метод удаляет <strong>первый подходящий</strong> документ и возвращает результат с числом удалённых.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>удалить по ключу</span></figcaption>
+<pre>box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>]
+
+res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span class="s">"p-020"</span>})
+<span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
+<pre>db.products.<span class="f">deleteOne</span>({ _id: <span class="s">"p-020"</span> })
+<span class="c">// { acknowledged: true, deletedCount: 1 }</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>удалено: 1</pre>
+        </figure>
+        <p>Если ничего не нашлось, ошибки не будет — вернётся <code>deleted_count: 0</code>. Это тот же принцип, что и у <code>find_one</code>: отсутствие данных не считается сбоем. Поэтому <strong>результат нужно проверять</strong>: ноль означает, что документ либо уже удалён, либо фильтр написан не так, как задумано.</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>честный ответ вызывающему</span></figcaption>
+<pre>res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: product_id})
+
+<span class="k">if</span> res.deleted_count == <span class="n">0</span>:
+    <span class="k">raise</span> <span class="f">LookupError</span>(<span class="s">f"товар {product_id} не найден"</span>)</pre>
+        </figure>
+
+        <h2 id="s2"><span class="sec">§2</span>delete_many: все подходящие</h2>
+        <p>Тот же фильтр, но удаляются все документы, которые под него подошли.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>удалить категорию целиком</span></figcaption>
+<pre>res = box.<span class="f">delete_many</span>({<span class="s">"category"</span>: <span class="s">"аксессуары"</span>})
+<span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)
+<span class="f">print</span>(<span class="s">"осталось:"</span>, box.<span class="f">count_documents</span>({}))</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>удалено: 2
+осталось: 18</pre>
+          </figure>
+        </div>
+        <p>Аксессуаров было три, а удалилось два — потому что один из них, кабель <code>p-020</code>, мы удалили строкой выше. Мелочь, но она показывает главное свойство удаления: <strong>оно необратимо и меняет то, на чём построен следующий запрос</strong>. Числа в отчёте, снятые до удаления, после него уже не воспроизвести.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Порядок «посчитать → посмотреть → удалить»</h2>
+        <p>Профессиональная привычка, которая стоит дешевле любой резервной копии: перед удалением выполнить тот же фильтр на чтение.</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>три шага вместо одного</span></figcaption>
+<pre>query = {<span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: {<span class="s">"$lt"</span>: <span class="n">2000</span>}}
+
+<span class="c"># 1. Сколько документов попадёт под удаление</span>
+<span class="f">print</span>(<span class="s">"под фильтр попало:"</span>, box.<span class="f">count_documents</span>(query))
+
+<span class="c"># 2. Какие именно — глазами, не наугад</span>
+<span class="k">for</span> doc <span class="k">in</span> box.<span class="f">find</span>(query, {<span class="s">"_id"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}).<span class="f">limit</span>(<span class="n">10</span>):
+    <span class="f">print</span>(<span class="s">"  "</span>, doc)
+
+<span class="c"># 3. И только теперь — удаление тем же фильтром</span>
+res = box.<span class="f">delete_many</span>(query)
+<span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)</pre>
+        </figure>
+        <p>Фильтр в трёх местах должен быть <strong>одной и той же переменной</strong>, а не тремя похожими литералами: именно расхождение между «посмотрел» и «удалил» и приводит к потерям. Число из первого шага сверяется с <code>deleted_count</code> из третьего — если они разошлись, между шагами данные изменил кто-то ещё.</p>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: опечатка в фильтре опаснее, чем в запросе на чтение</b>
+          <p>Ошибка в имени поля при чтении даёт пустой результат — вы её заметите. Ошибка в имени поля при удалении даёт пустой фильтр по смыслу и совпадает со всеми документами, если поле в фильтре пропало целиком. Разница между <code>{"categoryy": "аксессуары"}</code> (удалит ноль) и <code>{}</code> (удалит всё) — один символ невнимательности.</p>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>find_one_and_delete</h2>
+        <p>Иногда удаляемый документ нужен: записать в журнал, положить в архив, вернуть в ответе. Метод <code>find_one_and_delete</code> удаляет и возвращает документ одним действием.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>удалить и забрать</span></figcaption>
+<pre>doc = box.<span class="f">find_one_and_delete</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
+<span class="f">print</span>(doc[<span class="s">"_id"</span>], doc[<span class="s">"title"</span>], doc[<span class="s">"price"</span>])</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>p-007 Смартфон Samsung Galaxy A55 32990</pre>
+          </figure>
+        </div>
+        <p>Почему не «прочитать, потом удалить» двумя запросами? Потому что между ними документ может изменить или удалить другой процесс, и в архив уедет не то, что удалилось. Здесь то же соображение, что и у <code>$inc</code> в прошлой главе: одна операция на сервере надёжнее двух по отдельности.</p>
+        <p>Рядом живут <code>find_one_and_update</code> и <code>find_one_and_replace</code> — они возвращают документ до или после изменения (параметр <code>return_document</code>). Классический случай их применения — очередь задач: забрать одну задачу и одновременно пометить её взятой, чтобы её не взял второй обработчик.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Очистить или удалить: delete_many({}) и drop()</h2>
+        <p>Два похожих действия с разными последствиями.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Очистка</span><span>документы удалены, коллекция осталась</span></figcaption>
+<pre>res = box.<span class="f">delete_many</span>({})
+<span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)          <span class="c"># 17</span>
+<span class="f">print</span>(<span class="s">"коллекция есть:"</span>,
+      <span class="s">"products"</span> <span class="k">in</span> db.<span class="f">list_collection_names</span>())   <span class="c"># True</span></pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>Удаление</span><span>коллекции больше нет</span></figcaption>
+<pre>box.<span class="f">drop</span>()
+<span class="f">print</span>(<span class="s">"коллекция есть:"</span>,
+      <span class="s">"products"</span> <span class="k">in</span> db.<span class="f">list_collection_names</span>())   <span class="c"># False</span></pre>
+          </figure>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Действие</th><th>Документы</th><th>Коллекция</th><th>Индексы</th><th>Скорость</th></tr></thead>
+            <tbody>
+              <tr><td><code>delete_many({})</code></td><td>удаляются по одному</td><td>остаётся</td><td>остаются</td><td>зависит от числа документов</td></tr>
+              <tr><td><code>drop()</code></td><td>исчезают вместе с коллекцией</td><td>удаляется</td><td>удаляются</td><td>мгновенно</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Практическая разница вот в чём. Если вы <code>drop()</code>-нули коллекцию, у которой были настроены индексы и правила проверки формы документа, — они исчезли вместе с ней, и новая коллекция создастся при первой записи уже без них. Для перезаливки учебных данных это неважно, для рабочей базы — важно очень.</p>
+        <p>Базу целиком удаляет <code>client.drop_database("sandbox")</code>. Команда короткая, последствия полные: восстанавливать придётся из резервной копии.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Мягкое удаление</h2>
+        <p>В рабочих системах документы часто не удаляют вовсе. Вместо этого ставят отметку — и это уже не операция удаления, а обычное обновление.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>пометить, а не удалить</span></figcaption>
+<pre><span class="k">from</span> datetime <span class="k">import</span> datetime, timezone
+
+box.<span class="f">update_one</span>(
+    {<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
+    {<span class="s">"$set"</span>: {<span class="s">"deleted_at"</span>: datetime.<span class="f">now</span>(timezone.utc)}})</pre>
+          </figure>
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>витрина показывает живые</span></figcaption>
+<pre>visible = {<span class="s">"deleted_at"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}
+
+<span class="k">for</span> doc <span class="k">in</span> box.<span class="f">find</span>(visible):
+    ...</pre>
+        </figure>
+        </div>
+        <div class="ops">
+          <div><b>плюсы</b><span>Данные восстановимы, история сохранена, отчёты за прошлые периоды не разъезжаются, случайное нажатие не фатально.</span><i>обратимо</i></div>
+          <div><b>минусы</b><span>Про фильтр «только живые» нужно помнить в каждом запросе. Забыли — и удалённое снова видно пользователю.</span><i>дисциплина</i></div>
+        </div>
+        <p>Выбор между настоящим и мягким удалением — это решение об устройстве системы, а не о синтаксисе. Заказы, платежи, документы пользователей почти всегда удаляют мягко; черновики, временные записи и кэш — по-настоящему. Требования закона тоже участвуют: удаление персональных данных по требованию человека должно быть настоящим.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Удаление в Compass</h2>
+        <p>В списке документов у каждого есть корзина: наведите курсор — появятся значки правки и удаления. Compass спрашивает подтверждение и показывает, что именно удаляет.</p>
+        <figure class="shot">
+          <img src="../../shots/10-delete.png" alt="Коллекция sandbox.products в Compass после удаления: 18 документов">
+          <figcaption>Compass · <code>sandbox.products</code> после удаления кабеля и двух аксессуаров: счётчик показывает <code>1 – 18 of 18</code> — ровно то число, что вернул <code>count_documents</code></figcaption>
+        </figure>
+        <p>Удалить документ можно и мышью, по одному:</p>
+        <div class="ops">
+          <div><b>корзина</b><span>Значок справа вверху документа, рядом с карандашом. Появляется при наведении курсора.</span><i>шаг 1</i></div>
+          <div><b>подтверждение</b><span>Compass подсвечивает документ красным и спрашивает, точно ли удалять. Видно, что именно исчезнет.</span><i>шаг 2</i></div>
+          <div><b>DELETE</b><span>Удаление выполняется сразу и необратимо. Счётчик коллекции уменьшается на единицу.</span><i>шаг 3</i></div>
+        </div>
+        <p>Удаление пачкой в Compass делают иначе: задают фильтр в строке поиска, а затем в меню коллекции выбирают нужное действие. Это тот же <code>delete_many</code>, и правило из §3 работает здесь буквально: сначала посмотрите на счётчик под строкой фильтра — он и покажет, сколько документов исчезнет.</p>
+        <figure class="shot">
+          <img src="../../shots/10-delete.png" alt="Коллекция sandbox.products в Compass после удаления: 18 документов вместо 21">
+          <figcaption>Compass · <code>sandbox.products</code> после двух удалений из §§1–2: вкладка Documents показывает 18, счётчик — <code>1 – 18 of 18</code></figcaption>
+        </figure>
+        <p>Кадр снят на песочнице, в которой перед этим выполнены ровно те запросы, что разобраны выше: правка из главы 1.7, затем <code>delete_one</code> и <code>delete_many</code>. Из двадцати одного документа осталось восемнадцать — и никакой команды «отменить» для этих трёх уже нет.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Восстановление стенда</h2>
+        <p>Всё, что мы удалили за эту главу, возвращается одной командой — потому что данные лежат в файлах репозитория, а не только в базе.</p>
+        <figure class="code">
+          <figcaption><span>Терминал</span><span>перезалить учебные базы</span></figcaption>
+<pre>cd mongodb-practice/stend
+bash load.sh
+
+<span class="c"># sandbox.products ← sandbox.products.json</span>
+<span class="c"># shop.orders      ← shop.orders.json</span>
+<span class="c"># …                                        </span></pre>
+        </figure>
+        <p>Это не только про учёбу. Правило «данные должны восстанавливаться из репозитория или из резервной копии, а не существовать в единственном экземпляре на сервере» — рабочее. Проверяется оно ровно одним вопросом: <em>что произойдёт, если сейчас удалить базу целиком?</em> Если ответ «перезальём за минуту» — вы в порядке.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>delete_many({})</code> вместо <code>delete_one</code></td><td>Коллекция пуста. Отменить нельзя</td><td>Пустой фильтр — только осознанно, при перезаливке</td></tr>
+              <tr><td><code>delete_one(query)</code> в цикле по списку</td><td>Медленно: обращение к серверу на каждый документ</td><td>Один <code>delete_many({"_id": {"$in": ids}})</code></td></tr>
+              <tr><td>Результат не проверяется</td><td>Пользователю сказано «удалено», хотя <code>deleted_count</code> равен нулю</td><td>Проверять <code>deleted_count</code> и отвечать честно</td></tr>
+              <tr><td>Прочитать, потом удалить двумя запросами</td><td>Между запросами документ мог измениться — в архив уедет не то</td><td><code>find_one_and_delete</code></td></tr>
+              <tr><td><code>drop()</code> на коллекции с индексами</td><td>Индексы и правила проверки исчезли вместе с коллекцией</td><td><code>delete_many({})</code>, если нужно сохранить настройки</td></tr>
+              <tr><td>Мягкое удаление без фильтра в запросах</td><td>«Удалённые» записи продолжают показываться</td><td>Единая функция выборки, которая всегда добавляет условие</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary><code>delete_one</code> вернул <code>deleted_count: 0</code>. Это ошибка?</summary>
+          <p>Нет, это законный ответ: под фильтр ничего не подошло. Ошибки не будет — поэтому результат надо проверять самому и отвечать вызывающему честно.</p>
+        </details>
+        <details>
+          <summary>Чем <code>delete_many({})</code> отличается от <code>drop()</code>?</summary>
+          <p>Первый удаляет документы, оставляя коллекцию с её индексами и правилами. Второй удаляет коллекцию целиком — вместе с индексами и проверкой формы. Второй быстрее, но после него настройки придётся создавать заново.</p>
+        </details>
+        <details>
+          <summary>Почему удалять «прочитал — удалил» двумя запросами хуже, чем <code>find_one_and_delete</code>?</summary>
+          <p>Между двумя запросами документ может изменить или удалить другой процесс. Тогда вы сохраните в архив одно, а удалите другое. Одна операция на сервере такого разрыва не допускает.</p>
+        </details>
+        <details>
+          <summary>Когда мягкое удаление уместнее настоящего?</summary>
+          <p>Когда данные нужны для истории и отчётов или когда ошибочное нажатие должно быть обратимым: заказы, платежи, документы пользователей. Настоящее удаление остаётся для черновиков, временных записей и случаев, когда удалить обязывает закон.</p>
+        </details>
+        <details>
+          <summary>Какой порядок действий защищает от лишнего удаления?</summary>
+          <p>Посчитать <code>count_documents(query)</code>, посмотреть <code>find(query)</code> глазами, удалить <code>delete_many(query)</code> — тем же фильтром из одной переменной, а затем сверить <code>deleted_count</code> с числом из первого шага.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Удалить документ</b>
+            <code>col.delete_one({"_id": "p-020"})</code>
+            <code>res.deleted_count</code>
+          </div>
+          <div>
+            <b>Удалить пачку</b>
+            <code>col.delete_many(</code>
+            <code>  {"category": "аксессуары"})</code>
+            <code>col.delete_many({"_id": {"$in": ids}})</code>
+          </div>
+          <div>
+            <b>Удалить и забрать</b>
+            <code>doc = col.find_one_and_delete(</code>
+            <code>  {"_id": "p-008"})</code>
+          </div>
+          <div>
+            <b>Очистить / снести</b>
+            <code>col.delete_many({})   # пусто</code>
+            <code>col.drop()            # нет коллекции</code>
+            <code>client.drop_database("sandbox")</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>delete_one</code> убирает первый подходящий документ, <code>delete_many</code> — все; ноль удалённых не считается ошибкой, поэтому результат проверяют. <code>find_one_and_delete</code> удаляет и возвращает документ одной операцией. <code>delete_many({})</code> оставляет коллекцию с индексами, <code>drop()</code> сносит её целиком. Перед любым удалением фильтр сначала считают и смотрят — это дешевле любого восстановления. На этом четыре базовые операции разобраны: дальше практическая работа, где они соберутся в одну прикладную задачу.</p>
+
+        <div class="pager"><a href="../07-obnovlenie/index.html">← 1.7 Обновление документов</a><a href="../../praktiki/01-katalog-tovarov/index.html">ПР-01 Каталог товаров →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.8 · Удаление · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

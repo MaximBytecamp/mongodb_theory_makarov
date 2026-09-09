@@ -1,0 +1,11 @@
+const pw = (await import('/Users/makarovmn/python_presentations/tools/node_modules/playwright/index.js')).default;
+const browser = await pw.chromium.connectOverCDP('http://localhost:9222');
+const ctx = browser.contexts()[0];
+const page = ctx.pages()[0];
+await page.setViewportSize({ width: 1600, height: 1000 }).catch(()=>{});
+await page.waitForTimeout(1500);
+console.log('title:', await page.title());
+console.log('url:', page.url());
+await page.screenshot({ path: '/tmp/compass-state.png' });
+const text = await page.evaluate(() => document.body.innerText.slice(0, 900));
+console.log(text);

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.2 Документ и BSON · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* Байтовая лента: 12 байт ObjectId по группам. */
+    .bytes { display: flex; flex-wrap: wrap; gap: 4px; margin: 18px 0 10px; }
+    .bytes span { flex: 1 1 54px; padding: 9px 4px; text-align: center; border: 2px solid var(--ink); background: var(--page); font: 700 12px/1.3 var(--mono); }
+    .bytes span.g1 { background: var(--leaf-pale); }
+    .bytes span.g2 { background: var(--clay-pale); }
+    .bytes span.g3 { background: #E4DDF2; }
+    .bytes-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .bytes-legend > div { padding: 10px 13px; border: 2px solid var(--ink); font-size: 14px; }
+    .bytes-legend b { display: block; font: 700 12px/1.6 var(--mono); }
+    .bytes-legend > div:nth-child(1) { border-left: 6px solid var(--leaf); }
+    .bytes-legend > div:nth-child(2) { border-left: 6px solid var(--clay); }
+    .bytes-legend > div:nth-child(3) { border-left: 6px solid var(--violet); }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.2</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.2</span>
+          <h1>Документ<br>и BSON</h1>
+          <p class="lead">Документ — единица хранения в MongoDB: его кладут и достают целиком. Разберём, из чего он состоит, какие типы значений в нём бывают, почему он хранится не как текст и что за поле <code>_id</code> появляется в каждом документе само.</p>
+          <blockquote class="quote"><p>«Документ — это не запись таблицы. Это целая карточка, которую читают одним движением.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Модель данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Вставка, типы в фильтрах, проекция</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Понимать, что именно лежит в базе и почему <code>"65000"</code> и <code>65000</code> — разные значения</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Документ: пары «поле — значение»</a></li>
+            <li><a href="#s2">BSON: не текст, а двоичная запись</a></li>
+            <li><a href="#s3">Типы значений</a></li>
+            <li><a href="#s4">Сколько весит документ</a></li>
+            <li><a href="#s5">Поле <code>_id</code></a></li>
+            <li><a href="#s6">ObjectId по байтам</a></li>
+            <li><a href="#s7">Одна коллекция — разные формы</a></li>
+            <li><a href="#s8">Типы в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Документ: пары «поле — значение»</h2>
+        <p><span class="term">Документ</span> — это набор пар «поле — значение». Значением может быть число, строка, дата, массив — или другой документ. Именно поэтому одна карточка товара помещается в один документ целиком, а не разносится по шести таблицам.</p>
+        <p>Возьмём настоящий товар из нашей базы:</p>
+        <div class="doc">
+          <div class="doc__bar"><span>shop.products · _id: p-012</span><span>314 байт</span></div>
+          <div class="doc__body">{<br>
+            &nbsp;&nbsp;<span class="fld">_id</span>: <span class="s">"p-012"</span>,<span class="type">string</span><br>
+            &nbsp;&nbsp;<span class="fld">sku</span>: <span class="s">"SKU-PR-012"</span>,<span class="type">string</span><br>
+            &nbsp;&nbsp;<span class="fld">title</span>: <span class="s">"Монитор Dell P2422H"</span>,<span class="type">string</span><br>
+            &nbsp;&nbsp;<span class="fld">brand</span>: <span class="s">"Dell"</span>,<span class="type">string</span><br>
+            &nbsp;&nbsp;<span class="fld">category</span>: <span class="s">"периферия"</span>,<span class="type">string</span><br>
+            &nbsp;&nbsp;<span class="fld">price</span>: <span class="n">21990</span>,<span class="type">int32</span><br>
+            &nbsp;&nbsp;<span class="fld">specs</span>: [<span class="s">"24\""</span>, <span class="s">"IPS"</span>, <span class="s">"75 Гц"</span>],<span class="type">array</span><br>
+            &nbsp;&nbsp;<span class="fld">stock</span>: [{ <span class="fld">warehouse</span>: <span class="s">"Екатеринбург"</span>, <span class="fld">qty</span>: <span class="n">0</span> }],<span class="type">array&nbsp;of&nbsp;object</span><br>
+            &nbsp;&nbsp;<span class="fld">rating</span>: <span class="n">3.7</span>,<span class="type">double</span><br>
+            &nbsp;&nbsp;<span class="fld">reviews</span>: <span class="n">80</span>,<span class="type">int32</span><br>
+            &nbsp;&nbsp;<span class="fld">added</span>: <span class="f">ISODate</span>(<span class="s">"2026-04-19T00:00:00Z"</span>),<span class="type">date</span><br>
+            &nbsp;&nbsp;<span class="fld">discount</span>: <span class="n">5</span><span class="type">int32</span><br>
+            }</div>
+        </div>
+        <p>Три вещи здесь стоит заметить сразу. Первое: <code>specs</code> — массив строк, и он лежит прямо в документе, отдельной таблицы «характеристики» нет. Второе: <code>stock</code> — массив документов; вложенность может быть любой глубины. Третье: у товара есть поле <code>discount</code>, а у соседнего товара его может не быть вовсе — и это законно.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>BSON: не текст, а двоичная запись</h2>
+        <p>Выглядит документ как JSON, но хранится иначе. Формат называется <span class="term">BSON</span> — Binary JSON, двоичная запись документа. Разница не косметическая:</p>
+        <div class="ops">
+          <div><b>типы</b><span>В JSON число одно на всех. В BSON различаются <code>int32</code>, <code>int64</code>, <code>double</code> и <code>decimal128</code>, а ещё есть дата, двоичные данные и <code>ObjectId</code> — типов, которых в JSON нет.</span><i>точность</i></div>
+          <div><b>длина</b><span>Каждый документ и каждая строка предваряются своей длиной. Серверу не нужно читать документ до конца, чтобы понять, где он заканчивается.</span><i>скорость</i></div>
+          <div><b>порядок</b><span>Порядок полей сохраняется таким, каким его записали, — в отличие от словаря во многих языках.</span><i>предсказуемость</i></div>
+        </div>
+        <p>Отсюда важное следствие для практики: <strong>тип значения хранится вместе со значением</strong>. Строка <code>"21990"</code> и число <code>21990</code> — это два разных значения, и запрос «дороже 20000» найдёт только второе. Разбирать эту ловушку мы будем в модуле 2, но появляется она здесь, на уровне хранения.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Типы значений</h2>
+        <p>Полный список типов BSON длинный, но в работе встречается десяток. Вот они — с тем, как тип называется в базе и во что превращается в Python.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Тип BSON</th><th>Псевдоним</th><th>В Python</th><th>Где у нас встречается</th></tr></thead>
+            <tbody>
+              <tr><td>String</td><td><code>"string"</code></td><td><code>str</code></td><td><code>title</code>, <code>category</code></td></tr>
+              <tr><td>32-bit integer</td><td><code>"int"</code></td><td><code>int</code></td><td><code>price</code>, <code>reviews</code></td></tr>
+              <tr><td>64-bit integer</td><td><code>"long"</code></td><td><code>int</code></td><td>большие счётчики, время в миллисекундах</td></tr>
+              <tr><td>Double</td><td><code>"double"</code></td><td><code>float</code></td><td><code>rating</code></td></tr>
+              <tr><td>Decimal128</td><td><code>"decimal"</code></td><td><code>Decimal128</code></td><td>деньги там, где нельзя терять копейки</td></tr>
+              <tr><td>Boolean</td><td><code>"bool"</code></td><td><code>bool</code></td><td><code>payment.paid</code> в заказах</td></tr>
+              <tr><td>Date</td><td><code>"date"</code></td><td><code>datetime</code></td><td><code>added</code>, <code>created</code></td></tr>
+              <tr><td>Array</td><td><code>"array"</code></td><td><code>list</code></td><td><code>specs</code>, <code>items</code></td></tr>
+              <tr><td>Object</td><td><code>"object"</code></td><td><code>dict</code></td><td><code>delivery</code>, <code>payment</code></td></tr>
+              <tr><td>ObjectId</td><td><code>"objectId"</code></td><td><code>ObjectId</code></td><td><code>_id</code>, если его не задали сами</td></tr>
+              <tr><td>Null</td><td><code>"null"</code></td><td><code>None</code></td><td><code>user_id</code> в событиях без пользователя</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Проверить тип каждого поля можно прямо из Python — драйвер уже перевёл значения в объекты языка:</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>Python · PyMongo</span><span>типы полей документа</span></figcaption>
+<pre>one = db[<span class="s">"products"</span>].<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-012"</span>})
+
+<span class="k">for</span> name, value <span class="k">in</span> one.<span class="f">items</span>():
+    <span class="f">print</span>(<span class="s">f"{name:10} {type(value).__name__}"</span>)</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>_id        str
+sku        str
+title      str
+brand      str
+category   str
+price      int
+specs      list
+stock      list
+rating     float
+reviews    int
+added      datetime
+discount   int</pre>
+          </figure>
+        </div>
+        <div class="margin-note">
+          <b>На полях: int и long — один тип в Python</b>
+          <p>У Python одно целое число, у BSON их два: <code>int32</code> и <code>int64</code>. При записи драйвер выбирает подходящий сам, при чтении оба становятся <code>int</code>. Разница вылезает в одном месте — в запросах по типу <code>{"$type": "int"}</code>, где <code>int</code> и <code>long</code> уже не одно и то же.</p>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>Сколько весит документ</h2>
+        <p>Размер документа считает сама база — оператором <code>$bsonSize</code>. Это полезная привычка: понимать, во что обходится хранение, до того, как документов станет миллион.</p>
+        <div class="duo">
+          <figure class="code">
+            <figcaption><span>mongosh · оболочка</span><span>размер двух товаров</span></figcaption>
+<pre>db.products.<span class="f">aggregate</span>([
+  { <span class="o">$match</span>: { _id: { <span class="o">$in</span>: [<span class="s">"p-012"</span>, <span class="s">"p-020"</span>] } } },
+  { <span class="o">$project</span>: { title: <span class="n">1</span>, size: { <span class="o">$bsonSize</span>: <span class="s">"$$ROOT"</span> } } }
+])</pre>
+          </figure>
+          <figure class="code code--out">
+            <figcaption><span>Вывод</span><span>стенд курса</span></figcaption>
+<pre>[
+  { _id: <span class="s">'p-012'</span>, title: <span class="s">'Монитор Dell P2422H'</span>, size: <span class="n">314</span> },
+  { _id: <span class="s">'p-020'</span>, title: <span class="s">'Кабель USB-C 2 м'</span>, size: <span class="n">323</span> }
+]</pre>
+          </figure>
+        </div>
+        <div class="stat">
+          <span><strong>314</strong><em>байт у монитора: три характеристики, один склад</em></span>
+          <span><strong>323</strong><em>байта у кабеля: название короче, но складов больше</em></span>
+          <span><strong>16 МБ</strong><em>предельный размер одного документа в MongoDB</em></span>
+        </div>
+        <p>Обратите внимание на пару: у кабеля название вдвое короче, а документ на девять байт тяжелее. Вес определяет не текст, а структура — сколько в документе полей, элементов массива и вложенных объектов. Служебные байты длины и типа тоже занимают место.</p>
+        <p>Предел в 16 МБ на документ выглядит недостижимым, но именно он ставит границу подходу «положим всё в один документ»: список из миллиона заказов клиента в его карточку не поместится. Где проходит эта граница на практике — тема отдельного разговора о вложении и ссылках.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Поле <code>_id</code></h2>
+        <p>В каждом документе есть поле <code>_id</code> — первичный ключ. Правила у него три:</p>
+        <ul>
+          <li><strong>оно обязательное</strong>: если вы его не указали, сервер добавит его сам;</li>
+          <li><strong>оно уникальное</strong> внутри коллекции: индекс по <code>_id</code> создаётся автоматически и снять его нельзя;</li>
+          <li><strong>его нельзя изменить</strong> у существующего документа — только удалить документ и записать заново.</li>
+        </ul>
+        <p>Значением <code>_id</code> может быть что угодно: строка, число, дата, вложенный документ. В нашей базе это осмысленные строки — <code>"p-012"</code>, <code>"o-0001"</code>, <code>"c-003"</code>: по такому ключу видно, что перед вами, ещё до чтения документа. Если же <code>_id</code> не задать, сервер поставит <span class="term">ObjectId</span> — 12-байтовый идентификатор.</p>
+        <figure class="code">
+          <figcaption><span>Python · PyMongo</span><span>_id, которого не было</span></figcaption>
+<pre>result = box.<span class="f">insert_one</span>({
+    <span class="s">"sku"</span>: <span class="s">"SKU-AC-022"</span>, <span class="s">"title"</span>: <span class="s">"Коврик для мыши XL"</span>, <span class="s">"price"</span>: <span class="n">1290</span>,
+})
+
+<span class="f">print</span>(<span class="s">"присвоенный _id:"</span>, result.inserted_id)
+<span class="f">print</span>(<span class="s">"тип:"</span>, <span class="f">type</span>(result.inserted_id).__name__)
+<span class="f">print</span>(<span class="s">"время создания:"</span>, result.inserted_id.generation_time)</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>присвоенный _id: 6aa08c51503a4f190a669c88
+тип: ObjectId
+время создания: 2026-09-08 22:29:37+00:00</pre>
+        </figure>
+
+        <h2 id="s6"><span class="sec">§6</span>ObjectId по байтам</h2>
+        <p>ObjectId — не случайное число. Это 12 байт с понятной структурой, и записывают его как 24 шестнадцатеричных знака: каждый байт — два знака.</p>
+        <div class="bytes">
+          <span class="g1">6a</span><span class="g1">a0</span><span class="g1">8c</span><span class="g1">51</span>
+          <span class="g2">50</span><span class="g2">3a</span><span class="g2">4f</span><span class="g2">19</span><span class="g2">0a</span>
+          <span class="g3">66</span><span class="g3">9c</span><span class="g3">88</span>
+        </div>
+        <div class="bytes-legend">
+          <div><b>4 байта · время</b>Секунды с 1 января 1970 года. Отсюда и берётся <code>generation_time</code>: дата создания уже лежит в самом ключе.</div>
+          <div><b>5 байт · случайное значение</b>Уникально для процесса на машине. Нужно, чтобы два сервера, вставляющие данные в одну секунду, не столкнулись.</div>
+          <div><b>3 байта · счётчик</b>Растёт с каждым новым идентификатором внутри процесса. Разводит документы, созданные в одну и ту же секунду.</div>
+        </div>
+        <p>Из устройства следуют два практических вывода. Первый: <strong>ObjectId примерно упорядочен по времени</strong> — сортировка по <code>_id</code> почти совпадает с сортировкой по дате создания, и отдельное поле «когда создан» иногда не нужно. Второй: <strong>ObjectId выдаёт время создания записи</strong> — это не всегда желательно, если идентификатор виден снаружи, в адресной строке.</p>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: строка — это не ObjectId</b>
+          <p>В запросе <code>{"_id": "6aa08c51503a4f190a669c88"}</code> база ищет строку и не находит ничего: в документе лежит значение типа ObjectId. Идентификатор из адресной строки нужно превратить в объект: <code>from bson import ObjectId</code>, затем <code>{"_id": ObjectId(raw)}</code>. Это одна из самых частых ошибок в первом веб-приложении на MongoDB.</p>
+        </div>
+
+        <h2 id="s7"><span class="sec">§7</span>Одна коллекция — разные формы</h2>
+        <p>Коллекция не требует, чтобы документы были одинаковыми. Схемы у неё нет — по умолчанию сервер примет документ любой формы. В нашей коллекции товаров это видно сразу:</p>
+        <div class="collection">
+          <div class="doc">
+            <div class="doc__bar"><span>p-003</span><span>со скидкой</span></div>
+            <div class="doc__body"><span class="fld">title</span>: <span class="s">"Ноутбук HP..."</span><br><span class="fld">price</span>: <span class="n">67900</span><br><span class="fld">discount</span>: <span class="n">10</span><br><span class="fld">specs</span>: [<span class="n">3</span> элемента]</div>
+          </div>
+          <div class="doc">
+            <div class="doc__bar"><span>p-006</span><span>без скидки</span></div>
+            <div class="doc__body"><span class="fld">title</span>: <span class="s">"Смартфон Xiaomi..."</span><br><span class="fld">price</span>: <span class="n">18990</span><br><span class="c">// поля discount нет</span><br><span class="fld">specs</span>: [<span class="n">2</span> элемента]</div>
+          </div>
+          <div class="doc">
+            <div class="doc__bar"><span>p-020</span><span>два склада</span></div>
+            <div class="doc__body"><span class="fld">title</span>: <span class="s">"Кабель USB-C 2 м"</span><br><span class="fld">price</span>: <span class="n">790</span><br><span class="fld">stock</span>: [<span class="n">2</span> склада]<br><span class="fld">specs</span>: [<span class="n">2</span> элемента]</div>
+          </div>
+        </div>
+        <p>Это свойство даёт свободу — новое поле добавляется без миграции всей коллекции, — и оно же создаёт главную опасность документной базы: <strong>опечатка в имени поля не будет замечена</strong>. Запись <code>salaryy</code> вместо <code>salary</code> просто создаст новое поле, и никто не возразит. Как поставить базе правила и заставить её проверять форму документа, разберём в главе 3.1.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Типы в Compass</h2>
+        <p>Тот же документ в Compass. Тип здесь виден по тому, как записано значение: строки в кавычках, числа без кавычек, дата — как <code>ISODate</code> с расшифровкой рядом, массив — как <code>Array&nbsp;(3)</code> со свёрнутым содержимым.</p>
+        <figure class="shot">
+          <img src="../../shots/03-document-types.png" alt="Документ p-012 в MongoDB Compass: строки в кавычках, числа без кавычек, ISODate у даты, Array у массивов">
+          <figcaption>Compass · <code>shop.products</code>, фильтр <code>{ _id: "p-012" }</code> — тот самый документ из §1, 12 полей</figcaption>
+        </figure>
+        <p>Явно тип пишется в <strong>табличном виде</strong> — это третья кнопка в правом верхнем углу списка. Там Compass ставит тип в шапку каждого столбца: <code>_id String</code>, <code>price Int32</code>, <code>rating Double</code>. И если в столбце встретится несколько типов, он покажет их списком — так опечатка вроде цены, записанной строкой, находится глазами, без единого запроса.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"price": "21990"}</code></td><td>Записано строкой. Сравнения и суммы по этому полю работать перестанут</td><td>Приводить к числу до записи: <code>int(value)</code></td></tr>
+              <tr><td><code>{"_id": "6aa08c…"}</code> для ObjectId</td><td>Пустой результат: строка не равна ObjectId</td><td><code>{"_id": ObjectId("6aa08c…")}</code></td></tr>
+              <tr><td>Попытка изменить <code>_id</code></td><td><code>WriteError: Performing an update on the path '_id' would modify the immutable field '_id'</code></td><td>Удалить документ и вставить заново с новым ключом</td></tr>
+              <tr><td>Дата записана строкой <code>"2026-04-19"</code></td><td>Сортировка сработает случайно, а сравнение по датам — нет</td><td>Писать <code>datetime</code>, база сохранит его типом <code>date</code></td></tr>
+              <tr><td>Копилка на весь документ: массив на десятки тысяч элементов</td><td>Приближение к пределу 16 МБ и медленное чтение целиком</td><td>Выносить растущий список в отдельную коллекцию</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем BSON отличается от JSON, если на экране они выглядят одинаково?</summary>
+          <p>BSON — двоичный формат: он хранит тип вместе со значением, знает длину каждого документа и строки и поддерживает типы, которых в JSON нет, — дату, <code>ObjectId</code>, двоичные данные, несколько числовых типов. JSON — это текст, в котором все числа одинаковы, а даты приходится изображать строками.</p>
+        </details>
+        <details>
+          <summary>Мы не указали <code>_id</code>. Что окажется в документе?</summary>
+          <p><code>ObjectId</code> — 12 байт: 4 байта времени, 5 случайных, 3 счётчика. Его сгенерирует драйвер или сервер, а вернётся он в <code>result.inserted_id</code>.</p>
+        </details>
+        <details>
+          <summary>Можно ли в одной коллекции держать документы с разным набором полей?</summary>
+          <p>Да, по умолчанию сервер не проверяет форму. Это удобно при развитии проекта, но означает, что опечатку в имени поля никто не заметит: появится новое поле. Проверку формы включают отдельно — правилом <code>$jsonSchema</code>.</p>
+        </details>
+        <details>
+          <summary>Почему у документа с более коротким названием размер оказался больше?</summary>
+          <p>Потому что размер определяется структурой, а не длиной текста. У товара <code>p-020</code> в массиве <code>stock</code> два склада вместо одного, а каждый элемент — это вложенный документ со своими служебными байтами длины и типов.</p>
+        </details>
+        <details>
+          <summary>Сортировка по <code>_id</code> — то же самое, что сортировка по дате создания?</summary>
+          <p>Почти, если <code>_id</code> — это ObjectId: первые четыре байта хранят время с точностью до секунды. Внутри одной секунды порядок определяет счётчик, а на нескольких серверах он может разойтись. Если порядок важен точно, заводите собственное поле с датой.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Посмотреть документ</b>
+            <code>col.find_one({"_id": "p-012"})</code>
+            <code># mongosh:</code>
+            <code>db.products.findOne({_id:"p-012"})</code>
+          </div>
+          <div>
+            <b>Размер документа</b>
+            <code>{$project: {size:</code>
+            <code>  {$bsonSize: "$$ROOT"}}}</code>
+            <code># предел — 16 МБ</code>
+          </div>
+          <div>
+            <b>ObjectId из строки</b>
+            <code>from bson import ObjectId</code>
+            <code>col.find_one(</code>
+            <code>  {"_id": ObjectId(raw)})</code>
+          </div>
+          <div>
+            <b>Время из ObjectId</b>
+            <code>oid.generation_time</code>
+            <code># mongosh:</code>
+            <code>_id.getTimestamp()</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Документ — это пары «поле — значение», где значением может быть массив или другой документ; хранится он в двоичном формате BSON, который помнит тип каждого значения и длину каждой части. Поле <code>_id</code> есть всегда: заданное вами или сгенерированный сервером ObjectId, в первых байтах которого лежит время создания. Форма документов внутри коллекции может различаться — и это одновременно главная свобода и главная опасность документной базы. В следующей главе начнём класть документы в базу сами.</p>
+
+        <div class="pager"><a href="../01-klient-baza-kollekciya/index.html">← 1.1 Сервер, база, коллекция</a><a href="../03-vstavka/index.html">1.3 Вставка документов →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.2 · Документ и BSON · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
