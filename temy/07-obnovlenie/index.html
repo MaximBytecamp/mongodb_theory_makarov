@@ -25,7 +25,7 @@
           <span class="chapter-num">1.7</span>
           <h1>Обновление<br>документов</h1>
           <p class="lead">Третья операция — изменить то, что уже лежит в базе. Разберём операторы <code>$set</code>, <code>$inc</code> и <code>$unset</code>, поймём разницу между «нашлось» и «изменилось», научимся менять пачку документов одним запросом и увидим, что делает <code>upsert</code>.</p>
-          <blockquote class="quote"><p>«Запрос на обновление без фильтра — самый дорогой способ узнать, что такое резервная копия.»</p></blockquote>
+          <blockquote class="quote"><p>«Обновление без фильтра меняет всю коллекцию.»</p></blockquote>
         </header>
 
         <dl class="passport">
@@ -126,7 +126,7 @@
             </tbody>
           </table>
         </div>
-        <p>Практический вывод: <strong>проверять надо <code>matched_count</code></strong>, а не <code>modified_count</code>. Если API отвечает «объект не найден» по нулевому <code>modified</code>, он будет врать каждый раз, когда пользователь сохранил форму, ничего в ней не поменяв.</p>
+        <p><strong>Проверять нужно <code>matched_count</code></strong>, а не <code>modified_count</code>. API, который отвечает «объект не найден» по нулевому <code>modified</code>, ошибается каждый раз, когда пользователь сохранил форму, ничего в ней не изменив.</p>
 
         <h2 id="s4"><span class="sec">§4</span>$inc и $unset</h2>
         <p><code>$set</code> — не единственный оператор. Два других нужны почти так же часто.</p>
@@ -174,7 +174,7 @@
         <p>Шесть документов: три исходных аксессуара, коврик и две позиции, добавленные в главе о вставке. Поле <code>free_shipping</code> появилось у них и только у них — остальные товары не изменились.</p>
         <div class="margin-note">
           <b>На полях: сначала посчитайте, потом меняйте</b>
-          <p>Хорошая привычка перед любым <code>update_many</code> — выполнить <code>count_documents</code> с тем же фильтром. Число покажет, скольких документов коснётся правка, до того как она произойдёт. Если ожидали шесть, а видите шестьсот — фильтр написан не так, как задумано.</p>
+          <p>Перед любым <code>update_many</code> выполняют <code>count_documents</code> с тем же фильтром. Число показывает, скольких документов коснётся правка, до того как она произойдёт. Ожидали шесть, а видите шестьсот — фильтр написан не так, как задумано.</p>
         </div>
         <figure class="code">
           <figcaption><span>Python · PyMongo</span><span>проверка перед правкой</span></figcaption>
@@ -203,7 +203,7 @@ box.<span class="f">update_many</span>(query, {<span class="s">"$set"</span>: {<
 <pre>matched: 0 modified: 0 upserted_id: p-999</pre>
           </figure>
         </div>
-        <p>Ноль совпадений, ноль изменений — и новый документ. Обратите внимание, откуда взялся <code>_id</code>: из фильтра. При вставке через <code>upsert</code> сервер собирает документ из полей фильтра, где стоит точное равенство, и полей из <code>$set</code>.</p>
+        <p>Ноль совпадений, ноль изменений — и новый документ. Ключ <code>_id</code> взят из фильтра: при вставке через <code>upsert</code> сервер собирает документ из полей фильтра с точным равенством и полей из <code>$set</code>.</p>
         <p>Где это нужно на практике: счётчики и агрегаты, которые пишутся «на лету». Например, счётчик просмотров товара за день — не нужно проверять, есть ли уже запись за сегодня:</p>
         <figure class="code">
           <figcaption><span>Python · PyMongo</span><span>счётчик, который создаётся сам</span></figcaption>
@@ -249,7 +249,7 @@ box.<span class="f">update_many</span>(query, {<span class="s">"$set"</span>: {<
           <img src="../../shots/09-update.png" alt="Документ p-003 в Compass после обновления: reviews равно 32, поля discount в документе нет">
           <figcaption>Compass · <code>sandbox.products</code> после <code>$inc</code> и <code>$unset</code>: <code>reviews: 32</code>, а строки <code>discount</code> в документе больше нет</figcaption>
         </figure>
-        <p>Обратите внимание на то, чего на кадре <em>нет</em>. Поле <code>discount</code> не стало пустым и не превратилось в <code>null</code> — оно исчезло из документа. Именно так работает <code>$unset</code>, и именно поэтому такой товар найдётся по фильтру <code>{"discount": {"$exists": False}}</code>.</p>
+        <p>Поля <code>discount</code> на кадре нет вовсе: оно не стало пустым и не превратилось в <code>null</code>, а исчезло из документа. Так работает <code>$unset</code>; поэтому такой товар найдётся по фильтру <code>{"discount": {"$exists": False}}</code>.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
         <div class="table-scroll errors-table">
