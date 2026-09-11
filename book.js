@@ -47,6 +47,60 @@
     });
   }
 
+  /* ---- Переключатель языка драйвера ---------------------------- */
+  /* Выбор общий для всей книги: сохраняется и подхватывается на любой
+     странице. Блоки кода помечены data-lang, видимостью управляет CSS. */
+  const LANGS = [
+    ['python', 'Python'],
+    ['cpp', 'C++'],
+    ['go', 'Go'],
+    ['ruby', 'Ruby'],
+  ];
+  const STORAGE_KEY = 'mongodb-book-lang';
+
+  if (document.querySelector('[data-lang]')) {
+    const read = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return LANGS.some(([id]) => id === saved) ? saved : 'python';
+      } catch (_) {
+        return 'python';
+      }
+    };
+
+    const bar = document.createElement('div');
+    bar.className = 'langbar';
+    bar.innerHTML = '<span class="langbar__label">драйвер</span>';
+
+    const buttons = LANGS.map(([id, title]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = title;
+      button.dataset.setLang = id;
+      bar.appendChild(button);
+      return button;
+    });
+
+    const apply = lang => {
+      document.documentElement.dataset.lang = lang;
+      buttons.forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.setLang === lang));
+      });
+      try { localStorage.setItem(STORAGE_KEY, lang); } catch (_) { /* приватный режим */ }
+    };
+
+    buttons.forEach(button => button.addEventListener('click', () => apply(button.dataset.setLang)));
+
+    const running = document.querySelector('.running');
+    if (running) running.insertBefore(bar, running.querySelector('.running__folio'));
+    apply(read());
+
+    // Выбор, сделанный в другой вкладке, подхватывается без перезагрузки.
+    window.addEventListener('storage', event => {
+      if (event.key === STORAGE_KEY && event.newValue) apply(read());
+    });
+  }
+
   /* ---- Подсветка стадии конвейера ------------------------------ */
   document.querySelectorAll('.pipeline').forEach(pipeline => {
     const stages = [...pipeline.querySelectorAll('.pipeline__stage')];

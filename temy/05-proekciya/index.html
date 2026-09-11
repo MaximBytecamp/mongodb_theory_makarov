@@ -9,6 +9,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="book">

@@ -336,6 +336,35 @@ details p:last-child, details ul:last-child { margin-bottom: 0; }
   * { scroll-behavior: auto; }
 }
 
+/* ── 5б. Переключатель языка драйвера ────────────────────────── */
+/* Выбор хранится в localStorage и проставляется в <html data-lang>
+   до отрисовки, поэтому блоки не мигают при загрузке. */
+.langbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.langbar__label { margin-right: 4px; font: 600 10px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-faint); }
+.langbar button {
+  padding: 5px 11px 4px;
+  border: 2px solid var(--ink); background: var(--page); color: var(--ink-soft);
+  font: 600 11px/1.3 var(--mono); letter-spacing: .3px; cursor: pointer;
+}
+.langbar button:hover { color: var(--ink); border-color: var(--leaf); }
+.langbar button[aria-pressed="true"] {
+  background: var(--ink); color: var(--leaf-bright);
+  box-shadow: 3px 3px 0 var(--leaf);
+}
+
+/* Блоки кода, привязанные к языку: виден только выбранный.
+   Правило намеренно ограничено .book — иначе оно накрывает сам <html data-lang>. */
+.book [data-lang] { display: none; }
+:root[data-lang="python"] .book [data-lang="python"],
+:root[data-lang="cpp"] .book [data-lang="cpp"],
+:root[data-lang="go"] .book [data-lang="go"],
+:root[data-lang="ruby"] .book [data-lang="ruby"] { display: block; }
+/* До запуска скрипта и без JS показываем Python. */
+:root:not([data-lang]) .book [data-lang="python"] { display: block; }
+
+/* Подпись языка в шапке блока кода. */
+figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); }
+
 /* ── 6. Кадры Compass, практики, служебное ───────────────────── */
 .shot { margin: 22px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
 .shot img { display: block; width: 100%; height: auto; background: #fff; cursor: zoom-in; }

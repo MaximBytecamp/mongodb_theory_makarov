@@ -54,6 +54,10 @@
     .toc--work .work-kind { font: 600 10px/1 var(--pixel); letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
     .toc--work s .work-kind { color: var(--ink-faint); }
   </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="book">

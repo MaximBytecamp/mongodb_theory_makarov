@@ -35,6 +35,10 @@
     .uri__parts b { display: block; font: 700 13px/1.5 var(--mono); margin-bottom: 4px; }
     .uri__parts span { font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
   </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="book">
@@ -141,7 +145,7 @@
         <h2 id="s4"><span class="sec">§4</span>MongoClient: создание клиента</h2>
         <p>В Python работа начинается с объекта <code>MongoClient</code>: это клиент, живущий внутри вашей программы.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>клиент</span></figcaption>
 <pre><span class="k">from</span> pymongo <span class="k">import</span> MongoClient
 
@@ -150,6 +154,45 @@ client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost
 
 <span class="c"># Облачный Atlas — другая схема и обязательный пароль</span>
 <span class="c"># client = MongoClient("mongodb+srv://user:pass@cluster0.mongodb.net/")</span></pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>клиент</span></figcaption>
+<pre><span class="k">#include</span> <span class="s">&lt;mongocxx/client.hpp&gt;</span>
+<span class="k">#include</span> <span class="s">&lt;mongocxx/instance.hpp&gt;</span>
+<span class="k">#include</span> <span class="s">&lt;mongocxx/uri.hpp&gt;</span>
+
+mongocxx::instance instance{};   <span class="c">// ровно один на программу</span>
+
+<span class="c">// Локальный сервер учебного стенда</span>
+mongocxx::client client{mongocxx::uri{<span class="s">"mongodb://localhost:27017"</span>}};
+
+<span class="c">// Атлас: mongocxx::uri{"mongodb+srv://user:pass@cluster0.mongodb.net"}</span></pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>клиент</span></figcaption>
+<pre><span class="k">import</span> (
+    <span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+    <span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="c">// Локальный сервер учебного стенда</span>
+client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().
+    <span class="f">ApplyURI</span>(<span class="s">"mongodb://localhost:27017"</span>))
+<span class="k">if</span> err != <span class="k">nil</span> {
+    log.<span class="f">Fatal</span>(err)
+}
+
+<span class="c">// Атлас: ApplyURI("mongodb+srv://user:pass@cluster0.mongodb.net")</span></pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>клиент</span></figcaption>
+<pre><span class="k">require</span> <span class="s">"mongo"</span>
+
+<span class="c"># Локальный сервер учебного стенда</span>
+client = Mongo::Client.<span class="f">new</span>(<span class="s">"mongodb://localhost:27017/"</span>)
+
+<span class="c"># Облачный Atlas — другая схема и обязательный пароль</span>
+<span class="c"># client = Mongo::Client.new("mongodb+srv://user:pass@cluster0.mongodb.net/")</span></pre>
           </figure>
           <figure class="code">
             <figcaption><span>mongosh · оболочка</span><span>подключение</span></figcaption>
@@ -167,7 +210,7 @@ mongosh <span class="s">"mongodb://localhost:27017"</span>
 
         <h2 id="s5"><span class="sec">§5</span>Выбор базы и коллекции</h2>
         <p>От клиента спускаемся на уровень ниже — к базе, затем к коллекции. В PyMongo это обычное обращение по ключу.</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>спуск по трём уровням</span></figcaption>
 <pre>client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)   <span class="c"># сервер</span>
 db = client[<span class="s">"shop"</span>]                                <span class="c"># база</span>
@@ -177,17 +220,58 @@ collection = db[<span class="s">"products"</span>]                         <span
 db = client.<span class="f">get_database</span>(<span class="s">"shop"</span>)
 collection = db.<span class="f">get_collection</span>(<span class="s">"products"</span>)</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>спуск по трём уровням</span></figcaption>
+<pre>mongocxx::client client{mongocxx::uri{<span class="s">"mongodb://localhost:27017"</span>}};  <span class="c">// сервер</span>
+<span class="k">auto</span> db = client[<span class="s">"shop"</span>];                                    <span class="c">// база</span>
+<span class="k">auto</span> collection = db[<span class="s">"products"</span>];                             <span class="c">// коллекция</span>
+
+<span class="c">// Тот же смысл через методы — так пишут, когда имя лежит в переменной</span>
+db = client.<span class="f">database</span>(<span class="s">"shop"</span>);
+collection = db.<span class="f">collection</span>(<span class="s">"products"</span>);</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>спуск по трём уровням</span></figcaption>
+<pre>client, _ := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().
+    <span class="f">ApplyURI</span>(<span class="s">"mongodb://localhost:27017"</span>))          <span class="c">// сервер</span>
+db := client.<span class="f">Database</span>(<span class="s">"shop"</span>)                         <span class="c">// база</span>
+collection := db.<span class="f">Collection</span>(<span class="s">"products"</span>)              <span class="c">// коллекция</span>
+
+<span class="c">// Имя из переменной подставляется так же: Database(name)</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>спуск по трём уровням</span></figcaption>
+<pre>client = Mongo::Client.<span class="f">new</span>(<span class="s">"mongodb://localhost:27017/"</span>)  <span class="c"># сервер</span>
+db = client.<span class="f">use</span>(<span class="s">"shop"</span>).database                        <span class="c"># база</span>
+collection = db[<span class="s">:products</span>]                              <span class="c"># коллекция</span>
+
+<span class="c"># Имя из переменной: db[name.to_sym] или db.collection(name)</span>
+collection = db.<span class="f">collection</span>(<span class="s">"products"</span>)</pre>
+        </figure>
         <p><strong>Ни одна из этих строк не обращается к серверу</strong>: они создают объекты-указатели. Это видно по именам типов:</p>
-        <figure class="code code--out">
+        <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>Тип client: MongoClient | тип db: Database | тип collection: Collection</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Типы известны на этапе компиляции: mongocxx::client, mongocxx::database,
+mongocxx::collection — ни одного обращения к серверу ещё не было</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Тип client: *mongo.Client | тип db: *mongo.Database | тип collection: *mongo.Collection</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Тип client: Mongo::Client | тип db: Mongo::Database | тип collection: Mongo::Collection</pre>
         </figure>
         <p>От SQL-баз MongoDB отличается ещё одним: <span class="term">база и коллекция создаются сами</span> — в тот момент, когда в них впервые что-то записали. Команды «создать базу» нет. Обратная сторона: опечатка в имени не вызовет ошибку — запрос к <code>db["prodcuts"]</code> вернёт пустой результат, потому что такая коллекция ещё не существует.</p>
 
         <h2 id="s6"><span class="sec">§6</span>Что уже есть на сервере</h2>
         <p>Спросим у сервера, какие базы он держит, а у базы — какие в ней коллекции. Это первое, что делают, подключившись к незнакомой базе.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>осмотр сервера</span></figcaption>
 <pre><span class="f">print</span>(<span class="s">"Базы данных:"</span>, client.<span class="f">list_database_names</span>())
 
@@ -197,6 +281,40 @@ db = client[<span class="s">"shop"</span>]
 collection = db[<span class="s">"products"</span>]
 <span class="f">print</span>(<span class="s">"Документов:"</span>, collection.<span class="f">count_documents</span>({}))</pre>
           </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>осмотр сервера</span></figcaption>
+<pre><span class="k">for</span> (<span class="k">const auto</span>&amp; name : client.<span class="f">list_database_names</span>())
+    std::cout &lt;&lt; name &lt;&lt; <span class="s">" "</span>;
+
+<span class="k">auto</span> db = client[<span class="s">"shop"</span>];
+<span class="k">for</span> (<span class="k">const auto</span>&amp; name : db.<span class="f">list_collection_names</span>())
+    std::cout &lt;&lt; name &lt;&lt; <span class="s">" "</span>;
+
+<span class="k">auto</span> collection = db[<span class="s">"products"</span>];
+std::cout &lt;&lt; collection.<span class="f">count_documents</span>(<span class="f">make_document</span>());</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>осмотр сервера</span></figcaption>
+<pre>names, _ := client.<span class="f">ListDatabaseNames</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"Базы данных:"</span>, names)
+
+db := client.<span class="f">Database</span>(<span class="s">"shop"</span>)
+collections, _ := db.<span class="f">ListCollectionNames</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"Коллекции shop:"</span>, collections)
+
+count, _ := db.<span class="f">Collection</span>(<span class="s">"products"</span>).<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"Документов:"</span>, count)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>осмотр сервера</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"Базы данных: #{client.database_names}"</span>
+
+db = client.<span class="f">use</span>(<span class="s">"shop"</span>).database
+<span class="f">puts</span> <span class="s">"Коллекции shop: #{db.collection_names}"</span>
+
+collection = db[<span class="s">:products</span>]
+<span class="f">puts</span> <span class="s">"Документов: #{collection.count_documents({})}"</span></pre>
+          </figure>
           <figure class="code">
             <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
 <pre>show dbs
@@ -205,19 +323,37 @@ show collections
 db.products.<span class="f">countDocuments</span>({})</pre>
           </figure>
         </div>
-        <figure class="code code--out">
+        <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
-<pre>Базы данных: ['admin', 'config', 'hh', 'local', 'logs', 'org', 'shop']
+<pre>Базы данных: ['admin', 'config', 'hh', 'local', 'logs', 'org', 'sandbox', 'shop']
 Коллекции shop: ['orders', 'customers', 'products']
 Документов: 21</pre>
         </figure>
-        <p>Четыре базы наши: <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code>. Ещё три сервер завёл сам, и трогать их не нужно:</p>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Базы данных: admin config hh local logs org sandbox shop
+Коллекции shop: products orders customers
+Документов: 21</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Базы данных: [admin config hh local logs org sandbox shop]
+Коллекции shop: [products orders customers]
+Документов: 21</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Базы данных: ["admin", "config", "hh", "local", "logs", "org", "sandbox", "shop"]
+Коллекции shop: ["products", "orders", "customers"]
+Документов: 21</pre>
+        </figure>
+        <p>Пять баз наши: <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code> и песочница <code>sandbox</code>. Ещё три сервер завёл сам, и трогать их не нужно:</p>
         <div class="ops">
           <div><b>admin</b><span>Служебная база: пользователи, роли и административные команды сервера.</span><i>сервер</i></div>
           <div><b>config</b><span>Внутренние настройки. Становится важной, когда данные разложены по нескольким серверам.</span><i>сервер</i></div>
           <div><b>local</b><span>Данные, которые не покидают эту машину: журнал операций и служебные записи.</span><i>сервер</i></div>
         </div>
-        <p>Порядок в ответе произвольный: коллекции пришли как <code>['orders', 'customers', 'products']</code> — не по алфавиту и не в порядке создания. Сервер порядок в этом списке не гарантирует; нужен алфавит — сортируйте сами.</p>
+        <p>Порядок в ответе произвольный: коллекции пришли не по алфавиту и не в порядке создания — у разных драйверов он и выглядит по-разному. Сервер порядок в этом списке не гарантирует; нужен алфавит — сортируйте сами.</p>
 
         <h2 id="s7"><span class="sec">§7</span>Тот же осмотр в Compass</h2>
         <p>Всё, что мы сейчас получили тремя вызовами, Compass показывает одним экраном. Слева — список баз, у каждой раскрывается список коллекций, справа — размер и число документов.</p>
@@ -235,8 +371,8 @@ db.products.<span class="f">countDocuments</span>({})</pre>
         <h2 id="s8"><span class="sec">§8</span>Один клиент на программу</h2>
         <p><code>MongoClient</code> — дорогой объект. Внутри него живёт пул соединений: несколько открытых каналов к серверу, которые переиспользуются между запросами. Создавать клиента в каждой функции — значит каждый раз поднимать этот пул заново.</p>
         <div class="duo">
-          <figure class="code">
-            <figcaption><span>Так делают</span><span>один клиент на приложение</span></figcaption>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Так делают · один на приложение</span><span>Python</span></figcaption>
 <pre><span class="c"># создаётся один раз при старте программы</span>
 client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)
 products = client[<span class="s">"shop"</span>][<span class="s">"products"</span>]
@@ -244,12 +380,78 @@ products = client[<span class="s">"shop"</span>][<span class="s">"products"</spa
 <span class="k">def</span> <span class="f">count_all</span>():
     <span class="k">return</span> products.<span class="f">count_documents</span>({})</pre>
           </figure>
-          <figure class="code">
-            <figcaption><span>Так не делают</span><span>клиент внутри функции</span></figcaption>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Так делают · один на приложение</span><span>C++</span></figcaption>
+<pre><span class="c">// один пул на программу: клиент живёт рядом с приложением</span>
+mongocxx::instance instance{};
+mongocxx::client client{mongocxx::uri{<span class="s">"mongodb://localhost:27017"</span>}};
+<span class="k">auto</span> products = client[<span class="s">"shop"</span>][<span class="s">"products"</span>];
+
+<span class="k">auto</span> <span class="f">count_all</span>() {
+    <span class="k">return</span> products.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Так делают · один на приложение</span><span>Go</span></figcaption>
+<pre><span class="c">// создаётся один раз при старте программы</span>
+<span class="k">var</span> products *mongo.Collection
+
+<span class="k">func</span> <span class="f">init</span>() {
+    client, _ := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().
+        <span class="f">ApplyURI</span>(<span class="s">"mongodb://localhost:27017"</span>))
+    products = client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)
+}
+
+<span class="k">func</span> <span class="f">countAll</span>(ctx context.Context) (<span class="k">int64</span>, <span class="k">error</span>) {
+    <span class="k">return</span> products.<span class="f">CountDocuments</span>(ctx, bson.D{})
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Так делают · один на приложение</span><span>Ruby</span></figcaption>
+<pre><span class="c"># создаётся один раз при старте программы</span>
+CLIENT = Mongo::Client.<span class="f">new</span>(<span class="s">"mongodb://localhost:27017/"</span>)
+PRODUCTS = CLIENT.<span class="f">use</span>(<span class="s">"shop"</span>).database[<span class="s">:products</span>]
+
+<span class="k">def</span> <span class="f">count_all</span>
+  PRODUCTS.<span class="f">count_documents</span>({})
+<span class="k">end</span></pre>
+          </figure>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Так не делают · клиент внутри функции</span><span>Python</span></figcaption>
 <pre><span class="k">def</span> <span class="f">count_all</span>():
     <span class="c"># новый пул соединений на каждый вызов</span>
     client = <span class="f">MongoClient</span>(<span class="s">"mongodb://localhost:27017/"</span>)
     <span class="k">return</span> client[<span class="s">"shop"</span>][<span class="s">"products"</span>].<span class="f">count_documents</span>({})</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Так не делают · клиент внутри функции</span><span>C++</span></figcaption>
+<pre><span class="k">auto</span> <span class="f">count_all</span>() {
+    <span class="c">// новый клиент и новый пул на каждый вызов</span>
+    mongocxx::client client{mongocxx::uri{<span class="s">"mongodb://localhost:27017"</span>}};
+    <span class="k">return</span> client[<span class="s">"shop"</span>][<span class="s">"products"</span>]
+        .<span class="f">count_documents</span>(<span class="f">make_document</span>());
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Так не делают · клиент внутри функции</span><span>Go</span></figcaption>
+<pre><span class="k">func</span> <span class="f">countAll</span>(ctx context.Context) <span class="k">int64</span> {
+    <span class="c">// новый пул соединений на каждый вызов</span>
+    client, _ := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().
+        <span class="f">ApplyURI</span>(<span class="s">"mongodb://localhost:27017"</span>))
+    <span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+    count, _ := client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>).
+        <span class="f">CountDocuments</span>(ctx, bson.D{})
+    <span class="k">return</span> count
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Так не делают · клиент внутри функции</span><span>Ruby</span></figcaption>
+<pre><span class="k">def</span> <span class="f">count_all</span>
+  <span class="c"># новый пул соединений на каждый вызов</span>
+  client = Mongo::Client.<span class="f">new</span>(<span class="s">"mongodb://localhost:27017/"</span>)
+  client.<span class="f">use</span>(<span class="s">"shop"</span>).database[<span class="s">:products</span>].<span class="f">count_documents</span>({})
+<span class="k">end</span></pre>
           </figure>
         </div>
         <p>Закрывать клиента методом <code>client.close()</code> нужно в конце работы программы — в коротком скрипте это последняя строка. В веб-приложении клиент живёт всё время работы сервиса, и закрывать его вручную не нужно.</p>

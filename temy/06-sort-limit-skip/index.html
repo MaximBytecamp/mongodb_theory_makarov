@@ -16,6 +16,10 @@
     .pages span.skipped { opacity: .35; }
     .pages span.taken { background: var(--leaf-pale); border-color: var(--leaf); }
   </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="book">

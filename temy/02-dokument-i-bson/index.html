@@ -23,6 +23,10 @@
     .bytes-legend > div:nth-child(2) { border-left: 6px solid var(--clay); }
     .bytes-legend > div:nth-child(3) { border-left: 6px solid var(--violet); }
   </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="book">
@@ -119,14 +123,39 @@
         </div>
         <p>Проверить тип каждого поля можно прямо из Python — драйвер уже перевёл значения в объекты языка:</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>типы полей документа</span></figcaption>
 <pre>one = db[<span class="s">"products"</span>].<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-012"</span>})
 
 <span class="k">for</span> name, value <span class="k">in</span> one.<span class="f">items</span>():
     <span class="f">print</span>(<span class="s">f"{name:10} {type(value).__name__}"</span>)</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>типы полей документа</span></figcaption>
+<pre><span class="k">auto</span> doc = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-012"</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; element : doc-&gt;<span class="f">view</span>()) {
+    std::cout &lt;&lt; std::left &lt;&lt; std::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; element.<span class="f">key</span>()
+              &lt;&lt; bsoncxx::<span class="f">to_string</span>(element.<span class="f">type</span>()) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>типы полей документа</span></figcaption>
+<pre><span class="k">var</span> raw bson.Raw
+products.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-012"</span>}}).<span class="f">Decode</span>(&amp;raw)
+
+elements, _ := raw.<span class="f">Elements</span>()
+<span class="k">for</span> _, element := <span class="k">range</span> elements {
+    fmt.<span class="f">Printf</span>(<span class="s">"%-10s %s\n"</span>, element.<span class="f">Key</span>(), element.<span class="f">Value</span>().Type)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>типы полей документа</span></figcaption>
+<pre>one = products.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-012"</span> }).first
+
+one.<span class="f">each</span> { |name, value| <span class="f">puts</span> <span class="f">format</span>(<span class="s">"%-10s %s"</span>, name, value.class) }</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>_id        str
 sku        str
@@ -140,6 +169,51 @@ rating     float
 reviews    int
 added      datetime
 discount   int</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>_id       string
+sku       string
+title     string
+brand     string
+category  string
+price     int32
+specs     array
+stock     array
+rating    double
+reviews   int32
+added     date
+discount  int32</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>_id        string
+sku        string
+title      string
+brand      string
+category   string
+price      32-bit integer
+specs      array
+stock      array
+rating     double
+reviews    32-bit integer
+added      UTC datetime
+discount   32-bit integer</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>_id        String
+sku        String
+title      String
+brand      String
+category   String
+price      Integer
+specs      Array
+stock      Array
+rating     Float
+reviews    Integer
+added      Time
+discount   Integer</pre>
           </figure>
         </div>
         <div class="margin-note">
@@ -181,7 +255,7 @@ discount   int</pre>
           <li><strong>его нельзя изменить</strong> у существующего документа — только удалить документ и записать заново.</li>
         </ul>
         <p>Значением <code>_id</code> может быть что угодно: строка, число, дата, вложенный документ. В нашей базе это осмысленные строки — <code>"p-012"</code>, <code>"o-0001"</code>, <code>"c-003"</code>: по такому ключу видно, что перед вами, ещё до чтения документа. Если же <code>_id</code> не задать, сервер поставит <span class="term">ObjectId</span> — 12-байтовый идентификатор.</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>_id, которого не было</span></figcaption>
 <pre>result = box.<span class="f">insert_one</span>({
     <span class="s">"sku"</span>: <span class="s">"SKU-AC-022"</span>, <span class="s">"title"</span>: <span class="s">"Коврик для мыши XL"</span>, <span class="s">"price"</span>: <span class="n">1290</span>,
@@ -191,15 +265,67 @@ discount   int</pre>
 <span class="f">print</span>(<span class="s">"тип:"</span>, <span class="f">type</span>(result.inserted_id).__name__)
 <span class="f">print</span>(<span class="s">"время создания:"</span>, result.inserted_id.generation_time)</pre>
         </figure>
-        <figure class="code code--out">
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>_id, которого не было</span></figcaption>
+<pre><span class="k">auto</span> result = box.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-022"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Коврик для мыши XL"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1290</span>)));
+
+<span class="k">auto</span> oid = result-&gt;<span class="f">inserted_id</span>().<span class="f">get_oid</span>().value;
+std::cout &lt;&lt; <span class="s">"присвоенный _id: "</span> &lt;&lt; oid.<span class="f">to_string</span>() &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"время создания: "</span> &lt;&lt; oid.<span class="f">get_time_t</span>() &lt;&lt; std::endl;</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>_id, которого не было</span></figcaption>
+<pre>res, err := box.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-022"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Коврик для мыши XL"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="n">1290</span>},
+})
+
+oid := res.InsertedID.(bson.ObjectID)
+fmt.<span class="f">Println</span>(<span class="s">"присвоенный _id:"</span>, oid.<span class="f">Hex</span>())
+fmt.<span class="f">Printf</span>(<span class="s">"тип: %T\n"</span>, oid)
+fmt.<span class="f">Println</span>(<span class="s">"время создания:"</span>, oid.<span class="f">Timestamp</span>().<span class="f">UTC</span>())</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>_id, которого не было</span></figcaption>
+<pre>result = box.<span class="f">insert_one</span>({
+  <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-022"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Коврик для мыши XL"</span>, <span class="s">"price"</span> =&gt; <span class="n">1290</span>
+})
+
+oid = result.inserted_id
+<span class="f">puts</span> <span class="s">"присвоенный _id: #{oid}"</span>
+<span class="f">puts</span> <span class="s">"тип: #{oid.class}"</span>
+<span class="f">puts</span> <span class="s">"время создания: #{oid.generation_time}"</span></pre>
+        </figure>
+        <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>присвоенный _id: 6aa08c51503a4f190a669c88
 тип: ObjectId
 время создания: 2026-09-08 22:29:37+00:00</pre>
         </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>присвоенный _id: 6aa36d266c58a79a8104b912
+время создания: 1789095206 (секунд от эпохи)</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>присвоенный _id: 6aa36d14d2ec35eb1ac3c85b
+тип: bson.ObjectID
+время создания: 2026-09-11 02:53:08 +0000 UTC</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>присвоенный _id: 6aa36d00e48d0ebccd4e4acb
+тип: BSON::ObjectId
+время создания: 2026-09-11 02:52:48 UTC</pre>
+        </figure>
 
         <h2 id="s6"><span class="sec">§6</span>ObjectId по байтам</h2>
-        <p>ObjectId — 12 байт с фиксированной структурой. Записывается он как 24 шестнадцатеричных знака: каждый байт — два знака.</p>
+        <p>ObjectId — 12 байт с фиксированной структурой. Записывается он как 24 шестнадцатеричных знака: каждый байт — два знака. Разберём по байтам один из полученных выше — <code>6aa08c51503a4f190a669c88</code>.</p>
         <div class="bytes">
           <span class="g1">6a</span><span class="g1">a0</span><span class="g1">8c</span><span class="g1">51</span>
           <span class="g2">50</span><span class="g2">3a</span><span class="g2">4f</span><span class="g2">19</span><span class="g2">0a</span>
@@ -300,7 +426,10 @@ discount   int</pre>
           </div>
           <div>
             <b>Время из ObjectId</b>
-            <code>oid.generation_time</code>
+            <code>oid.generation_time   # Python</code>
+            <code>oid.get_time_t()      # C++</code>
+            <code>oid.Timestamp()       # Go</code>
+            <code>oid.generation_time   # Ruby</code>
             <code># mongosh:</code>
             <code>_id.getTimestamp()</code>
           </div>

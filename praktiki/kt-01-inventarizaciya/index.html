@@ -18,6 +18,10 @@
     .blank h4 { margin: 0 0 8px; font-family: var(--display); font-size: 17px; }
     .blank ul { margin: 0; }
   </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="book">
