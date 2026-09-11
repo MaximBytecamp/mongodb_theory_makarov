@@ -50,14 +50,41 @@
         </dl>
 
         <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/practice01">github.com/MaximBytecamp/mongodb-practice → practice01</a></p>
-        <p>В репозитории — задание, разобранное решение <code>solution.py</code> и самопроверка <code>check.py</code>, которая смотрит не на код, а на состояние базы после работы. Стенд и данные там же.</p>
+        <p>В репозитории — задание, разобранное решение на четырёх языках (<code>solution.py</code>, <code>solution.cpp</code>, <code>solution.go</code>, <code>solution.rb</code>) и одна самопроверка <code>check.py</code>: она смотрит не на код, а на состояние базы после работы, поэтому годится для любого языка. Стенд и данные там же.</p>
 
-        <figure class="code">
-          <figcaption><span>Терминал</span><span>с нуля до проверки — четыре команды</span></figcaption>
+        <figure class="code" data-lang="python">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice/practice01
 bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 python3 solution.py            <span class="c"># решение</span>
+python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+
+g++ -std=c++17 solution.cpp -o solution \
+    $(pkg-config --cflags --libs libmongocxx1)
+./solution                     <span class="c"># решение</span>
+python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+go run solution.go             <span class="c"># решение</span>
+python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+ruby solution.rb               <span class="c"># решение</span>
 python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
         </figure>
 
@@ -77,10 +104,27 @@ python3 check.py               <span class="c"># Пройдено 12 из 12</sp
           <div class="task__body">
             <h3>Одна страница списка товаров</h3>
             <p>Нужна функция, которая возвращает страницу каталога и общее число товаров под фильтром. Это самая частая функция в любом магазине, и в ней собирается почти весь модуль 1.</p>
-            <figure class="code">
+            <figure class="code" data-lang="python">
               <figcaption><span>Требования</span><span>что должно работать</span></figcaption>
 <pre>catalog_page(category=<span class="k">None</span>, page=<span class="n">1</span>, per_page=<span class="n">5</span>,
              sort_field=<span class="s">"price"</span>, desc=<span class="k">True</span>) → (items, total)</pre>
+            </figure>
+            <figure class="code" data-lang="cpp">
+              <figcaption><span>Требования</span><span>что должно работать</span></figcaption>
+<pre>std::pair&lt;std::vector&lt;Product&gt;, std::int64_t&gt;
+<span class="f">catalog_page</span>(mongocxx::collection&amp; products, <span class="k">const</span> std::string&amp; category,
+             std::int64_t page, std::int64_t per_page,
+             <span class="k">const</span> std::string&amp; sort_field = <span class="s">"price"</span>, <span class="k">bool</span> desc = <span class="k">true</span>);</pre>
+            </figure>
+            <figure class="code" data-lang="go">
+              <figcaption><span>Требования</span><span>что должно работать</span></figcaption>
+<pre><span class="k">func</span> <span class="f">catalogPage</span>(category <span class="k">string</span>, page, perPage <span class="k">int64</span>,
+    sortField <span class="k">string</span>, desc <span class="k">bool</span>) ([]Product, <span class="k">int64</span>, <span class="k">error</span>)</pre>
+            </figure>
+            <figure class="code" data-lang="ruby">
+              <figcaption><span>Требования</span><span>что должно работать</span></figcaption>
+<pre><span class="f">catalog_page</span>(category: <span class="k">nil</span>, page: <span class="n">1</span>, per_page: <span class="n">5</span>,
+             sort_field: <span class="s">"price"</span>, desc: <span class="k">true</span>) → [items, total]</pre>
             </figure>
             <ol class="steps">
               <li><b>Фильтр собирается, а не пишется целиком</b>Категория необязательна: без неё возвращается весь каталог. Фильтр — обычный словарь, поэтому он собирается по условию, а не склеивается строкой.</li>
@@ -89,7 +133,7 @@ python3 check.py               <span class="c"># Пройдено 12 из 12</sp
               <li><b>total считает сервер</b><code>count_documents(query)</code> с тем же фильтром. Не <code>len(list(...))</code>: иначе ради одного числа на клиент приедет вся коллекция.</li>
               <li><b>Страница за пределами данных — пустой список</b>Не ошибка и не исключение. <code>total</code> при этом остаётся прежним.</li>
             </ol>
-            <figure class="code">
+            <figure class="code" data-lang="python">
               <figcaption><span>solution.py</span><span>ядро решения</span></figcaption>
 <pre><span class="k">def</span> <span class="f">catalog_page</span>(category=<span class="k">None</span>, page=<span class="n">1</span>, per_page=<span class="n">5</span>,
                  sort_field=<span class="s">"price"</span>, desc=<span class="k">True</span>):
@@ -109,8 +153,77 @@ python3 check.py               <span class="c"># Пройдено 12 из 12</sp
 
     <span class="k">return</span> <span class="f">list</span>(cursor), total</pre>
             </figure>
+            <figure class="code" data-lang="cpp">
+              <figcaption><span>solution.cpp</span><span>ядро решения</span></figcaption>
+<pre>bsoncxx::builder::basic::document query{};
+<span class="k">if</span> (!category.<span class="f">empty</span>()) query.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, category));
+<span class="k">auto</span> filter = query.<span class="f">extract</span>();
+
+<span class="k">auto</span> total = products.<span class="f">count_documents</span>(filter.<span class="f">view</span>());
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"rating"</span>, <span class="n">1</span>)));
+<span class="c">// второй ключ делает порядок однозначным</span>
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(sort_field, desc ? -<span class="n">1</span> : <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="n">1</span>)));
+options.<span class="f">skip</span>((page - <span class="n">1</span>) * per_page);
+options.<span class="f">limit</span>(per_page);
+
+std::vector&lt;Product&gt; items;
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(filter.<span class="f">view</span>(), options))
+    items.<span class="f">push_back</span>(<span class="f">to_product</span>(doc));
+<span class="k">return</span> {items, total};</pre>
+            </figure>
+            <figure class="code" data-lang="go">
+              <figcaption><span>solution.go</span><span>ядро решения</span></figcaption>
+<pre>query := bson.D{}
+<span class="k">if</span> category != <span class="s">""</span> {
+    query = <span class="f">append</span>(query, bson.E{Key: <span class="s">"category"</span>, Value: category})
+}
+
+total, err := products.<span class="f">CountDocuments</span>(ctx, query)
+<span class="k">if</span> err != <span class="k">nil</span> {
+    <span class="k">return</span> <span class="k">nil</span>, <span class="n">0</span>, err
+}
+
+direction := <span class="n">1</span>
+<span class="k">if</span> desc {
+    direction = -<span class="n">1</span>
+}
+
+cursor, err := products.<span class="f">Find</span>(ctx, query, options.<span class="f">Find</span>().
+    <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"sku"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"rating"</span>, Value: <span class="n">1</span>}}).
+    <span class="c">// второй ключ делает порядок однозначным</span>
+    <span class="f">SetSort</span>(bson.D{{Key: sortField, Value: direction}, {Key: <span class="s">"sku"</span>, Value: <span class="n">1</span>}}).
+    <span class="f">SetSkip</span>((page - <span class="n">1</span>) * perPage).
+    <span class="f">SetLimit</span>(perPage))
+
+<span class="k">var</span> items []Product
+<span class="k">return</span> items, total, cursor.<span class="f">All</span>(ctx, &amp;items)</pre>
+            </figure>
+            <figure class="code" data-lang="ruby">
+              <figcaption><span>solution.rb</span><span>ядро решения</span></figcaption>
+<pre>query = {}
+query[<span class="s">"category"</span>] = category <span class="k">if</span> category
+
+total = PRODUCTS.<span class="f">count_documents</span>(query)
+
+<span class="c"># второй ключ делает порядок однозначным</span>
+order = { sort_field =&gt; desc ? -<span class="n">1</span> : <span class="n">1</span>, <span class="s">"sku"</span> =&gt; <span class="n">1</span> }
+
+items = PRODUCTS
+        .<span class="f">find</span>(query, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"sku"</span> =&gt; <span class="n">1</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>,
+                                   <span class="s">"price"</span> =&gt; <span class="n">1</span>, <span class="s">"rating"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>(order)
+        .<span class="f">skip</span>((page - <span class="n">1</span>) * per_page)
+        .<span class="f">limit</span>(per_page)
+        .to_a
+
+[items, total]</pre>
+            </figure>
             <figure class="code code--out">
-              <figcaption><span>Вывод</span><span>результат запуска на стенде</span></figcaption>
+              <figcaption><span>Вывод</span><span>одинаков во всех четырёх решениях</span></figcaption>
 <pre>Ноутбуки, страница 1 из 2 (всего 5):
    114990 ₽  Ноутбук Apple MacBook Air 13     рейтинг 4.1
     89990 ₽  Ноутбук Acer Nitro V15           рейтинг 4.6
@@ -148,7 +261,7 @@ python3 check.py               <span class="c"># Пройдено 12 из 12</sp
 
             <h3>Почему <code>$inc</code>, а не «прочитать и записать»</h3>
             <p>Соблазн понятный: прочитать текущий остаток, прибавить в Python, записать обратно. Так делать нельзя, и вот почему: пока вы читаете, вторая приёмка на соседнем складе делает то же самое. Оба прочитали 10, оба записали 15 — а приехало 5 и 5, должно быть 20. Пять штук исчезли, и никакая ошибка в логах об этом не скажет.</p>
-            <figure class="code">
+            <figure class="code" data-lang="python">
               <figcaption><span>solution.py</span><span>остатки</span></figcaption>
 <pre><span class="k">for</span> sku, qty <span class="k">in</span> ARRIVED.<span class="f">items</span>():
     result = box.<span class="f">update_one</span>({<span class="s">"sku"</span>: sku}, {<span class="s">"$inc"</span>: {<span class="s">"qty_total"</span>: qty}})
@@ -156,10 +269,46 @@ python3 check.py               <span class="c"># Пройдено 12 из 12</sp
         <span class="f">print</span>(<span class="s">f"  ВНИМАНИЕ: артикул {sku} не найден в каталоге"</span>)
     updated += result.modified_count</pre>
             </figure>
+            <figure class="code" data-lang="cpp">
+              <figcaption><span>solution.cpp</span><span>остатки</span></figcaption>
+<pre><span class="k">for</span> (<span class="k">const auto</span>&amp; [sku, qty] : arrived) {
+    <span class="k">auto</span> res = box.<span class="f">update_one</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sku"</span>, sku)),
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$inc"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"qty_total"</span>, qty)))));
+
+    <span class="k">if</span> (res-&gt;<span class="f">matched_count</span>() == <span class="n">0</span>)
+        std::cout &lt;&lt; <span class="s">"  ВНИМАНИЕ: артикул "</span> &lt;&lt; sku &lt;&lt; <span class="s">" не найден"</span> &lt;&lt; std::endl;
+    updated += res-&gt;<span class="f">modified_count</span>();
+}</pre>
+            </figure>
+            <figure class="code" data-lang="go">
+              <figcaption><span>solution.go</span><span>остатки</span></figcaption>
+<pre><span class="k">for</span> _, item := <span class="k">range</span> arrived {
+    res, err := box.<span class="f">UpdateOne</span>(ctx,
+        bson.D{{Key: <span class="s">"sku"</span>, Value: item.SKU}},
+        bson.D{{Key: <span class="s">"$inc"</span>, Value: bson.D{{Key: <span class="s">"qty_total"</span>, Value: item.Qty}}}})
+    <span class="k">if</span> err != <span class="k">nil</span> {
+        log.<span class="f">Fatal</span>(err)
+    }
+    <span class="k">if</span> res.MatchedCount == <span class="n">0</span> {
+        fmt.<span class="f">Printf</span>(<span class="s">"  ВНИМАНИЕ: артикул %s не найден\n"</span>, item.SKU)
+    }
+    updated += res.ModifiedCount
+}</pre>
+            </figure>
+            <figure class="code" data-lang="ruby">
+              <figcaption><span>solution.rb</span><span>остатки</span></figcaption>
+<pre>ARRIVED.<span class="f">each</span> <span class="k">do</span> |sku, qty|
+  result = BOX.<span class="f">update_one</span>({ <span class="s">"sku"</span> =&gt; sku },
+                            { <span class="s">"$inc"</span> =&gt; { <span class="s">"qty_total"</span> =&gt; qty } })
+  <span class="f">puts</span> <span class="s">"  ВНИМАНИЕ: артикул #{sku} не найден"</span> <span class="k">if</span> result.matched_count.zero?
+  updated += result.modified_count
+<span class="k">end</span></pre>
+            </figure>
 
             <h3>Повторный запуск не должен ломать данные</h3>
             <p>Скрипт приёмки запускают повторно чаще, чем кажется: упала сеть, оператор нажал дважды, задача перезапустилась. Поэтому у новых позиций задан свой <code>_id</code> — вторая попытка упрётся в <code>E11000</code>, а не создаст копии. Ключ <code>ordered=False</code> позволяет вставить всё, что можно, а про остальное честно сообщить.</p>
-            <figure class="code">
+            <figure class="code" data-lang="python">
               <figcaption><span>solution.py</span><span>новинки</span></figcaption>
 <pre><span class="k">try</span>:
     result = box.<span class="f">insert_many</span>(NEW_ITEMS, ordered=<span class="k">False</span>)
@@ -169,10 +318,55 @@ python3 check.py               <span class="c"># Пройдено 12 из 12</sp
     report[<span class="s">"новых позиций"</span>] = <span class="f">len</span>(NEW_ITEMS) - already
     <span class="f">print</span>(<span class="s">f"  {already} позиций уже были в каталоге — пропущены"</span>)</pre>
             </figure>
+            <figure class="code" data-lang="cpp">
+              <figcaption><span>solution.cpp</span><span>новинки</span></figcaption>
+<pre>mongocxx::options::insert insert_options;
+insert_options.<span class="f">ordered</span>(<span class="k">false</span>);
+
+<span class="k">try</span> {
+    <span class="k">auto</span> many = box.<span class="f">insert_many</span>(new_items, insert_options);
+    report.<span class="f">emplace_back</span>(<span class="s">"новых позиций"</span>, many-&gt;<span class="f">inserted_count</span>());
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::bulk_write_exception&amp; error) {
+    <span class="c">// список неудач лежит в raw_server_error()["writeErrors"]</span>
+    <span class="k">auto</span> already = <span class="f">count_write_errors</span>(error);
+    std::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; already &lt;&lt; <span class="s">" позиций уже были в каталоге"</span> &lt;&lt; std::endl;
+    report.<span class="f">emplace_back</span>(<span class="s">"новых позиций"</span>, new_items.<span class="f">size</span>() - already);
+}</pre>
+            </figure>
+            <figure class="code" data-lang="go">
+              <figcaption><span>solution.go</span><span>новинки</span></figcaption>
+<pre>many, err := box.<span class="f">InsertMany</span>(ctx, newItems,
+    options.<span class="f">InsertMany</span>().<span class="f">SetOrdered</span>(<span class="k">false</span>))
+
+<span class="k">switch</span> {
+<span class="k">case</span> err == <span class="k">nil</span>:
+    report = <span class="f">append</span>(report, [<span class="n">2</span>]<span class="k">any</span>{<span class="s">"новых позиций"</span>, <span class="f">len</span>(many.InsertedIDs)})
+<span class="k">default</span>:
+    <span class="k">var</span> bulkErr mongo.BulkWriteException
+    <span class="k">if</span> !errors.<span class="f">As</span>(err, &amp;bulkErr) {
+        log.<span class="f">Fatal</span>(err)
+    }
+    already := <span class="f">len</span>(bulkErr.WriteErrors)
+    fmt.<span class="f">Printf</span>(<span class="s">"  %d позиций уже были в каталоге\n"</span>, already)
+    report = <span class="f">append</span>(report, [<span class="n">2</span>]<span class="k">any</span>{<span class="s">"новых позиций"</span>, <span class="f">len</span>(newItems) - already})
+}</pre>
+            </figure>
+            <figure class="code" data-lang="ruby">
+              <figcaption><span>solution.rb</span><span>новинки</span></figcaption>
+<pre><span class="k">begin</span>
+  result = BOX.<span class="f">insert_many</span>(NEW_ITEMS, ordered: <span class="k">false</span>)
+  report[<span class="s">"новых позиций"</span>] = result.inserted_count
+<span class="k">rescue</span> Mongo::Error::BulkWriteError =&gt; error
+  <span class="c"># частичный отказ пачки — именно BulkWriteError, а не OperationFailure</span>
+  already = error.result[<span class="s">"writeErrors"</span>].size
+  report[<span class="s">"новых позиций"</span>] = NEW_ITEMS.size - already
+  <span class="f">puts</span> <span class="s">"  #{already} позиций уже были в каталоге — пропущены"</span>
+<span class="k">end</span></pre>
+            </figure>
 
             <h3>Перед удалением — посмотреть</h3>
             <p>Три строки, которые отделяют рабочий скрипт от опасного: посчитать, показать, удалить. На приёмке эти строки спрашивают отдельно.</p>
-            <figure class="code">
+            <figure class="code" data-lang="python">
               <figcaption><span>solution.py</span><span>снятие с продажи</span></figcaption>
 <pre>query = {<span class="s">"sku"</span>: {<span class="s">"$in"</span>: DISCONTINUED}}
 to_remove = box.<span class="f">count_documents</span>(query)
@@ -181,10 +375,96 @@ to_remove = box.<span class="f">count_documents</span>(query)
     <span class="f">print</span>(<span class="s">f"    {doc}"</span>)
 report[<span class="s">"снято с продажи"</span>] = box.<span class="f">delete_many</span>(query).deleted_count</pre>
             </figure>
-            <figure class="code code--out">
+            <figure class="code" data-lang="cpp">
+              <figcaption><span>solution.cpp</span><span>снятие с продажи</span></figcaption>
+<pre><span class="k">auto</span> query = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sku"</span>,
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"SKU-CP-018"</span>)))));
+
+std::cout &lt;&lt; <span class="s">"  под снятие попало: "</span>
+          &lt;&lt; box.<span class="f">count_documents</span>(query.<span class="f">view</span>()) &lt;&lt; std::endl;
+
+mongocxx::options::find preview;
+preview.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : box.<span class="f">find</span>(query.<span class="f">view</span>(), preview))
+    std::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+
+report.<span class="f">emplace_back</span>(<span class="s">"снято с продажи"</span>,
+    box.<span class="f">delete_many</span>(query.<span class="f">view</span>())-&gt;<span class="f">deleted_count</span>());</pre>
+            </figure>
+            <figure class="code" data-lang="go">
+              <figcaption><span>solution.go</span><span>снятие с продажи</span></figcaption>
+<pre>query := bson.D{{Key: <span class="s">"sku"</span>,
+    Value: bson.D{{Key: <span class="s">"$in"</span>, Value: discontinued}}}}
+
+toRemove, _ := box.<span class="f">CountDocuments</span>(ctx, query)
+fmt.<span class="f">Printf</span>(<span class="s">"\n  под снятие с продажи попало: %d\n"</span>, toRemove)
+
+cursor, _ := box.<span class="f">Find</span>(ctx, query, options.<span class="f">Find</span>().<span class="f">SetProjection</span>(
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}))
+<span class="k">var</span> doomed []bson.M
+cursor.<span class="f">All</span>(ctx, &amp;doomed)
+<span class="k">for</span> _, doc := <span class="k">range</span> doomed {
+    fmt.<span class="f">Printf</span>(<span class="s">"    %v\n"</span>, doc)
+}
+
+deleted, _ := box.<span class="f">DeleteMany</span>(ctx, query)</pre>
+            </figure>
+            <figure class="code" data-lang="ruby">
+              <figcaption><span>solution.rb</span><span>снятие с продажи</span></figcaption>
+<pre>query = { <span class="s">"sku"</span> =&gt; { <span class="s">"$in"</span> =&gt; DISCONTINUED } }
+<span class="f">puts</span> <span class="s">"  под снятие с продажи попало: #{BOX.count_documents(query)}"</span>
+
+BOX.<span class="f">find</span>(query, projection: { <span class="s">"_id"</span> =&gt; <span class="n">1</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="s">"    #{doc.inspect}"</span> }
+
+report[<span class="s">"снято с продажи"</span>] = BOX.<span class="f">delete_many</span>(query).deleted_count</pre>
+            </figure>
+            <figure class="code code--out" data-lang="python">
               <figcaption><span>Вывод</span><span>отчёт о приёмке на стенде</span></figcaption>
 <pre>  под снятие с продажи попало: 1
     {'_id': 'p-018', 'title': 'Блок питания be quiet! 650 Вт', 'price': 8490}
+
+  бесплатная доставка коснётся: 5 товаров
+
+Отчёт о приёмке:
+  остатки обновлены        3
+  новых позиций            2
+  снято с продажи          1
+  бесплатная доставка      5
+  итого в каталоге         22</pre>
+            </figure>
+            <figure class="code code--out" data-lang="cpp">
+              <figcaption><span>Вывод</span><span>отчёт о приёмке на стенде</span></figcaption>
+<pre>  под снятие с продажи попало: 1
+    { "_id" : "p-018", "title" : "Блок питания be quiet! 650 Вт", "price" : 8490 }
+
+  бесплатная доставка коснётся: 5 товаров
+
+Отчёт о приёмке:
+  остатки обновлены        3
+  новых позиций            2
+  снято с продажи          1
+  бесплатная доставка      5
+  итого в каталоге         22</pre>
+            </figure>
+            <figure class="code code--out" data-lang="go">
+              <figcaption><span>Вывод</span><span>отчёт о приёмке на стенде</span></figcaption>
+<pre>  под снятие с продажи попало: 1
+    {"title":"Блок питания be quiet! 650 Вт","price":{"$numberInt":"8490"},"_id":"p-018"}
+
+  бесплатная доставка коснётся: 5 товаров
+
+Отчёт о приёмке:
+  остатки обновлены        3
+  новых позиций            2
+  снято с продажи          1
+  бесплатная доставка      5
+  итого в каталоге         22</pre>
+            </figure>
+            <figure class="code code--out" data-lang="ruby">
+              <figcaption><span>Вывод</span><span>отчёт о приёмке на стенде</span></figcaption>
+<pre>  под снятие с продажи попало: 1
+    {"_id"=&gt;"p-018", "title"=&gt;"Блок питания be quiet! 650 Вт", "price"=&gt;8490}
 
   бесплатная доставка коснётся: 5 товаров
 

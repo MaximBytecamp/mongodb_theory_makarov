@@ -45,7 +45,7 @@
           <div><dt>Формат</dt><dd>Самостоятельно, без разбора</dd></div>
           <div><dt>База</dt><dd><code>sandbox.warehouse</code> — 21 позиция</dd></div>
           <div><dt>Время</dt><dd>90 минут</dd></div>
-          <div><dt>Сдать</dt><dd><code>inventory.py</code> и <code>inventory.md</code></dd></div>
+          <div data-lang="python"><dt>Сдать</dt><dd><code>inventory.py</code> и <code>inventory.md</code></dd></div><div data-lang="cpp"><dt>Сдать</dt><dd><code>inventory.cpp</code> и <code>inventory.md</code></dd></div><div data-lang="go"><dt>Сдать</dt><dd><code>inventory.go</code> и <code>inventory.md</code></dd></div><div data-lang="ruby"><dt>Сдать</dt><dd><code>inventory.rb</code> и <code>inventory.md</code></dd></div>
         </dl>
 
         <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/kt01">github.com/MaximBytecamp/mongodb-practice → kt01</a></p>
@@ -62,13 +62,34 @@
             </tbody>
           </table>
         </div>
-        <figure class="code">
-          <figcaption><span>Терминал</span><span>подготовка</span></figcaption>
-<pre>bash ../stend/load.sh
-docker exec hh-mongo mongosh sandbox --quiet \
-  --eval <span class="s">'db.warehouse.countDocuments()'</span>      <span class="c"># 21</span></pre>
+        <figure class="code" data-lang="python">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+python3 inventory.py           <span class="c"># ваша работа</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+g++ -std=c++17 inventory.cpp -o inventory \
+    $(pkg-config --cflags --libs libmongocxx1)
+./inventory                    <span class="c"># ваша работа</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+go run inventory.go            <span class="c"># ваша работа</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+ruby inventory.rb              <span class="c"># ваша работа</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
         <p>Эталонные базы <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code> в работе не участвуют и меняться не должны — это проверяется на приёмке.</p>
+        <p>Язык работы — любой из четырёх: проверка смотрит на состояние базы, а не на код. Драйверы и команды запуска те же, что в ПР-01.</p>
 
         <h2 id="s2"><span class="sec">§2</span>Что сделать</h2>
         <ol class="steps">
