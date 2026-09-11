@@ -418,3 +418,6 @@ figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); 
   .book__body, .passport, .shot, figure.code, .table-scroll { box-shadow: none; }
   .lightbox { display: none !important; }
 }
+
+/* Пометка вендорского материала в шапке кейса читается на тёмном фоне. */
+.case__head .vendor { margin-left: 0; border-color: var(--clay-pale); color: var(--clay-pale); }
