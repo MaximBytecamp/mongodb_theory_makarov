@@ -467,7 +467,7 @@ bash load.sh
         <p>Правило здесь рабочее, а не учебное: данные должны восстанавливаться из репозитория или из резервной копии, а не существовать в единственном экземпляре на сервере. Проверка простая — если базу удалить целиком, восстановление должно занимать минуты.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
@@ -476,7 +476,42 @@ bash load.sh
               <tr><td>Результат не проверяется</td><td>Пользователю сказано «удалено», хотя <code>deleted_count</code> равен нулю</td><td>Проверять <code>deleted_count</code> и отвечать честно</td></tr>
               <tr><td>Прочитать, потом удалить двумя запросами</td><td>Между запросами документ мог измениться — в архив уедет не то</td><td><code>find_one_and_delete</code></td></tr>
               <tr><td><code>drop()</code> на коллекции с индексами</td><td>Индексы и правила проверки исчезли вместе с коллекцией</td><td><code>delete_many({})</code>, если нужно сохранить настройки</td></tr>
-              <tr><td>Мягкое удаление без фильтра в запросах</td><td>«Удалённые» записи продолжают показываться</td><td>Единая функция выборки, которая всегда добавляет условие</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>delete_many(make_document())</code> вместо <code>delete_one</code></td><td>Коллекция пуста. Отменить нельзя</td><td>Пустой фильтр — только осознанно, при перезаливке</td></tr>
+              <tr><td><code>delete_one</code> в цикле по списку</td><td>Медленно: обращение к серверу на каждый документ</td><td>Один <code>delete_many</code> с <code>$in</code></td></tr>
+              <tr><td>Результат не проверен на пустоту</td><td>Разыменование пустого <code>optional</code> вместо честного ответа</td><td><code>if (res) res-&gt;deleted_count()</code></td></tr>
+              <tr><td>Прочитать, потом удалить двумя запросами</td><td>Между запросами документ мог измениться — в архив уедет не то</td><td><code>find_one_and_delete</code></td></tr>
+              <tr><td><code>drop()</code> на коллекции с индексами</td><td>Индексы и правила проверки исчезли вместе с коллекцией</td><td><code>delete_many(make_document())</code>, если нужно сохранить настройки</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>DeleteMany(ctx, bson.D{})</code> вместо <code>DeleteOne</code></td><td>Коллекция пуста. Отменить нельзя</td><td>Пустой фильтр — только осознанно, при перезаливке</td></tr>
+              <tr><td><code>DeleteOne</code> в цикле по срезу</td><td>Медленно: обращение к серверу на каждый документ</td><td>Один <code>DeleteMany</code> с <code>$in</code></td></tr>
+              <tr><td><code>DeletedCount</code> не проверен</td><td>Пользователю сказано «удалено», хотя не удалилось ничего</td><td>Проверять <code>res.DeletedCount</code> и отвечать честно</td></tr>
+              <tr><td><code>FindOneAndDelete</code> без проверки <code>ErrNoDocuments</code></td><td>Пустая структура принимается за удалённый документ</td><td>Сравнить ошибку с <code>mongo.ErrNoDocuments</code></td></tr>
+              <tr><td><code>Drop(ctx)</code> на коллекции с индексами</td><td>Индексы и правила проверки исчезли вместе с коллекцией</td><td><code>DeleteMany(ctx, bson.D{})</code>, если нужно сохранить настройки</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>delete_many({})</code> вместо <code>delete_one</code></td><td>Коллекция пуста. Отменить нельзя</td><td>Пустой фильтр — только осознанно, при перезаливке</td></tr>
+              <tr><td><code>delete_one</code> в цикле по массиву</td><td>Медленно: обращение к серверу на каждый документ</td><td>Один <code>delete_many({ "_id" =&gt; { "$in" =&gt; ids } })</code></td></tr>
+              <tr><td>Результат не проверяется</td><td>Пользователю сказано «удалено», хотя <code>deleted_count</code> равен нулю</td><td>Проверять <code>deleted_count</code> и отвечать честно</td></tr>
+              <tr><td><code>find_one_and_delete</code> без проверки на <code>nil</code></td><td><code>NoMethodError</code> при обращении к полям</td><td>Проверять результат до чтения полей</td></tr>
+              <tr><td><code>drop</code> на коллекции с индексами</td><td>Индексы и правила проверки исчезли вместе с коллекцией</td><td><code>delete_many({})</code>, если нужно сохранить настройки</td></tr>
             </tbody>
           </table>
         </div>

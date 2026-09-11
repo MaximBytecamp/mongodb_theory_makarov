@@ -573,7 +573,7 @@ db.orders.<span class="f">countDocuments</span>({ <span class="s">"payment.paid"
         </div>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
@@ -581,6 +581,42 @@ db.orders.<span class="f">countDocuments</span>({ <span class="s">"payment.paid"
               <tr><td><code>len(cursor)</code></td><td><code>TypeError: object of type 'Cursor' has no len()</code></td><td><code>count_documents(filter)</code></td></tr>
               <tr><td>Перебор курсора дважды</td><td>Второй раз ноль строк, ошибки нет</td><td>Сохранить в список: <code>items = list(...)</code></td></tr>
               <tr><td><code>find_one(...)["title"]</code> без проверки</td><td><code>TypeError: 'NoneType' object is not subscriptable</code></td><td>Проверить на <code>None</code> до обращения к полям</td></tr>
+              <tr><td>Опора на порядок без <code>sort</code></td><td>Работает, пока однажды не переставится</td><td>Всегда указывать сортировку, если порядок важен</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Разыменование результата <code>find_one</code></td><td>Пустой <code>optional</code>: неопределённое поведение вместо понятной ошибки</td><td><code>if (one) one-&gt;view()["title"]</code></td></tr>
+              <tr><td>Повторный обход курсора</td><td>Второй <code>for</code> не даёт ни одного документа</td><td>Сложить документы в <code>std::vector</code>, если нужны дважды</td></tr>
+              <tr><td><code>cursor.begin()</code> вызван дважды</td><td>Второй вызов возвращает конец: курсор уже прочитан</td><td>Обходить один раз или собирать результат</td></tr>
+              <tr><td><code>get_string()</code> без проверки типа</td><td><code>requested type does not match the underlying type</code></td><td>Сверяться с <code>element.type()</code></td></tr>
+              <tr><td>Опора на порядок без <code>sort</code></td><td>Работает, пока однажды не переставится</td><td>Всегда указывать сортировку, если порядок важен</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Ошибка <code>Decode</code> не проверена</td><td>В структуре нули, программа считает это данными</td><td>Сравнить с <code>mongo.ErrNoDocuments</code>: это «не нашлось», а не сбой</td></tr>
+              <tr><td>Повторный <code>All</code> по курсору</td><td>Пустой срез и <code>nil</code> вместо ошибки — молчаливая потеря данных</td><td>Читать курсор один раз, результат держать в срезе</td></tr>
+              <tr><td><code>cursor.Err()</code> не проверен после цикла</td><td>Обрыв соединения выглядит как конец данных</td><td>После <code>for cursor.Next(ctx)</code> проверять <code>cursor.Err()</code></td></tr>
+              <tr><td>Забыт <code>defer cursor.Close(ctx)</code></td><td>Курсор остаётся открытым на сервере</td><td>Закрывать курсор или использовать <code>All</code></td></tr>
+              <tr><td>Опора на порядок без <code>SetSort</code></td><td>Работает, пока однажды не переставится</td><td>Всегда указывать сортировку, если порядок важен</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>find(...).first["title"]</code> без проверки</td><td><code>NoMethodError: undefined method '[]' for nil:NilClass</code></td><td>Проверить на <code>nil</code> до обращения к полям</td></tr>
+              <tr><td><code>view.count</code> вместо счёта на сервере</td><td>Документы приезжают на клиент ради одного числа</td><td><code>count_documents(filter)</code></td></tr>
+              <tr><td>Обход <code>view</code> в цикле</td><td>Каждый обход — новый запрос к серверу</td><td><code>to_a</code> один раз, если данные нужны несколько раз</td></tr>
+              <tr><td>Символьные ключи в фильтре</td><td><code>{ category: "…" }</code> не совпадает со строковым ключом в документе</td><td>Ключи фильтра пишут строками</td></tr>
               <tr><td>Опора на порядок без <code>sort</code></td><td>Работает, пока однажды не переставится</td><td>Всегда указывать сортировку, если порядок важен</td></tr>
             </tbody>
           </table>

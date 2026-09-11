@@ -487,15 +487,51 @@ box.<span class="f">insert_many</span>(docs)</pre>
         <p>В Compass тому же соответствует <b>ADD DATA → Import JSON or CSV file</b>. Файл может быть массивом документов или потоком объектов по одному на строку — Compass поймёт оба формата.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
               <tr><td><code>insert_one([...])</code> со списком</td><td><code>TypeError: document must be an instance of dict</code></td><td>Список — это <code>insert_many</code></td></tr>
               <tr><td><code>doc = insert_one({...})</code></td><td>В переменной результат операции, а не документ</td><td>Читать обратно: <code>find_one({"_id": result.inserted_id})</code></td></tr>
               <tr><td>Повторный запуск загрузчика</td><td>Документов вдвое больше, числа в отчётах не сходятся</td><td>Очищать коллекцию или задавать свой <code>_id</code>, чтобы повтор упёрся в <code>E11000</code></td></tr>
-              <tr><td><code>insert_many</code> в цикле по одному документу</td><td>Работает, но медленно: каждый вызов — обращение к серверу</td><td>Собрать список и вставить одним вызовом</td></tr>
-              <tr><td>Тот же словарь вставлен дважды</td><td><code>DuplicateKeyError</code>: PyMongo дописал <code>_id</code> в исходный словарь при первой вставке</td><td>Копировать словарь или создавать новый для каждой записи</td></tr>
+              <tr><td><code>insert_one</code> в цикле на тысячу документов</td><td>Работает, но медленно: каждый вызов — обращение к серверу</td><td>Собрать список и вставить одним <code>insert_many</code></td></tr>
+              <tr><td>Тот же словарь вставлен дважды</td><td><code>DuplicateKeyError</code>: драйвер дописал <code>_id</code> в исходный словарь</td><td>Копировать словарь или создавать новый для каждой записи</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>insert_one</code> с уже использованным <code>document::value</code></td><td>Компилируется, но документ уходит в перемещённом состоянии</td><td>Собирать документ заново или передавать <code>view()</code></td></tr>
+              <tr><td>Результат не проверен на пустоту</td><td>Разыменование пустого <code>optional</code> — неопределённое поведение</td><td><code>if (result) result-&gt;inserted_id()</code></td></tr>
+              <tr><td>Повторный запуск загрузчика</td><td>Документов вдвое больше, числа в отчётах не сходятся</td><td>Очищать коллекцию или задавать свой <code>_id</code>, чтобы повтор упёрся в <code>E11000</code></td></tr>
+              <tr><td><code>insert_one</code> в цикле на тысячу документов</td><td>Работает, но медленно: каждый вызов — обращение к серверу</td><td>Собрать <code>std::vector&lt;document::value&gt;</code> и вставить <code>insert_many</code></td></tr>
+              <tr><td>Исключение не поймано</td><td>Программа падает на первом дубликате ключа</td><td><code>catch (const mongocxx::bulk_write_exception&amp;)</code> и разбор <code>code().value()</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>InsertMany</code> с одним документом вместо среза</td><td><code>invalid documents: must provide a non-empty slice</code></td><td>Первым аргументом идёт срез, даже если документ один</td></tr>
+              <tr><td>Ошибка вставки не проверена</td><td>Документ не записан, программа идёт дальше</td><td><code>if err != nil</code> сразу после вызова</td></tr>
+              <tr><td>Повторный запуск загрузчика</td><td>Документов вдвое больше, числа в отчётах не сходятся</td><td>Очищать коллекцию или задавать свой <code>_id</code>, чтобы повтор упёрся в <code>E11000</code></td></tr>
+              <tr><td><code>InsertOne</code> в цикле на тысячу документов</td><td>Работает, но медленно: каждый вызов — обращение к серверу</td><td>Собрать срез и вставить одним <code>InsertMany</code></td></tr>
+              <tr><td><code>err != nil</code> считается полным провалом</td><td>При <code>ordered=false</code> часть документов уже записана</td><td>Разобрать <code>mongo.BulkWriteException</code> и посмотреть <code>WriteErrors</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>insert_one([...])</code> со списком</td><td>Список записывается как один документ или вызывает ошибку драйвера</td><td>Список — это <code>insert_many</code></td></tr>
+              <tr><td><code>doc = insert_one({...})</code></td><td>В переменной результат операции, а не документ</td><td>Читать обратно: <code>col.find({ "_id" =&gt; result.inserted_id }).first</code></td></tr>
+              <tr><td>Повторный запуск загрузчика</td><td>Документов вдвое больше, числа в отчётах не сходятся</td><td>Очищать коллекцию или задавать свой <code>_id</code>, чтобы повтор упёрся в <code>E11000</code></td></tr>
+              <tr><td><code>rescue Mongo::Error::OperationFailure</code> на пачке</td><td>Исключение проходит мимо: частичный отказ — это <code>BulkWriteError</code></td><td><code>rescue Mongo::Error::BulkWriteError</code>, список неудач в <code>error.result["writeErrors"]</code></td></tr>
+              <tr><td><code>insert_one</code> в цикле на тысячу документов</td><td>Работает, но медленно: каждый вызов — обращение к серверу</td><td>Собрать массив и вставить одним <code>insert_many</code></td></tr>
             </tbody>
           </table>
         </div>

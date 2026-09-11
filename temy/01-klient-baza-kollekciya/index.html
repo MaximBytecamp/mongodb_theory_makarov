@@ -457,35 +457,51 @@ PRODUCTS = CLIENT.<span class="f">use</span>(<span class="s">"shop"</span>).data
         <p>Закрывать клиента методом <code>client.close()</code> нужно в конце работы программы — в коротком скрипте это последняя строка. В веб-приложении клиент живёт всё время работы сервиса, и закрывать его вручную не нужно.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
             <tbody>
-              <tr>
-                <td>Сервер не запущен</td>
-                <td><code>ServerSelectionTimeoutError: localhost:27017: [Errno 61] Connection refused</code></td>
-                <td>Адрес верный, но по нему никто не отвечает. Проверять надо сервер, а не строку подключения</td>
-              </tr>
-              <tr>
-                <td>Опечатка в имени хоста</td>
-                <td><code>ServerSelectionTimeoutError</code> после 30 секунд ожидания</td>
-                <td>Имя не разрешилось в адрес. Отличается от предыдущего тем, что ответа нет вовсе, а не «отказ»</td>
-              </tr>
-              <tr>
-                <td>Опечатка в имени коллекции</td>
-                <td>Ошибки нет, результат пустой</td>
-                <td>Коллекция создаётся при первой записи, поэтому обращение к несуществующей — законная операция</td>
-              </tr>
-              <tr>
-                <td><code>client["shop"]["products"].count()</code></td>
-                <td><code>AttributeError: 'Collection' object has no attribute 'count'</code></td>
-                <td>Метод убран из драйвера. Считает <code>count_documents({})</code>, и фильтр обязателен</td>
-              </tr>
-              <tr>
-                <td>Клиент создан внутри цикла</td>
-                <td>Программа работает, но с каждым шагом медленнее</td>
-                <td>На каждой итерации поднимается новый пул соединений. Клиент создаётся один раз</td>
-              </tr>
+              <tr><td>Сервер не запущен</td><td><code>ServerSelectionTimeoutError: localhost:27017: [Errno 61] Connection refused</code></td><td>Адрес верный, но по нему никто не отвечает. Проверять надо сервер, а не строку подключения</td></tr>
+              <tr><td>Опечатка в имени хоста</td><td><code>ServerSelectionTimeoutError</code> после 30 секунд ожидания</td><td>Имя не разрешилось в адрес. Отличается от предыдущего тем, что ответа нет вовсе, а не «отказ»</td></tr>
+              <tr><td>Опечатка в имени коллекции</td><td>Ошибки нет, результат пустой</td><td>Коллекция создаётся при первой записи, поэтому обращение к несуществующей — законная операция</td></tr>
+              <tr><td><code>col.count()</code></td><td><code>AttributeError: 'Collection' object has no attribute 'count'</code></td><td>Метод убран из драйвера. Считает <code>count_documents({})</code>, и фильтр обязателен</td></tr>
+              <tr><td>Клиент создан внутри цикла</td><td>Программа работает, но с каждым шагом медленнее</td><td>На каждой итерации поднимается новый пул соединений. Клиент создаётся один раз</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
+            <tbody>
+              <tr><td>Сервер не запущен</td><td><code>No suitable servers found: [connection refused calling hello]</code></td><td>Адрес верный, но по нему никто не отвечает. Проверять надо сервер, а не строку подключения</td></tr>
+              <tr><td><code>mongocxx::instance</code> не создан</td><td>Программа падает при первом обращении к драйверу</td><td>Экземпляр создаётся ровно один раз за время жизни программы и раньше любого клиента</td></tr>
+              <tr><td>Два <code>mongocxx::instance</code></td><td><code>cannot create a mongocxx::instance object if one has already been created</code></td><td>Экземпляр в программе один; клиентов при этом может быть сколько угодно</td></tr>
+              <tr><td>Опечатка в имени коллекции</td><td>Ошибки нет, результат пустой</td><td>Коллекция создаётся при первой записи, поэтому обращение к несуществующей — законная операция</td></tr>
+              <tr><td>Клиент создан внутри функции</td><td>Работает, но каждый вызов поднимает новый пул соединений</td><td>Клиент живёт рядом с приложением; для многопоточности берут <code>mongocxx::pool</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
+            <tbody>
+              <tr><td>Сервер не запущен</td><td><code>server selection error: context deadline exceeded, current topology: { Type: Unknown …</code></td><td><code>Connect</code> ошибки не вернёт: соединение ленивое. Проверять надо сервер</td></tr>
+              <tr><td>Ошибка <code>Connect</code> не проверена</td><td>Программа идёт дальше с нерабочим клиентом</td><td>В Go ошибка — возвращаемое значение, а не исключение: её проверяют сразу</td></tr>
+              <tr><td>Забыт <code>defer client.Disconnect(ctx)</code></td><td>Соединения остаются открытыми до конца процесса</td><td>Клиент закрывают там же, где создали</td></tr>
+              <tr><td>Опечатка в имени коллекции</td><td>Ошибки нет, результат пустой</td><td>Коллекция создаётся при первой записи, поэтому обращение к несуществующей — законная операция</td></tr>
+              <tr><td><code>mongo.Connect</code> в каждом обработчике</td><td>Работает, но с каждым запросом медленнее</td><td>Клиент создаётся один раз при старте и живёт всё время работы сервиса</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
+            <tbody>
+              <tr><td>Сервер не запущен</td><td><code>Mongo::Error::NoServerAvailable</code>: No primary_preferred server is available in cluster</td><td>Адрес верный, но по нему никто не отвечает. Проверять надо сервер, а не строку подключения</td></tr>
+              <tr><td>Константа названа <code>URI</code></td><td><code>TypeError</code>: «mongodb://…» is not a class/module</td><td><code>URI</code> — модуль стандартной библиотеки. Константу называют иначе, например <code>SERVER</code></td></tr>
+              <tr><td>Опечатка в имени коллекции</td><td>Ошибки нет, результат пустой</td><td>Коллекция создаётся при первой записи, поэтому обращение к несуществующей — законная операция</td></tr>
+              <tr><td>Логи драйвера в консоли</td><td>Каждая операция печатает строку <code>D, [timestamp] DEBUG</code></td><td><code>Mongo::Logger.logger.level = Logger::WARN</code> в начале программы</td></tr>
+              <tr><td>Клиент создан внутри метода</td><td>Работает, но каждый вызов поднимает новый пул соединений</td><td>Клиент создаётся один раз; закрывают его <code>client.close</code> в конце программы</td></tr>
             </tbody>
           </table>
         </div>

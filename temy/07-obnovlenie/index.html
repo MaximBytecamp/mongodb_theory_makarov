@@ -527,7 +527,7 @@ contain only atomic modifiers. The "price" key is invalid.</pre>
         <p>Поля <code>discount</code> на кадре нет вовсе: оно не стало пустым и не превратилось в <code>null</code>, а исчезло из документа. Так работает <code>$unset</code>; поэтому такой товар найдётся по фильтру <code>{"discount": {"$exists": False}}</code>.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
@@ -535,8 +535,43 @@ contain only atomic modifiers. The "price" key is invalid.</pre>
               <tr><td><code>{"$set": {"payment": {"paid": True}}}</code></td><td>Вложенный документ заменён целиком, остальные его поля потеряны</td><td><code>{"$set": {"payment.paid": True}}</code></td></tr>
               <tr><td>Проверка результата по <code>modified_count</code></td><td>«Не найдено» при сохранении без изменений</td><td>Проверять <code>matched_count</code></td></tr>
               <tr><td><code>update_many({}, {...})</code></td><td>Изменены все документы коллекции</td><td>Пустой фильтр — только осознанно; сначала <code>count_documents</code></td></tr>
-              <tr><td><code>replace_one</code> вместо <code>update_one</code></td><td>Поля, которых нет в новом документе, исчезли</td><td><code>update_one</code> с <code>$set</code></td></tr>
-              <tr><td>Прочитать, прибавить в Python, записать</td><td>При одновременной работе изменения теряются</td><td><code>$inc</code> — сервер выполнит это неделимо</td></tr>
+              <tr><td>Прочитать, прибавить в коде, записать</td><td>При одновременной работе изменения теряются</td><td><code>$inc</code> — сервер выполнит это неделимо</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Обновление без оператора</td><td><code>Invalid key 'price': update only works with $ operators and pipelines</code></td><td>Оборачивать в <code>kvp("$set", …)</code></td></tr>
+              <tr><td><code>kvp("$set", make_document(kvp("payment", …)))</code></td><td>Вложенный документ заменён целиком, остальные его поля потеряны</td><td>Путь через точку: <code>kvp("payment.paid", true)</code></td></tr>
+              <tr><td>Проверка результата по <code>modified_count()</code></td><td>«Не найдено» при сохранении без изменений</td><td>Проверять <code>matched_count()</code></td></tr>
+              <tr><td><code>update_many(make_document(), …)</code></td><td>Изменены все документы коллекции</td><td>Пустой фильтр — только осознанно; сначала <code>count_documents</code></td></tr>
+              <tr><td>Прочитать, прибавить в коде, записать</td><td>При одновременной работе изменения теряются</td><td><code>$inc</code> — сервер выполнит это неделимо</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>UpdateOne(ctx, filter, bson.D{{"price", 100}})</code></td><td><code>update document must contain key beginning with '$'</code></td><td><code>bson.D{{"$set", bson.D{{"price", 100}}}}</code></td></tr>
+              <tr><td><code>$set</code> со вложенным документом целиком</td><td>Вложенный документ заменён, остальные его поля потеряны</td><td>Путь через точку: <code>{Key: "payment.paid", Value: true}</code></td></tr>
+              <tr><td>Проверка результата по <code>ModifiedCount</code></td><td>«Не найдено» при сохранении без изменений</td><td>Проверять <code>MatchedCount</code></td></tr>
+              <tr><td><code>UpdateMany(ctx, bson.D{}, …)</code></td><td>Изменены все документы коллекции</td><td>Пустой фильтр — только осознанно; сначала <code>CountDocuments</code></td></tr>
+              <tr><td>Прочитать, прибавить в коде, записать</td><td>При одновременной работе изменения теряются</td><td><code>$inc</code> — сервер выполнит это неделимо</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>update_one(filter, { "price" =&gt; 100 })</code></td><td><code>WARN: Invalid update document provided. Updates documents must contain only atomic modifiers</code></td><td><code>{ "$set" =&gt; { "price" =&gt; 100 } }</code></td></tr>
+              <tr><td><code>$set</code> со вложенным документом целиком</td><td>Вложенный документ заменён, остальные его поля потеряны</td><td>Путь через точку: <code>"payment.paid" =&gt; true</code></td></tr>
+              <tr><td>Проверка результата по <code>modified_count</code></td><td>«Не найдено» при сохранении без изменений</td><td>Проверять <code>matched_count</code></td></tr>
+              <tr><td><code>update_many({}, …)</code></td><td>Изменены все документы коллекции</td><td>Пустой фильтр — только осознанно; сначала <code>count_documents</code></td></tr>
+              <tr><td>Прочитать, прибавить в коде, записать</td><td>При одновременной работе изменения теряются</td><td><code>$inc</code> — сервер выполнит это неделимо</td></tr>
             </tbody>
           </table>
         </div>

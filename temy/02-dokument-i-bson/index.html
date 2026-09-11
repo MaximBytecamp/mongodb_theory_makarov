@@ -369,15 +369,51 @@ oid = result.inserted_id
         <p>Явно тип пишется в <strong>табличном виде</strong> — это третья кнопка в правом верхнем углу списка. Там Compass ставит тип в шапку каждого столбца: <code>_id String</code>, <code>price Int32</code>, <code>rating Double</code>. И если в столбце встретится несколько типов, он покажет их списком — так опечатка вроде цены, записанной строкой, находится глазами, без единого запроса.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
               <tr><td><code>{"price": "21990"}</code></td><td>Записано строкой. Сравнения и суммы по этому полю работать перестанут</td><td>Приводить к числу до записи: <code>int(value)</code></td></tr>
               <tr><td><code>{"_id": "6aa08c…"}</code> для ObjectId</td><td>Пустой результат: строка не равна ObjectId</td><td><code>{"_id": ObjectId("6aa08c…")}</code></td></tr>
-              <tr><td>Попытка изменить <code>_id</code></td><td><code>WriteError: Performing an update on the path '_id' would modify the immutable field '_id'</code></td><td>Удалить документ и вставить заново с новым ключом</td></tr>
+              <tr><td>Попытка изменить <code>_id</code></td><td><code>WriteError</code>: would modify the immutable field '_id'</td><td>Удалить документ и вставить заново с новым ключом</td></tr>
               <tr><td>Дата записана строкой <code>"2026-04-19"</code></td><td>Сортировка сработает случайно, а сравнение по датам — нет</td><td>Писать <code>datetime</code>, база сохранит его типом <code>date</code></td></tr>
-              <tr><td>Копилка на весь документ: массив на десятки тысяч элементов</td><td>Приближение к пределу 16 МБ и медленное чтение целиком</td><td>Выносить растущий список в отдельную коллекцию</td></tr>
+              <tr><td>Массив на десятки тысяч элементов в документе</td><td>Приближение к пределу 16 МБ и медленное чтение целиком</td><td>Выносить растущий список в отдельную коллекцию</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>kvp("price", "21990")</code></td><td>Записано строкой: <code>kvp</code> выводит тип из аргумента</td><td>Передавать число: <code>kvp("price", 21990)</code></td></tr>
+              <tr><td><code>get_string()</code> на числовом поле</td><td><code>bsoncxx::exception</code>: requested type does not match the underlying type: expected element type k_string</td><td>Смотреть <code>element.type()</code> или брать <code>get_int32()</code></td></tr>
+              <tr><td>Чтение поля, которого нет</td><td><code>cannot get int32 from an uninitialized element: view is invalid</code></td><td>Сначала проверить: <code>if (doc["discount"]) …</code></td></tr>
+              <tr><td><code>string_view</code> пережил документ</td><td>Мусор в строке: view ссылается на освобождённую память</td><td>Копировать в <code>std::string</code>, если значение нужно дольше документа</td></tr>
+              <tr><td>Массив на десятки тысяч элементов в документе</td><td>Приближение к пределу 16 МБ и медленное чтение целиком</td><td>Выносить растущий список в отдельную коллекцию</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>Price string</code> при <code>int32</code> в базе</td><td><code>error decoding key price: cannot decode 32-bit integer into a string type</code></td><td>Тип поля структуры должен совпадать с типом в BSON</td></tr>
+              <tr><td>Поле структуры со строчной буквы</td><td>Поле молча не заполняется и не записывается</td><td>Экспортируемые имена с большой буквы плюс тег <code>bson:"price"</code></td></tr>
+              <tr><td><code>bson.M</code> там, где важен порядок</td><td><code>multi-key map passed in for ordered parameter</code></td><td><code>bson.D</code> хранит порядок ключей; <code>bson.M</code> — обычная карта</td></tr>
+              <tr><td>Строка вместо <code>bson.ObjectID</code></td><td>Пустой результат: строка не равна ObjectID</td><td><code>bson.ObjectIDFromHex(raw)</code> и фильтр по полученному значению</td></tr>
+              <tr><td>Массив на десятки тысяч элементов в документе</td><td>Приближение к пределу 16 МБ и медленное чтение целиком</td><td>Выносить растущий список в отдельную коллекцию</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "price" =&gt; "21990" }</code></td><td>Записано строкой. Сравнения и суммы по этому полю работать перестанут</td><td>Приводить к числу до записи: <code>value.to_i</code></td></tr>
+              <tr><td>Строка вместо <code>BSON::ObjectId</code></td><td>Пустой результат: строка не равна ObjectId</td><td><code>BSON::ObjectId.from_string(raw)</code></td></tr>
+              <tr><td>Символ вместо строки в фильтре</td><td><code>{ sku: "…" }</code> и <code>{ "sku" =&gt; "…" }</code> — разные ключи для драйвера</td><td>В фильтрах и документах ключи пишут строками</td></tr>
+              <tr><td>Чтение поля, которого нет</td><td>Возвращается <code>nil</code>, ошибки нет</td><td>Проверять на <code>nil</code> до арифметики, иначе <code>NoMethodError</code> вылезет дальше по коду</td></tr>
+              <tr><td>Массив на десятки тысяч элементов в документе</td><td>Приближение к пределу 16 МБ и медленное чтение целиком</td><td>Выносить растущий список в отдельную коллекцию</td></tr>
             </tbody>
           </table>
         </div>

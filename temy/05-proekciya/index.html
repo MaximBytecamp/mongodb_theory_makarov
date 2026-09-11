@@ -398,15 +398,51 @@ map[delivery:map[city:Ярославль] number:2026-0010 total:120340]</pre>
         <p>Приём для отладки: сначала подобрать фильтр без проекции, глядя на документы целиком, а потом добавить проекцию и убедиться, что нужные поля на месте. Готовый запрос переносится в код целиком — оба документа, фильтр и проекция.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
-              <tr><td><code>find({}, ["title", "price"])</code></td><td>Список вместо документа: PyMongo примет, но это менее очевидная форма</td><td>Писать документом: <code>{"title": 1, "price": 1}</code></td></tr>
+              <tr><td><code>find({}, ["title", "price"])</code></td><td>Список вместо документа: драйвер примет, но это менее очевидная форма</td><td>Писать документом: <code>{"title": 1, "price": 1}</code></td></tr>
               <tr><td><code>{"title": 1, "stock": 0}</code></td><td><code>OperationFailure: Cannot do exclusion on field stock in inclusion projection</code></td><td>Выбрать одно: либо белый список, либо чёрный</td></tr>
               <tr><td>Ожидание, что <code>_id</code> исчезнет сам</td><td><code>_id</code> приезжает всегда</td><td>Указать <code>"_id": 0</code> явно</td></tr>
               <tr><td><code>{"delivery.city": 1}</code> и ожидание строки</td><td>Вернётся <code>{'delivery': {'city': ...}}</code> — структура сохраняется</td><td>Разворачивать в коде или использовать <code>$project</code> в агрегации</td></tr>
-              <tr><td>Проекция вместо фильтра: <code>find({"title": 1})</code></td><td>Ищет документы, где <code>title</code> равен числу 1. Результат пуст</td><td>Фильтр — первый аргумент, проекция — второй</td></tr>
+              <tr><td>Проекция вместо фильтра: <code>find({"title": 1})</code></td><td>Ищет документы, где <code>title</code> равен числу 1. Результат пуст</td><td>Фильтр — первый аргумент, проекция — в options</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Проекция передана как фильтр</td><td>Пустой результат: документ ушёл первым аргументом <code>find</code></td><td>Проекция задаётся через <code>mongocxx::options::find</code></td></tr>
+              <tr><td><code>kvp("title", 1), kvp("stock", 0)</code></td><td><code>Cannot do exclusion on field stock in inclusion projection: server error code 31254</code></td><td>Выбрать одно: либо белый список, либо чёрный</td></tr>
+              <tr><td>Ожидание, что <code>_id</code> исчезнет сам</td><td><code>_id</code> приезжает всегда</td><td>Добавить <code>kvp("_id", 0)</code></td></tr>
+              <tr><td>Чтение поля, отсечённого проекцией</td><td><code>cannot get … from an uninitialized element: view is invalid</code></td><td>Проверять <code>if (doc["stock"])</code> или не отсекать нужное поле</td></tr>
+              <tr><td><code>options</code> переиспользованы между запросами</td><td>Проекция и сортировка «прилипают» к следующему <code>find</code></td><td>Заводить <code>options</code> на каждый запрос</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Проекция передана вторым аргументом <code>Find</code></td><td>Компилятор не пропустит: вторым идёт <code>*options.FindOptionsBuilder</code></td><td><code>options.Find().SetProjection(...)</code></td></tr>
+              <tr><td><code>SetProjection(bson.D{{"title",1},{"stock",0}})</code></td><td><code>(Location31254) Cannot do exclusion on field stock in inclusion projection</code></td><td>Выбрать одно: либо белый список, либо чёрный</td></tr>
+              <tr><td>Поле есть в проекции, но нет в структуре</td><td>Значение молча теряется при декодировании</td><td>Добавить поле в структуру с тегом <code>bson</code> или декодировать в <code>bson.M</code></td></tr>
+              <tr><td><code>options.Find()</code> вместо <code>options.FindOne()</code></td><td>Компилятор не пропустит: у <code>FindOne</code> свой тип настроек</td><td>Для одного документа — <code>options.FindOne().SetProjection(...)</code></td></tr>
+              <tr><td>Ожидание, что <code>_id</code> исчезнет сам</td><td><code>_id</code> приезжает всегда</td><td><code>{Key: "_id", Value: 0}</code> в проекции</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Проекция вторым позиционным аргументом</td><td>Драйвер ждёт именованный параметр и молча его не применит</td><td><code>find(filter, projection: { … })</code></td></tr>
+              <tr><td><code>projection: { "title" =&gt; 1, "stock" =&gt; 0 }</code></td><td><code>[31254:Location31254]: Cannot do exclusion on field stock in inclusion projection</code></td><td>Выбрать одно: либо белый список, либо чёрный</td></tr>
+              <tr><td>Ожидание, что <code>_id</code> исчезнет сам</td><td><code>_id</code> приезжает всегда</td><td>Указать <code>"_id" =&gt; 0</code> явно</td></tr>
+              <tr><td><code>projection: { "delivery.city" =&gt; 1 }</code> и ожидание строки</td><td>Вернётся <code>{"delivery"=&gt;{"city"=&gt;…}}</code> — структура сохраняется</td><td>Разворачивать в коде или использовать <code>$project</code> в агрегации</td></tr>
+              <tr><td>Символьные ключи в проекции</td><td>Ключ не совпадает с именем поля в документе</td><td>Имена полей пишут строками</td></tr>
             </tbody>
           </table>
         </div>

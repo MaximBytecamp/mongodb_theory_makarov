@@ -407,15 +407,51 @@ fmt.<span class="f">Println</span>(<span class="s">"доставленных:"</
         <p>Счётчик над списком показывает <code>1 – 5 of 5</code>, а не <code>of 21</code>. Предел применяется до подсчёта, поэтому «сколько всего подошло» из этого числа не узнать. Чтобы получить настоящее количество, уберите <code>limit</code> — или спросите сервер отдельно, методом <code>count_documents</code>.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
-        <div class="table-scroll errors-table">
+        <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
-              <tr><td><code>.sort("price")</code> без направления</td><td>PyMongo сортирует по возрастанию; в <code>mongosh</code> такая запись — ошибка</td><td>Указывать направление явно: <code>.sort("price", -1)</code></td></tr>
+              <tr><td><code>.sort("price")</code> без направления</td><td>Сортирует по возрастанию; в <code>mongosh</code> такая запись — ошибка</td><td>Указывать направление явно: <code>.sort("price", -1)</code></td></tr>
               <tr><td><code>.sort("category", 1)</code> для постраничного вывода</td><td>Порядок внутри категории не определён — документы «прыгают» между страницами</td><td>Добавить уникальный ключ: <code>[("category", 1), ("_id", 1)]</code></td></tr>
               <tr><td><code>count_documents()</code> без аргумента</td><td><code>TypeError: missing 1 required positional argument: 'filter'</code></td><td><code>count_documents({})</code></td></tr>
-              <tr><td>Сортировка по полю без индекса на большой коллекции</td><td>Сервер сортирует в памяти и при 100 МБ отказывается: <code>Sort exceeded memory limit</code></td><td>Построить индекс по полю сортировки — глава 3.2</td></tr>
+              <tr><td>Сортировка по полю без индекса на большой коллекции</td><td><code>Sort exceeded memory limit</code></td><td>Построить индекс по полю сортировки — глава 3.2</td></tr>
               <tr><td><code>skip</code> на глубоких страницах ленты</td><td>Чем дальше страница, тем медленнее ответ</td><td>Листать якорем: <code>{"_id": {"$gt": последний}}</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Сортировка задана в фильтре</td><td>Пустой результат: <code>{price: -1}</code> ушло как условие</td><td>Сортировка — в <code>options.sort(...)</code></td></tr>
+              <tr><td>Сортировка только по цене для страниц</td><td>Товары с одинаковой ценой прыгают между страницами</td><td>Второй ключ: <code>kvp("price", -1), kvp("_id", 1)</code></td></tr>
+              <tr><td><code>limit</code> и <code>skip</code> типа <code>int</code></td><td>Сужение до 32 бит на больших коллекциях</td><td>Оба принимают <code>std::int64_t</code></td></tr>
+              <tr><td>Сортировка по полю без индекса на большой коллекции</td><td><code>Sort exceeded memory limit</code></td><td>Построить индекс по полю сортировки — глава 3.2</td></tr>
+              <tr><td><code>skip</code> на глубоких страницах ленты</td><td>Чем дальше страница, тем медленнее ответ</td><td>Листать якорем: <code>$gt</code> по последнему <code>_id</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>SetSort(bson.M{...})</code> с двумя ключами</td><td><code>multi-key map passed in for ordered parameter sort</code></td><td><code>bson.D</code>: только он хранит порядок ключей</td></tr>
+              <tr><td>Сортировка только по цене для страниц</td><td>Товары с одинаковой ценой прыгают между страницами</td><td>Второй ключ: <code>{"price", -1}, {"_id", 1}</code></td></tr>
+              <tr><td><code>SetSkip(int(...))</code></td><td>Не компилируется: параметр типа <code>int64</code></td><td>Приводить к <code>int64</code> явно</td></tr>
+              <tr><td>Сортировка по полю без индекса на большой коллекции</td><td><code>Sort exceeded memory limit</code></td><td>Построить индекс по полю сортировки — глава 3.2</td></tr>
+              <tr><td><code>SetSkip</code> на глубоких страницах ленты</td><td>Чем дальше страница, тем медленнее ответ</td><td>Листать якорем: <code>$gt</code> по последнему <code>_id</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>.sort("price")</code> строкой</td><td>Драйвер ждёт документ, а не имя поля</td><td><code>.sort({ "price" =&gt; -1 })</code></td></tr>
+              <tr><td><code>.sort({ "category" =&gt; 1 })</code> для страниц</td><td>Порядок внутри категории не определён — документы «прыгают»</td><td>Добавить уникальный ключ: <code>{ "category" =&gt; 1, "_id" =&gt; 1 }</code></td></tr>
+              <tr><td><code>.count</code> вместо <code>count_documents</code></td><td>Считает на клиенте, вытянув документы</td><td><code>count_documents(filter)</code></td></tr>
+              <tr><td>Сортировка по полю без индекса на большой коллекции</td><td><code>Sort exceeded memory limit</code></td><td>Построить индекс по полю сортировки — глава 3.2</td></tr>
+              <tr><td><code>skip</code> на глубоких страницах ленты</td><td>Чем дальше страница, тем медленнее ответ</td><td>Листать якорем: <code>{ "_id" =&gt; { "$gt" =&gt; последний } }</code></td></tr>
             </tbody>
           </table>
         </div>
