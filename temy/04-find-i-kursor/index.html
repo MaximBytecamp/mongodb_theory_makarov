@@ -289,10 +289,33 @@ p-009 Смартфон realme 12 Pro 27490</pre>
         </div>
         <p>Список вместо курсора означал бы, что все подходящие документы — а их может быть миллион — сразу окажутся в памяти. Курсор забирает данные <strong>пачками</strong> (по умолчанию первая пачка — 101 документ), а следующую запрашивает, когда предыдущая закончилась. Программа при этом работает с обычным перебором и о пачках не знает.</p>
         <p>Если документов заведомо немного и они нужны все сразу, курсор превращают в список явно:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>курсор → список</span></figcaption>
 <pre>items = <span class="f">list</span>(products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>}))
 <span class="f">print</span>(<span class="f">len</span>(items))        <span class="c"># 4</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>курсор → список</span></figcaption>
+<pre>std::vector&lt;bsoncxx::document::value&gt; items;
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>))))
+    items.<span class="f">emplace_back</span>(doc);
+
+std::cout &lt;&lt; items.<span class="f">size</span>() &lt;&lt; std::endl;   <span class="c">// 4</span></pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>курсор → список</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}})
+
+<span class="k">var</span> items []Product
+cursor.<span class="f">All</span>(ctx, &amp;items)
+fmt.<span class="f">Println</span>(<span class="f">len</span>(items))        <span class="c">// 4</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>курсор → список</span></figcaption>
+<pre>items = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span> }).to_a
+<span class="f">puts</span> items.size            <span class="c"># 4</span></pre>
         </figure>
 
         <h2 id="s4"><span class="sec">§4</span>Курсор проходится один раз</h2>
