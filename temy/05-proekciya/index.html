@@ -67,20 +67,65 @@
         <h2 id="s2"><span class="sec">§2</span>Включающая проекция</h2>
         <p>Перечисляем поля, которые хотим видеть. Всё остальное сервер не пришлёт.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>только название и цена</span></figcaption>
 <pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>(
         {<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>},
         {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}):
     <span class="f">print</span>(doc)</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>только название и цена</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>)), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>только название и цена</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}))
+
+<span class="k">var</span> rows []bson.M
+cursor.<span class="f">All</span>(ctx, &amp;rows)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>только название и цена</span></figcaption>
+<pre>products.<span class="f">find</span>(
+  { <span class="s">"category"</span> =&gt; <span class="s">"ноутбуки"</span> },
+  projection: { <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> }
+).<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>{'_id': 'p-002', 'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
 {'_id': 'p-003', 'title': 'Ноутбук HP Pavilion 14', 'price': 67900}
 {'_id': 'p-004', 'title': 'Ноутбук Apple MacBook Air 13', 'price': 114990}
 {'_id': 'p-005', 'title': 'Ноутбук Acer Nitro V15', 'price': 89990}
 {'_id': 'p-001', 'title': 'Ноутбук Lenovo IdeaPad 3', 'price': 42990}</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "p-004", "title" : "Ноутбук Apple MacBook Air 13", "price" : 114990 }
+{ "_id" : "p-002", "title" : "Ноутбук ASUS VivoBook 15", "price" : 51490 }
+…</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"p-004","title":"Ноутбук Apple MacBook Air 13","price":{"$numberInt":"114990"}}
+{"_id":"p-002","title":"Ноутбук ASUS VivoBook 15","price":{"$numberInt":"51490"}}
+…</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"p-004", "title"=&gt;"Ноутбук Apple MacBook Air 13", "price"=&gt;114990}
+{"_id"=&gt;"p-002", "title"=&gt;"Ноутбук ASUS VivoBook 15", "price"=&gt;51490}
+…</pre>
           </figure>
         </div>
         <p>Мы просили два поля, а приехало три: <code>_id</code> добавляется всегда. Это единственное поле, которое возвращается по умолчанию даже во включающей проекции, — и убирается только явно.</p>
@@ -92,17 +137,59 @@
         <h2 id="s3"><span class="sec">§3</span>Как убрать <code>_id</code></h2>
         <p>Ключ выбрасывают, когда результат идёт наружу: в CSV-выгрузку, в ответ API, в отчёт. Для этого его указывают явным нулём.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>без ключа</span></figcaption>
 <pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>(
         {<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>},
         {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}).<span class="f">limit</span>(<span class="n">2</span>):
     <span class="f">print</span>(doc)</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>без ключа</span></figcaption>
+<pre>options.<span class="f">projection</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+options.<span class="f">limit</span>(<span class="n">2</span>);
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>)), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>без ключа</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">2</span>))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>без ключа</span></figcaption>
+<pre>products.<span class="f">find</span>(
+  { <span class="s">"category"</span> =&gt; <span class="s">"ноутбуки"</span> },
+  projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> }
+).<span class="f">first</span>(<span class="n">2</span>).<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>{'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
 {'title': 'Ноутбук HP Pavilion 14', 'price': 67900}</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "Ноутбук Apple MacBook Air 13", "price" : 114990 }
+{ "title" : "Ноутбук ASUS VivoBook 15", "price" : 51490 }</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"Ноутбук Apple MacBook Air 13","price":{"$numberInt":"114990"}}
+{"title":"Ноутбук ASUS VivoBook 15","price":{"$numberInt":"51490"}}</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"Ноутбук Apple MacBook Air 13", "price"=&gt;114990}
+{"title"=&gt;"Ноутбук ASUS VivoBook 15", "price"=&gt;51490}</pre>
           </figure>
         </div>
         <p>Получилось ровно два поля. В одной проекции здесь встретились и <code>1</code>, и <code>0</code>, и сервер не возразил: <code>_id</code> — единственное поле, которое разрешено выключать в любой проекции. Подробнее в §5.</p>
@@ -110,14 +197,42 @@
         <h2 id="s4"><span class="sec">§4</span>Исключающая проекция</h2>
         <p>Обратный подход: вернуть документ целиком, но без нескольких тяжёлых полей. Так делают, когда полей много и перечислять нужные дольше, чем ненужные.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>всё, кроме трёх полей</span></figcaption>
 <pre>doc = products.<span class="f">find_one</span>(
     {<span class="s">"_id"</span>: <span class="s">"p-020"</span>},
     {<span class="s">"stock"</span>: <span class="n">0</span>, <span class="s">"specs"</span>: <span class="n">0</span>, <span class="s">"added"</span>: <span class="n">0</span>})
 <span class="f">print</span>(doc)</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>всё, кроме трёх полей</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"specs"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"added"</span>, <span class="n">0</span>)));
+
+<span class="k">auto</span> doc = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-020"</span>)), options);
+std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(*doc) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>всё, кроме трёх полей</span></figcaption>
+<pre><span class="k">var</span> doc bson.M
+products.<span class="f">FindOne</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-020"</span>}},
+    options.<span class="f">FindOne</span>().<span class="f">SetProjection</span>(bson.D{
+        {Key: <span class="s">"stock"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"specs"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"added"</span>, Value: <span class="n">0</span>}}),
+).<span class="f">Decode</span>(&amp;doc)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>всё, кроме трёх полей</span></figcaption>
+<pre>doc = products.<span class="f">find</span>(
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-020"</span> },
+  projection: { <span class="s">"stock"</span> =&gt; <span class="n">0</span>, <span class="s">"specs"</span> =&gt; <span class="n">0</span>, <span class="s">"added"</span> =&gt; <span class="n">0</span> }
+).first
+<span class="f">puts</span> doc.inspect</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>{'_id': 'p-020',
  'sku': 'SKU-AC-020',
@@ -128,19 +243,65 @@
  'rating': 4.0,
  'reviews': 39}</pre>
           </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "p-020", "sku" : "SKU-AC-020", "title" : "Кабель USB-C 2 м",
+  "brand" : "OEM", "category" : "аксессуары", "price" : 790,
+  "rating" : 4.0, "reviews" : 39 }</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>map[_id:p-020 brand:OEM category:аксессуары price:790
+ rating:4 reviews:39 sku:SKU-AC-020 title:Кабель USB-C 2 м]</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"p-020", "sku"=&gt;"SKU-AC-020", "title"=&gt;"Кабель USB-C 2 м",
+ "brand"=&gt;"OEM", "category"=&gt;"аксессуары", "price"=&gt;790,
+ "rating"=&gt;4.0, "reviews"=&gt;39}</pre>
+          </figure>
         </div>
         <p>Три поля исчезли, остальные вернулись как есть. У подхода есть особенность: <strong>новое поле, добавленное в документы завтра, попадёт в такой ответ автоматически</strong>. Иногда это удобно, иногда — способ случайно отдать наружу поле, которое отдавать не собирались. В ответах API надёжнее перечислять нужные поля явно.</p>
 
         <h2 id="s5"><span class="sec">§5</span>Смешивать нельзя</h2>
         <p>В одной проекции нельзя одновременно включать одни поля и исключать другие. Сервер откажется выполнять такой запрос.</p>
         <div class="duo">
-          <figure class="code">
-            <figcaption><span>Так нельзя</span><span>включение и исключение вместе</span></figcaption>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Так нельзя</span><span>Python</span></figcaption>
 <pre>products.<span class="f">find_one</span>({}, {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"stock"</span>: <span class="n">0</span>})</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Так нельзя</span><span>C++</span></figcaption>
+<pre>options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="n">0</span>)));
+products.<span class="f">find</span>(<span class="f">make_document</span>(), options);</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Так нельзя</span><span>Go</span></figcaption>
+<pre>products.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetProjection</span>(
+    bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"stock"</span>, Value: <span class="n">0</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Так нельзя</span><span>Ruby</span></figcaption>
+<pre>products.<span class="f">find</span>({}, projection: { <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"stock"</span> =&gt; <span class="n">0</span> }).first</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
 <pre>OperationFailure: Cannot do exclusion on field stock
+in inclusion projection</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
+<pre>Cannot do exclusion on field stock in inclusion projection:
+server error code 31254</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
+<pre>(Location31254) Cannot do exclusion on field stock
+in inclusion projection</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
+<pre>[31254:Location31254]: Cannot do exclusion on field stock
 in inclusion projection</pre>
           </figure>
         </div>
@@ -160,18 +321,61 @@ in inclusion projection</pre>
 
         <h2 id="s6"><span class="sec">§6</span>Вложенные поля в проекции</h2>
         <p>Путь через точку работает и здесь: можно забрать одно поле из вложенного документа, не вытаскивая его целиком.</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>город доставки и сумма</span></figcaption>
 <pre><span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">find</span>(
         {<span class="s">"status"</span>: <span class="s">"доставлен"</span>},
         {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>, <span class="s">"delivery.city"</span>: <span class="n">1</span>}).<span class="f">limit</span>(<span class="n">3</span>):
     <span class="f">print</span>(doc)</pre>
         </figure>
-        <figure class="code code--out">
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>город доставки и сумма</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+                               <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"delivery.city"</span>, <span class="n">1</span>)));
+options.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : orders.<span class="f">find</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+}</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>город доставки и сумма</span></figcaption>
+<pre>cursor, _ := orders.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"delivery.city"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">3</span>))</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>город доставки и сумма</span></figcaption>
+<pre>orders.<span class="f">find</span>(
+  { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> },
+  projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+                <span class="s">"total"</span> =&gt; <span class="n">1</span>, <span class="s">"delivery.city"</span> =&gt; <span class="n">1</span> }
+).<span class="f">first</span>(<span class="n">3</span>).<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>{'number': '2026-0001', 'total': 5980, 'delivery': {'city': 'Ярославль'}}
 {'number': '2026-0011', 'total': 85980, 'delivery': {'city': 'Санкт-Петербург'}}
 {'number': '2026-0012', 'total': 222740, 'delivery': {'city': 'Новосибирск'}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0004", "total" : 106210, "delivery" : { "city" : "Москва" } }
+{ "number" : "2026-0010", "total" : 120340, "delivery" : { "city" : "Ярославль" } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>map[delivery:map[city:Москва] number:2026-0004 total:106210]
+map[delivery:map[city:Ярославль] number:2026-0010 total:120340]</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0004", "total"=&gt;106210, "delivery"=&gt;{"city"=&gt;"Москва"}}
+{"number"=&gt;"2026-0010", "total"=&gt;120340, "delivery"=&gt;{"city"=&gt;"Ярославль"}}</pre>
         </figure>
         <p>Структура сохраняется: <code>delivery</code> остаётся вложенным документом, просто с одним полем внутри. «Поднять» значение на верхний уровень проекция не умеет — для этого нужен <code>$project</code> в агрегации, глава 4.2.</p>
 

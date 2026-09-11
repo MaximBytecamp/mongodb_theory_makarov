@@ -66,12 +66,46 @@
         <h2 id="s1"><span class="sec">§1</span>sort: порядок задаётся явно</h2>
         <p>Метод <code>sort</code> вызывается у курсора и принимает поле и направление: <code>1</code> — по возрастанию, <code>-1</code> — по убыванию.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>пять самых дорогих товаров</span></figcaption>
 <pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}) \
                      .<span class="f">sort</span>(<span class="s">"price"</span>, -<span class="n">1</span>) \
                      .<span class="f">limit</span>(<span class="n">5</span>):
     <span class="f">print</span>(<span class="s">f'{doc["price"]:>7} {doc["title"]}'</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>пять самых дорогих товаров</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+options.<span class="f">limit</span>(<span class="n">5</span>);
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), options)) {
+    std::cout &lt;&lt; doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">"  "</span>
+              &lt;&lt; doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>пять самых дорогих товаров</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
+    options.<span class="f">Find</span>().
+        <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+            {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}).
+        <span class="f">SetLimit</span>(<span class="n">5</span>))
+
+<span class="k">var</span> list []Product
+cursor.<span class="f">All</span>(ctx, &amp;list)
+<span class="k">for</span> _, doc := <span class="k">range</span> list {
+    fmt.<span class="f">Printf</span>(<span class="s">"%8d  %s\n"</span>, doc.Price, doc.Title)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>пять самых дорогих товаров</span></figcaption>
+<pre>products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"price"</span> =&gt; -<span class="n">1</span> })
+        .<span class="f">limit</span>(<span class="n">5</span>)
+        .<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="f">format</span>(<span class="s">"%8d  %s"</span>, doc[<span class="s">"price"</span>], doc[<span class="s">"title"</span>]) }</pre>
           </figure>
           <figure class="code code--out">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -96,30 +130,86 @@
 
         <h2 id="s2"><span class="sec">§2</span>Сортировка по нескольким полям</h2>
         <p>Когда первое поле совпадает, порядок решает второе. Список пар передаётся так:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>по категории, внутри — по цене</span></figcaption>
-<pre>cursor = products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}) \
+<pre>cursor = products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}) \
                  .<span class="f">sort</span>([(<span class="s">"category"</span>, <span class="n">1</span>), (<span class="s">"price"</span>, -<span class="n">1</span>)])</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>по категории, внутри — по цене</span></figcaption>
+<pre><span class="c">// порядок ключей в документе сортировки и есть порядок применения</span>
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+
+<span class="k">auto</span> cursor = products.<span class="f">find</span>(<span class="f">make_document</span>(), options);</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>по категории, внутри — по цене</span></figcaption>
+<pre><span class="c">// bson.D сохраняет порядок ключей — для сортировки это обязательно</span>
+cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
+    options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{
+        {Key: <span class="s">"category"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}))</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>по категории, внутри — по цене</span></figcaption>
+<pre>cursor = products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+                 .<span class="f">sort</span>({ <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; -<span class="n">1</span> })</pre>
         </figure>
         <p>Читается слева направо: сначала группируются категории по алфавиту, внутри каждой — товары от дорогих к дешёвым. Порядок полей в списке важен: поменяете местами — получите совсем другой список.</p>
         <p>И ещё одна тонкость, из-за которой ломаются постраничные списки: <strong>сортировка должна быть однозначной</strong>. Если сортировать только по категории, порядок внутри категории не определён и может отличаться от запроса к запросу: один и тот же товар покажется на двух страницах подряд или не покажется вовсе. Лечится добавлением уникального поля последним ключом: <code>[("category", 1), ("_id", 1)]</code>.</p>
 
         <h2 id="s3"><span class="sec">§3</span>limit: сколько вернуть</h2>
         <p><code>limit</code> ограничивает число документов в ответе. Это не «показать первые N из уже полученных» — сервер действительно прекращает работу, набрав нужное количество.</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>три самых свежих события</span></figcaption>
 <pre>events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>]
 
-<span class="k">for</span> doc <span class="k">in</span> events.<span class="f">find</span>({<span class="s">"level"</span>: <span class="s">"error"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"ts"</span>: <span class="n">1</span>, <span class="s">"service"</span>: <span class="n">1</span>, <span class="s">"status"</span>: <span class="n">1</span>}) \
+<span class="k">for</span> doc <span class="k">in</span> events.<span class="f">find</span>({<span class="s">"level"</span>: <span class="s">"error"</span>},
+                        {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"ts"</span>: <span class="n">1</span>, <span class="s">"service"</span>: <span class="n">1</span>, <span class="s">"status"</span>: <span class="n">1</span>}) \
                 .<span class="f">sort</span>(<span class="s">"ts"</span>, -<span class="n">1</span>).<span class="f">limit</span>(<span class="n">3</span>):
     <span class="f">print</span>(doc)</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>три самых свежих события</span></figcaption>
+<pre><span class="k">auto</span> events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>];
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, <span class="n">1</span>),
+                               <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)));
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)));
+options.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="k">auto</span> cursor = events.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"error"</span>)), options);</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>три самых свежих события</span></figcaption>
+<pre>events := client.<span class="f">Database</span>(<span class="s">"logs"</span>).<span class="f">Collection</span>(<span class="s">"events"</span>)
+
+cursor, _ := events.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"level"</span>, Value: <span class="s">"error"</span>}},
+    options.<span class="f">Find</span>().
+        <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"ts"</span>, Value: <span class="n">1</span>},
+            {Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}).
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}).
+        <span class="f">SetLimit</span>(<span class="n">3</span>))</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>три самых свежих события</span></figcaption>
+<pre>events = client.<span class="f">use</span>(<span class="s">"logs"</span>).database[<span class="s">:events</span>]
+
+events.<span class="f">find</span>({ <span class="s">"level"</span> =&gt; <span class="s">"error"</span> },
+             projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"ts"</span> =&gt; <span class="n">1</span>,
+                           <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> })
+      .<span class="f">sort</span>({ <span class="s">"ts"</span> =&gt; -<span class="n">1</span> })
+      .<span class="f">limit</span>(<span class="n">3</span>)
+      .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
         </figure>
         <p>Пара «сортировка + предел» — самый частый запрос в интерфейсах: последние заказы, топ товаров, свежие ошибки. Без <code>limit</code> тот же запрос вытянет всю коллекцию, и на 1200 событиях вы этого не заметите, а на миллионе — заметите сразу.</p>
 
         <h2 id="s4"><span class="sec">§4</span>skip: постраничный вывод</h2>
         <p><code>skip</code> пропускает первые N документов. Вместе с <code>limit</code> он даёт страницы.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>вторая страница по пять</span></figcaption>
 <pre>page, per_page = <span class="n">2</span>, <span class="n">5</span>
 
@@ -128,6 +218,40 @@
                      .<span class="f">skip</span>((page - <span class="n">1</span>) * per_page) \
                      .<span class="f">limit</span>(per_page):
     <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>вторая страница по пять</span></figcaption>
+<pre><span class="k">int</span> page = <span class="n">2</span>, per_page = <span class="n">5</span>;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+options.<span class="f">skip</span>((page - <span class="n">1</span>) * per_page);
+options.<span class="f">limit</span>(per_page);
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), options))
+    std::cout &lt;&lt; doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>вторая страница по пять</span></figcaption>
+<pre>page, perPage := <span class="k">int64</span>(<span class="n">2</span>), <span class="k">int64</span>(<span class="n">5</span>)
+
+cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
+    options.<span class="f">Find</span>().
+        <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}).
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}).
+        <span class="f">SetSkip</span>((page - <span class="n">1</span>) * perPage).
+        <span class="f">SetLimit</span>(perPage))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>вторая страница по пять</span></figcaption>
+<pre>page, per_page = <span class="n">2</span>, <span class="n">5</span>
+
+products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">skip</span>((page - <span class="n">1</span>) * per_page)
+        .<span class="f">limit</span>(per_page)
+        .<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span class="s">"title"</span>] }</pre>
           </figure>
           <figure class="code code--out">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -159,24 +283,66 @@
         <h2 id="s6"><span class="sec">§6</span>Чем плох skip на больших данных</h2>
         <p>Проверим утверждение из §4 замером. Возьмём коллекцию на 20 000 документов и достанем десять последних двумя способами: пропуском и фильтром по «якорю» — последнему ключу с предыдущей страницы.</p>
         <div class="duo">
-          <figure class="code">
-            <figcaption><span>Способ 1</span><span>skip</span></figcaption>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Способ 1 · skip</span><span>Python</span></figcaption>
 <pre>col.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">1</span>}) \
    .<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>) \
    .<span class="f">skip</span>(<span class="n">19990</span>).<span class="f">limit</span>(<span class="n">10</span>)</pre>
           </figure>
-          <figure class="code">
-            <figcaption><span>Способ 2</span><span>якорь</span></figcaption>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Способ 1 · skip</span><span>C++</span></figcaption>
+<pre>options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+options.<span class="f">skip</span>(<span class="n">19990</span>);
+options.<span class="f">limit</span>(<span class="n">10</span>);
+
+col.<span class="f">find</span>(<span class="f">make_document</span>(), options);</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Способ 1 · skip</span><span>Go</span></figcaption>
+<pre>col.<span class="f">Find</span>(ctx, bson.D{},
+    options.<span class="f">Find</span>().
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}).
+        <span class="f">SetSkip</span>(<span class="n">19990</span>).<span class="f">SetLimit</span>(<span class="n">10</span>))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Способ 1 · skip</span><span>Ruby</span></figcaption>
+<pre>col.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">sort</span>({ <span class="s">"_id"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">skip</span>(<span class="n">19990</span>).<span class="f">limit</span>(<span class="n">10</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Способ 2 · якорь</span><span>Python</span></figcaption>
 <pre>col.<span class="f">find</span>({<span class="s">"_id"</span>: {<span class="s">"$gt"</span>: last_seen_id}}, {<span class="s">"_id"</span>: <span class="n">1</span>}) \
    .<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>) \
    .<span class="f">limit</span>(<span class="n">10</span>)</pre>
           </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Способ 2 · якорь</span><span>C++</span></figcaption>
+<pre>options.<span class="f">skip</span>(<span class="n">0</span>);
+
+col.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, last_seen_id)))), options);</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Способ 2 · якорь</span><span>Go</span></figcaption>
+<pre>col.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: lastSeenID}}}},
+    options.<span class="f">Find</span>().
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">10</span>))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Способ 2 · якорь</span><span>Ruby</span></figcaption>
+<pre>col.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; { <span class="s">"$gt"</span> =&gt; last_seen_id } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">sort</span>({ <span class="s">"_id"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">limit</span>(<span class="n">10</span>)</pre>
+          </figure>
         </div>
         <div class="stat">
-          <span><strong>3.94 мс</strong><em>через skip(19990)</em></span>
-          <span><strong>0.23 мс</strong><em>через якорь по <code>_id</code></em></span>
-          <span><strong>×17</strong><em>разница на 20 000 документов</em></span>
+          <span><strong>3.94 мс</strong><em>через <code>skip(19990)</code>, драйвер Python</em></span>
+          <span><strong>0.23 мс</strong><em>через якорь по <code>_id</code>, он же</em></span>
+          <span><strong>×14 … ×20</strong><em>разница на 20 000 документов у всех четырёх драйверов</em></span>
         </div>
+        <p>Числа замерены на драйвере Python. У остальных они свои — Go даёт 5.15 против 0.26 мс, Ruby 8.06 против 0.58, — но соотношение держится: работу делает сервер, а не драйвер.</p>
         <p>Разница растёт вместе с номером страницы: <code>skip</code> тем дороже, чем дальше страница, а якорь стоит одинаково всегда: сервер переходит по индексу сразу в нужное место. Поэтому в лентах и бесконечной прокрутке страницы делают якорем, а нумерованный постраничный вывод со <code>skip</code> оставляют для административных разделов, где данных немного.</p>
         <div class="margin-note margin-note--warn">
           <b>Осторожно: якорь требует однозначной сортировки</b>
@@ -186,12 +352,41 @@
         <h2 id="s7"><span class="sec">§7</span>count_documents: сколько всего</h2>
         <p>Чтобы показать «страница 2 из 5», нужно знать общее число документов. Считает его сервер — методом <code>count_documents</code> с обязательным фильтром.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>счёт по фильтру</span></figcaption>
 <pre><span class="f">print</span>(<span class="s">"всего товаров:"</span>, products.<span class="f">count_documents</span>({}))
 <span class="f">print</span>(<span class="s">"ноутбуков:"</span>, products.<span class="f">count_documents</span>({<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>}))
 <span class="f">print</span>(<span class="s">"заказов:"</span>, orders.<span class="f">count_documents</span>({}))
 <span class="f">print</span>(<span class="s">"доставленных:"</span>, orders.<span class="f">count_documents</span>({<span class="s">"status"</span>: <span class="s">"доставлен"</span>}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>счёт по фильтру</span></figcaption>
+<pre>std::cout &lt;&lt; products.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; products.<span class="f">count_documents</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; orders.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; orders.<span class="f">count_documents</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>счёт по фильтру</span></figcaption>
+<pre>n, _ := products.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"всего товаров:"</span>, n)
+
+n, _ = products.<span class="f">CountDocuments</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"ноутбуков:"</span>, n)
+
+n, _ = orders.<span class="f">CountDocuments</span>(ctx,
+    bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"доставленных:"</span>, n)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>счёт по фильтру</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"всего товаров: #{products.count_documents({})}"</span>
+<span class="f">puts</span> <span class="s">"ноутбуков: #{products.count_documents({ 'category' =&gt; 'ноутбуки' })}"</span>
+<span class="f">puts</span> <span class="s">"заказов: #{orders.count_documents({})}"</span>
+<span class="f">puts</span> <span class="s">"доставленных: #{orders.count_documents({ 'status' =&gt; 'доставлен' })}"</span></pre>
           </figure>
           <figure class="code code--out">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>

@@ -64,21 +64,59 @@
         </div>
         <p>Методов тоже два: <code>update_one</code> меняет <strong>первый подходящий</strong> документ, <code>update_many</code> — <strong>все подходящие</strong>. Разница в одном слове, а последствия разные: если фильтр случайно подошёл к сотне документов, <code>update_one</code> испортит один, а <code>update_many</code> — сто.</p>
         <p>Работаем, как и в главе о вставке, в песочнице:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>подключение</span></figcaption>
 <pre>box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>]</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>подключение</span></figcaption>
+<pre><span class="k">auto</span> box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>];</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>подключение</span></figcaption>
+<pre>box := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>подключение</span></figcaption>
+<pre>box = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database[<span class="s">:products</span>]</pre>
         </figure>
 
         <h2 id="s2"><span class="sec">§2</span>$set: задать значение</h2>
         <p>Оператор <code>$set</code> записывает значение в поле. Если поля не было — оно появится, если было — заменится. Остальные поля документа не тронуты.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>новая цена одного товара</span></figcaption>
 <pre>res = box.<span class="f">update_one</span>(
     {<span class="s">"_id"</span>: <span class="s">"p-101"</span>},
     {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">2690</span>}})
 
 <span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>новая цена одного товара</span></figcaption>
+<pre><span class="k">auto</span> res = box.<span class="f">update_one</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-101"</span>)),
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">2690</span>)))));
+
+std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>()
+          &lt;&lt; <span class="s">" modified: "</span> &lt;&lt; res-&gt;<span class="f">modified_count</span>() &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>новая цена одного товара</span></figcaption>
+<pre>res, _ := box.<span class="f">UpdateOne</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-101"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">2690</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount, <span class="s">"modified:"</span>, res.ModifiedCount)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>новая цена одного товара</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-101"</span> },
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">2690</span> } }
+)
+
+<span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
           <figure class="code">
             <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
@@ -92,7 +130,7 @@
 <pre>matched: 1 modified: 1</pre>
         </figure>
         <p>Одним <code>$set</code> можно задать сразу несколько полей, в том числе вложенных — через точку:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>несколько полей и вложенное</span></figcaption>
 <pre>orders_box.<span class="f">update_one</span>(
     {<span class="s">"_id"</span>: <span class="s">"o-0001"</span>},
@@ -102,6 +140,36 @@
         <span class="s">"delivery.days"</span>: <span class="n">2</span>,
     }})</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>несколько полей и вложенное</span></figcaption>
+<pre>orders_box.<span class="f">update_one</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0001"</span>)),
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>),
+        <span class="f">kvp</span>(<span class="s">"payment.paid"</span>, <span class="k">true</span>),   <span class="c">// поле внутри вложенного</span>
+        <span class="f">kvp</span>(<span class="s">"delivery.days"</span>, <span class="n">2</span>)))));</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>несколько полей и вложенное</span></figcaption>
+<pre>ordersBox.<span class="f">UpdateOne</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0001"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{
+        {Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>},
+        {Key: <span class="s">"payment.paid"</span>, Value: <span class="k">true</span>},   <span class="c">// вложенное поле</span>
+        {Key: <span class="s">"delivery.days"</span>, Value: <span class="n">2</span>},
+    }}})</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>несколько полей и вложенное</span></figcaption>
+<pre>orders_box.<span class="f">update_one</span>(
+  { <span class="s">"_id"</span> =&gt; <span class="s">"o-0001"</span> },
+  { <span class="s">"$set"</span> =&gt; {
+      <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span>,
+      <span class="s">"payment.paid"</span> =&gt; <span class="k">true</span>,        <span class="c"># поле внутри вложенного</span>
+      <span class="s">"delivery.days"</span> =&gt; <span class="n">2</span>
+  } }
+)</pre>
+        </figure>
         <div class="margin-note margin-note--warn">
           <b>Осторожно: точка обязательна</b>
           <p>Запись <code>{"$set": {"payment": {"paid": True}}}</code> не поменяет одно поле — она <strong>заменит весь вложенный документ</strong> <code>payment</code> на новый, в котором есть только <code>paid</code>. Способ оплаты при этом исчезнет. Чтобы изменить одно поле внутри, путь пишут через точку: <code>"payment.paid"</code>.</p>
@@ -110,10 +178,26 @@
         <h2 id="s3"><span class="sec">§3</span>matched против modified</h2>
         <p>Результат обновления возвращает два числа, и означают они разное.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>то же значение второй раз</span></figcaption>
 <pre>res = box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-101"</span>}, {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">2690</span>}})
 <span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>то же значение второй раз</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-101"</span>)),
+                     <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>,
+                         <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">2690</span>)))));</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>то же значение второй раз</span></figcaption>
+<pre>res, _ = box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-101"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">2690</span>}}}})</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>то же значение второй раз</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-101"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">2690</span> } })
+<span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
           <figure class="code code--out">
             <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
@@ -130,7 +214,7 @@
             </tbody>
           </table>
         </div>
-        <p><strong>Проверять нужно <code>matched_count</code></strong>, а не <code>modified_count</code>. API, который отвечает «объект не найден» по нулевому <code>modified</code>, ошибается каждый раз, когда пользователь сохранил форму, ничего в ней не изменив.</p>
+        <p><strong>Проверять нужно число совпавших документов</strong> (<code>matched</code>), а не изменённых (<code>modified</code>) — как бы это поле ни называлось в вашем драйвере. API, который отвечает «объект не найден» по нулевому <code>modified</code>, ошибается каждый раз, когда пользователь сохранил форму, ничего в ней не изменив.</p>
 
         <h2 id="s4"><span class="sec">§4</span>$inc и $unset</h2>
         <p><code>$set</code> — не единственный оператор. Два других нужны почти так же часто.</p>
@@ -139,7 +223,7 @@
           <div><b>$unset</b><span>Удалить поле целиком. Значение справа не важно — пишут пустую строку.</span><i>чистка</i></div>
         </div>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>+1 к отзывам, скидка снята</span></figcaption>
 <pre>res = box.<span class="f">update_one</span>(
     {<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
@@ -149,26 +233,100 @@
 <span class="f">print</span>(box.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
                   {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"reviews"</span>: <span class="n">1</span>, <span class="s">"discount"</span>: <span class="n">1</span>}))</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>+1 к отзывам, скидка снята</span></figcaption>
+<pre><span class="k">auto</span> res = box.<span class="f">update_one</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-003"</span>)),
+    <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$inc"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"$unset"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"discount"</span>, <span class="s">""</span>)))));
+
+std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>() &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>+1 к отзывам, скидка снята</span></figcaption>
+<pre>res, _ := box.<span class="f">UpdateOne</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-003"</span>}},
+    bson.D{
+        {Key: <span class="s">"$inc"</span>, Value: bson.D{{Key: <span class="s">"reviews"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"$unset"</span>, Value: bson.D{{Key: <span class="s">"discount"</span>, Value: <span class="s">""</span>}}},
+    })
+
+fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount, <span class="s">"modified:"</span>, res.ModifiedCount)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>+1 к отзывам, скидка снята</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-003"</span> },
+  { <span class="s">"$inc"</span> =&gt; { <span class="s">"reviews"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"$unset"</span> =&gt; { <span class="s">"discount"</span> =&gt; <span class="s">""</span> } }
+)
+
+<span class="f">puts</span> box.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-003"</span> },
+              projection: { <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"reviews"</span> =&gt; <span class="n">1</span>,
+                            <span class="s">"discount"</span> =&gt; <span class="n">1</span> }).first.inspect</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>matched: 1 modified: 1
 {'_id': 'p-003', 'title': 'Ноутбук HP Pavilion 14', 'reviews': 32}</pre>
           </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 1</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 1 modified: 1
+{"_id":"p-003","title":"Ноутбук HP Pavilion 14","reviews":{"$numberInt":"32"}}</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 1 modified: 1
+{"_id"=&gt;"p-003", "title"=&gt;"Ноутбук HP Pavilion 14", "reviews"=&gt;32}</pre>
+          </figure>
         </div>
-        <p>Было 31 отзыв, стало 32; поля <code>discount</code> в документе больше нет — не <code>null</code>, а именно нет. Разница существенная: <code>{"discount": {"$exists": False}}</code> найдёт такой товар, а <code>{"discount": None}</code> — нет.</p>
+        <p>Было 31 отзыв, стало 32; поля <code>discount</code> в документе больше нет — не <code>null</code>, а именно нет. Разница существенная: фильтр <code>{ discount: { $exists: false } }</code> найдёт такой товар, а <code>{ discount: null }</code> — нет.</p>
         <p>Способ «прочитать, прибавить, записать» теряет данные при одновременной работе: два процесса прочитают 31, оба запишут 32, и один отзыв пропадёт. <code>$inc</code> выполняется на сервере одним неделимым действием, поэтому такой потери не будет.</p>
         <p>Ещё три оператора обновления: <code>$min</code> и <code>$max</code> записывают значение, только если оно меньше (больше) текущего, <code>$rename</code> переименовывает поле. Операторы для массивов — <code>$push</code>, <code>$pull</code>, <code>$addToSet</code> — разберём после главы о массивах в фильтрах.</p>
 
         <h2 id="s5"><span class="sec">§5</span>update_many: пачкой</h2>
         <p>Одинаковая правка для всех подходящих документов — это <code>update_many</code>. Форма та же, меняется только метод.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>бесплатная доставка аксессуаров</span></figcaption>
 <pre>res = box.<span class="f">update_many</span>(
     {<span class="s">"category"</span>: <span class="s">"аксессуары"</span>},
     {<span class="s">"$set"</span>: {<span class="s">"free_shipping"</span>: <span class="k">True</span>}})
 
 <span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>бесплатная доставка аксессуаров</span></figcaption>
+<pre><span class="k">auto</span> res = box.<span class="f">update_many</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>)),
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"free_shipping"</span>, <span class="k">true</span>)))));
+
+std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>()
+          &lt;&lt; <span class="s">" modified: "</span> &lt;&lt; res-&gt;<span class="f">modified_count</span>() &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>бесплатная доставка аксессуаров</span></figcaption>
+<pre>res, _ := box.<span class="f">UpdateMany</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"free_shipping"</span>, Value: <span class="k">true</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount, <span class="s">"modified:"</span>, res.ModifiedCount)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>бесплатная доставка аксессуаров</span></figcaption>
+<pre>res = box.<span class="f">update_many</span>(
+  { <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span> },
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"free_shipping"</span> =&gt; <span class="k">true</span> } }
+)
+
+<span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
           <figure class="code code--out">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -180,18 +338,44 @@
           <b>На полях: сначала посчитайте, потом меняйте</b>
           <p>Перед любым <code>update_many</code> выполняют <code>count_documents</code> с тем же фильтром. Число показывает, скольких документов коснётся правка, до того как она произойдёт. Ожидали шесть, а видите шестьсот — фильтр написан не так, как задумано.</p>
         </div>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>проверка перед правкой</span></figcaption>
 <pre>query = {<span class="s">"category"</span>: <span class="s">"аксессуары"</span>}
 
 <span class="f">print</span>(<span class="s">"будет изменено:"</span>, box.<span class="f">count_documents</span>(query))   <span class="c"># 6</span>
 box.<span class="f">update_many</span>(query, {<span class="s">"$set"</span>: {<span class="s">"free_shipping"</span>: <span class="k">True</span>}})</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>проверка перед правкой</span></figcaption>
+<pre><span class="k">auto</span> query = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>));
+
+std::cout &lt;&lt; <span class="s">"будет изменено: "</span>
+          &lt;&lt; box.<span class="f">count_documents</span>(query.<span class="f">view</span>()) &lt;&lt; std::endl;   <span class="c">// 6</span>
+box.<span class="f">update_many</span>(query.<span class="f">view</span>(), <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>,
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"free_shipping"</span>, <span class="k">true</span>)))));</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>проверка перед правкой</span></figcaption>
+<pre>query := bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}}
+
+count, _ := box.<span class="f">CountDocuments</span>(ctx, query)
+fmt.<span class="f">Println</span>(<span class="s">"будет изменено:"</span>, count)              <span class="c">// 6</span>
+
+box.<span class="f">UpdateMany</span>(ctx, query,
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"free_shipping"</span>, Value: <span class="k">true</span>}}}})</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>проверка перед правкой</span></figcaption>
+<pre>query = { <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span> }
+
+<span class="f">puts</span> <span class="s">"будет изменено: #{box.count_documents(query)}"</span>   <span class="c"># 6</span>
+box.<span class="f">update_many</span>(query, { <span class="s">"$set"</span> =&gt; { <span class="s">"free_shipping"</span> =&gt; <span class="k">true</span> } })</pre>
+        </figure>
 
         <h2 id="s6"><span class="sec">§6</span>upsert: обновить или создать</h2>
         <p>Параметр <code>upsert=True</code> говорит: «если документ не нашёлся — создай его». Один запрос вместо связки «проверить, потом вставить».</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>документа ещё нет</span></figcaption>
 <pre>res = box.<span class="f">update_one</span>(
     {<span class="s">"_id"</span>: <span class="s">"p-999"</span>},
@@ -202,26 +386,113 @@ box.<span class="f">update_many</span>(query, {<span class="s">"$set"</span>: {<
       <span class="s">"modified:"</span>, res.modified_count,
       <span class="s">"upserted_id:"</span>, res.upserted_id)</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>документа ещё нет</span></figcaption>
+<pre>mongocxx::options::update options;
+options.<span class="f">upsert</span>(<span class="k">true</span>);
+
+<span class="k">auto</span> res = box.<span class="f">update_one</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-999"</span>)),
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Товар из upsert"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">100</span>)))),
+    options);
+
+std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>() &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>документа ещё нет</span></figcaption>
+<pre>res, _ := box.<span class="f">UpdateOne</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-999"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{
+        {Key: <span class="s">"title"</span>, Value: <span class="s">"Товар из upsert"</span>},
+        {Key: <span class="s">"price"</span>, Value: <span class="n">100</span>}}}},
+    options.<span class="f">UpdateOne</span>().<span class="f">SetUpsert</span>(<span class="k">true</span>))
+
+fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount,
+    <span class="s">"modified:"</span>, res.ModifiedCount, <span class="s">"upserted_id:"</span>, res.UpsertedID)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>документа ещё нет</span></figcaption>
+<pre>res = box.<span class="f">update_one</span>(
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-999"</span> },
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"title"</span> =&gt; <span class="s">"Товар из upsert"</span>, <span class="s">"price"</span> =&gt; <span class="n">100</span> } },
+  upsert: <span class="k">true</span>
+)
+
+<span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count} "</span> \
+     <span class="s">"upserted_id: #{res.upserted_id}"</span></pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 0 modified: 0 upserted_id: p-999</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 0, upserted_id заполнен</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 0 modified: 0 upserted_id: p-999</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>matched: 0 modified: 0 upserted_id: p-999</pre>
           </figure>
         </div>
         <p>Ноль совпадений, ноль изменений — и новый документ. Ключ <code>_id</code> взят из фильтра: при вставке через <code>upsert</code> сервер собирает документ из полей фильтра с точным равенством и полей из <code>$set</code>.</p>
         <p>Применение: счётчики и агрегаты, которые пишутся «на лету». Например, счётчик просмотров товара за день — не нужно проверять, есть ли уже запись за сегодня:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>счётчик, который создаётся сам</span></figcaption>
 <pre>stats.<span class="f">update_one</span>(
     {<span class="s">"product_id"</span>: <span class="s">"p-003"</span>, <span class="s">"date"</span>: today},
     {<span class="s">"$inc"</span>: {<span class="s">"views"</span>: <span class="n">1</span>}},
     upsert=<span class="k">True</span>)</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>счётчик, который создаётся сам</span></figcaption>
+<pre>mongocxx::options::update options;
+options.<span class="f">upsert</span>(<span class="k">true</span>);
+
+stats.<span class="f">update_one</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"product_id"</span>, <span class="s">"p-003"</span>), <span class="f">kvp</span>(<span class="s">"date"</span>, today)),
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$inc"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"views"</span>, <span class="n">1</span>)))),
+    options);</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>счётчик, который создаётся сам</span></figcaption>
+<pre>stats.<span class="f">UpdateOne</span>(ctx,
+    bson.D{{Key: <span class="s">"product_id"</span>, Value: <span class="s">"p-003"</span>}, {Key: <span class="s">"date"</span>, Value: today}},
+    bson.D{{Key: <span class="s">"$inc"</span>, Value: bson.D{{Key: <span class="s">"views"</span>, Value: <span class="n">1</span>}}}},
+    options.<span class="f">UpdateOne</span>().<span class="f">SetUpsert</span>(<span class="k">true</span>))</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>счётчик, который создаётся сам</span></figcaption>
+<pre>stats.<span class="f">update_one</span>(
+  { <span class="s">"product_id"</span> =&gt; <span class="s">"p-003"</span>, <span class="s">"date"</span> =&gt; today },
+  { <span class="s">"$inc"</span> =&gt; { <span class="s">"views"</span> =&gt; <span class="n">1</span> } },
+  upsert: <span class="k">true</span>
+)</pre>
+        </figure>
 
         <h2 id="s7"><span class="sec">§7</span>Обновление без операторов</h2>
-        <p>Если забыть <code>$set</code> и передать просто документ, PyMongo вернёт ошибку:</p>
-        <figure class="code code--out">
-          <figcaption><span>Ошибка</span><span>update_one без оператора</span></figcaption>
+        <p>Если забыть <code>$set</code> и передать просто документ, драйвер не пропустит запрос дальше:</p>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
 <pre>ValueError: update only works with $ operators</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+<pre>mongocxx::logic_error: update document must only contain
+update operators (ключи, начинающиеся с $)</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+<pre>update document must contain key beginning with '$'</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+<pre>WARN: Invalid update document provided. Updates documents must
+contain only atomic modifiers. The "price" key is invalid.</pre>
         </figure>
         <p>Метод <code>replace_one</code> при этом <strong>заменяет документ целиком</strong>. Все поля, которых нет в новом документе, исчезают; сохраняется только <code>_id</code>.</p>
         <div class="table-scroll">

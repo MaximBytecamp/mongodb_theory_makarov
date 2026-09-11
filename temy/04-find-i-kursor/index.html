@@ -59,14 +59,37 @@
         <h2 id="s1"><span class="sec">§1</span>find_one: первый подходящий</h2>
         <p>Метод <code>find_one</code> возвращает <strong>один документ</strong> — как обычный словарь Python — или <code>None</code>, если ничего не нашлось.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>один документ</span></figcaption>
 <pre>products = client[<span class="s">"shop"</span>][<span class="s">"products"</span>]
 
 one = products.<span class="f">find_one</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
 <span class="f">print</span>(one[<span class="s">"title"</span>], one[<span class="s">"price"</span>])</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>один документ</span></figcaption>
+<pre><span class="k">auto</span> products = client[<span class="s">"shop"</span>][<span class="s">"products"</span>];
+
+<span class="k">auto</span> one = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>)));
+std::cout &lt;&lt; one-&gt;<span class="f">view</span>()[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>один документ</span></figcaption>
+<pre>products := client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)
+
+<span class="k">var</span> one Product
+err := products.<span class="f">FindOne</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}}).<span class="f">Decode</span>(&amp;one)
+fmt.<span class="f">Println</span>(one.Title, one.Price)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>один документ</span></figcaption>
+<pre>products = client.<span class="f">use</span>(<span class="s">"shop"</span>).database[<span class="s">:products</span>]
+
+one = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span> }).first
+<span class="f">puts</span> <span class="s">"#{one['title']} #{one['price']}"</span></pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>{'_id': 'p-006',
  'sku': 'SKU-PH-006',
@@ -81,10 +104,22 @@ one = products.<span class="f">find_one</span>({<span class="s">"category"</span
  'reviews': 139,
  'added': datetime.datetime(2026, 4, 11, 0, 0)}</pre>
           </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 32990</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 32990</pre>
+          </figure>
         </div>
         <p>Смартфонов в коллекции четыре, а вернулся один — тот, который сервер нашёл первым. <strong>Какой именно — не определено</strong>: без сортировки «первый» означает «первый попавшийся», а не «самый дешёвый» или «самый ранний». Если вам нужен конкретный, добавляйте сортировку.</p>
         <p>Когда совпадений нет, исключения не будет:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>ничего не нашлось</span></figcaption>
 <pre>missing = products.<span class="f">find_one</span>({<span class="s">"category"</span>: <span class="s">"велосипеды"</span>})
 <span class="f">print</span>(missing)          <span class="c"># None</span>
@@ -92,6 +127,34 @@ one = products.<span class="f">find_one</span>({<span class="s">"category"</span
 <span class="c"># поэтому обращаться к полям можно только после проверки</span>
 <span class="k">if</span> missing <span class="k">is</span> <span class="k">not</span> <span class="k">None</span>:
     <span class="f">print</span>(missing[<span class="s">"title"</span>])</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>ничего не нашлось</span></figcaption>
+<pre><span class="k">auto</span> missing = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"велосипеды"</span>)));
+
+<span class="c">// find_one возвращает optional: пустой, если ничего не нашлось</span>
+<span class="k">if</span> (missing) {
+    std::cout &lt;&lt; missing-&gt;<span class="f">view</span>()[<span class="s">"title"</span>].<span class="f">get_string</span>().value;
+}</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>ничего не нашлось</span></figcaption>
+<pre><span class="k">var</span> missing Product
+err := products.<span class="f">FindOne</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"велосипеды"</span>}}).<span class="f">Decode</span>(&amp;missing)
+
+<span class="c">// «не нашлось» — это отдельная ошибка, а не пустая структура</span>
+<span class="k">if</span> errors.<span class="f">Is</span>(err, mongo.ErrNoDocuments) {
+    fmt.<span class="f">Println</span>(<span class="s">"ничего не нашлось"</span>)
+}</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>ничего не нашлось</span></figcaption>
+<pre>missing = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"велосипеды"</span> }).first
+<span class="f">puts</span> missing.inspect     <span class="c"># nil</span>
+
+<span class="c"># поэтому обращаться к полям можно только после проверки</span>
+<span class="f">puts</span> missing[<span class="s">"title"</span>] <span class="k">unless</span> missing.nil?</pre>
         </figure>
 
         <h2 id="s2"><span class="sec">§2</span>Фильтр — это документ</h2>
@@ -106,7 +169,7 @@ one = products.<span class="f">find_one</span>({<span class="s">"category"</span
           <b>На полях: почему это удобно</b>
           <p>Раз фильтр — документ, его можно собрать в коде: положить в словарь, дополнить по условию, передать дальше как параметр функции. Строку запроса склеивать не нужно, поэтому исчезает целый класс ошибок, знакомых по SQL, — от кавычки в имени до подстановки чужого условия.</p>
         </div>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>фильтр собирается по частям</span></figcaption>
 <pre><span class="k">def</span> <span class="f">search</span>(category=<span class="k">None</span>, brand=<span class="k">None</span>):
     query = {}
@@ -116,11 +179,48 @@ one = products.<span class="f">find_one</span>({<span class="s">"category"</span
         query[<span class="s">"brand"</span>] = brand
     <span class="k">return</span> <span class="f">list</span>(products.<span class="f">find</span>(query))</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>фильтр собирается по частям</span></figcaption>
+<pre><span class="k">auto</span> <span class="f">search</span>(std::string category, std::string brand) {
+    bsoncxx::builder::basic::document query{};
+    <span class="k">if</span> (!category.<span class="f">empty</span>()) query.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, category));
+    <span class="k">if</span> (!brand.<span class="f">empty</span>()) query.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"brand"</span>, brand));
+    <span class="k">return</span> products.<span class="f">find</span>(query.<span class="f">extract</span>());
+}</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>фильтр собирается по частям</span></figcaption>
+<pre><span class="k">func</span> <span class="f">search</span>(ctx context.Context, category, brand <span class="k">string</span>) ([]Product, <span class="k">error</span>) {
+    query := bson.D{}
+    <span class="k">if</span> category != <span class="s">""</span> {
+        query = <span class="f">append</span>(query, bson.E{Key: <span class="s">"category"</span>, Value: category})
+    }
+    <span class="k">if</span> brand != <span class="s">""</span> {
+        query = <span class="f">append</span>(query, bson.E{Key: <span class="s">"brand"</span>, Value: brand})
+    }
+
+    cursor, err := products.<span class="f">Find</span>(ctx, query)
+    <span class="k">if</span> err != <span class="k">nil</span> {
+        <span class="k">return</span> <span class="k">nil</span>, err
+    }
+    <span class="k">var</span> list []Product
+    <span class="k">return</span> list, cursor.<span class="f">All</span>(ctx, &amp;list)
+}</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>фильтр собирается по частям</span></figcaption>
+<pre><span class="k">def</span> <span class="f">search</span>(category: <span class="k">nil</span>, brand: <span class="k">nil</span>)
+  query = {}
+  query[<span class="s">"category"</span>] = category <span class="k">if</span> category
+  query[<span class="s">"brand"</span>] = brand <span class="k">if</span> brand
+  PRODUCTS.<span class="f">find</span>(query).to_a
+<span class="k">end</span></pre>
+        </figure>
 
         <h2 id="s3"><span class="sec">§3</span>find: курсор, а не список</h2>
         <p>Метод <code>find</code> возвращает все подходящие документы — но не сразу и не списком. Он возвращает <span class="term">курсор</span>: объект, который будет подтягивать документы с сервера по мере того, как вы их перебираете.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>перебор курсора</span></figcaption>
 <pre>cursor = products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
 <span class="f">print</span>(<span class="f">type</span>(cursor).__name__)
@@ -128,13 +228,63 @@ one = products.<span class="f">find_one</span>({<span class="s">"category"</span
 <span class="k">for</span> doc <span class="k">in</span> cursor:
     <span class="f">print</span>(doc[<span class="s">"_id"</span>], doc[<span class="s">"title"</span>], doc[<span class="s">"price"</span>])</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>перебор курсора</span></figcaption>
+<pre><span class="k">auto</span> cursor = products.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : cursor) {
+    std::cout &lt;&lt; doc[<span class="s">"_id"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>перебор курсора</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}})
+fmt.<span class="f">Printf</span>(<span class="s">"тип: %T\n"</span>, cursor)
+
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> p Product
+    cursor.<span class="f">Decode</span>(&amp;p)
+    fmt.<span class="f">Println</span>(p.ID, p.Title, p.Price)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>перебор курсора</span></figcaption>
+<pre>view = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span> })
+<span class="f">puts</span> <span class="s">"класс: #{view.class}"</span>
+
+view.<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="s">"#{doc['_id']} #{doc['title']} #{doc['price']}"</span> }</pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>Cursor
 p-006 Смартфон Xiaomi Redmi Note 13 18990
 p-007 Смартфон Samsung Galaxy A55 32990
 p-009 Смартфон realme 12 Pro 27490
 p-008 Смартфон Apple iPhone 15 79990</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>p-007 32990
+p-008 79990
+p-006 18990
+p-009 27490</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>тип: *mongo.Cursor
+p-007 Смартфон Samsung Galaxy A55 32990
+p-008 Смартфон Apple iPhone 15 79990
+p-006 Смартфон Xiaomi Redmi Note 13 18990
+p-009 Смартфон realme 12 Pro 27490</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>класс: Mongo::Collection::View
+p-007 Смартфон Samsung Galaxy A55 32990
+p-008 Смартфон Apple iPhone 15 79990
+p-006 Смартфон Xiaomi Redmi Note 13 18990
+p-009 Смартфон realme 12 Pro 27490</pre>
           </figure>
         </div>
         <p>Список вместо курсора означал бы, что все подходящие документы — а их может быть миллион — сразу окажутся в памяти. Курсор забирает данные <strong>пачками</strong> (по умолчанию первая пачка — 101 документ), а следующую запрашивает, когда предыдущая закончилась. Программа при этом работает с обычным перебором и о пачках не знает.</p>
@@ -146,9 +296,12 @@ p-008 Смартфон Apple iPhone 15 79990</pre>
         </figure>
 
         <h2 id="s4"><span class="sec">§4</span>Курсор проходится один раз</h2>
-        <p>Курсор <strong>одноразовый</strong>: он помнит, где остановился, и после полного прохода становится пустым. На этом чаще всего спотыкаются, приняв его за список.</p>
+        <p data-lang="python">Курсор <strong>одноразовый</strong>: он помнит, где остановился, и после полного прохода становится пустым. На этом чаще всего спотыкаются, приняв его за список.</p>
+        <p data-lang="cpp">Курсор <strong>одноразовый</strong>: <code>mongocxx::cursor</code> можно обойти ровно один раз, повторный <code>for</code> по тому же объекту не даст ни одного документа.</p>
+        <p data-lang="go">Курсор <strong>одноразовый</strong>: после того как <code>Next</code> вернул <code>false</code>, курсор исчерпан. Метод <code>All</code> тоже дочитывает его до конца — второй раз данных не будет.</p>
+        <p data-lang="ruby">В Ruby <code>find</code> возвращает не курсор, а <strong>представление</strong> <code>Mongo::Collection::View</code> — описание запроса. Каждый обход выполняет запрос заново, поэтому повторная итерация данные вернёт. Курсор внутри одноразовый и здесь: просто драйвер создаёт новый.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>второй проход</span></figcaption>
 <pre>cursor = products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
 
@@ -157,45 +310,170 @@ p-008 Смартфон Apple iPhone 15 79990</pre>
 
 <span class="f">print</span>(<span class="s">"второй проход:"</span>, <span class="f">list</span>(cursor))</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>второй проход</span></figcaption>
+<pre><span class="k">auto</span> cursor = products.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : cursor) { <span class="c">/* четыре документа */</span> }
+
+<span class="k">int</span> second = <span class="n">0</span>;
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : cursor) ++second;
+std::cout &lt;&lt; <span class="s">"второй проход: "</span> &lt;&lt; second &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>второй проход</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}})
+
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="c">// четыре документа</span>
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"второй проход:"</span>, cursor.<span class="f">Next</span>(ctx))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>второй проход</span></figcaption>
+<pre>view = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span> })
+
+view.<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span class="s">"_id"</span>] }   <span class="c"># четыре строки</span>
+
+<span class="c"># запрос выполняется заново — документы те же</span>
+<span class="f">puts</span> <span class="s">"второй проход: #{view.to_a.size} документов"</span></pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>второй проход: []</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй проход: 0 документов</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй проход: false</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй проход: 4 документов</pre>
           </figure>
         </div>
         <p>Правило: <strong>если результат нужен дважды, его сохраняют в список</strong>. Типичная ошибка выглядит безобидно — сначала посчитали длину, потом вывели:</p>
         <div class="duo">
-          <figure class="code">
-            <figcaption><span>Так не работает</span><span>курсор уже пройден</span></figcaption>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Так не работает · курсор уже пройден</span><span>Python</span></figcaption>
 <pre>cursor = products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>})
 
 <span class="f">print</span>(<span class="s">"найдено:"</span>, <span class="f">len</span>(<span class="f">list</span>(cursor)))   <span class="c"># 5</span>
 <span class="k">for</span> doc <span class="k">in</span> cursor:                  <span class="c"># ни одной строки</span>
     <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
           </figure>
-          <figure class="code">
-            <figcaption><span>Так работает</span><span>список</span></figcaption>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Так не работает · курсор уже пройден</span><span>C++</span></figcaption>
+<pre><span class="k">auto</span> cursor = products.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>)));
+
+<span class="k">auto</span> found = std::<span class="f">distance</span>(cursor.<span class="f">begin</span>(), cursor.<span class="f">end</span>());   <span class="c">// 5</span>
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : cursor) {                    <span class="c">// ни одного</span>
+    std::cout &lt;&lt; doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Так не работает · курсор уже пройден</span><span>Go</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}})
+
+<span class="k">var</span> list []Product
+cursor.<span class="f">All</span>(ctx, &amp;list)              <span class="c">// 5, курсор дочитан</span>
+
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {              <span class="c">// ни одной итерации</span>
+    <span class="c">// сюда уже не попадём</span>
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Так не работает · курсор уже пройден</span><span>Ruby</span></figcaption>
+<pre><span class="c"># в Ruby эта ловушка не срабатывает: view перезапрашивает данные</span>
+view = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"ноутбуки"</span> })
+
+<span class="f">puts</span> <span class="s">"найдено: #{view.to_a.size}"</span>   <span class="c"># 5, первый запрос</span>
+view.<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span class="s">"title"</span>] }  <span class="c"># 5, второй запрос</span></pre>
+          </figure>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Так работает · один проход в память</span><span>Python</span></figcaption>
 <pre>items = <span class="f">list</span>(products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>}))
 
 <span class="f">print</span>(<span class="s">"найдено:"</span>, <span class="f">len</span>(items))          <span class="c"># 5</span>
 <span class="k">for</span> doc <span class="k">in</span> items:                      <span class="c"># пять строк</span>
     <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
           </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Так работает · один проход в память</span><span>C++</span></figcaption>
+<pre>std::vector&lt;bsoncxx::document::value&gt; items;
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>))))
+    items.<span class="f">emplace_back</span>(doc);
+
+std::cout &lt;&lt; <span class="s">"найдено: "</span> &lt;&lt; items.<span class="f">size</span>() &lt;&lt; std::endl;   <span class="c">// 5</span>
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : items) { <span class="c">/* пять раз */</span> }</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Так работает · один проход в память</span><span>Go</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}})
+
+<span class="k">var</span> items []Product
+cursor.<span class="f">All</span>(ctx, &amp;items)
+
+fmt.<span class="f">Println</span>(<span class="s">"найдено:"</span>, <span class="f">len</span>(items))    <span class="c">// 5</span>
+<span class="k">for</span> _, doc := <span class="k">range</span> items {          <span class="c">// пять строк</span>
+    fmt.<span class="f">Println</span>(doc.Title)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Так работает · один проход в память</span><span>Ruby</span></figcaption>
+<pre>items = products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"ноутбуки"</span> }).to_a
+
+<span class="f">puts</span> <span class="s">"найдено: #{items.size}"</span>         <span class="c"># 5, один запрос к серверу</span>
+items.<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span class="s">"title"</span>] }  <span class="c"># пять строк, без запроса</span></pre>
+          </figure>
         </div>
         <p>Считать количество через <code>len(list(...))</code> всё же не стоит: ради числа вы тащите на клиент все документы. Для этого есть <code>count_documents(filter)</code> — сервер посчитает сам и вернёт одно число. О нём подробно в главе 1.6.</p>
 
         <h2 id="s5"><span class="sec">§5</span>Порядок без сортировки не определён</h2>
-        <p>В выводе из §3 документы идут так: <code>p-006</code>, <code>p-007</code>, <code>p-009</code>, <code>p-008</code> — не по ключу и не по цене. <strong>Без явной сортировки сервер не обещает никакого порядка</strong> — он отдаёт документы так, как ему удобнее их читать.</p>
+        <p>В выводе из §3 документы идут не по ключу и не по цене — а у разных драйверов ещё и в разном порядке. <strong>Без явной сортировки сервер не обещает никакого порядка</strong>: он отдаёт документы так, как ему удобнее их читать.</p>
         <p>Порядок может измениться после обновления документа, после перестроения индекса, на другом сервере — и код, который на него опирался, однажды сломается без единой правки. Нужен порядок — просите его явно:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>явный порядок</span></figcaption>
 <pre><span class="k">for</span> doc <span class="k">in</span> products.<span class="f">find</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>}).<span class="f">sort</span>(<span class="s">"price"</span>, <span class="n">1</span>):
     <span class="f">print</span>(doc[<span class="s">"price"</span>], doc[<span class="s">"title"</span>])</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>явный порядок</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>)), options)) {
+    std::cout &lt;&lt; doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value &lt;&lt; std::endl;
+}</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>явный порядок</span></figcaption>
+<pre>cursor, _ := products.<span class="f">Find</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}},
+    options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}))
+
+<span class="k">var</span> list []Product
+cursor.<span class="f">All</span>(ctx, &amp;list)
+<span class="k">for</span> _, doc := <span class="k">range</span> list {
+    fmt.<span class="f">Println</span>(doc.Price, doc.Title)
+}</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>явный порядок</span></figcaption>
+<pre>products.<span class="f">find</span>({ <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span> })
+        .<span class="f">sort</span>({ <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="s">"#{doc['price']} #{doc['title']}"</span> }</pre>
         </figure>
 
         <h2 id="s6"><span class="sec">§6</span>Точечная нотация: внутрь документа</h2>
         <p>Условие можно поставить и на вложенное поле — путь пишется через точку и берётся в кавычки целиком.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>вложенное поле</span></figcaption>
 <pre>orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>]
 
@@ -204,6 +482,36 @@ orders.<span class="f">count_documents</span>({<span class="s">"delivery.city"</
 
 <span class="c"># оплаченные заказы</span>
 orders.<span class="f">count_documents</span>({<span class="s">"payment.paid"</span>: <span class="k">True</span>})</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>вложенное поле</span></figcaption>
+<pre><span class="k">auto</span> orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>];
+
+<span class="c">// доставка в Екатеринбург — 28 заказов</span>
+orders.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"delivery.city"</span>, <span class="s">"Екатеринбург"</span>)));
+
+<span class="c">// оплаченные заказы</span>
+orders.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"payment.paid"</span>, <span class="k">true</span>)));</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>вложенное поле</span></figcaption>
+<pre>orders := client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"orders"</span>)
+
+<span class="c">// доставка в Екатеринбург — 28 заказов</span>
+orders.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"delivery.city"</span>, Value: <span class="s">"Екатеринбург"</span>}})
+
+<span class="c">// оплаченные заказы</span>
+orders.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"payment.paid"</span>, Value: <span class="k">true</span>}})</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>вложенное поле</span></figcaption>
+<pre>orders = client.<span class="f">use</span>(<span class="s">"shop"</span>).database[<span class="s">:orders</span>]
+
+<span class="c"># доставка в Екатеринбург — 28 заказов</span>
+orders.<span class="f">count_documents</span>({ <span class="s">"delivery.city"</span> =&gt; <span class="s">"Екатеринбург"</span> })
+
+<span class="c"># оплаченные заказы</span>
+orders.<span class="f">count_documents</span>({ <span class="s">"payment.paid"</span> =&gt; <span class="k">true</span> })</pre>
           </figure>
           <figure class="code">
             <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>

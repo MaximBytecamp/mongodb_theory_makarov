@@ -59,12 +59,33 @@
         <h2 id="s1"><span class="sec">§1</span>delete_one: один документ</h2>
         <p>Аргумент один — фильтр. Метод удаляет <strong>первый подходящий</strong> документ и возвращает результат с числом удалённых.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>удалить по ключу</span></figcaption>
 <pre>box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>]
 
 res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span class="s">"p-020"</span>})
 <span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>удалить по ключу</span></figcaption>
+<pre><span class="k">auto</span> box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>];
+
+<span class="k">auto</span> res = box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-020"</span>)));
+std::cout &lt;&lt; <span class="s">"удалено: "</span> &lt;&lt; res-&gt;<span class="f">deleted_count</span>() &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>удалить по ключу</span></figcaption>
+<pre>box := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)
+
+res, _ := box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-020"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"удалено:"</span>, res.DeletedCount)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>удалить по ключу</span></figcaption>
+<pre>box = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database[<span class="s">:products</span>]
+
+res = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-020"</span> })
+<span class="f">puts</span> <span class="s">"удалено: #{res.deleted_count}"</span></pre>
           </figure>
           <figure class="code">
             <figcaption><span>mongosh · оболочка</span><span>то же самое</span></figcaption>
@@ -76,23 +97,67 @@ res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>удалено: 1</pre>
         </figure>
-        <p>Если ничего не нашлось, ошибки не будет — вернётся <code>deleted_count: 0</code>. Это тот же принцип, что и у <code>find_one</code>: отсутствие данных не считается сбоем. Поэтому <strong>результат нужно проверять</strong>: ноль означает, что документ либо уже удалён, либо фильтр написан не так, как задумано.</p>
-        <figure class="code">
+        <p>Если ничего не нашлось, ошибки не будет — число удалённых окажется нулём. Это тот же принцип, что и у <code>find_one</code>: отсутствие данных не считается сбоем. Поэтому <strong>результат нужно проверять</strong>: ноль означает, что документ либо уже удалён, либо фильтр написан не так, как задумано.</p>
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>честный ответ вызывающему</span></figcaption>
 <pre>res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: product_id})
 
 <span class="k">if</span> res.deleted_count == <span class="n">0</span>:
     <span class="k">raise</span> <span class="f">LookupError</span>(<span class="s">f"товар {product_id} не найден"</span>)</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>честный ответ вызывающему</span></figcaption>
+<pre><span class="k">auto</span> res = box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, product_id)));
+
+<span class="k">if</span> (res-&gt;<span class="f">deleted_count</span>() == <span class="n">0</span>) {
+    <span class="k">throw</span> std::<span class="f">runtime_error</span>(<span class="s">"товар не найден: "</span> + product_id);
+}</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>честный ответ вызывающему</span></figcaption>
+<pre>res, err := box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: productID}})
+<span class="k">if</span> err != <span class="k">nil</span> {
+    <span class="k">return</span> err
+}
+<span class="k">if</span> res.DeletedCount == <span class="n">0</span> {
+    <span class="k">return</span> fmt.<span class="f">Errorf</span>(<span class="s">"товар %s не найден"</span>, productID)
+}</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>честный ответ вызывающему</span></figcaption>
+<pre>res = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; product_id })
+
+<span class="k">raise</span> KeyError, <span class="s">"товар #{product_id} не найден"</span> <span class="k">if</span> res.deleted_count.zero?</pre>
+        </figure>
 
         <h2 id="s2"><span class="sec">§2</span>delete_many: все подходящие</h2>
         <p>Тот же фильтр, но удаляются все документы, которые под него подошли.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>удалить категорию целиком</span></figcaption>
 <pre>res = box.<span class="f">delete_many</span>({<span class="s">"category"</span>: <span class="s">"аксессуары"</span>})
 <span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)
 <span class="f">print</span>(<span class="s">"осталось:"</span>, box.<span class="f">count_documents</span>({}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>удалить категорию целиком</span></figcaption>
+<pre><span class="k">auto</span> res = box.<span class="f">delete_many</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>)));
+std::cout &lt;&lt; <span class="s">"удалено: "</span> &lt;&lt; res-&gt;<span class="f">deleted_count</span>() &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"осталось: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>удалить категорию целиком</span></figcaption>
+<pre>res, _ := box.<span class="f">DeleteMany</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"удалено:"</span>, res.DeletedCount)
+
+count, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"осталось:"</span>, count)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>удалить категорию целиком</span></figcaption>
+<pre>res = box.<span class="f">delete_many</span>({ <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span> })
+<span class="f">puts</span> <span class="s">"удалено: #{res.deleted_count}"</span>
+<span class="f">puts</span> <span class="s">"осталось: #{box.count_documents({})}"</span></pre>
           </figure>
           <figure class="code code--out">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -104,7 +169,7 @@ res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span
 
         <h2 id="s3"><span class="sec">§3</span>Порядок «посчитать → посмотреть → удалить»</h2>
         <p>Перед удалением тот же фильтр выполняют на чтение. Три шага вместо одного:</p>
-        <figure class="code">
+        <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>три шага вместо одного</span></figcaption>
 <pre>query = {<span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: {<span class="s">"$lt"</span>: <span class="n">2000</span>}}
 
@@ -119,6 +184,56 @@ res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span
 res = box.<span class="f">delete_many</span>(query)
 <span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)</pre>
         </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>C++ · mongocxx</span><span>три шага вместо одного</span></figcaption>
+<pre><span class="k">auto</span> query = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="n">2000</span>))));
+
+<span class="c">// 1. Сколько документов попадёт под удаление</span>
+std::cout &lt;&lt; box.<span class="f">count_documents</span>(query.<span class="f">view</span>()) &lt;&lt; std::endl;
+
+<span class="c">// 2. Какие именно — глазами, не наугад</span>
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : box.<span class="f">find</span>(query.<span class="f">view</span>()))
+    std::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+
+<span class="c">// 3. И только теперь — удаление тем же фильтром</span>
+<span class="k">auto</span> res = box.<span class="f">delete_many</span>(query.<span class="f">view</span>());
+std::cout &lt;&lt; <span class="s">"удалено: "</span> &lt;&lt; res-&gt;<span class="f">deleted_count</span>() &lt;&lt; std::endl;</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Go · mongo-driver</span><span>три шага вместо одного</span></figcaption>
+<pre>query := bson.D{
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: <span class="n">2000</span>}}},
+}
+
+<span class="c">// 1. Сколько документов попадёт под удаление</span>
+count, _ := box.<span class="f">CountDocuments</span>(ctx, query)
+fmt.<span class="f">Println</span>(<span class="s">"под фильтр попало:"</span>, count)
+
+<span class="c">// 2. Какие именно — глазами, не наугад</span>
+cursor, _ := box.<span class="f">Find</span>(ctx, query, options.<span class="f">Find</span>().<span class="f">SetLimit</span>(<span class="n">10</span>))
+<span class="k">var</span> rows []bson.M
+cursor.<span class="f">All</span>(ctx, &amp;rows)
+
+<span class="c">// 3. И только теперь — удаление тем же фильтром</span>
+res, _ := box.<span class="f">DeleteMany</span>(ctx, query)
+fmt.<span class="f">Println</span>(<span class="s">"удалено:"</span>, res.DeletedCount)</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Ruby · mongo</span><span>три шага вместо одного</span></figcaption>
+<pre>query = { <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; { <span class="s">"$lt"</span> =&gt; <span class="n">2000</span> } }
+
+<span class="c"># 1. Сколько документов попадёт под удаление</span>
+<span class="f">puts</span> <span class="s">"под фильтр попало: #{box.count_documents(query)}"</span>
+
+<span class="c"># 2. Какие именно — глазами, не наугад</span>
+box.<span class="f">find</span>(query, projection: { <span class="s">"_id"</span> =&gt; <span class="n">1</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">first</span>(<span class="n">10</span>).<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="s">"  #{doc.inspect}"</span> }
+
+<span class="c"># 3. И только теперь — удаление тем же фильтром</span>
+<span class="f">puts</span> <span class="s">"удалено: #{box.delete_many(query).deleted_count}"</span></pre>
+        </figure>
         <p>Фильтр в трёх местах должен быть <strong>одной и той же переменной</strong>, а не тремя похожими литералами: расхождение между «посмотрел» и «удалил» и приводит к потерям. Число из первого шага сверяется с <code>deleted_count</code> из третьего — если они разошлись, между шагами данные изменил кто-то ещё.</p>
         <div class="margin-note margin-note--warn">
           <b>Осторожно: опечатка в фильтре опаснее, чем в запросе на чтение</b>
@@ -128,14 +243,46 @@ res = box.<span class="f">delete_many</span>(query)
         <h2 id="s4"><span class="sec">§4</span>find_one_and_delete</h2>
         <p>Иногда удаляемый документ нужен: записать в журнал, положить в архив, вернуть в ответе. Метод <code>find_one_and_delete</code> удаляет и возвращает документ одним действием.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>удалить и забрать</span></figcaption>
 <pre>doc = box.<span class="f">find_one_and_delete</span>({<span class="s">"category"</span>: <span class="s">"смартфоны"</span>})
 <span class="f">print</span>(doc[<span class="s">"_id"</span>], doc[<span class="s">"title"</span>], doc[<span class="s">"price"</span>])</pre>
           </figure>
-          <figure class="code code--out">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>удалить и забрать</span></figcaption>
+<pre><span class="k">auto</span> doc = box.<span class="f">find_one_and_delete</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>)));
+
+std::cout &lt;&lt; doc-&gt;<span class="f">view</span>()[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>удалить и забрать</span></figcaption>
+<pre><span class="k">var</span> doc bson.M
+box.<span class="f">FindOneAndDelete</span>(ctx,
+    bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}}).<span class="f">Decode</span>(&amp;doc)
+
+fmt.<span class="f">Println</span>(doc[<span class="s">"_id"</span>], doc[<span class="s">"title"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>удалить и забрать</span></figcaption>
+<pre>doc = box.<span class="f">find_one_and_delete</span>({ <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span> })
+<span class="f">puts</span> <span class="s">"#{doc['_id']} #{doc['title']}"</span></pre>
+          </figure>
+          <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>p-007 Смартфон Samsung Galaxy A55 32990</pre>
+          </figure>
+          <figure class="code code--out" data-lang="cpp">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Xiaomi Redmi Note 13</pre>
+          </figure>
+          <figure class="code code--out" data-lang="go">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>p-006 Смартфон Xiaomi Redmi Note 13</pre>
+          </figure>
+          <figure class="code code--out" data-lang="ruby">
+            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>p-008 Смартфон Apple iPhone 15</pre>
           </figure>
         </div>
         <p>Вариант «прочитать, потом удалить» двумя запросами хуже: между ними документ может изменить или удалить другой процесс, и в архив уедет не то, что удалилось. Соображение то же, что и у <code>$inc</code> в прошлой главе: одна операция на сервере надёжнее двух по отдельности.</p>
@@ -144,18 +291,62 @@ res = box.<span class="f">delete_many</span>(query)
         <h2 id="s5"><span class="sec">§5</span>Очистить или удалить: delete_many({}) и drop()</h2>
         <p>Два похожих действия с разными последствиями.</p>
         <div class="duo">
-          <figure class="code">
-            <figcaption><span>Очистка</span><span>документы удалены, коллекция осталась</span></figcaption>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Очистка · коллекция остаётся</span><span>Python</span></figcaption>
 <pre>res = box.<span class="f">delete_many</span>({})
 <span class="f">print</span>(<span class="s">"удалено:"</span>, res.deleted_count)          <span class="c"># 17</span>
 <span class="f">print</span>(<span class="s">"коллекция есть:"</span>,
       <span class="s">"products"</span> <span class="k">in</span> db.<span class="f">list_collection_names</span>())   <span class="c"># True</span></pre>
           </figure>
-          <figure class="code">
-            <figcaption><span>Удаление</span><span>коллекции больше нет</span></figcaption>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Очистка · коллекция остаётся</span><span>C++</span></figcaption>
+<pre><span class="k">auto</span> res = box.<span class="f">delete_many</span>(<span class="f">make_document</span>());
+std::cout &lt;&lt; <span class="s">"удалено: "</span> &lt;&lt; res-&gt;<span class="f">deleted_count</span>() &lt;&lt; std::endl;   <span class="c">// 17</span>
+
+<span class="c">// коллекция осталась: она по-прежнему в списке</span>
+<span class="k">for</span> (<span class="k">const auto</span>&amp; name : db.<span class="f">list_collection_names</span>())
+    std::cout &lt;&lt; name &lt;&lt; <span class="s">" "</span>;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Очистка · коллекция остаётся</span><span>Go</span></figcaption>
+<pre>res, _ := box.<span class="f">DeleteMany</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"удалено:"</span>, res.DeletedCount)        <span class="c">// 17</span>
+
+names, _ := db.<span class="f">ListCollectionNames</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"коллекции:"</span>, names)               <span class="c">// products на месте</span></pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Очистка · коллекция остаётся</span><span>Ruby</span></figcaption>
+<pre>res = box.<span class="f">delete_many</span>({})
+<span class="f">puts</span> <span class="s">"удалено: #{res.deleted_count}"</span>            <span class="c"># 17</span>
+<span class="f">puts</span> <span class="s">"коллекция есть: #{db.collection_names.include?('products')}"</span></pre>
+          </figure>
+          <figure class="code" data-lang="python">
+            <figcaption><span>Удаление · коллекции больше нет</span><span>Python</span></figcaption>
 <pre>box.<span class="f">drop</span>()
 <span class="f">print</span>(<span class="s">"коллекция есть:"</span>,
       <span class="s">"products"</span> <span class="k">in</span> db.<span class="f">list_collection_names</span>())   <span class="c"># False</span></pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>Удаление · коллекции больше нет</span><span>C++</span></figcaption>
+<pre>box.<span class="f">drop</span>();
+
+<span class="c">// в списке коллекций products больше нет</span>
+<span class="k">for</span> (<span class="k">const auto</span>&amp; name : db.<span class="f">list_collection_names</span>())
+    std::cout &lt;&lt; name &lt;&lt; <span class="s">" "</span>;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Удаление · коллекции больше нет</span><span>Go</span></figcaption>
+<pre>box.<span class="f">Drop</span>(ctx)
+
+names, _ := db.<span class="f">ListCollectionNames</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"коллекции:"</span>, names)          <span class="c">// products исчезла</span></pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Удаление · коллекции больше нет</span><span>Ruby</span></figcaption>
+<pre>box.<span class="f">drop</span>
+
+<span class="f">puts</span> <span class="s">"коллекция есть: #{db.collection_names.include?('products')}"</span>  <span class="c"># false</span></pre>
           </figure>
         </div>
         <div class="table-scroll">
@@ -173,7 +364,7 @@ res = box.<span class="f">delete_many</span>(query)
         <h2 id="s6"><span class="sec">§6</span>Мягкое удаление</h2>
         <p>В рабочих системах документы часто не удаляют вовсе, а помечают удалёнными. Технически это уже не удаление, а обновление.</p>
         <div class="duo">
-          <figure class="code">
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>пометить, а не удалить</span></figcaption>
 <pre><span class="k">from</span> datetime <span class="k">import</span> datetime, timezone
 
@@ -181,13 +372,61 @@ box.<span class="f">update_one</span>(
     {<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
     {<span class="s">"$set"</span>: {<span class="s">"deleted_at"</span>: datetime.<span class="f">now</span>(timezone.utc)}})</pre>
           </figure>
-          <figure class="code">
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>пометить, а не удалить</span></figcaption>
+<pre><span class="k">auto</span> now = bsoncxx::types::b_date{std::chrono::system_clock::<span class="f">now</span>()};
+
+box.<span class="f">update_one</span>(
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-003"</span>)),
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"deleted_at"</span>, now)))));</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>пометить, а не удалить</span></figcaption>
+<pre>box.<span class="f">UpdateOne</span>(ctx,
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-003"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{
+        {Key: <span class="s">"deleted_at"</span>, Value: time.<span class="f">Now</span>().<span class="f">UTC</span>()}}}})</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>пометить, а не удалить</span></figcaption>
+<pre>box.<span class="f">update_one</span>(
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-003"</span> },
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"deleted_at"</span> =&gt; Time.now.utc } }
+)</pre>
+          </figure>
+          <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>витрина показывает живые</span></figcaption>
 <pre>visible = {<span class="s">"deleted_at"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}
 
 <span class="k">for</span> doc <span class="k">in</span> box.<span class="f">find</span>(visible):
     ...</pre>
-        </figure>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>витрина показывает живые</span></figcaption>
+<pre><span class="k">auto</span> visible = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"deleted_at"</span>,
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>))));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : box.<span class="f">find</span>(visible.<span class="f">view</span>())) {
+    <span class="c">// ...</span>
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>витрина показывает живые</span></figcaption>
+<pre>visible := bson.D{{Key: <span class="s">"deleted_at"</span>,
+    Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}}
+
+cursor, _ := box.<span class="f">Find</span>(ctx, visible)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>витрина показывает живые</span></figcaption>
+<pre>visible = { <span class="s">"deleted_at"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }
+
+box.<span class="f">find</span>(visible).<span class="f">each</span> <span class="k">do</span> |doc|
+  <span class="c"># ...</span>
+<span class="k">end</span></pre>
+          </figure>
+
         </div>
         <div class="ops">
           <div><b>плюсы</b><span>Данные восстановимы, история сохранена, отчёты за прошлые периоды не разъезжаются, случайное нажатие не фатально.</span><i>обратимо</i></div>
@@ -244,7 +483,7 @@ bash load.sh
 
         <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
         <details>
-          <summary><code>delete_one</code> вернул <code>deleted_count: 0</code>. Это ошибка?</summary>
+          <summary>Удаление одного документа вернуло ноль удалённых. Это ошибка?</summary>
           <p>Нет, это законный ответ: под фильтр ничего не подошло. Ошибки не будет — поэтому результат надо проверять самому и отвечать вызывающему честно.</p>
         </details>
         <details>

@@ -362,6 +362,11 @@ details p:last-child, details ul:last-child { margin-bottom: 0; }
 /* До запуска скрипта и без JS показываем Python. */
 :root:not([data-lang]) .book [data-lang="python"] { display: block; }
 
+/* Строки в C++ и Go длиннее питоновских: чуть мельче кегль, чтобы
+   в двухколоночной паре они помещались без горизонтальной прокрутки. */
+:root[data-lang="cpp"] figure.code pre,
+:root[data-lang="go"] figure.code pre { font-size: 13px; line-height: 1.6; }
+
 /* Подпись языка в шапке блока кода. */
 figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); }
 
