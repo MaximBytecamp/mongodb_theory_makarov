@@ -443,7 +443,7 @@ fmt.<span class="f">Println</span>(<span class="s">"доставленных:"</
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Сортировка</b>
             <code>.sort("price", -1)</code>
@@ -465,6 +465,76 @@ fmt.<span class="f">Println</span>(<span class="s">"доставленных:"</
             <code>col.count_documents({})</code>
             <code>col.count_documents(</code>
             <code>  {"status": "доставлен"})</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Сортировка</b>
+            <code>options.sort(make_document(kvp("price", -1)));</code>
+            <code>// два ключа — два kvp подряд</code>
+          </div>
+          <div>
+            <b>Топ-N</b>
+            <code>options.sort(make_document(kvp("price", -1)));</code>
+            <code>options.limit(5);</code>
+          </div>
+          <div>
+            <b>Страница</b>
+            <code>options.skip((page - 1) * size);</code>
+            <code>options.limit(size);</code>
+          </div>
+          <div>
+            <b>Счёт</b>
+            <code>col.count_documents(make_document())</code>
+            <code>col.count_documents(</code>
+            <code>  make_document(kvp("status", "доставлен")))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Сортировка</b>
+            <code>options.Find().SetSort(</code>
+            <code>  bson.D{{Key: "price", Value: -1}})</code>
+            <code>// bson.D хранит порядок ключей</code>
+          </div>
+          <div>
+            <b>Топ-N</b>
+            <code>options.Find().</code>
+            <code>  SetSort(bson.D{{Key: "price", Value: -1}}).</code>
+            <code>  SetLimit(5)</code>
+          </div>
+          <div>
+            <b>Страница</b>
+            <code>options.Find().</code>
+            <code>  SetSkip((page - 1) * size).</code>
+            <code>  SetLimit(size)</code>
+          </div>
+          <div>
+            <b>Счёт</b>
+            <code>col.CountDocuments(ctx, bson.D{})</code>
+            <code>col.CountDocuments(ctx,</code>
+            <code>  bson.D{{Key: "status", Value: "доставлен"}})</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Сортировка</b>
+            <code>.sort({ "price" =&gt; -1 })</code>
+            <code>.sort({ "category" =&gt; 1, "price" =&gt; -1 })</code>
+          </div>
+          <div>
+            <b>Топ-N</b>
+            <code>col.find({}).sort({ "price" =&gt; -1 }).limit(5)</code>
+          </div>
+          <div>
+            <b>Страница</b>
+            <code>.skip((page - 1) * size)</code>
+            <code>.limit(size)</code>
+          </div>
+          <div>
+            <b>Счёт</b>
+            <code>col.count_documents({})</code>
+            <code>col.count_documents({ "status" =&gt; "доставлен" })</code>
           </div>
         </div>
 

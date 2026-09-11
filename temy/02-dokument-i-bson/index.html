@@ -405,7 +405,7 @@ oid = result.inserted_id
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Посмотреть документ</b>
             <code>col.find_one({"_id": "p-012"})</code>
@@ -426,12 +426,84 @@ oid = result.inserted_id
           </div>
           <div>
             <b>Время из ObjectId</b>
-            <code>oid.generation_time   # Python</code>
-            <code>oid.get_time_t()      # C++</code>
-            <code>oid.Timestamp()       # Go</code>
-            <code>oid.generation_time   # Ruby</code>
+            <code>oid.generation_time</code>
             <code># mongosh:</code>
             <code>_id.getTimestamp()</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Посмотреть документ</b>
+            <code>col.find_one(make_document(</code>
+            <code>  kvp("_id", "p-012")))</code>
+            <code>// поля: doc-&gt;view()["title"]</code>
+          </div>
+          <div>
+            <b>Размер документа</b>
+            <code>{$project: {size:</code>
+            <code>  {$bsonSize: "$$ROOT"}}}</code>
+            <code>// предел — 16 МБ</code>
+          </div>
+          <div>
+            <b>ObjectId из строки</b>
+            <code>#include &lt;bsoncxx/oid.hpp&gt;</code>
+            <code>bsoncxx::oid oid{raw};</code>
+            <code>col.find_one(make_document(kvp("_id", oid)));</code>
+          </div>
+          <div>
+            <b>Время из ObjectId</b>
+            <code>oid.get_time_t()</code>
+            <code>// секунды от эпохи</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Посмотреть документ</b>
+            <code>var doc bson.M</code>
+            <code>col.FindOne(ctx,</code>
+            <code>  bson.D{{Key: "_id", Value: "p-012"}}).</code>
+            <code>  Decode(&amp;doc)</code>
+          </div>
+          <div>
+            <b>Размер документа</b>
+            <code>{$project: {size:</code>
+            <code>  {$bsonSize: "$$ROOT"}}}</code>
+            <code>// предел — 16 МБ</code>
+          </div>
+          <div>
+            <b>ObjectId из строки</b>
+            <code>oid, err := bson.ObjectIDFromHex(raw)</code>
+            <code>col.FindOne(ctx,</code>
+            <code>  bson.D{{Key: "_id", Value: oid}})</code>
+          </div>
+          <div>
+            <b>Время из ObjectId</b>
+            <code>oid.Timestamp()</code>
+            <code>// возвращает time.Time</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Посмотреть документ</b>
+            <code>col.find({ "_id" =&gt; "p-012" }).first</code>
+            <code># mongosh:</code>
+            <code>db.products.findOne({_id:"p-012"})</code>
+          </div>
+          <div>
+            <b>Размер документа</b>
+            <code>{$project: {size:</code>
+            <code>  {$bsonSize: "$$ROOT"}}}</code>
+            <code># предел — 16 МБ</code>
+          </div>
+          <div>
+            <b>ObjectId из строки</b>
+            <code>oid = BSON::ObjectId.from_string(raw)</code>
+            <code>col.find({ "_id" =&gt; oid }).first</code>
+          </div>
+          <div>
+            <b>Время из ObjectId</b>
+            <code>oid.generation_time</code>
+            <code># возвращает Time в UTC</code>
           </div>
         </div>
 

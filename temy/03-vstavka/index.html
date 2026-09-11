@@ -527,7 +527,7 @@ box.<span class="f">insert_many</span>(docs)</pre>
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Один документ</b>
             <code>res = col.insert_one({...})</code>
@@ -551,6 +551,78 @@ box.<span class="f">insert_many</span>(docs)</pre>
             <code>col.delete_many({})</code>
             <code>col.insert_many(docs)</code>
             <code># или mongoimport --drop</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Один документ</b>
+            <code>auto res = col.insert_one(</code>
+            <code>  make_document(kvp("price", 1290)));</code>
+            <code>res-&gt;inserted_id()</code>
+          </div>
+          <div>
+            <b>Пачка</b>
+            <code>std::vector&lt;bsoncxx::document::value&gt; batch;</code>
+            <code>auto many = col.insert_many(batch);</code>
+            <code>many-&gt;inserted_count()</code>
+          </div>
+          <div>
+            <b>Не падать на сбойных</b>
+            <code>mongocxx::options::insert options;</code>
+            <code>options.ordered(false);</code>
+            <code>// ловить bulk_write_exception</code>
+          </div>
+          <div>
+            <b>Перезалить коллекцию</b>
+            <code>col.delete_many(make_document());</code>
+            <code>col.insert_many(docs);</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Один документ</b>
+            <code>res, err := col.InsertOne(ctx,</code>
+            <code>  bson.D{{Key: "price", Value: 1290}})</code>
+            <code>res.InsertedID</code>
+          </div>
+          <div>
+            <b>Пачка</b>
+            <code>many, err := col.InsertMany(ctx, docs)</code>
+            <code>many.InsertedIDs</code>
+          </div>
+          <div>
+            <b>Не падать на сбойных</b>
+            <code>col.InsertMany(ctx, docs,</code>
+            <code>  options.InsertMany().SetOrdered(false))</code>
+            <code>// errors.As(&amp;mongo.BulkWriteException{})</code>
+          </div>
+          <div>
+            <b>Перезалить коллекцию</b>
+            <code>col.DeleteMany(ctx, bson.D{})</code>
+            <code>col.InsertMany(ctx, docs)</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Один документ</b>
+            <code>res = col.insert_one({ ... })</code>
+            <code>res.inserted_id</code>
+          </div>
+          <div>
+            <b>Пачка</b>
+            <code>res = col.insert_many([...])</code>
+            <code>res.inserted_ids</code>
+            <code>res.inserted_count</code>
+          </div>
+          <div>
+            <b>Не падать на сбойных</b>
+            <code>col.insert_many(docs, ordered: false)</code>
+            <code># rescue Mongo::Error::OperationFailure</code>
+          </div>
+          <div>
+            <b>Перезалить коллекцию</b>
+            <code>col.delete_many({})</code>
+            <code>col.insert_many(docs)</code>
           </div>
         </div>
 

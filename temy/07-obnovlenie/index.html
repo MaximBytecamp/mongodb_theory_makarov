@@ -564,7 +564,7 @@ contain only atomic modifiers. The "price" key is invalid.</pre>
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Изменить поле</b>
             <code>col.update_one(</code>
@@ -586,6 +586,79 @@ contain only atomic modifiers. The "price" key is invalid.</pre>
             <b>Обновить или создать</b>
             <code>col.update_one(query, upd,</code>
             <code>  upsert=True)</code>
+            <code>res.upserted_id</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Изменить поле</b>
+            <code>col.update_one(</code>
+            <code>  make_document(kvp("_id", "p-101")),</code>
+            <code>  make_document(kvp("$set",</code>
+            <code>    make_document(kvp("price", 2690)))));</code>
+          </div>
+          <div>
+            <b>Счётчик и удаление поля</b>
+            <code>kvp("$inc", make_document(kvp("reviews", 1)))</code>
+            <code>kvp("$unset", make_document(kvp("discount", "")))</code>
+          </div>
+          <div>
+            <b>Пачкой</b>
+            <code>col.update_many(filter, update);</code>
+            <code>res-&gt;matched_count()</code>
+          </div>
+          <div>
+            <b>Обновить или создать</b>
+            <code>mongocxx::options::update options;</code>
+            <code>options.upsert(true);</code>
+            <code>col.update_one(filter, update, options);</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Изменить поле</b>
+            <code>col.UpdateOne(ctx,</code>
+            <code>  bson.D{{Key: "_id", Value: "p-101"}},</code>
+            <code>  bson.D{{Key: "$set", Value: bson.D{</code>
+            <code>    {Key: "price", Value: 2690}}}})</code>
+          </div>
+          <div>
+            <b>Счётчик и удаление поля</b>
+            <code>{Key: "$inc", Value: bson.D{{Key: "reviews", Value: 1}}}</code>
+            <code>{Key: "$unset", Value: bson.D{{Key: "discount", Value: ""}}}</code>
+          </div>
+          <div>
+            <b>Пачкой</b>
+            <code>res, _ := col.UpdateMany(ctx, filter, update)</code>
+            <code>res.MatchedCount</code>
+          </div>
+          <div>
+            <b>Обновить или создать</b>
+            <code>col.UpdateOne(ctx, filter, update,</code>
+            <code>  options.UpdateOne().SetUpsert(true))</code>
+            <code>res.UpsertedID</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Изменить поле</b>
+            <code>col.update_one(</code>
+            <code>  { "_id" =&gt; "p-101" },</code>
+            <code>  { "$set" =&gt; { "price" =&gt; 2690 } })</code>
+          </div>
+          <div>
+            <b>Счётчик и удаление поля</b>
+            <code>{ "$inc" =&gt; { "reviews" =&gt; 1 } }</code>
+            <code>{ "$unset" =&gt; { "discount" =&gt; "" } }</code>
+          </div>
+          <div>
+            <b>Пачкой</b>
+            <code>res = col.update_many(filter, update)</code>
+            <code>res.matched_count</code>
+          </div>
+          <div>
+            <b>Обновить или создать</b>
+            <code>col.update_one(query, upd, upsert: true)</code>
             <code>res.upserted_id</code>
           </div>
         </div>

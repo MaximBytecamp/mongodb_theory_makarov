@@ -504,7 +504,7 @@ bash load.sh
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Удалить документ</b>
             <code>col.delete_one({"_id": "p-020"})</code>
@@ -526,6 +526,76 @@ bash load.sh
             <code>col.delete_many({})   # пусто</code>
             <code>col.drop()            # нет коллекции</code>
             <code>client.drop_database("sandbox")</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Удалить документ</b>
+            <code>auto res = col.delete_one(</code>
+            <code>  make_document(kvp("_id", "p-020")));</code>
+            <code>res-&gt;deleted_count()</code>
+          </div>
+          <div>
+            <b>Удалить пачку</b>
+            <code>col.delete_many(</code>
+            <code>  make_document(kvp("category", "аксессуары")));</code>
+          </div>
+          <div>
+            <b>Удалить и забрать</b>
+            <code>auto doc = col.find_one_and_delete(filter);</code>
+            <code>// вернётся optional с документом</code>
+          </div>
+          <div>
+            <b>Очистить / снести</b>
+            <code>col.delete_many(make_document());</code>
+            <code>col.drop();</code>
+            <code>client["sandbox"].drop();</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Удалить документ</b>
+            <code>res, _ := col.DeleteOne(ctx,</code>
+            <code>  bson.D{{Key: "_id", Value: "p-020"}})</code>
+            <code>res.DeletedCount</code>
+          </div>
+          <div>
+            <b>Удалить пачку</b>
+            <code>col.DeleteMany(ctx,</code>
+            <code>  bson.D{{Key: "category", Value: "аксессуары"}})</code>
+          </div>
+          <div>
+            <b>Удалить и забрать</b>
+            <code>col.FindOneAndDelete(ctx, filter).</code>
+            <code>  Decode(&amp;doc)</code>
+          </div>
+          <div>
+            <b>Очистить / снести</b>
+            <code>col.DeleteMany(ctx, bson.D{})</code>
+            <code>col.Drop(ctx)</code>
+            <code>client.Database("sandbox").Drop(ctx)</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Удалить документ</b>
+            <code>res = col.delete_one({ "_id" =&gt; "p-020" })</code>
+            <code>res.deleted_count</code>
+          </div>
+          <div>
+            <b>Удалить пачку</b>
+            <code>col.delete_many(</code>
+            <code>  { "category" =&gt; "аксессуары" })</code>
+          </div>
+          <div>
+            <b>Удалить и забрать</b>
+            <code>doc = col.find_one_and_delete(filter)</code>
+          </div>
+          <div>
+            <b>Очистить / снести</b>
+            <code>col.delete_many({})   # пусто</code>
+            <code>col.drop              # нет коллекции</code>
+            <code>client.use("sandbox").database.drop</code>
           </div>
         </div>
 

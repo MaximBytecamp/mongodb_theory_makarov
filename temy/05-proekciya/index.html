@@ -434,7 +434,7 @@ map[delivery:map[city:Ярославль] number:2026-0010 total:120340]</pre>
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Только нужные поля</b>
             <code>col.find({...},</code>
@@ -455,6 +455,74 @@ map[delivery:map[city:Ярославль] number:2026-0010 total:120340]</pre>
             <code>db.products.find(</code>
             <code>  {category:"ноутбуки"},</code>
             <code>  {_id:0, title:1, price:1})</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Только нужные поля</b>
+            <code>options.projection(make_document(</code>
+            <code>  kvp("_id", 0), kvp("title", 1)));</code>
+            <code>col.find(filter, options);</code>
+          </div>
+          <div>
+            <b>Всё, кроме тяжёлого</b>
+            <code>options.projection(</code>
+            <code>  make_document(kvp("items", 0)));</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>kvp("delivery.city", 1)</code>
+            <code>// вернётся вложенным</code>
+          </div>
+          <div>
+            <b>Смешивать нельзя</b>
+            <code>// kvp("title", 1) + kvp("stock", 0)</code>
+            <code>// → server error 31254</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Только нужные поля</b>
+            <code>options.Find().SetProjection(bson.D{</code>
+            <code>  {Key: "_id", Value: 0},</code>
+            <code>  {Key: "title", Value: 1}})</code>
+          </div>
+          <div>
+            <b>Всё, кроме тяжёлого</b>
+            <code>options.Find().SetProjection(</code>
+            <code>  bson.D{{Key: "items", Value: 0}})</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>{Key: "delivery.city", Value: 1}</code>
+            <code>// вернётся вложенным</code>
+          </div>
+          <div>
+            <b>Один документ</b>
+            <code>options.FindOne().SetProjection(...)</code>
+            <code>col.FindOne(ctx, filter, opts)</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Только нужные поля</b>
+            <code>col.find({ ... },</code>
+            <code>  projection: { "_id" =&gt; 0, "title" =&gt; 1 })</code>
+          </div>
+          <div>
+            <b>Всё, кроме тяжёлого</b>
+            <code>col.find({ ... },</code>
+            <code>  projection: { "items" =&gt; 0 })</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>projection: { "delivery.city" =&gt; 1 }</code>
+            <code># вернётся вложенным</code>
+          </div>
+          <div>
+            <b>Смешивать нельзя</b>
+            <code># { "title" =&gt; 1, "stock" =&gt; 0 }</code>
+            <code># → Mongo::Error::OperationFailure</code>
           </div>
         </div>
 

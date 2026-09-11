@@ -586,7 +586,7 @@ db.orders.<span class="f">countDocuments</span>({ <span class="s">"payment.paid"
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Один документ</b>
             <code>col.find_one({"_id": "p-003"})</code>
@@ -608,6 +608,76 @@ db.orders.<span class="f">countDocuments</span>({ <span class="s">"payment.paid"
             <code>col.count_documents({})</code>
             <code>col.count_documents(</code>
             <code>  {"category": "ноутбуки"})</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Один документ</b>
+            <code>auto one = col.find_one(</code>
+            <code>  make_document(kvp("_id", "p-003")));</code>
+            <code>// пустой optional, если нет</code>
+          </div>
+          <div>
+            <b>Много документов</b>
+            <code>for (const auto&amp; d : col.find(filter))</code>
+            <code>    std::cout &lt;&lt; d["title"].get_string().value;</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>kvp("delivery.city", "Москва")</code>
+            <code>kvp("payment.paid", true)</code>
+          </div>
+          <div>
+            <b>Сколько нашлось</b>
+            <code>col.count_documents(make_document())</code>
+            <code>col.count_documents(</code>
+            <code>  make_document(kvp("category", "ноутбуки")))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Один документ</b>
+            <code>err := col.FindOne(ctx, filter).Decode(&amp;one)</code>
+            <code>// mongo.ErrNoDocuments, если нет</code>
+          </div>
+          <div>
+            <b>Много документов</b>
+            <code>cursor, _ := col.Find(ctx, filter)</code>
+            <code>var items []Product</code>
+            <code>cursor.All(ctx, &amp;items)</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>bson.D{{Key: "delivery.city",</code>
+            <code>  Value: "Москва"}}</code>
+          </div>
+          <div>
+            <b>Сколько нашлось</b>
+            <code>col.CountDocuments(ctx, bson.D{})</code>
+            <code>col.CountDocuments(ctx,</code>
+            <code>  bson.D{{Key: "category", Value: "ноутбуки"}})</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Один документ</b>
+            <code>col.find({ "_id" =&gt; "p-003" }).first</code>
+            <code># вернёт nil, если нет</code>
+          </div>
+          <div>
+            <b>Много документов</b>
+            <code>col.find({ ... }).each { |d| puts d["title"] }</code>
+            <code>items = col.find({ ... }).to_a</code>
+          </div>
+          <div>
+            <b>Вложенное поле</b>
+            <code>{ "delivery.city" =&gt; "Москва" }</code>
+            <code>{ "payment.paid" =&gt; true }</code>
+          </div>
+          <div>
+            <b>Сколько нашлось</b>
+            <code>col.count_documents({})</code>
+            <code>col.count_documents({ "category" =&gt; "ноутбуки" })</code>
           </div>
         </div>
 

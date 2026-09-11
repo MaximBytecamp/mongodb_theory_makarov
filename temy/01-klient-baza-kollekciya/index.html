@@ -513,7 +513,7 @@ PRODUCTS = CLIENT.<span class="f">use</span>(<span class="s">"shop"</span>).data
         </details>
 
         <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
-        <div class="cheat">
+        <div class="cheat" data-lang="python">
           <div>
             <b>Подключиться</b>
             <code>from pymongo import MongoClient</code>
@@ -537,6 +537,83 @@ PRODUCTS = CLIENT.<span class="f">use</span>(<span class="s">"shop"</span>).data
             <code>show dbs</code>
             <code>use shop</code>
             <code>show collections</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Подключиться</b>
+            <code>#include &lt;mongocxx/client.hpp&gt;</code>
+            <code>mongocxx::instance instance{};</code>
+            <code>mongocxx::client client{</code>
+            <code>  mongocxx::uri{"mongodb://localhost:27017"}};</code>
+          </div>
+          <div>
+            <b>Спуститься к коллекции</b>
+            <code>auto db = client["shop"];</code>
+            <code>auto col = db["products"];</code>
+            <code>// или client["shop"]["products"]</code>
+          </div>
+          <div>
+            <b>Осмотреться</b>
+            <code>client.list_database_names()</code>
+            <code>db.list_collection_names()</code>
+            <code>col.count_documents(make_document())</code>
+          </div>
+          <div>
+            <b>Собрать</b>
+            <code>g++ -std=c++17 main.cpp \</code>
+            <code>  $(pkg-config --cflags --libs \</code>
+            <code>    libmongocxx1)</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Подключиться</b>
+            <code>import "go.mongodb.org/mongo-driver/v2/mongo"</code>
+            <code>client, err := mongo.Connect(</code>
+            <code>  options.Client().ApplyURI(</code>
+            <code>    "mongodb://localhost:27017"))</code>
+          </div>
+          <div>
+            <b>Спуститься к коллекции</b>
+            <code>db := client.Database("shop")</code>
+            <code>col := db.Collection("products")</code>
+          </div>
+          <div>
+            <b>Осмотреться</b>
+            <code>client.ListDatabaseNames(ctx, bson.D{})</code>
+            <code>db.ListCollectionNames(ctx, bson.D{})</code>
+            <code>col.CountDocuments(ctx, bson.D{})</code>
+          </div>
+          <div>
+            <b>Поставить драйвер</b>
+            <code>go get go.mongodb.org/\</code>
+            <code>  mongo-driver/v2/mongo</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Подключиться</b>
+            <code>require "mongo"</code>
+            <code>client = Mongo::Client.new(</code>
+            <code>  "mongodb://localhost:27017/")</code>
+          </div>
+          <div>
+            <b>Спуститься к коллекции</b>
+            <code>db = client.use("shop").database</code>
+            <code>col = db[:products]</code>
+          </div>
+          <div>
+            <b>Осмотреться</b>
+            <code>client.database_names</code>
+            <code>db.collection_names</code>
+            <code>col.count_documents({})</code>
+          </div>
+          <div>
+            <b>Поставить драйвер</b>
+            <code>gem install mongo</code>
+            <code># Mongo::Logger.logger.level =</code>
+            <code>#   Logger::WARN</code>
           </div>
         </div>
 
