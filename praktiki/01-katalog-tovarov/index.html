@@ -88,6 +88,36 @@ ruby solution.rb               <span class="c"># решение</span>
 python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
         </figure>
 
+        <p>Сервер или драйвер не ставится — те же шаги выполняются в контейнерах, команды одинаковые в PowerShell и bash. Как поднять стенд и что делать при ошибках — <a href="../../temy/01a-stend-v-docker/index.html">глава 1.1а</a>.</p>
+        <figure class="code" data-lang="python">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+docker compose run --rm python practice01/solution.py
+docker compose run --rm python practice01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+docker compose run --rm cpp practice01/solution.cpp
+docker compose run --rm python practice01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+docker compose run --rm go practice01/solution.go
+docker compose run --rm python practice01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+docker compose run --rm ruby practice01/solution.rb
+docker compose run --rm python practice01/check.py</pre>
+        </figure>
+
         <h2 id="s1"><span class="sec">§1</span>Что уже умеем</h2>
         <p>В работе не появится ни одного оператора, которого не было в модуле 1. Вот весь инструмент, который понадобится:</p>
         <div class="ops">

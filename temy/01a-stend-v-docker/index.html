@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.1а Стенд в Docker · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* Схема стенда: компьютер → Docker → контейнеры. */
+    .dock { margin: 22px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .dock__host { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--ink); color: var(--leaf-pale); font: 600 11px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; }
+    .dock__host b { color: var(--leaf-bright); font-weight: 600; }
+    .dock__clients { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; padding: 14px 16px 0; }
+    .dock__client { padding: 9px 12px; border: 2px dashed var(--ink-soft); font-size: 14px; line-height: 1.4; }
+    .dock__client b { display: block; font: 700 12.5px/1.4 var(--mono); }
+    .dock__client i { font-style: normal; color: var(--leaf); font: 700 12px/1.4 var(--mono); }
+    .dock__engine { margin: 14px 16px 16px; border: 2px solid var(--ink); }
+    .dock__engine > p { margin: 0; padding: 7px 12px; border-bottom: 2px solid var(--ink); background: var(--leaf-pale); font: 700 12.5px/1.4 var(--mono); }
+    .dock__boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .dock__box { position: relative; padding: 11px 12px 12px; border-right: 2px solid var(--rule); border-bottom: 2px solid var(--rule); }
+    .dock__box b { display: block; font: 700 13px/1.4 var(--mono); }
+    .dock__box span { display: block; font-size: 13.5px; line-height: 1.4; color: var(--ink-soft); margin-top: 3px; }
+    .dock__box em { display: inline-block; margin-top: 7px; padding: 1px 6px; font: 700 11px/1.5 var(--mono); font-style: normal; background: var(--leaf-pale); border: 1.5px solid var(--leaf); }
+    .dock__box--main { background: #fff; }
+    .dock__box--main b::after { content: ""; display: inline-block; width: 9px; height: 9px; margin-left: 8px; background: var(--leaf-bright); border: 1.5px solid var(--ink); animation: dock-pulse 1.6s ease-in-out infinite; }
+    .dock__box--done em { background: #EAE6DA; border-color: var(--ink-soft); }
+    .dock__vol { padding: 8px 12px; font: 500 12.5px/1.4 var(--mono); color: var(--ink-soft); }
+    @keyframes dock-pulse { 50% { opacity: .25; } }
+
+    /* Два адреса одного сервера. */
+    .where { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0; }
+    .where > div { padding: 13px 16px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--leaf); }
+    .where > div:last-child { box-shadow: 5px 5px 0 var(--clay); }
+    .where small { display: block; font: 600 10.5px/1.3 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); }
+    .where code { display: block; margin: 8px 0; font-size: 15px; font-weight: 700; background: none; padding: 0; }
+    .where p { margin: 0; font-size: 14.5px; line-height: 1.45; }
+
+    /* Выбор пути. */
+    .fork { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0; margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .fork > div { padding: 14px 16px; border-right: 2px solid var(--rule); }
+    .fork > div:last-child { border-right: 0; }
+    .fork b { display: block; font-family: var(--display); font-size: 19px; margin-bottom: 4px; }
+    .fork small { display: block; margin-bottom: 8px; font: 600 10.5px/1.3 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--leaf); }
+    .fork ul { margin: 0; padding-left: 18px; font-size: 14.5px; line-height: 1.5; }
+  </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.1а</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.1а</span>
+          <h1>Стенд в Docker:<br>если Compass не подключается</h1>
+          <p class="lead">На учебных компьютерах MongoDB Server и Compass ставятся не всегда: установщику нужны права администратора, служба сервера не запускается, а Compass при подключении пишет <code>connect ECONNREFUSED</code>. В этой главе — запасной путь. Сервер и учебные базы запускаются в Docker одной командой, данные открываются в браузере, а код работает в контейнере, где драйвер уже установлен. Если не ставится и Docker, тот же стенд поднимается в GitHub Codespaces.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Окружение и запуск</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>1.1 Сервер, база, коллекция · ПР-01 · КТ-01</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Работать с курсом на любом компьютере, где есть Docker или хотя бы браузер</dd></div>
+        </dl>
+
+        <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice">github.com/MaximBytecamp/mongodb-practice</a></p>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Что именно не работает</a></li>
+            <li><a href="#s2">Какой путь выбрать</a></li>
+            <li><a href="#s3">Что будет запущено</a></li>
+            <li><a href="#s4">Шаг 1. Проверить Docker</a></li>
+            <li><a href="#s5">Шаг 2. Скачать репозиторий</a></li>
+            <li><a href="#s6">Шаг 3. Поднять стенд</a></li>
+            <li><a href="#s7">Шаг 4. Данные в браузере</a></li>
+            <li><a href="#s8">Шаг 5. Подключиться из кода</a></li>
+            <li><a href="#s9">Шаг 6. Практика и контрольная точка</a></li>
+            <li><a href="#s10">Без установки: Codespaces</a></li>
+            <li><a href="#s11">Сбросить, остановить, удалить</a></li>
+            <li><a href="#s12">Частые ошибки</a></li>
+            <li><a href="#s13">Проверьте себя</a></li>
+            <li><a href="#s14">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Что именно не работает</h2>
+        <p>Вспомним главу 1.1: Compass — клиент. Сам он данных не хранит, он подключается к серверу по адресу <code>mongodb://localhost:27017</code>. Поэтому сообщение при создании подключения говорит о сервере, а не о Compass:</p>
+        <figure class="code code--out">
+          <figcaption><span>Compass · New Connection → Connect</span><span>сервер не запущен</span></figcaption>
+<pre>connect ECONNREFUSED 127.0.0.1:27017</pre>
+        </figure>
+        <p><code>ECONNREFUSED</code> — «в соединении отказано»: компьютер ответил, но порт 27017 никто не слушает. Так бывает в трёх случаях:</p>
+        <div class="ops">
+          <div><b>сервер не установлен</b><span>Установщик MongoDB Server на Windows регистрирует службу и требует прав администратора. Без них он останавливается на середине.</span><i>чаще всего</i></div>
+          <div><b>служба не запущена</b><span>Сервер установлен, но служба MongoDB остановлена или падает при старте — например, из-за папки данных без прав на запись.</span><i>бывает</i></div>
+          <div><b>Compass не установился</b><span>Сервера нет, и открыть данные нечем. Решается так же: сервер в контейнере, данные в браузере.</span><i>бывает</i></div>
+        </div>
+        <p>Во всех трёх случаях нужен сервер, который не устанавливается в систему. Это и есть контейнер: MongoDB запускается внутри Docker как отдельная программа со своей файловой системой, без службы Windows и без записи в реестр.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Какой путь выбрать</h2>
+        <div class="fork">
+          <div>
+            <small>путь А</small>
+            <b>Docker Desktop</b>
+            <ul>
+              <li>свой ноутбук или домашний компьютер;</li>
+              <li>Windows 10/11, macOS или Linux;</li>
+              <li>установка один раз, дальше всё работает без интернета.</li>
+            </ul>
+          </div>
+          <div>
+            <small>путь Б</small>
+            <b>GitHub Codespaces</b>
+            <ul>
+              <li>на компьютере ничего нельзя установить;</li>
+              <li>нужны браузер и аккаунт GitHub;</li>
+              <li>бесплатно — около 60 часов работы в месяц.</li>
+            </ul>
+          </div>
+        </div>
+        <p>Docker Desktop на Windows тоже ставится не везде. Ему нужны права администратора на установку, подсистема WSL 2 и включённая в BIOS виртуализация. Если в классе этого нет, сразу переходите к <a href="#s10">§10</a>: Codespaces работает в браузере, и стенд там тот же — те же базы, те же команды проверки.</p>
+        <div class="margin-note margin-note--warn">
+          <b>Почему не облачный Atlas</b>
+          <p>У MongoDB есть облачный сервис Atlas с бесплатным кластером, но из России он недоступен: в 2022 году компания прекратила обслуживать пользователей из России и Беларуси. Поэтому сервер в курсе всегда свой — на компьютере или в Codespaces.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Что будет запущено</h2>
+        <p>В корне репозитория практик лежит файл <code>compose.yaml</code>. В нём описан весь стенд, и Docker поднимает его одной командой. Контейнеров несколько, у каждого одна задача:</p>
+        <div class="dock">
+          <div class="dock__host"><span>ваш компьютер</span><b>Windows · macOS · Linux</b></div>
+          <div class="dock__clients">
+            <div class="dock__client"><b>браузер</b>данные в mongo-express<br><i>localhost:8081</i></div>
+            <div class="dock__client"><b>Compass</b>если установился — подключается как обычно<br><i>localhost:27017</i></div>
+            <div class="dock__client"><b>терминал</b>команды <code>docker compose</code><br><i>из папки репозитория</i></div>
+          </div>
+          <div class="dock__engine">
+            <p>Docker · проект mongodb-practice · внутренняя сеть, где сервер называется mongo</p>
+            <div class="dock__boxes">
+              <div class="dock__box dock__box--main"><b>mongo</b><span>MongoDB 7 — тот самый сервер</span><em>работает всё время</em></div>
+              <div class="dock__box dock__box--done"><b>seed</b><span>заливает учебные базы, если сервер пустой</span><em>завершается сам</em></div>
+              <div class="dock__box"><b>mongo-express</b><span>базы и документы в браузере</span><em>работает всё время</em></div>
+              <div class="dock__box dock__box--done"><b>python · ruby · go · cpp</b><span>драйвер уже внутри; запускают файл решения</span><em>на время команды</em></div>
+            </div>
+            <p class="dock__vol">том mongo-data — данные сервера; переживает остановку и удаление контейнеров</p>
+          </div>
+        </div>
+        <div class="flow"><i></i><i></i><i></i><i></i><i></i></div>
+        <p>Языки программирования на компьютер ставить не нужно. Python, Ruby, Go и компилятор C++ вместе с драйверами MongoDB лежат в образах: команда запуска поднимает нужный контейнер, выполняет в нём файл и удаляет контейнер. Папка репозитория видна внутри, поэтому код правится в обычном редакторе, а запускается в контейнере.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Шаг 1. Проверить Docker</h2>
+        <p>Docker Desktop скачивается с <a href="https://docs.docker.com/desktop/setup/install/windows-install/">docs.docker.com</a>. После установки его нужно <strong>запустить</strong>: команды работают, только пока Docker Desktop открыт и внизу его окна написано <b>Engine running</b>.</p>
+        <p>Откройте PowerShell (на macOS и Linux — терминал) и проверьте две вещи:</p>
+        <figure class="code">
+          <figcaption><span>PowerShell · терминал</span><span>две проверки</span></figcaption>
+<pre>docker version            <span class="c"># есть ли Docker и запущен ли он</span>
+docker compose version    <span class="c"># есть ли Compose</span></pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод</span><span>macOS; на Windows отличаются только строки OS/Arch</span></figcaption>
+<pre>Client:
+ Version:           29.7.2
+ API version:       1.55
+ Go version:        go1.26.5
+ OS/Arch:           darwin/arm64
+ Context:           desktop-linux
+
+Server: Docker Desktop 4.89.0 (238018)
+ Engine:
+  Version:          29.7.2
+  API version:      1.55 (minimum version 1.40)
+  OS/Arch:          linux/arm64
+ …
+
+Docker Compose version v5.5.0</pre>
+        </figure>
+        <p>Главное здесь — что в ответе есть два блока: <b>Client</b> и <b>Server</b>. Клиент — это сама команда <code>docker</code>, сервер — движок внутри Docker Desktop. Если блока <b>Server</b> нет, а вместо него ошибка <code>error during connect</code>, Docker Desktop установлен, но не запущен.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Шаг 2. Скачать репозиторий</h2>
+        <p>Если установлен Git:</p>
+        <figure class="code">
+          <figcaption><span>PowerShell · терминал</span><span>через Git</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice</pre>
+        </figure>
+        <p>Если Git нет — на <a href="https://github.com/MaximBytecamp/mongodb-practice">странице репозитория</a> нажмите <b>Code → Download ZIP</b>, распакуйте архив и перейдите в папку в PowerShell:</p>
+        <figure class="code">
+          <figcaption><span>PowerShell</span><span>через ZIP</span></figcaption>
+<pre><span class="k">cd</span> $HOME\Downloads\mongodb-practice-main\mongodb-practice-main
+<span class="f">ls</span>                        <span class="c"># должен быть файл compose.yaml</span></pre>
+        </figure>
+        <p>Все команды дальше выполняются <strong>из этой папки</strong> — там, где лежит <code>compose.yaml</code>. Из другой папки Docker не найдёт описание стенда.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Шаг 3. Поднять стенд</h2>
+        <figure class="code">
+          <figcaption><span>PowerShell · терминал</span><span>из корня репозитория</span></figcaption>
+<pre>docker compose up -d</pre>
+        </figure>
+        <p>Первый запуск идёт несколько минут: Docker скачивает образы <code>mongo:7</code> и <code>mongo-express</code>. Флаг <code>-d</code> оставляет контейнеры работать в фоне и возвращает терминал. Когда всё поднялось, вывод заканчивается так:</p>
+        <figure class="code code--out">
+          <figcaption><span>Вывод</span><span>первый запуск, образы уже скачаны</span></figcaption>
+<pre>Image mongo-express:1.0.2 Pulling
+f2d515a8401d Pulling fs layer 0B
+f541ec1a4067 Pulling fs layer 0B
+8f5ec9da9bc0 Pulling fs layer 0B
+41c65f6bdf40 Pulling fs layer 0B
+c6b39de5b339 Pulling fs layer 0B
+23ee6393f192 Pulling fs layer 0B
+4a17d49bb7c9 Pulling fs layer 0B
+2aa624262f6c Pulling fs layer 0B
+14823bc6c926 Download complete 0B
+f2d515a8401d Download complete 0B
+0b5697ffa03e Download complete 0B
+f541ec1a4067 Download complete 0B
+23ee6393f192 Downloading 1.049MB
+23ee6393f192 Download complete 0B
+41c65f6bdf40 Downloading 1.049MB
+8f5ec9da9bc0 Download complete 0B
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 2.097MB
+c6b39de5b339 Downloading 1.049MB
+41c65f6bdf40 Downloading 5.243MB
+c6b39de5b339 Download complete 0B
+c6b39de5b339 Extracting 1B
+41c65f6bdf40 Downloading 5.243MB
+c6b39de5b339 Pull complete 0B
+41c65f6bdf40 Downloading 5.243MB
+41c65f6bdf40 Downloading 6.291MB
+41c65f6bdf40 Downloading 7.34MB
+4a17d49bb7c9 Download complete 0B
+41c65f6bdf40 Downloading 7.34MB
+2aa624262f6c Downloading 1.049MB
+41c65f6bdf40 Downloading 8.389MB
+2aa624262f6c Downloading 1.049MB
+41c65f6bdf40 Downloading 9.437MB
+2aa624262f6c Downloading 2.097MB
+41c65f6bdf40 Downloading 9.437MB
+2aa624262f6c Downloading 2.097MB
+41c65f6bdf40 Downloading 9.437MB
+2aa624262f6c Downloading 2.097MB
+41c65f6bdf40 Downloading 9.437MB
+2aa624262f6c Downloading 2.097MB
+41c65f6bdf40 Downloading 9.437MB
+2aa624262f6c Downloading 2.097MB
+41c65f6bdf40 Downloading 9.437MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 10.49MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 11.53MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 11.53MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 11.53MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 11.53MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 11.53MB
+2aa624262f6c Downloading 3.146MB
+41c65f6bdf40 Downloading 11.53MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 12.58MB
+2aa624262f6c Downloading 4.194MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 13.63MB
+2aa624262f6c Downloading 5.243MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 6.291MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 6.291MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 6.291MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 6.291MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 6.291MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 6.291MB
+41c65f6bdf40 Downloading 14.68MB
+2aa624262f6c Downloading 7.34MB
+41c65f6bdf40 Downloading 15.73MB
+2aa624262f6c Downloading 7.34MB
+41c65f6bdf40 Downloading 15.73MB
+2aa624262f6c Downloading 7.34MB
+41c65f6bdf40 Downloading 15.73MB
+2aa624262f6c Downloading 7.34MB
+41c65f6bdf40 Downloading 15.73MB
+2aa624262f6c Downloading 7.34MB
+41c65f6bdf40 Downloading 16.78MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 16.78MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 16.78MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 16.78MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 17.83MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 17.83MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 17.83MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 17.83MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 17.83MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 17.83MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 8.389MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 18.87MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 9.437MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 19.92MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 20.97MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 20.97MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 20.97MB
+2aa624262f6c Downloading 10.49MB
+41c65f6bdf40 Downloading 20.97MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 22.02MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 22.02MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 22.02MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 23.07MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 23.07MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 23.07MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 23.07MB
+2aa624262f6c Downloading 11.53MB
+41c65f6bdf40 Downloading 23.07MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 24.12MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 24.12MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 24.12MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 24.12MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 25.17MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 25.17MB
+2aa624262f6c Downloading 12.58MB
+41c65f6bdf40 Downloading 25.17MB
+2aa624262f6c Download complete 0B
+41c65f6bdf40 Downloading 25.17MB
+41c65f6bdf40 Downloading 26.21MB
+41c65f6bdf40 Downloading 27.26MB
+41c65f6bdf40 Downloading 28.31MB
+41c65f6bdf40 Downloading 29.36MB
+41c65f6bdf40 Downloading 31.46MB
+41c65f6bdf40 Downloading 32.51MB
+41c65f6bdf40 Downloading 33.55MB
+41c65f6bdf40 Downloading 34.6MB
+41c65f6bdf40 Downloading 35.65MB
+41c65f6bdf40 Downloading 36.7MB
+41c65f6bdf40 Downloading 37.75MB
+41c65f6bdf40 Downloading 38.8MB
+41c65f6bdf40 Download complete 0B
+41c65f6bdf40 Extracting 1B
+f541ec1a4067 Pull complete 0B
+23ee6393f192 Pull complete 0B
+8f5ec9da9bc0 Pull complete 0B
+4a17d49bb7c9 Pull complete 0B
+2aa624262f6c Extracting 1B
+41c65f6bdf40 Pull complete 0B
+2aa624262f6c Extracting 1B
+f2d515a8401d Pull complete 0B
+2aa624262f6c Pull complete 0B
+Image mongo-express:1.0.2 Pulled
+Network mongodb-practice_default Creating
+Volume mongodb-practice_mongo-data Creating
+Network mongodb-practice_default Creating
+Volume mongodb-practice_mongo-data Created
+Network mongodb-practice_default Created
+Container course-mongo Creating
+Container course-mongo Created
+Container mongodb-practice-seed-1 Creating
+Container mongodb-practice-mongo-express-1 Creating
+Container mongodb-practice-mongo-express-1 Created
+Container mongodb-practice-seed-1 Created
+Container course-mongo Starting
+Container course-mongo Started
+Container course-mongo Waiting
+Container course-mongo Healthy
+Container mongodb-practice-seed-1 Starting
+Container mongodb-practice-mongo-express-1 Starting
+Container mongodb-practice-mongo-express-1 Started
+Container mongodb-practice-seed-1 Started</pre>
+        </figure>
+        <p>Порядок в выводе не случайный. Сначала сервер должен ответить на проверку <code>ping</code> — это строка <b>Healthy</b>. Только после неё стартуют <code>seed</code> и <code>mongo-express</code>: загружать данные в сервер, который ещё не готов, бессмысленно. Что сделал <code>seed</code>, видно в его журнале:</p>
+        <figure class="code">
+          <figcaption><span>PowerShell · терминал</span><span>журнал загрузки</span></figcaption>
+<pre>docker compose logs seed</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод</span><span>двенадцать коллекций</span></figcaption>
+<pre>hh.companies           &lt;- hh.companies.json
+hh.interviews          &lt;- hh.interviews.json
+hh.resumes             &lt;- hh.resumes.json
+hh.vacancies           &lt;- hh.vacancies.json
+logs.events            &lt;- logs.events.json
+org.categories         &lt;- org.categories.json
+org.employees          &lt;- org.employees.json
+sandbox.products       &lt;- sandbox.products.json
+sandbox.warehouse      &lt;- sandbox.warehouse.json
+shop.customers         &lt;- shop.customers.json
+shop.orders            &lt;- shop.orders.json
+shop.products          &lt;- shop.products.json
+Готово: учебные базы загружены</pre>
+        </figure>
+        <p>Двенадцать файлов — двенадцать коллекций в пяти базах. При следующем <code>docker compose up -d</code> загрузчик увидит, что заказы уже на месте, и ничего не тронет: ваши изменения в <code>sandbox</code> не пропадут от перезапуска. Проверить, что работает сейчас:</p>
+        <figure class="code">
+          <figcaption><span>PowerShell · терминал</span><span>состояние контейнеров</span></figcaption>
+<pre>docker compose ps</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод</span><span>через полминуты после up</span></figcaption>
+<pre>NAME                               IMAGE                 COMMAND                  SERVICE         CREATED         STATUS                   PORTS
+course-mongo                       mongo:7  mongo           4 minutes ago   Up 4 minutes (healthy)   0.0.0.0:27017-&gt;27017/tcp, [::]:27017-&gt;27017/tcp
+mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minutes ago   Up 3 minutes             127.0.0.1:8081-&gt;8081/tcp</pre>
+        </figure>
+        <p><code>seed</code> работает несколько секунд, поэтому сразу после <code>up</code> он ещё может быть в списке. Когда загрузка закончится, контейнеров останется два: <code>course-mongo</code> и <code>mongo-express</code>. <code>seed</code> из списка пропал — он сделал работу и завершился. В колонке <b>PORTS</b> видно, какие порты контейнеров открыты на компьютере: 27017 для сервера и 8081 для браузера.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Шаг 4. Данные в браузере</h2>
+        <p>Откройте <a href="http://localhost:8081">http://localhost:8081</a>. Браузер спросит логин и пароль — <code>student</code> и <code>student</code>. Это <span class="term">mongo-express</span>: веб-клиент MongoDB, который заменяет Compass, когда тот не установлен.</p>
+        <figure class="shot">
+          <img src="../../shots/11-express-databases.png" alt="Главная страница mongo-express: список баз данных стенда">
+          <figcaption>mongo-express · стенд в Docker — те же базы, что в Compass в главе 1.1</figcaption>
+        </figure>
+        <p>Список баз совпадает с тем, что вернул <code>list_database_names()</code> в главе 1.1: пять учебных и три служебные. Зелёная кнопка <b>View</b> открывает базу, красная <b>Del</b> удаляет её вместе со всеми коллекциями. Ниже на странице — <b>Server Status</b>: версия сервера (у нас 7.0.40), время работы и счётчики операций.</p>
+        <figure class="shot">
+          <img src="../../shots/12-express-shop.png" alt="База shop в mongo-express: коллекции customers, orders, products">
+          <figcaption>mongo-express · база <code>shop</code></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/13-express-products.png" alt="Документы коллекции shop.products в mongo-express">
+          <figcaption>mongo-express · <code>shop.products</code> — документы коллекции</figcaption>
+        </figure>
+        <p>У базы <code>shop</code> внизу страницы — <b>Database Stats</b>: 3 коллекции, 161 документ, 79.3 KB данных. Это те же 79.32 kB, что Compass показал в главе 1.1, — сервер и данные одни и те же, отличается только клиент. В коллекции документы идут таблицей по 20 на страницу, поэтому 21 товар занял две страницы. Массив <code>stock</code> свёрнут в <code>⊕{2 items}</code> и раскрывается щелчком. Строка <b>Simple</b> ищет по одному полю, <b>Advanced</b> принимает фильтр-документ, как <code>find</code>. Красная полоса <b>Delete all 21 documents retrieved</b> удаляет всё, что сейчас найдено, — при пустом фильтре это вся коллекция. Поэтому упражнения в mongo-express, как и в коде, делаются только в <code>sandbox</code>.</p>
+        <div class="margin-note">
+          <b>На полях: а если Compass всё-таки установился</b>
+          <p>Тогда он подключается к контейнеру без всяких изменений: <b>New Connection</b>, адрес <code>mongodb://localhost:27017</code>, <b>Connect</b>. Docker пробрасывает порт сервера на компьютер, и для Compass контейнер ничем не отличается от установленного сервера. Кстати, все кадры Compass в этом справочнике сняты именно так — с сервера в контейнере.</p>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: mongo-express — только для учебного стенда</b>
+          <p>Через этот интерфейс можно удалить любую базу. Поэтому порт 8081 открыт только для вашего компьютера (<code>127.0.0.1</code>), а вход закрыт паролем. Выставлять такой интерфейс в интернет нельзя — чем это заканчивается, разобрано в разделе <a href="../../keysy/index.html">«Кейсы»</a>.</p>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Шаг 5. Подключиться из кода</h2>
+        <p>В папке <code>hello</code> лежит короткая программа на каждом из четырёх языков. Она делает то же, что §6 главы 1.1: подключается, печатает версию сервера, список баз и число документов. Запуск — одной командой; язык определяется по расширению файла:</p>
+        <figure class="code" data-lang="python">
+          <figcaption><span>PowerShell · терминал</span><span>Python в контейнере</span></figcaption>
+<pre>docker compose run --rm python hello/hello.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>PowerShell · терминал</span><span>C++ в контейнере</span></figcaption>
+<pre>docker compose run --rm cpp hello/hello.cpp
+<span class="c"># первый раз образ собирается несколько минут: драйвер C++</span>
+<span class="c"># компилируется из исходников. Дальше — секунды</span></pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>PowerShell · терминал</span><span>Go в контейнере</span></figcaption>
+<pre>docker compose run --rm go hello/hello.go
+<span class="c"># первый запуск скачивает драйвер; модули сохраняются в томе go-modules</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>PowerShell · терминал</span><span>Ruby в контейнере</span></figcaption>
+<pre>docker compose run --rm ruby hello/hello.rb</pre>
+        </figure>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
+<pre> Container course-mongo Running 
+ Container course-mongo Waiting 
+ Container course-mongo Healthy 
+ Container mongodb-practice-seed-1 Starting 
+ Container mongodb-practice-seed-1 Started 
+ Container mongodb-practice-seed-1 Waiting 
+ Container mongodb-practice-seed-1 Exited 
+ Container mongodb-practice-python-run-5b04fa56d68f Creating 
+ Container mongodb-practice-python-run-5b04fa56d68f Created 
+Адрес: mongodb://mongo:27017/
+Сервер: 7.0.40
+Базы данных: ['admin', 'config', 'hh', 'local', 'logs', 'org', 'sandbox', 'shop']
+Коллекции shop: ['customers', 'orders', 'products']
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
+<pre>Адрес: mongodb://mongo:27017/
+Сервер: 7.0.40
+Базы данных: admin config hh local logs org sandbox shop
+Коллекции shop: customers orders products
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
+<pre> Volume mongodb-practice_go-modules Creating 
+ Volume mongodb-practice_go-modules Creating 
+ Volume mongodb-practice_go-modules Created 
+ Volume mongodb-practice_go-modules Created 
+Адрес: mongodb://mongo:27017/
+Сервер: 7.0.40
+Базы данных: [admin config hh local logs org sandbox shop]
+Коллекции shop: [customers orders products]
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
+<pre>Адрес: mongodb://mongo:27017/
+Сервер: 7.0.40
+Базы данных: ["admin", "config", "hh", "local", "logs", "org", "sandbox", "shop"]
+Коллекции shop: ["customers", "orders", "products"]
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <p>Разберём команду по словам. <code>run</code> — запустить сервис один раз; <code>--rm</code> — удалить контейнер после завершения, чтобы они не копились; <code>python</code> — имя сервиса из <code>compose.yaml</code>; дальше — путь к файлу от корня репозитория. Обратный слэш из PowerShell (<code>hello\hello.py</code>) тоже подойдёт.</p>
+        <p>Посмотрите на первую строку вывода: адрес сервера — <code>mongo</code>, а не <code>localhost</code>. Это главное отличие работы в контейнере:</p>
+        <div class="where">
+          <div>
+            <small>программа на компьютере · Compass</small>
+            <code>mongodb://localhost:27017</code>
+            <p>Docker пробрасывает порт контейнера на компьютер, поэтому снаружи сервер доступен по <code>localhost</code>.</p>
+          </div>
+          <div>
+            <small>программа в контейнере</small>
+            <code>mongodb://mongo:27017</code>
+            <p>У каждого контейнера свой <code>localhost</code> — он сам. Сервер находится по имени сервиса во внутренней сети Docker.</p>
+          </div>
+        </div>
+        <p>Поэтому адрес в код не вписывают, а берут из переменной окружения <code>MONGO_URI</code>, как в решениях практик. В контейнерах стенда она уже равна <code>mongodb://mongo:27017/</code>, а без неё программа подключается к <code>localhost</code> — и один и тот же файл работает в обоих местах:</p>
+        <figure class="code" data-lang="python">
+          <figcaption><span>Адрес из окружения</span><span>Python</span></figcaption>
+<pre><span class="k">import</span> os
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+URI = os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>)
+client = <span class="f">MongoClient</span>(URI)</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>Адрес из окружения</span><span>C++</span></figcaption>
+<pre><span class="k">const char</span>* env = std::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+<span class="k">const</span> std::string uri = env ? env : <span class="s">"mongodb://localhost:27017"</span>;
+mongocxx::client client{mongocxx::uri{uri}};</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Адрес из окружения</span><span>Go</span></figcaption>
+<pre>uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+<span class="k">if</span> uri == <span class="s">""</span> {
+    uri = <span class="s">"mongodb://localhost:27017"</span>
+}
+client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Адрес из окружения</span><span>Ruby</span></figcaption>
+<pre>SERVER = ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>)
+client = Mongo::Client.<span class="f">new</span>(SERVER)</pre>
+        </figure>
+        <p>Если написать в коде <code>localhost</code> и запустить его в контейнере, программа не найдёт сервер:</p>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
+<pre>pymongo.errors.ServerSelectionTimeoutError: localhost:27017: [Errno 111] Connection refused
+(configured timeouts: …), Timeout: 5.0s, Topology Description: …</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
+<pre>terminate called after throwing an instance of 'mongocxx::v_noabi::operation_exception'
+  what():  No suitable servers found (`serverSelectionTryOnce` set): [connection refused calling hello on 'localhost:27017']. Topology type: Single: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
+<pre>2026/09/13 20:55:18 server selection error: context deadline exceeded, current topology: { Type: Unknown, Servers: [{ Addr: localhost:27017, Type: Unknown, Last error: dial tcp [::1]:27017: connect: connection refused }, ] }
+exit status 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
+<pre>No primary_preferred server is available in cluster: #&lt;Cluster topology=Unknown[localhost:27017] servers=[#&lt;Server address=localhost:27017 UNKNOWN&gt;]&gt;
+with timeout=5, LT=0.015 (Mongo::Error::NoServerAvailable)</pre>
+        </figure>
+
+        <h2 id="s9"><span class="sec">§9</span>Шаг 6. Практика и контрольная точка</h2>
+        <p>Решения практик запускаются той же командой — меняется только путь. Перед каждым прогоном базы возвращаются в исходное состояние сервисом <code>reset</code>: он делает то же, что <code>seed</code>, но перезаписывает коллекции всегда.</p>
+        <figure class="code" data-lang="python">
+          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm python practice01/solution.py
+docker compose run --rm python practice01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm cpp practice01/solution.cpp      <span class="c"># собрать и запустить</span>
+docker compose run --rm python practice01/check.py       <span class="c"># проверка одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm go practice01/solution.go
+docker compose run --rm python practice01/check.py       <span class="c"># проверка одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm ruby practice01/solution.rb
+docker compose run --rm python practice01/check.py       <span class="c"># проверка одна на все языки</span></pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод check.py</span><span>одинаковый для всех четырёх решений</span></figcaption>
+<pre>Задача 1 · витрина каталога
+ ✓ товаров в каталоге shop.products               21
+ ✓ ноутбуков                                      5
+ ✓ самый дорогой товар                            'Ноутбук Apple MacBook Air 13'
+
+Задача 2 · приёмка поставки
+ ✓ всего позиций в песочнице                      22
+ ✓ новинка p-101 заведена                         1
+ ✓ новинка p-102 заведена                         1
+ ✓ снятый с продажи SKU-CP-018 удалён             0
+ ✓ бесплатная доставка у аксессуаров              5
+ ✓ остаток по SKU-NB-001                          5
+ ✓ остаток по SKU-PH-006                          12
+ ✓ остаток по SKU-PR-010                          3
+ ✓ эталонная база shop не тронута                 0
+
+Пройдено 12 из 12</pre>
+        </figure>
+        <p>Проверка написана на Python и смотрит на состояние базы, поэтому для решений на C++, Go и Ruby её тоже запускают в контейнере <code>python</code>. Контрольная точка — так же, свой файл кладёте в папку <code>kt01</code>:</p>
+        <figure class="code" data-lang="python">
+          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm python kt01/inventory.py
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm cpp kt01/inventory.cpp
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm go kt01/inventory.go
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm ruby kt01/inventory.rb
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <p>Файл запускается из своей папки, поэтому <code>stocktake.json</code> рядом с решением открывается по короткому имени — как если бы вы сделали <code>cd kt01</code> и запустили скрипт на компьютере.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Без установки: Codespaces</h2>
+        <p><span class="term">GitHub Codespaces</span> — редактор VS Code в браузере, под которым работает виртуальная машина GitHub. В репозитории практик есть папка <code>.devcontainer</code>: по ней Codespaces поднимает тот же <code>compose.yaml</code> — сервер, учебные базы, mongo-express — и ставит Python, Go и Ruby с драйверами.</p>
+        <ol>
+          <li>Войдите на <a href="https://github.com">github.com</a> — аккаунт бесплатный.</li>
+          <li>Откройте <a href="https://github.com/MaximBytecamp/mongodb-practice">репозиторий практик</a> и нажмите <b>Code → Codespaces → Create codespace on main</b>.</li>
+          <li>Подождите 3–5 минут: в первый раз окружение собирается с нуля. Когда в нижней панели откроется терминал, всё готово.</li>
+          <li>Проверьте подключение и запустите практику прямо в терминале редактора — Docker там уже не нужен, вы и так внутри контейнера.</li>
+        </ol>
+        <figure class="code" data-lang="python">
+          <figcaption><span>Терминал Codespaces</span><span>Python</span></figcaption>
+<pre>python hello/hello.py
+<span class="k">cd</span> practice01
+python solution.py
+python check.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>Терминал Codespaces</span><span>C++</span></figcaption>
+<pre><span class="c"># Драйвер C++ в Codespaces не установлен: его сборка заняла бы</span>
+<span class="c"># бо́льшую часть бесплатных часов. Для C++ — путь А, Docker Desktop.</span>
+<span class="c"># Самопроверка и данные в Codespaces работают:</span>
+python hello/hello.py</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал Codespaces</span><span>Go</span></figcaption>
+<pre><span class="k">cd</span> hello &amp;&amp; go run hello.go &amp;&amp; <span class="k">cd</span> ..
+<span class="k">cd</span> practice01
+go run solution.go
+python check.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал Codespaces</span><span>Ruby</span></figcaption>
+<pre>ruby hello/hello.rb
+<span class="k">cd</span> practice01
+ruby solution.rb
+python check.py</pre>
+        </figure>
+        <p>mongo-express открывается на вкладке <b>Ports</b> рядом с терминалом: строка с портом 8081, значок глобуса. Вместо Compass в Codespaces удобнее расширение <b>MongoDB for VS Code</b> — оно уже установлено. В нём создаётся подключение <code>mongodb://mongo:27017</code>, и базы видны деревом в боковой панели.</p>
+        <div class="stat">
+          <span><strong>120</strong><em>ядро-часов в месяц бесплатно на личном аккаунте GitHub</em></span>
+          <span><strong>≈ 60 ч</strong><em>работы на стандартной машине с двумя ядрами</em></span>
+          <span><strong>15 ГБ</strong><em>места в месяц на все сохранённые codespaces</em></span>
+        </div>
+        <p>Часы расходуются, пока codespace запущен, даже если вкладка закрыта. Остановится он сам через 30 минут бездействия, но надёжнее остановить руками: <b>Code → Codespaces → ⋯ → Stop codespace</b>. Код при остановке сохраняется; чтобы он попал в ваш репозиторий, его коммитят и отправляют, как обычно.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Сбросить, остановить, удалить</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Команда</th><th>Что происходит</th><th>Данные</th></tr></thead>
+            <tbody>
+              <tr><td><code>docker compose run --rm reset</code></td><td>Учебные базы перезаписываются заново</td><td>Изменения в <code>sandbox</code> пропадут — для этого и нужна</td></tr>
+              <tr><td><code>docker compose stop</code></td><td>Контейнеры останавливаются, память освобождается</td><td>Остаются</td></tr>
+              <tr><td><code>docker compose up -d</code></td><td>Всё запускается снова</td><td>Остаются; <code>seed</code> ничего не перезаписывает</td></tr>
+              <tr><td><code>docker compose down</code></td><td>Контейнеры удаляются</td><td>Остаются в томе <code>mongo-data</code></td></tr>
+              <tr><td><code>docker compose down -v</code></td><td>Удаляются контейнеры и тома</td><td>Удаляются. Следующий <code>up -d</code> начнёт с чистого сервера</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Консоль сервера, если нужна: <code>docker exec -it course-mongo mongosh</code>. В ней работают все команды оболочки из глав справочника; выход — <code>exit</code>.</p>
+
+        <h2 id="s12"><span class="sec">§12</span>Частые ошибки</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
+            <tbody>
+              <tr><td>Docker Desktop не запущен</td><td><code>error during connect: … open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.</code></td><td>Команда <code>docker</code> есть, движка нет. Запустите Docker Desktop и дождитесь <b>Engine running</b></td></tr>
+              <tr><td>Docker не установлен или терминал открыт до установки</td><td><code>docker : The term 'docker' is not recognized as the name of a cmdlet…</code></td><td>Закройте и заново откройте PowerShell. Не помогло — Docker не установлен, путь Б</td></tr>
+              <tr><td>Docker Desktop не стартует</td><td>Сообщение о виртуализации или о том, что WSL 2 не установлен или устарел</td><td>Виртуализация включается в BIOS, WSL обновляется командой <code>wsl --update</code> — обоим нужны права администратора. Без них — путь Б</td></tr>
+              <tr><td>Команда выполнена не в той папке</td><td><code>no configuration file provided: not found</code></td><td>Docker ищет <code>compose.yaml</code> в текущей папке. Перейдите в корень репозитория</td></tr>
+              <tr><td>Порт 27017 занят</td><td><code>Bind for 0.0.0.0:27017 failed: port is already allocated</code></td><td>На компьютере уже работает другой MongoDB — например, наполовину установленная служба. Создайте рядом с <code>compose.yaml</code> файл <code>.env</code> со строкой <code>MONGO_PORT=27018</code> и подключайте Compass к <code>localhost:27018</code></td></tr>
+              <tr><td>В коде в контейнере адрес <code>localhost</code></td><td><code>localhost:27017: [Errno 111] Connection refused</code> в Python, <code>NoServerAvailable</code> в Ruby, <code>server selection error</code> в Go</td><td>Внутри контейнера <code>localhost</code> — сам контейнер. Берите адрес из <code>MONGO_URI</code></td></tr>
+              <tr><td>Путь к файлу от папки практики</td><td><code>Файл не найден: solution.py (путь считается от корня репозитория)</code></td><td>Команда выполняется из корня, путь пишется целиком: <code>practice01/solution.py</code></td></tr>
+              <tr><td>Числа в <code>check.py</code> не сходятся после второго прогона</td><td>Ошибка <code>E11000</code> или лишние документы</td><td>Базы остались от прошлого запуска. Перед прогоном — <code>docker compose run --rm reset</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s13"><span class="sec">§13</span>Проверьте себя</h2>
+        <details>
+          <summary>Compass показывает <code>connect ECONNREFUSED 127.0.0.1:27017</code>. Надо переустанавливать Compass?</summary>
+          <p>Нет. Compass работает — он дошёл до порта и получил отказ. На порту нет сервера. После <code>docker compose up -d</code> то же подключение заработает без изменений.</p>
+        </details>
+        <details>
+          <summary>Программа на компьютере подключается к <code>localhost:27017</code>, а та же программа в контейнере — нет. Почему?</summary>
+          <p>У контейнера свой сетевой адрес, и <code>localhost</code> для него — он сам, а там сервера нет. Сервер виден по имени сервиса: <code>mongodb://mongo:27017</code>. Поэтому адрес читают из <code>MONGO_URI</code>.</p>
+        </details>
+        <details>
+          <summary>Вы выполнили <code>docker compose down</code>. Пропали ли документы в <code>sandbox</code>?</summary>
+          <p>Нет. Данные сервера лежат в томе <code>mongo-data</code>, а <code>down</code> удаляет только контейнеры. Том удаляет <code>down -v</code>.</p>
+        </details>
+        <details>
+          <summary>Зачем два сервиса загрузки — <code>seed</code> и <code>reset</code>?</summary>
+          <p><code>seed</code> запускается при каждом <code>up</code> и заливает данные, только если сервер пустой, — иначе каждый перезапуск стирал бы вашу работу. <code>reset</code> вызывают сами, когда нужны чистые данные, и он перезаписывает коллекции всегда.</p>
+        </details>
+        <details>
+          <summary>Почему проверка практики на Go запускается в контейнере <code>python</code>?</summary>
+          <p><code>check.py</code> написан на Python и проверяет состояние базы, а не код. Решение на любом языке меняет одну и ту же базу, поэтому проверка одна.</p>
+        </details>
+
+        <h2 id="s14"><span class="sec">§14</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Поднять стенд</b>
+            <code>cd mongodb-practice</code>
+            <code>docker compose up -d</code>
+            <code>docker compose ps</code>
+          </div>
+          <div>
+            <b>Посмотреть данные</b>
+            <code>http://localhost:8081</code>
+            <code># student / student</code>
+            <code>docker exec -it course-mongo mongosh</code>
+          </div>
+          <div>
+            <b>Запустить код</b>
+            <code>docker compose run --rm python practice01/solution.py</code>
+            <code># ruby … .rb · go … .go · cpp … .cpp</code>
+            <code>docker compose run --rm python practice01/check.py</code>
+          </div>
+          <div>
+            <b>Сбросить и остановить</b>
+            <code>docker compose run --rm reset</code>
+            <code>docker compose stop</code>
+            <code>docker compose down -v   # вместе с данными</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Если Compass не подключается, чаще всего дело в сервере: его нет на порту 27017. Сервер в контейнере поднимается командой <code>docker compose up -d</code> вместе с учебными базами и mongo-express на <code>localhost:8081</code>. Код запускается командой <code>docker compose run --rm</code> с путём к файлу, и внутри контейнера сервер называется <code>mongo</code>, а не <code>localhost</code>. Если не ставится и Docker Desktop, тот же стенд открывается в Codespaces. Дальше — снова к данным: глава 1.2 о том, как устроен документ.</p>
+
+        <div class="pager"><a href="../01-klient-baza-kollekciya/index.html">← 1.1 Сервер, база, коллекция</a><a href="../02-dokument-i-bson/index.html">1.2 Документ и BSON →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.1а · Стенд в Docker · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

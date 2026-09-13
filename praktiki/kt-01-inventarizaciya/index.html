@@ -88,6 +88,36 @@ python3 check.py               <span class="c"># проверка, одна на
 ruby inventory.rb              <span class="c"># ваша работа</span>
 python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
+        <p>Сервер или драйвер не ставится — те же шаги выполняются в контейнерах, команды одинаковые в PowerShell и bash. Как поднять стенд и что делать при ошибках — <a href="../../temy/01a-stend-v-docker/index.html">глава 1.1а</a>.</p>
+        <figure class="code" data-lang="python">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
+docker compose run --rm python kt01/inventory.py
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
+docker compose run --rm cpp kt01/inventory.cpp
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
+docker compose run --rm go kt01/inventory.go
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
+docker compose run --rm ruby kt01/inventory.rb
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+
         <p>Эталонные базы <code>shop</code>, <code>hh</code>, <code>logs</code>, <code>org</code> в работе не участвуют и меняться не должны — это проверяется на приёмке.</p>
         <p>Язык работы — любой из четырёх: проверка смотрит на состояние базы, а не на код. Драйверы и команды запуска те же, что в ПР-01.</p>
 
