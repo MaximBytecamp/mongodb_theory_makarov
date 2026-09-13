@@ -29,7 +29,7 @@
     .db p { margin: 0 0 9px; font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
     .db code { display: block; font-size: 12.5px; color: var(--ink); }
 
-    .modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; margin-top: 22px; }
+    .modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 16px; margin-top: 22px; }
     .module { display: grid; grid-template-columns: 40px minmax(0, 1fr); border: 3px solid var(--ink); background: var(--page); box-shadow: 6px 6px 0 var(--ink); }
     .module__spine { background: var(--ink); color: var(--leaf-bright); display: flex; align-items: center; justify-content: center; }
     .module__spine b { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 12px/1 var(--mono); letter-spacing: 2px; }

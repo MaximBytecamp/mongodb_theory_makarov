@@ -21,6 +21,16 @@
   <script>
     /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
     try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
   </script>
 </head>
 <body>
@@ -62,27 +72,81 @@
             </tbody>
           </table>
         </div>
-        <figure class="code" data-lang="python">
+        <figure class="code" data-lang="python" data-os="win">
+          <figcaption><span>PowerShell</span><span>подготовка и запуск</span></figcaption>
+<pre>docker compose run --rm reset          <span class="c"># учёт на 21 позицию</span>
+<span class="c"># без Docker: bash ../stend/load.sh в Git Bash</span>
+python inventory.py            <span class="c"># ваша работа</span>
+python check.py                <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="python" data-os="mac">
           <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
 <pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
 python3 inventory.py           <span class="c"># ваша работа</span>
 python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
-        <figure class="code" data-lang="cpp">
+        <figure class="code" data-lang="python" data-os="linux">
           <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
 <pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
-g++ -std=c++17 inventory.cpp -o inventory \
-    $(pkg-config --cflags --libs libmongocxx1)
-./inventory                    <span class="c"># ваша работа</span>
+python3 inventory.py           <span class="c"># ваша работа</span>
 python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
-        <figure class="code" data-lang="go">
+        <figure class="code" data-lang="cpp" data-os="win">
+          <figcaption><span>PowerShell</span><span>подготовка и запуск</span></figcaption>
+<pre><span class="c"># драйвер C++ под Windows собирается долго — всё делаем в контейнерах</span>
+docker compose run --rm reset
+docker compose run --rm cpp kt01/inventory.cpp
+docker compose run --rm python kt01/check.py   <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="mac">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+
+g++ -std=c++17 inventory.cpp -o inventory \
+    $(pkg-config --cflags --libs libmongocxx1)   <span class="c"># brew install mongo-cxx-driver</span>
+./inventory                     <span class="c"># решение</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="linux">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre><span class="c"># в пакетах дистрибутива драйвер C++ старый — всё делаем в контейнерах</span>
+docker compose run --rm reset
+docker compose run --rm cpp kt01/inventory.cpp
+docker compose run --rm python kt01/check.py   <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="go" data-os="win">
+          <figcaption><span>PowerShell</span><span>подготовка и запуск</span></figcaption>
+<pre>docker compose run --rm reset          <span class="c"># учёт на 21 позицию</span>
+<span class="c"># без Docker: bash ../stend/load.sh в Git Bash</span>
+go run inventory.go            <span class="c"># ваша работа</span>
+python check.py                <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="go" data-os="mac">
           <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
 <pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
 go run inventory.go            <span class="c"># ваша работа</span>
 python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
-        <figure class="code" data-lang="ruby">
+        <figure class="code" data-lang="go" data-os="linux">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+go run inventory.go            <span class="c"># ваша работа</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="win">
+          <figcaption><span>PowerShell</span><span>подготовка и запуск</span></figcaption>
+<pre>docker compose run --rm reset          <span class="c"># учёт на 21 позицию</span>
+<span class="c"># без Docker: bash ../stend/load.sh в Git Bash</span>
+ruby inventory.rb              <span class="c"># ваша работа</span>
+python check.py                <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="mac">
+          <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
+<pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
+ruby inventory.rb              <span class="c"># ваша работа</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="linux">
           <figcaption><span>Терминал</span><span>подготовка и запуск</span></figcaption>
 <pre>bash ../stend/load.sh          <span class="c"># учёт на 21 позицию</span>
 ruby inventory.rb              <span class="c"># ваша работа</span>
@@ -90,28 +154,28 @@ python3 check.py               <span class="c"># проверка, одна на
         </figure>
         <p>Сервер или драйвер не ставится — те же шаги выполняются в контейнерах, команды одинаковые в PowerShell и bash. Как поднять стенд и что делать при ошибках — <a href="../../temy/01a-stend-v-docker/index.html">глава 1.1а</a>.</p>
         <figure class="code" data-lang="python">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
 docker compose run --rm python kt01/inventory.py
 docker compose run --rm python kt01/check.py</pre>
         </figure>
         <figure class="code" data-lang="cpp">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
 docker compose run --rm cpp kt01/inventory.cpp
 docker compose run --rm python kt01/check.py</pre>
         </figure>
         <figure class="code" data-lang="go">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
 docker compose run --rm go kt01/inventory.go
 docker compose run --rm python kt01/check.py</pre>
         </figure>
         <figure class="code" data-lang="ruby">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># учёт на 21 позицию</span>
 docker compose run --rm ruby kt01/inventory.rb

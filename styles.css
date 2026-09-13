@@ -421,3 +421,33 @@ figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); 
 
 /* Пометка вендорского материала в шапке кейса читается на тёмном фоне. */
 .case__head .vendor { margin-left: 0; border-color: var(--clay-pale); color: var(--clay-pale); }
+
+/* ── Переключатель операционной системы ─────────────────────────
+   Кнопки те же, что у языка. Блоки с data-os только прячутся: так правило
+   не спорит с data-lang и не ломает строки таблиц. В data-os можно перечислить
+   несколько систем через пробел: data-os="mac linux". */
+.langbar + .langbar { padding-left: 12px; border-left: 2px solid var(--rule); }
+:root[data-os="win"] .book [data-os]:not([data-os~="win"]),
+:root[data-os="mac"] .book [data-os]:not([data-os~="mac"]),
+:root[data-os="linux"] .book [data-os]:not([data-os~="linux"]),
+:root:not([data-os]) .book [data-os]:not([data-os~="win"]) { display: none !important; }
+
+/* Шапка с переключателями: название и номер главы — первой строкой,
+   кнопки — второй. Иначе на узком экране номер главы уезжает за край. */
+.running { flex-wrap: wrap; row-gap: 10px; }
+.running .eyebrow { flex: 1 1 0; min-width: 0; }
+.running__folio { order: 1; }
+.running:has(.langbar)::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+.running .langbar { order: 3; }
+
+@media (max-width: 600px) {
+  .langbar + .langbar { padding-left: 0; border-left: 0; }
+}
+
+/* Длинные адреса и имена в тексте переносятся, а не растягивают страницу. */
+:not(pre) > code { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .passport { grid-template-columns: 1fr; }
+  .passport > div { border-right: 0; border-bottom: 2px solid var(--rule); }
+  .passport > div:last-child { border-bottom: 0; }
+}

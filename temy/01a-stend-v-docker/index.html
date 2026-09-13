@@ -50,6 +50,16 @@
   <script>
     /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
     try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
   </script>
 </head>
 <body>
@@ -163,15 +173,32 @@
         <p>Языки программирования на компьютер ставить не нужно. Python, Ruby, Go и компилятор C++ вместе с драйверами MongoDB лежат в образах: команда запуска поднимает нужный контейнер, выполняет в нём файл и удаляет контейнер. Папка репозитория видна внутри, поэтому код правится в обычном редакторе, а запускается в контейнере.</p>
 
         <h2 id="s4"><span class="sec">§4</span>Шаг 1. Проверить Docker</h2>
-        <p>Docker Desktop скачивается с <a href="https://docs.docker.com/desktop/setup/install/windows-install/">docs.docker.com</a>. После установки его нужно <strong>запустить</strong>: команды работают, только пока Docker Desktop открыт и внизу его окна написано <b>Engine running</b>.</p>
-        <p>Откройте PowerShell (на macOS и Linux — терминал) и проверьте две вещи:</p>
+        <div data-os="win">
+          <p>Docker Desktop для Windows скачивается с <a href="https://docs.docker.com/desktop/setup/install/windows-install/">docs.docker.com</a>. Установщику нужны права администратора, а при первом запуске он включает подсистему WSL 2. После установки Docker Desktop нужно <strong>запустить</strong>: команды работают, только пока он открыт и внизу его окна написано <b>Engine running</b>.</p>
+          <p>Терминал на Windows — <b>PowerShell</b>: <b>Win + X</b> → «Терминал». Все команды главы набираются в нём. Проверьте две вещи:</p>
+        </div>
+        <div data-os="mac">
+          <p>Docker Desktop для Mac скачивается с <a href="https://docs.docker.com/desktop/setup/install/mac-install/">docs.docker.com</a>. Сборок две — для Apple Silicon и для Intel; какой у вас процессор, видно в меню  → «Об этом Mac», строка «Чип» или «Процессор». После установки Docker Desktop нужно <strong>запустить</strong> из «Программ»: команды работают, пока он открыт и в его окне написано <b>Engine running</b>.</p>
+          <p>Терминал на macOS — приложение <b>Терминал</b>: <b>Cmd + Пробел</b>, набрать «Терминал». Проверьте две вещи:</p>
+        </div>
+        <div data-os="linux">
+          <p>На Linux Docker Desktop не нужен: ставится сам движок, Docker Engine, вместе с плагином Compose. Проще всего — официальным скриптом:</p>
+          <figure class="code">
+            <figcaption><span>Терминал</span><span>установка Docker Engine</span></figcaption>
+<pre>curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER     <span class="c"># чтобы запускать docker без sudo</span>
+<span class="c"># затем выйдите из системы и войдите снова</span></pre>
+          </figure>
+          <p>Скрипт сам запускает службу Docker, и она стартует вместе с системой. Терминал в большинстве дистрибутивов открывается сочетанием <b>Ctrl + Alt + T</b>. Проверьте две вещи:</p>
+        </div>
         <figure class="code">
-          <figcaption><span>PowerShell · терминал</span><span>две проверки</span></figcaption>
+          <figcaption><span>Терминал</span><span>две проверки</span></figcaption>
 <pre>docker version            <span class="c"># есть ли Docker и запущен ли он</span>
 docker compose version    <span class="c"># есть ли Compose</span></pre>
         </figure>
         <figure class="code code--out">
-          <figcaption><span>Вывод</span><span>macOS; на Windows отличаются только строки OS/Arch</span></figcaption>
+          <figcaption><span>Вывод</span><span>снято на macOS; на других системах отличаются OS/Arch и название сервера</span></figcaption>
 <pre>Client:
  Version:           29.7.2
  API version:       1.55
@@ -188,26 +215,38 @@ Server: Docker Desktop 4.89.0 (238018)
 
 Docker Compose version v5.5.0</pre>
         </figure>
-        <p>Главное здесь — что в ответе есть два блока: <b>Client</b> и <b>Server</b>. Клиент — это сама команда <code>docker</code>, сервер — движок внутри Docker Desktop. Если блока <b>Server</b> нет, а вместо него ошибка <code>error during connect</code>, Docker Desktop установлен, но не запущен.</p>
+        <p>Главное здесь — что в ответе есть два блока: <b>Client</b> и <b>Server</b>. Клиент — это сама команда <code>docker</code>, сервер — движок внутри Docker Desktop. Если блока <b>Server</b> нет, а вместо него ошибка подключения, движок не запущен — как эта ошибка выглядит на вашей системе, показано в <a href="#s12">§12</a>.</p>
 
         <h2 id="s5"><span class="sec">§5</span>Шаг 2. Скачать репозиторий</h2>
         <p>Если установлен Git:</p>
         <figure class="code">
-          <figcaption><span>PowerShell · терминал</span><span>через Git</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Git</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice</pre>
         </figure>
-        <p>Если Git нет — на <a href="https://github.com/MaximBytecamp/mongodb-practice">странице репозитория</a> нажмите <b>Code → Download ZIP</b>, распакуйте архив и перейдите в папку в PowerShell:</p>
-        <figure class="code">
-          <figcaption><span>PowerShell</span><span>через ZIP</span></figcaption>
+        <p>Если Git нет — на <a href="https://github.com/MaximBytecamp/mongodb-practice">странице репозитория</a> нажмите <b>Code → Download ZIP</b>, распакуйте архив и перейдите в папку:</p>
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>«Извлечь всё» создаёт папку в папке</span></figcaption>
 <pre><span class="k">cd</span> $HOME\Downloads\mongodb-practice-main\mongodb-practice-main
+<span class="f">ls</span>                        <span class="c"># должен быть файл compose.yaml</span></pre>
+        </figure>
+        <figure class="code" data-os="mac">
+          <figcaption><span>Терминал</span><span>архив распакован двойным щелчком в Finder</span></figcaption>
+<pre><span class="k">cd</span> ~/Downloads/mongodb-practice-main
+<span class="f">ls</span>                        <span class="c"># должен быть файл compose.yaml</span></pre>
+        </figure>
+        <figure class="code" data-os="linux">
+          <figcaption><span>Терминал</span><span>распаковка в терминале</span></figcaption>
+<pre><span class="k">cd</span> ~/Downloads
+unzip mongodb-practice-main.zip
+<span class="k">cd</span> mongodb-practice-main
 <span class="f">ls</span>                        <span class="c"># должен быть файл compose.yaml</span></pre>
         </figure>
         <p>Все команды дальше выполняются <strong>из этой папки</strong> — там, где лежит <code>compose.yaml</code>. Из другой папки Docker не найдёт описание стенда.</p>
 
         <h2 id="s6"><span class="sec">§6</span>Шаг 3. Поднять стенд</h2>
         <figure class="code">
-          <figcaption><span>PowerShell · терминал</span><span>из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
 <pre>docker compose up -d</pre>
         </figure>
         <p>Первый запуск идёт несколько минут: Docker скачивает образы <code>mongo:7</code> и <code>mongo-express</code>. Флаг <code>-d</code> оставляет контейнеры работать в фоне и возвращает терминал. Когда всё поднялось, вывод заканчивается так:</p>
@@ -490,7 +529,7 @@ Container mongodb-practice-seed-1 Started</pre>
         </figure>
         <p>Порядок в выводе не случайный. Сначала сервер должен ответить на проверку <code>ping</code> — это строка <b>Healthy</b>. Только после неё стартуют <code>seed</code> и <code>mongo-express</code>: загружать данные в сервер, который ещё не готов, бессмысленно. Что сделал <code>seed</code>, видно в его журнале:</p>
         <figure class="code">
-          <figcaption><span>PowerShell · терминал</span><span>журнал загрузки</span></figcaption>
+          <figcaption><span>Терминал</span><span>журнал загрузки</span></figcaption>
 <pre>docker compose logs seed</pre>
         </figure>
         <figure class="code code--out">
@@ -511,7 +550,7 @@ shop.products          &lt;- shop.products.json
         </figure>
         <p>Двенадцать файлов — двенадцать коллекций в пяти базах. При следующем <code>docker compose up -d</code> загрузчик увидит, что заказы уже на месте, и ничего не тронет: ваши изменения в <code>sandbox</code> не пропадут от перезапуска. Проверить, что работает сейчас:</p>
         <figure class="code">
-          <figcaption><span>PowerShell · терминал</span><span>состояние контейнеров</span></figcaption>
+          <figcaption><span>Терминал</span><span>состояние контейнеров</span></figcaption>
 <pre>docker compose ps</pre>
         </figure>
         <figure class="code code--out">
@@ -550,22 +589,22 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
         <h2 id="s8"><span class="sec">§8</span>Шаг 5. Подключиться из кода</h2>
         <p>В папке <code>hello</code> лежит короткая программа на каждом из четырёх языков. Она делает то же, что §6 главы 1.1: подключается, печатает версию сервера, список баз и число документов. Запуск — одной командой; язык определяется по расширению файла:</p>
         <figure class="code" data-lang="python">
-          <figcaption><span>PowerShell · терминал</span><span>Python в контейнере</span></figcaption>
+          <figcaption><span>Терминал</span><span>Python в контейнере</span></figcaption>
 <pre>docker compose run --rm python hello/hello.py</pre>
         </figure>
         <figure class="code" data-lang="cpp">
-          <figcaption><span>PowerShell · терминал</span><span>C++ в контейнере</span></figcaption>
+          <figcaption><span>Терминал</span><span>C++ в контейнере</span></figcaption>
 <pre>docker compose run --rm cpp hello/hello.cpp
 <span class="c"># первый раз образ собирается несколько минут: драйвер C++</span>
 <span class="c"># компилируется из исходников. Дальше — секунды</span></pre>
         </figure>
         <figure class="code" data-lang="go">
-          <figcaption><span>PowerShell · терминал</span><span>Go в контейнере</span></figcaption>
+          <figcaption><span>Терминал</span><span>Go в контейнере</span></figcaption>
 <pre>docker compose run --rm go hello/hello.go
 <span class="c"># первый запуск скачивает драйвер; модули сохраняются в томе go-modules</span></pre>
         </figure>
         <figure class="code" data-lang="ruby">
-          <figcaption><span>PowerShell · терминал</span><span>Ruby в контейнере</span></figcaption>
+          <figcaption><span>Терминал</span><span>Ruby в контейнере</span></figcaption>
 <pre>docker compose run --rm ruby hello/hello.rb</pre>
         </figure>
         <figure class="code code--out" data-lang="python">
@@ -617,7 +656,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
 Товаров: 21
 Заказов: 120</pre>
         </figure>
-        <p>Разберём команду по словам. <code>run</code> — запустить сервис один раз; <code>--rm</code> — удалить контейнер после завершения, чтобы они не копились; <code>python</code> — имя сервиса из <code>compose.yaml</code>; дальше — путь к файлу от корня репозитория. Обратный слэш из PowerShell (<code>hello\hello.py</code>) тоже подойдёт.</p>
+        <p>Разберём команду по словам. <code>run</code> — запустить сервис один раз; <code>--rm</code> — удалить контейнер после завершения, чтобы они не копились; <code>python</code> — имя сервиса из <code>compose.yaml</code>; дальше — путь к файлу от корня репозитория. <span data-os="win">Путь с обратным слэшем, который подставляет PowerShell по <b>Tab</b> (<code>.\hello\hello.py</code>), тоже подойдёт.</span></p>
         <p>Посмотрите на первую строку вывода: адрес сервера — <code>mongo</code>, а не <code>localhost</code>. Это главное отличие работы в контейнере:</p>
         <div class="where">
           <div>
@@ -684,25 +723,25 @@ with timeout=5, LT=0.015 (Mongo::Error::NoServerAvailable)</pre>
         <h2 id="s9"><span class="sec">§9</span>Шаг 6. Практика и контрольная точка</h2>
         <p>Решения практик запускаются той же командой — меняется только путь. Перед каждым прогоном базы возвращаются в исходное состояние сервисом <code>reset</code>: он делает то же, что <code>seed</code>, но перезаписывает коллекции всегда.</p>
         <figure class="code" data-lang="python">
-          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+          <figcaption><span>Терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm python practice01/solution.py
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="cpp">
-          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+          <figcaption><span>Терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm cpp practice01/solution.cpp      <span class="c"># собрать и запустить</span>
 docker compose run --rm python practice01/check.py       <span class="c"># проверка одна на все языки</span></pre>
         </figure>
         <figure class="code" data-lang="go">
-          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+          <figcaption><span>Терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm go practice01/solution.go
 docker compose run --rm python practice01/check.py       <span class="c"># проверка одна на все языки</span></pre>
         </figure>
         <figure class="code" data-lang="ruby">
-          <figcaption><span>PowerShell · терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
+          <figcaption><span>Терминал</span><span>ПР-01 от чистых данных до проверки</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm ruby practice01/solution.rb
 docker compose run --rm python practice01/check.py       <span class="c"># проверка одна на все языки</span></pre>
@@ -729,25 +768,25 @@ docker compose run --rm python practice01/check.py       <span class="c"># пр�
         </figure>
         <p>Проверка написана на Python и смотрит на состояние базы, поэтому для решений на C++, Go и Ruby её тоже запускают в контейнере <code>python</code>. Контрольная точка — так же, свой файл кладёте в папку <code>kt01</code>:</p>
         <figure class="code" data-lang="python">
-          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+          <figcaption><span>Терминал</span><span>КТ-01</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm python kt01/inventory.py
 docker compose run --rm python kt01/check.py</pre>
         </figure>
         <figure class="code" data-lang="cpp">
-          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+          <figcaption><span>Терминал</span><span>КТ-01</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm cpp kt01/inventory.cpp
 docker compose run --rm python kt01/check.py</pre>
         </figure>
         <figure class="code" data-lang="go">
-          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+          <figcaption><span>Терминал</span><span>КТ-01</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm go kt01/inventory.go
 docker compose run --rm python kt01/check.py</pre>
         </figure>
         <figure class="code" data-lang="ruby">
-          <figcaption><span>PowerShell · терминал</span><span>КТ-01</span></figcaption>
+          <figcaption><span>Терминал</span><span>КТ-01</span></figcaption>
 <pre>docker compose run --rm reset
 docker compose run --rm ruby kt01/inventory.rb
 docker compose run --rm python kt01/check.py</pre>
@@ -818,11 +857,20 @@ python check.py</pre>
           <table>
             <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
             <tbody>
-              <tr><td>Docker Desktop не запущен</td><td><code>error during connect: … open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.</code></td><td>Команда <code>docker</code> есть, движка нет. Запустите Docker Desktop и дождитесь <b>Engine running</b></td></tr>
-              <tr><td>Docker не установлен или терминал открыт до установки</td><td><code>docker : The term 'docker' is not recognized as the name of a cmdlet…</code></td><td>Закройте и заново откройте PowerShell. Не помогло — Docker не установлен, путь Б</td></tr>
-              <tr><td>Docker Desktop не стартует</td><td>Сообщение о виртуализации или о том, что WSL 2 не установлен или устарел</td><td>Виртуализация включается в BIOS, WSL обновляется командой <code>wsl --update</code> — обоим нужны права администратора. Без них — путь Б</td></tr>
+              <tr data-os="win"><td>Docker Desktop не запущен</td><td><code>error during connect: … open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.</code></td><td>Команда <code>docker</code> есть, движка нет. Запустите Docker Desktop и дождитесь <b>Engine running</b></td></tr>
+              <tr data-os="mac"><td>Docker Desktop не запущен</td><td><code>failed to connect to the docker API at unix:///Users/…/.docker/run/docker.sock; check if the path is correct and if the daemon is running</code></td><td>Команда <code>docker</code> есть, движка нет. Запустите Docker Desktop из «Программ» и дождитесь <b>Engine running</b></td></tr>
+              <tr data-os="linux"><td>Служба Docker не запущена</td><td><code>failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running</code></td><td><code>sudo systemctl start docker</code>; чтобы стартовала вместе с системой — <code>sudo systemctl enable docker</code></td></tr>
+              <tr data-os="win"><td>Docker не установлен или терминал открыт до установки</td><td><code>docker : The term 'docker' is not recognized as the name of a cmdlet…</code></td><td>Закройте и заново откройте PowerShell. Не помогло — Docker не установлен, путь Б</td></tr>
+              <tr data-os="mac"><td>Docker не установлен или ни разу не запускался</td><td><code>zsh: command not found: docker</code></td><td>Команду <code>docker</code> в систему добавляет первый запуск Docker Desktop. Запустите его и откройте новое окно терминала</td></tr>
+              <tr data-os="linux"><td>Docker не установлен</td><td><code>bash: docker: command not found</code></td><td>Установите Docker Engine скриптом из <a href="#s4">§4</a></td></tr>
+              <tr data-os="win"><td>Docker Desktop не стартует</td><td>Сообщение о виртуализации или о том, что WSL 2 не установлен или устарел</td><td>Виртуализация включается в BIOS, WSL обновляется командой <code>wsl --update</code> — обоим нужны права администратора. Без них — путь Б</td></tr>
+              <tr data-os="mac"><td>Docker Desktop не открывается</td><td>Приложение сразу закрывается или macOS сообщает, что его нельзя запустить</td><td>Скачана сборка не для вашего процессора: у Apple Silicon и Intel они разные. Проверьте «Чип» в «Об этом Mac» и скачайте нужную</td></tr>
+              <tr data-os="linux"><td>Пользователь не в группе <code>docker</code></td><td><code>permission denied while trying to connect to the docker API at unix:///var/run/docker.sock</code></td><td><code>sudo usermod -aG docker $USER</code>, затем выйти из системы и войти снова. Пока не перелогинились, работает только <code>sudo docker …</code></td></tr>
               <tr><td>Команда выполнена не в той папке</td><td><code>no configuration file provided: not found</code></td><td>Docker ищет <code>compose.yaml</code> в текущей папке. Перейдите в корень репозитория</td></tr>
-              <tr><td>Порт 27017 занят</td><td><code>Bind for 0.0.0.0:27017 failed: port is already allocated</code></td><td>На компьютере уже работает другой MongoDB — например, наполовину установленная служба. Создайте рядом с <code>compose.yaml</code> файл <code>.env</code> со строкой <code>MONGO_PORT=27018</code> и подключайте Compass к <code>localhost:27018</code></td></tr>
+              <tr><td>Порт 27017 занят другим контейнером</td><td><code>Bind for 0.0.0.0:27017 failed: port is already allocated</code></td><td>Работает другой проект с MongoDB. <code>docker ps</code> покажет его имя, <code>docker stop имя</code> остановит</td></tr>
+              <tr data-os="win"><td>Порт 27017 занят MongoDB, установленной в систему</td><td><code>ports are not available: exposing port TCP 0.0.0.0:27017 … bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.</code></td><td>Кто занял: <code>Get-NetTCPConnection -LocalPort 27017</code>. Служба останавливается командой <code>Stop-Service MongoDB</code> от администратора. Прав нет — возьмите другой порт: <code>Set-Content .env "MONGO_PORT=27018"</code> в корне репозитория, и Compass подключайте к <code>localhost:27018</code></td></tr>
+              <tr data-os="mac"><td>Порт 27017 занят MongoDB, установленной в систему</td><td><code>ports are not available: exposing port TCP 0.0.0.0:27017 -&gt; 127.0.0.1:0: listen tcp 0.0.0.0:27017: bind: address already in use</code></td><td>Кто занял: <code>lsof -nP -iTCP:27017 -sTCP:LISTEN</code>. MongoDB из Homebrew останавливается командой <code>brew services stop mongodb-community</code>. Или другой порт: <code>echo "MONGO_PORT=27018" &gt; .env</code> в корне репозитория, и Compass — к <code>localhost:27018</code></td></tr>
+              <tr data-os="linux"><td>Порт 27017 занят MongoDB, установленной в систему</td><td><code>Error starting userland proxy: listen tcp4 0.0.0.0:27017: bind: address already in use</code></td><td>Кто занял: <code>sudo ss -ltnp 'sport = :27017'</code>. Служба останавливается командой <code>sudo systemctl stop mongod</code>. Или другой порт: <code>echo "MONGO_PORT=27018" &gt; .env</code> в корне репозитория</td></tr>
               <tr><td>В коде в контейнере адрес <code>localhost</code></td><td><code>localhost:27017: [Errno 111] Connection refused</code> в Python, <code>NoServerAvailable</code> в Ruby, <code>server selection error</code> в Go</td><td>Внутри контейнера <code>localhost</code> — сам контейнер. Берите адрес из <code>MONGO_URI</code></td></tr>
               <tr><td>Путь к файлу от папки практики</td><td><code>Файл не найден: solution.py (путь считается от корня репозитория)</code></td><td>Команда выполняется из корня, путь пишется целиком: <code>practice01/solution.py</code></td></tr>
               <tr><td>Числа в <code>check.py</code> не сходятся после второго прогона</td><td>Ошибка <code>E11000</code> или лишние документы</td><td>Базы остались от прошлого запуска. Перед прогоном — <code>docker compose run --rm reset</code></td></tr>

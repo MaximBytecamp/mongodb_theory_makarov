@@ -1,6 +1,7 @@
 /* Справочник по MongoDB — мелкая механика страницы.
    1. Кадр Compass открывается во весь экран по клику.
-   2. Конвейеры агрегации подсвечивают стадию при наведении. */
+   2. Переключатели языка драйвера и операционной системы.
+   3. Конвейеры агрегации подсвечивают стадию при наведении. */
 (() => {
   /* ---- Увеличение кадра ---------------------------------------- */
   const shots = [...document.querySelectorAll('.shot img')];
@@ -47,59 +48,77 @@
     });
   }
 
-  /* ---- Переключатель языка драйвера ---------------------------- */
+  /* ---- Переключатели драйвера и операционной системы ---------- */
   /* Выбор общий для всей книги: сохраняется и подхватывается на любой
-     странице. Блоки кода помечены data-lang, видимостью управляет CSS. */
-  const LANGS = [
-    ['python', 'Python'],
-    ['cpp', 'C++'],
-    ['go', 'Go'],
-    ['ruby', 'Ruby'],
-  ];
-  const STORAGE_KEY = 'mongodb-book-lang';
+     странице. Блоки помечены data-lang или data-os, видимостью управляет CSS. */
+  const detectOs = () => {
+    const platform = (navigator.userAgentData && navigator.userAgentData.platform)
+      || navigator.platform || '';
+    if (/win/i.test(platform)) return 'win';
+    if (/mac|iphone|ipad/i.test(platform)) return 'mac';
+    return 'linux';
+  };
 
-  if (document.querySelector('[data-lang]')) {
+  const running = document.querySelector('.running');
+
+  const switcher = ({ attr, selector, key, label, items, fallback }) => {
+    if (!document.querySelector(selector)) return;
+
     const read = () => {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return LANGS.some(([id]) => id === saved) ? saved : 'python';
+        const saved = localStorage.getItem(key);
+        return items.some(([id]) => id === saved) ? saved : fallback();
       } catch (_) {
-        return 'python';
+        return fallback();
       }
     };
 
     const bar = document.createElement('div');
     bar.className = 'langbar';
-    bar.innerHTML = '<span class="langbar__label">драйвер</span>';
+    bar.innerHTML = `<span class="langbar__label">${label}</span>`;
 
-    const buttons = LANGS.map(([id, title]) => {
+    const buttons = items.map(([id, title]) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = title;
-      button.dataset.setLang = id;
+      button.dataset.value = id;
       bar.appendChild(button);
       return button;
     });
 
-    const apply = lang => {
-      document.documentElement.dataset.lang = lang;
+    const apply = (value, save) => {
+      document.documentElement.setAttribute(`data-${attr}`, value);
       buttons.forEach(button => {
-        button.setAttribute('aria-pressed', String(button.dataset.setLang === lang));
+        button.setAttribute('aria-pressed', String(button.dataset.value === value));
       });
-      try { localStorage.setItem(STORAGE_KEY, lang); } catch (_) { /* приватный режим */ }
+      if (save) {
+        try { localStorage.setItem(key, value); } catch (_) { /* приватный режим */ }
+      }
     };
 
-    buttons.forEach(button => button.addEventListener('click', () => apply(button.dataset.setLang)));
+    buttons.forEach(button => button.addEventListener('click', () => apply(button.dataset.value, true)));
 
-    const running = document.querySelector('.running');
     if (running) running.insertBefore(bar, running.querySelector('.running__folio'));
-    apply(read());
+    apply(read(), false);
 
     // Выбор, сделанный в другой вкладке, подхватывается без перезагрузки.
     window.addEventListener('storage', event => {
-      if (event.key === STORAGE_KEY && event.newValue) apply(read());
+      if (event.key === key && event.newValue) apply(read(), false);
     });
-  }
+  };
+
+  switcher({
+    attr: 'lang', selector: '[data-lang]', key: 'mongodb-book-lang', label: 'драйвер',
+    items: [['python', 'Python'], ['cpp', 'C++'], ['go', 'Go'], ['ruby', 'Ruby']],
+    fallback: () => 'python',
+  });
+
+  // Система определяется сама, пока читатель не выбрал её кнопкой.
+  switcher({
+    attr: 'os', selector: '.book [data-os]', key: 'mongodb-book-os', label: 'система',
+    items: [['win', 'Windows'], ['mac', 'macOS'], ['linux', 'Linux']],
+    fallback: detectOs,
+  });
 
   /* ---- Подсветка стадии конвейера ------------------------------ */
   document.querySelectorAll('.pipeline').forEach(pipeline => {

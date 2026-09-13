@@ -22,6 +22,16 @@
   <script>
     /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
     try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
   </script>
 </head>
 <body>
@@ -52,66 +62,135 @@
         <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/practice01">github.com/MaximBytecamp/mongodb-practice → practice01</a></p>
         <p>В репозитории — задание, разобранное решение на четырёх языках (<code>solution.py</code>, <code>solution.cpp</code>, <code>solution.go</code>, <code>solution.rb</code>) и одна самопроверка <code>check.py</code>: она смотрит не на код, а на состояние базы после работы, поэтому годится для любого языка. Стенд и данные там же.</p>
 
-        <figure class="code" data-lang="python">
+        <figure class="code" data-lang="python" data-os="win">
+          <figcaption><span>PowerShell</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice\practice01
+docker compose run --rm reset          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+<span class="c"># без Docker: bash ../stend/load.sh в Git Bash</span>
+python solution.py             <span class="c"># решение</span>
+python check.py                <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="python" data-os="mac">
           <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice/practice01
 bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 python3 solution.py            <span class="c"># решение</span>
-python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
-        <figure class="code" data-lang="cpp">
+        <figure class="code" data-lang="python" data-os="linux">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+python3 solution.py            <span class="c"># решение</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="win">
+          <figcaption><span>PowerShell</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice\practice01
+<span class="c"># драйвер C++ под Windows собирается долго — всё делаем в контейнерах</span>
+docker compose run --rm reset
+docker compose run --rm cpp practice01/solution.cpp
+docker compose run --rm python practice01/check.py   <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="mac">
           <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice/practice01
 bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 
 g++ -std=c++17 solution.cpp -o solution \
-    $(pkg-config --cflags --libs libmongocxx1)
+    $(pkg-config --cflags --libs libmongocxx1)   <span class="c"># brew install mongo-cxx-driver</span>
 ./solution                     <span class="c"># решение</span>
-python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
-        <figure class="code" data-lang="go">
+        <figure class="code" data-lang="cpp" data-os="linux">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+<span class="c"># в пакетах дистрибутива драйвер C++ старый — всё делаем в контейнерах</span>
+docker compose run --rm reset
+docker compose run --rm cpp practice01/solution.cpp
+docker compose run --rm python practice01/check.py   <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="go" data-os="win">
+          <figcaption><span>PowerShell</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice\practice01
+docker compose run --rm reset          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+<span class="c"># без Docker: bash ../stend/load.sh в Git Bash</span>
+go run solution.go             <span class="c"># решение</span>
+python check.py                <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="go" data-os="mac">
           <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice/practice01
 bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 go run solution.go             <span class="c"># решение</span>
-python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
-        <figure class="code" data-lang="ruby">
+        <figure class="code" data-lang="go" data-os="linux">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+go run solution.go             <span class="c"># решение</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="win">
+          <figcaption><span>PowerShell</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice\practice01
+docker compose run --rm reset          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+<span class="c"># без Docker: bash ../stend/load.sh в Git Bash</span>
+ruby solution.rb               <span class="c"># решение</span>
+python check.py                <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="mac">
           <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice/practice01
 bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 ruby solution.rb               <span class="c"># решение</span>
-python3 check.py               <span class="c"># Пройдено 12 из 12</span></pre>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="linux">
+          <figcaption><span>Терминал</span><span>с нуля до проверки</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice/practice01
+bash ../stend/load.sh          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
+ruby solution.rb               <span class="c"># решение</span>
+python3 check.py               <span class="c"># проверка, одна на все языки</span></pre>
         </figure>
 
         <p>Сервер или драйвер не ставится — те же шаги выполняются в контейнерах, команды одинаковые в PowerShell и bash. Как поднять стенд и что делать при ошибках — <a href="../../temy/01a-stend-v-docker/index.html">глава 1.1а</a>.</p>
         <figure class="code" data-lang="python">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm python practice01/solution.py
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="cpp">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm cpp practice01/solution.cpp
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="go">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm go practice01/solution.go
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="ruby">
-          <figcaption><span>PowerShell · терминал</span><span>через Docker, из корня репозитория</span></figcaption>
+          <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
 <pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm ruby practice01/solution.rb
