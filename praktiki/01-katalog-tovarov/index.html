@@ -18,6 +18,18 @@
     .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
     .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
     .steps b { display: block; margin-bottom: 4px; }
+
+    /* Где лежит решение студента. */
+    .tree { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .tree__head { margin: 0; padding: 9px 16px; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1.4 var(--mono); }
+    .tree__row { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); gap: 14px; padding: 9px 16px; border-bottom: 2px solid var(--rule); align-items: baseline; }
+    .tree__row:last-child { border-bottom: 0; }
+    .tree__row b { font: 700 13.5px/1.4 var(--mono); }
+    .tree__row b::before { content: "├─ "; color: var(--ink-faint); }
+    .tree__row--deep b::before { content: "│  └─ "; }
+    .tree__row span { font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); }
+    .tree__row--you { background: var(--clay-pale); }
+    @media (max-width: 560px) { .tree__row { grid-template-columns: 1fr; gap: 2px; } }
   </style>
   <script>
     /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
@@ -611,17 +623,48 @@ report[<span class="s">"снято с продажи"</span>] = BOX.<span class=
         </figure>
         <p>Последняя проверка — главная. Она смотрит, не появилось ли поле <code>free_shipping</code> в эталонной базе <code>shop</code>. Если появилось, значит, правки ушли не туда: в учебной базе это лечится одной командой, в рабочей — разговором с руководителем.</p>
 
-        <h2 id="s3"><span class="sec">§3</span>Что сдавать</h2>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Что</th><th>Требование</th></tr></thead>
-            <tbody>
-              <tr><td><code>solution.py</code></td><td>Ваш код обеих задач. Функция каталога с параметрами, скрипт приёмки с отчётом</td></tr>
-              <tr><td><code>README.md</code></td><td>Как запустить и какие числа получились. Пять строк, не больше</td></tr>
-              <tr><td>Проверка</td><td><code>python3 check.py</code> проходит все 12 пунктов на свежих данных</td></tr>
-            </tbody>
-          </table>
+        <h2 id="s3"><span class="sec">§3</span>Где писать решение и как сдать</h2>
+        <p>Решения в папке <code>practice01</code> — эталонные: они показывают, к чему прийти. Своё решение вы пишете в собственном репозитории на GitHub и сдаёте ссылкой на него.</p>
+        <div class="tree">
+          <p class="tree__head">mongodb-practice/</p>
+          <div class="tree__row"><b>practice01/</b><span>задание и <code>check.py</code> — отсюда запускается проверка</span></div>
+          <div class="tree__row"><b>stend/</b><span>данные и загрузка</span></div>
+          <div class="tree__row tree__row--you"><b>work/</b><span>ваш репозиторий</span></div>
+          <div class="tree__row tree__row--you tree__row--deep"><b>work/practice01/</b><span>ваше решение и README.md с числами</span></div>
         </div>
+        <ol class="steps">
+          <li><b>Заведите свой репозиторий</b>На GitHub: <b>New repository</b>, имя вроде <code>mongodb-ivanov</code>, без README. Один репозиторий на все работы модуля.</li>
+          <li><b>Склонируйте его в папку <code>work</code></b>Внутри <code>mongodb-practice</code>: <code>git clone https://github.com/&lt;ваш-логин&gt;/mongodb-ivanov.git work</code>. Папка <code>work</code> исключена из репозитория практик — ваши файлы в него не попадут, а стенд и Docker видят их так же, как всё остальное.</li>
+          <li><b>Напишите решение</b>Создайте папку <code>work/practice01</code> и файл <span data-lang="python"><code>solution.py</code></span><span data-lang="cpp"><code>solution.cpp</code></span><span data-lang="go"><code>solution.go</code></span><span data-lang="ruby"><code>solution.rb</code></span>. Эталон из <code>practice01</code> открывайте после своей попытки.<span data-lang="go"> Для Go один раз в папке <code>work</code>: <code>go mod init mongodb-work</code> и <code>go get go.mongodb.org/mongo-driver/v2/mongo</code>.</span></li>
+          <li><b>Проверьте на чистых данных</b>Сброс баз, запуск решения, <code>check.py</code> — команды ниже. Должно получиться «Пройдено 12 из 12».</li>
+          <li><b>Опишите результат</b>Рядом с решением — <code>README.md</code>: как запустить и какие числа получились. Пяти строк достаточно.</li>
+          <li><b>Отправьте и пришлите ссылку</b>Из папки <code>work</code>: <code>git add practice01</code>, <code>git commit -m "ПР-01: каталог товаров"</code>, <code>git push</code>. Преподавателю — ссылку на репозиторий.</li>
+        </ol>
+        <figure class="code" data-lang="python">
+          <figcaption><span>Терминал</span><span>ваше решение: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm python work/practice01/solution.py
+docker compose run --rm python practice01/check.py        # Пройдено 12 из 12</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>Терминал</span><span>ваше решение: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm cpp work/practice01/solution.cpp
+docker compose run --rm python practice01/check.py        # Пройдено 12 из 12</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>ваше решение: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm go work/practice01/solution.go
+docker compose run --rm python practice01/check.py        # Пройдено 12 из 12</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал</span><span>ваше решение: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm ruby work/practice01/solution.rb
+docker compose run --rm python practice01/check.py        # Пройдено 12 из 12</pre>
+        </figure>
+        <p>Без Docker команды те же, что в начале страницы, только решение запускается из своей папки: <code>cd work/practice01</code>, а проверка — из <code>practice01</code>. Скриншот вывода <code>check.py</code> прикладывать не нужно: на приёмке решение запускается заново на свежих данных.</p>
         <div class="margin-note margin-note--warn">
           <b>Что спросят на приёмке</b>
           <p>Почему сортировка по двум ключам, а не по одному. Что вернёт функция для девятой страницы. Почему остатки меняются через <code>$inc</code>. Что произойдёт при повторном запуске скрипта приёмки. Ответ «так было в примере» не принимается — на эти четыре вопроса и написана работа.</p>

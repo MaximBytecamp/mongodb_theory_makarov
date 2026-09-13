@@ -17,6 +17,18 @@
     .blank { margin: 20px 0; padding: 16px 18px; border: 2px dashed var(--ink); background: var(--page); }
     .blank h4 { margin: 0 0 8px; font-family: var(--display); font-size: 17px; }
     .blank ul { margin: 0; }
+
+    /* Где лежит решение студента. */
+    .tree { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .tree__head { margin: 0; padding: 9px 16px; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1.4 var(--mono); }
+    .tree__row { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); gap: 14px; padding: 9px 16px; border-bottom: 2px solid var(--rule); align-items: baseline; }
+    .tree__row:last-child { border-bottom: 0; }
+    .tree__row b { font: 700 13.5px/1.4 var(--mono); }
+    .tree__row b::before { content: "├─ "; color: var(--ink-faint); }
+    .tree__row--deep b::before { content: "│  └─ "; }
+    .tree__row span { font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); }
+    .tree__row--you { background: var(--clay-pale); }
+    @media (max-width: 560px) { .tree__row { grid-template-columns: 1fr; gap: 2px; } }
   </style>
   <script>
     /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
@@ -216,6 +228,88 @@ docker compose run --rm python kt01/check.py</pre>
             <li><b>6. Вывод</b> — два-три предложения для заведующего складом.</li>
           </ul>
         </div>
+
+        <h2 id="s4a"><span class="sec">§4а</span>Где писать работу и как сдать</h2>
+        <p>Работа пишется и сдаётся из того же собственного репозитория, что ПР-01. Если его ещё нет — первые два шага ниже.</p>
+        <div class="tree">
+          <p class="tree__head">mongodb-practice/</p>
+          <div class="tree__row"><b>kt01/</b><span>задание и <code>check.py</code> — отсюда запускается проверка</span></div>
+          <div class="tree__row"><b>stend/</b><span>данные и загрузка</span></div>
+          <div class="tree__row tree__row--you"><b>work/</b><span>ваш репозиторий</span></div>
+          <div class="tree__row tree__row--you tree__row--deep"><b>work/kt01/</b><span>скрипт, inventory.md, копия stocktake.json</span></div>
+        </div>
+        <ol class="steps">
+          <li><b>Заведите свой репозиторий</b>На GitHub: <b>New repository</b>, имя вроде <code>mongodb-ivanov</code>, без README. Один репозиторий на все работы модуля.</li>
+          <li><b>Склонируйте его в папку <code>work</code></b>Внутри <code>mongodb-practice</code>: <code>git clone https://github.com/&lt;ваш-логин&gt;/mongodb-ivanov.git work</code>. Папка <code>work</code> исключена из репозитория практик — ваши файлы в него не попадут, а стенд и Docker видят их так же, как всё остальное.</li>
+          <li><b>Подготовьте папку работы</b>Создайте <code>work/kt01</code> и скопируйте в неё пересчёт и бланк: <span data-os="mac linux"><code>cp kt01/stocktake.json kt01/report_template.md work/kt01/</code></span><span data-os="win"><code>Copy-Item kt01\stocktake.json, kt01\report_template.md work\kt01\</code></span>.</li>
+          <li><b>Напишите скрипт и отчёт</b><span data-lang="python"><code>inventory.py</code></span><span data-lang="cpp"><code>inventory.cpp</code></span><span data-lang="go"><code>inventory.go</code></span><span data-lang="ruby"><code>inventory.rb</code></span> и <code>inventory.md</code> по бланку. Каждое число в отчёте — с запросом, которым оно получено.</li>
+          <li><b>Проверьте дважды</b>Сброс, скрипт, <code>kt01/check.py</code> — затем скрипт ещё раз и снова проверка. Второй запуск не должен ничего сломать. Вывод последней проверки вставьте в отчёт.</li>
+          <li><b>Отправьте и пришлите ссылку</b>Из папки <code>work</code>: <code>git add kt01</code>, <code>git commit -m "КТ-01: инвентаризация склада"</code>, <code>git push</code>.</li>
+        </ol>
+        <figure class="code" data-lang="python">
+          <figcaption><span>Терминал</span><span>ваша работа: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm python work/kt01/inventory.py
+docker compose run --rm python kt01/check.py
+docker compose run --rm python work/kt01/inventory.py      # второй запуск
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="cpp">
+          <figcaption><span>Терминал</span><span>ваша работа: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm cpp work/kt01/inventory.cpp
+docker compose run --rm python kt01/check.py
+docker compose run --rm cpp work/kt01/inventory.cpp      # второй запуск
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>ваша работа: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm go work/kt01/inventory.go
+docker compose run --rm python kt01/check.py
+docker compose run --rm go work/kt01/inventory.go      # второй запуск
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал</span><span>ваша работа: из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm reset
+docker compose run --rm ruby work/kt01/inventory.rb
+docker compose run --rm python kt01/check.py
+docker compose run --rm ruby work/kt01/inventory.rb      # второй запуск
+docker compose run --rm python kt01/check.py</pre>
+        </figure>
+        <p>Так выглядит проверка до начала работы — ни один шаг ещё не сделан. Скрипт говорит, что не так, но не подсказывает ответы:</p>
+        <figure class="code code--out">
+          <figcaption><span>Вывод check.py</span><span>нетронутые данные</span></figcaption>
+<pre>Шаг 1 · пересчёт загружен
+ ✗ коллекция sandbox.stocktake заполнена
+     документов в коллекции: 0, а в файле: 21
+ ✓ повторная загрузка не задвоила данные
+
+Шаг 3 · учёт приведён в соответствие
+ ✗ учётные остатки совпали с фактом по всем позициям
+     учёт ещё не совпадает с пересчётом: сверьте qty_accounted с полем counted по каждому артикулу
+ ✗ отметка о дате инвентаризации проставлена
+     поле last_stocktake должно появиться у позиций с расхождением
+ ✓ позиции без расхождений не переписаны без нужды
+
+Шаг 4 · пустые полки помечены
+ ✗ помечены все позиции с нулевым фактом
+     не у всех позиций с нулевым пересчётом стоит available: false
+ ✓ лишние позиции не помечены
+
+Шаг 5 · журнал инвентаризации
+ ✗ в журнале ровно одна запись
+     записей в sandbox.stocktake_log: 0; повторный запуск не должен добавлять вторую
+ ✗ в записи журнала есть дата и числа
+     ожидаются поля date, positions, mismatches
+
+Эталонные базы
+ ✓ shop.products не тронута
+ ✓ shop.orders не тронута
+
+Не сошлось: 6. Работа возвращается на доработку.</pre>
+        </figure>
 
         <h2 id="s5"><span class="sec">§5</span>Как принимается</h2>
         <p>База пересоздаётся из репозитория, запускается ваш скрипт, числа из отчёта сверяются с тем, что получилось. Расхождение любого числа — работа возвращается.</p>

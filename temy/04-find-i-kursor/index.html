@@ -39,6 +39,14 @@
           <div><dt>Зачем это знать</dt><dd>Читать данные порциями и понимать, почему результат пуст</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_4.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_4.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_4.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_4.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_4.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_4.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_4.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_4.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_4.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_4.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_4.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_4.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_4.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -73,6 +81,17 @@ one = products.<span class="f">find_one</span>({<span class="s">"category"</span
 <span class="k">auto</span> one = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>)));
 std::cout &lt;&lt; one-&gt;<span class="f">view</span>()[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;</pre>
           </figure>
+        <figure class="code" data-lang="go" data-run="no">
+          <figcaption><span>Go · mongo-driver</span><span>тип товара для примеров главы</span></figcaption>
+<pre><span class="c">// Product — поля товара, которые читают примеры. Тип объявлен в главе 1.4.</span>
+<span class="k">type</span> Product <span class="k">struct</span> {
+    ID       <span class="k">string</span> <span class="s">`bson:"_id"`</span>
+    SKU      <span class="k">string</span> <span class="s">`bson:"sku"`</span>
+    Title    <span class="k">string</span> <span class="s">`bson:"title"`</span>
+    Category <span class="k">string</span> <span class="s">`bson:"category"`</span>
+    Price    <span class="k">int</span>    <span class="s">`bson:"price"`</span>
+}</pre>
+        </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>один документ</span></figcaption>
 <pre>products := client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)
@@ -80,6 +99,9 @@ std::cout &lt;&lt; one-&gt;<span class="f">view</span>()[<span class="s">"title"
 <span class="k">var</span> one Product
 err := products.<span class="f">FindOne</span>(ctx,
     bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>}}).<span class="f">Decode</span>(&amp;one)
+<span class="k">if</span> err != <span class="k">nil</span> {
+    log.<span class="f">Fatal</span>(err)
+}
 fmt.<span class="f">Println</span>(one.Title, one.Price)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
@@ -91,30 +113,19 @@ one = products.<span class="f">find</span>({ <span class="s">"category"</span> =
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{'_id': 'p-006',
- 'sku': 'SKU-PH-006',
- 'title': 'Смартфон Xiaomi Redmi Note 13',
- 'brand': 'Xiaomi',
- 'category': 'смартфоны',
- 'price': 18990,
- 'specs': ['6.67"', '128 ГБ'],
- 'stock': [{'warehouse': 'Санкт-Петербург', 'qty': 3},
-           {'warehouse': 'Москва-1', 'qty': 5}],
- 'rating': 3.7,
- 'reviews': 139,
- 'added': datetime.datetime(2026, 4, 11, 0, 0)}</pre>
+<pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>Смартфон Samsung Galaxy A55</pre>
+<pre>Смартфон Xiaomi Redmi Note 13</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>Смартфон Samsung Galaxy A55 32990</pre>
+<pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>Смартфон Samsung Galaxy A55 32990</pre>
+<pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
           </figure>
         </div>
         <p>Смартфонов в коллекции четыре, а вернулся один — тот, который сервер нашёл первым. <strong>Какой именно — не определено</strong>: без сортировки «первый» означает «первый попавшийся», а не «самый дешёвый» или «самый ранний». Если вам нужен конкретный, добавляйте сортировку.</p>
@@ -171,26 +182,34 @@ err := products.<span class="f">FindOne</span>(ctx,
         </div>
         <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>фильтр собирается по частям</span></figcaption>
-<pre><span class="k">def</span> <span class="f">search</span>(category=<span class="k">None</span>, brand=<span class="k">None</span>):
+<pre><span class="k">def</span> <span class="f">search</span>(products, category=<span class="k">None</span>, brand=<span class="k">None</span>):
     query = {}
     <span class="k">if</span> category:
         query[<span class="s">"category"</span>] = category
     <span class="k">if</span> brand:
         query[<span class="s">"brand"</span>] = brand
-    <span class="k">return</span> <span class="f">list</span>(products.<span class="f">find</span>(query))</pre>
+    <span class="k">return</span> <span class="f">list</span>(products.<span class="f">find</span>(query))
+
+found = <span class="f">search</span>(products, category=<span class="s">"смартфоны"</span>)
+<span class="f">print</span>(<span class="s">"смартфонов:"</span>, <span class="f">len</span>(found))</pre>
         </figure>
         <figure class="code" data-lang="cpp">
           <figcaption><span>C++ · mongocxx</span><span>фильтр собирается по частям</span></figcaption>
-<pre><span class="k">auto</span> <span class="f">search</span>(std::string category, std::string brand) {
+<pre><span class="k">auto</span> <span class="f">search</span>(mongocxx::collection&amp; products, std::string category, std::string brand) {
     bsoncxx::builder::basic::document query{};
     <span class="k">if</span> (!category.<span class="f">empty</span>()) query.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, category));
     <span class="k">if</span> (!brand.<span class="f">empty</span>()) query.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"brand"</span>, brand));
     <span class="k">return</span> products.<span class="f">find</span>(query.<span class="f">extract</span>());
-}</pre>
+}
+
+<span class="c">// в main:</span>
+<span class="k">int</span> found = <span class="n">0</span>;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : <span class="f">search</span>(products, <span class="s">"смартфоны"</span>, <span class="s">""</span>)) ++found;
+std::cout &lt;&lt; <span class="s">"смартфонов: "</span> &lt;&lt; found &lt;&lt; std::endl;</pre>
         </figure>
         <figure class="code" data-lang="go">
           <figcaption><span>Go · mongo-driver</span><span>фильтр собирается по частям</span></figcaption>
-<pre><span class="k">func</span> <span class="f">search</span>(ctx context.Context, category, brand <span class="k">string</span>) ([]Product, <span class="k">error</span>) {
+<pre><span class="k">func</span> <span class="f">search</span>(ctx context.Context, products *mongo.Collection, category, brand <span class="k">string</span>) ([]Product, <span class="k">error</span>) {
     query := bson.D{}
     <span class="k">if</span> category != <span class="s">""</span> {
         query = <span class="f">append</span>(query, bson.E{Key: <span class="s">"category"</span>, Value: category})
@@ -205,16 +224,39 @@ err := products.<span class="f">FindOne</span>(ctx,
     }
     <span class="k">var</span> list []Product
     <span class="k">return</span> list, cursor.<span class="f">All</span>(ctx, &amp;list)
-}</pre>
+}
+
+<span class="c">// в main:</span>
+found, _ := <span class="f">search</span>(ctx, products, <span class="s">"смартфоны"</span>, <span class="s">""</span>)
+fmt.<span class="f">Println</span>(<span class="s">"смартфонов:"</span>, <span class="f">len</span>(found))</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>фильтр собирается по частям</span></figcaption>
-<pre><span class="k">def</span> <span class="f">search</span>(category: <span class="k">nil</span>, brand: <span class="k">nil</span>)
+<pre><span class="k">def</span> <span class="f">search</span>(products, category: <span class="k">nil</span>, brand: <span class="k">nil</span>)
   query = {}
   query[<span class="s">"category"</span>] = category <span class="k">if</span> category
   query[<span class="s">"brand"</span>] = brand <span class="k">if</span> brand
-  PRODUCTS.<span class="f">find</span>(query).to_a
-<span class="k">end</span></pre>
+  products.<span class="f">find</span>(query).to_a
+<span class="k">end</span>
+
+found = <span class="f">search</span>(products, category: <span class="s">"смартфоны"</span>)
+<span class="k">puts</span> <span class="s">"смартфонов: #{found.size}"</span></pre>
+        </figure>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>вызов search</span></figcaption>
+<pre>смартфонов: 4</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>вызов search</span></figcaption>
+<pre>смартфонов: 4</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>вызов search</span></figcaption>
+<pre>смартфонов: 4</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>вызов search</span></figcaption>
+<pre>смартфонов: 4</pre>
         </figure>
 
         <h2 id="s3"><span class="sec">§3</span>find: курсор, а не список</h2>
@@ -260,30 +302,30 @@ view.<span class="f">each</span> { |doc| <span class="f">puts</span> <span class
 <pre>Cursor
 p-006 Смартфон Xiaomi Redmi Note 13 18990
 p-007 Смартфон Samsung Galaxy A55 32990
-p-009 Смартфон realme 12 Pro 27490
-p-008 Смартфон Apple iPhone 15 79990</pre>
+p-008 Смартфон Apple iPhone 15 79990
+p-009 Смартфон realme 12 Pro 27490</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>p-007 32990
+<pre>p-006 18990
+p-007 32990
 p-008 79990
-p-006 18990
 p-009 27490</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>тип: *mongo.Cursor
+p-006 Смартфон Xiaomi Redmi Note 13 18990
 p-007 Смартфон Samsung Galaxy A55 32990
 p-008 Смартфон Apple iPhone 15 79990
-p-006 Смартфон Xiaomi Redmi Note 13 18990
 p-009 Смартфон realme 12 Pro 27490</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>класс: Mongo::Collection::View
+p-006 Смартфон Xiaomi Redmi Note 13 18990
 p-007 Смартфон Samsung Galaxy A55 32990
 p-008 Смартфон Apple iPhone 15 79990
-p-006 Смартфон Xiaomi Redmi Note 13 18990
 p-009 Смартфон realme 12 Pro 27490</pre>
           </figure>
         </div>
@@ -364,11 +406,15 @@ view.<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span c
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>второй проход: []</pre>
+<pre>p-006
+p-007
+p-008
+p-009
+второй проход: []</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>второй проход: 0 документов</pre>
+<pre>второй проход: 0</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -376,7 +422,11 @@ view.<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span c
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>второй проход: 4 документов</pre>
+<pre>p-006
+p-007
+p-008
+p-009
+второй проход: 4 документов</pre>
           </figure>
         </div>
         <p>Правило: <strong>если результат нужен дважды, его сохраняют в список</strong>. Типичная ошибка выглядит безобидно — сначала посчитали длину, потом вывели:</p>

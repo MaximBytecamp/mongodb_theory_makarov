@@ -39,6 +39,14 @@
           <div><dt>Зачем это знать</dt><dd>Не тащить на клиент поля, которые никто не покажет</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_5.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_5.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_5.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_5.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_5.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_5.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_5.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_5.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_5.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_5.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_5.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_5.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_5.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -91,8 +99,11 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
     options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{
         {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}))
 
-<span class="k">var</span> rows []bson.M
-cursor.<span class="f">All</span>(ctx, &amp;rows)</pre>
+<span class="k">var</span> rows []bson.D
+cursor.<span class="f">All</span>(ctx, &amp;rows)
+<span class="k">for</span> _, doc := <span class="k">range</span> rows {
+    fmt.<span class="f">Println</span>(doc)
+}</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>только название и цена</span></figcaption>
@@ -103,29 +114,35 @@ cursor.<span class="f">All</span>(ctx, &amp;rows)</pre>
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{'_id': 'p-002', 'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
+<pre>{'_id': 'p-001', 'title': 'Ноутбук Lenovo IdeaPad 3', 'price': 42990}
+{'_id': 'p-002', 'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
 {'_id': 'p-003', 'title': 'Ноутбук HP Pavilion 14', 'price': 67900}
 {'_id': 'p-004', 'title': 'Ноутбук Apple MacBook Air 13', 'price': 114990}
-{'_id': 'p-005', 'title': 'Ноутбук Acer Nitro V15', 'price': 89990}
-{'_id': 'p-001', 'title': 'Ноутбук Lenovo IdeaPad 3', 'price': 42990}</pre>
+{'_id': 'p-005', 'title': 'Ноутбук Acer Nitro V15', 'price': 89990}</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{ "_id" : "p-004", "title" : "Ноутбук Apple MacBook Air 13", "price" : 114990 }
+<pre>{ "_id" : "p-001", "title" : "Ноутбук Lenovo IdeaPad 3", "price" : 42990 }
 { "_id" : "p-002", "title" : "Ноутбук ASUS VivoBook 15", "price" : 51490 }
-…</pre>
+{ "_id" : "p-003", "title" : "Ноутбук HP Pavilion 14", "price" : 67900 }
+{ "_id" : "p-004", "title" : "Ноутбук Apple MacBook Air 13", "price" : 114990 }
+{ "_id" : "p-005", "title" : "Ноутбук Acer Nitro V15", "price" : 89990 }</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{"_id":"p-004","title":"Ноутбук Apple MacBook Air 13","price":{"$numberInt":"114990"}}
+<pre>{"_id":"p-001","title":"Ноутбук Lenovo IdeaPad 3","price":{"$numberInt":"42990"}}
 {"_id":"p-002","title":"Ноутбук ASUS VivoBook 15","price":{"$numberInt":"51490"}}
-…</pre>
+{"_id":"p-003","title":"Ноутбук HP Pavilion 14","price":{"$numberInt":"67900"}}
+{"_id":"p-004","title":"Ноутбук Apple MacBook Air 13","price":{"$numberInt":"114990"}}
+{"_id":"p-005","title":"Ноутбук Acer Nitro V15","price":{"$numberInt":"89990"}}</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{"_id"=&gt;"p-004", "title"=&gt;"Ноутбук Apple MacBook Air 13", "price"=&gt;114990}
+<pre>{"_id"=&gt;"p-001", "title"=&gt;"Ноутбук Lenovo IdeaPad 3", "price"=&gt;42990}
 {"_id"=&gt;"p-002", "title"=&gt;"Ноутбук ASUS VivoBook 15", "price"=&gt;51490}
-…</pre>
+{"_id"=&gt;"p-003", "title"=&gt;"Ноутбук HP Pavilion 14", "price"=&gt;67900}
+{"_id"=&gt;"p-004", "title"=&gt;"Ноутбук Apple MacBook Air 13", "price"=&gt;114990}
+{"_id"=&gt;"p-005", "title"=&gt;"Ноутбук Acer Nitro V15", "price"=&gt;89990}</pre>
           </figure>
         </div>
         <p>Мы просили два поля, а приехало три: <code>_id</code> добавляется всегда. Это единственное поле, которое возвращается по умолчанию даже во включающей проекции, — и убирается только явно.</p>
@@ -146,11 +163,12 @@ cursor.<span class="f">All</span>(ctx, &amp;rows)</pre>
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>C++ · mongocxx</span><span>без ключа</span></figcaption>
-<pre>options.<span class="f">projection</span>(<span class="f">make_document</span>(
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(
     <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
 options.<span class="f">limit</span>(<span class="n">2</span>);
 
-<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : products.<span class="f">find</span>(
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; doc : products.<span class="f">find</span>(
         <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>)), options)) {
     std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
 }</pre>
@@ -162,7 +180,13 @@ options.<span class="f">limit</span>(<span class="n">2</span>);
     options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{
         {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
         {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
-        {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">2</span>))</pre>
+        {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">2</span>))
+
+<span class="k">var</span> rows []bson.D
+cursor.<span class="f">All</span>(ctx, &amp;rows)
+<span class="k">for</span> _, doc := <span class="k">range</span> rows {
+    fmt.<span class="f">Println</span>(doc)
+}</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>без ключа</span></figcaption>
@@ -173,22 +197,22 @@ options.<span class="f">limit</span>(<span class="n">2</span>);
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}
-{'title': 'Ноутбук HP Pavilion 14', 'price': 67900}</pre>
+<pre>{'title': 'Ноутбук Lenovo IdeaPad 3', 'price': 42990}
+{'title': 'Ноутбук ASUS VivoBook 15', 'price': 51490}</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{ "title" : "Ноутбук Apple MacBook Air 13", "price" : 114990 }
+<pre>{ "title" : "Ноутбук Lenovo IdeaPad 3", "price" : 42990 }
 { "title" : "Ноутбук ASUS VivoBook 15", "price" : 51490 }</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{"title":"Ноутбук Apple MacBook Air 13","price":{"$numberInt":"114990"}}
+<pre>{"title":"Ноутбук Lenovo IdeaPad 3","price":{"$numberInt":"42990"}}
 {"title":"Ноутбук ASUS VivoBook 15","price":{"$numberInt":"51490"}}</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{"title"=&gt;"Ноутбук Apple MacBook Air 13", "price"=&gt;114990}
+<pre>{"title"=&gt;"Ноутбук Lenovo IdeaPad 3", "price"=&gt;42990}
 {"title"=&gt;"Ноутбук ASUS VivoBook 15", "price"=&gt;51490}</pre>
           </figure>
         </div>
@@ -215,14 +239,15 @@ std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(*doc) &lt;&lt; std::e
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>всё, кроме трёх полей</span></figcaption>
-<pre><span class="k">var</span> doc bson.M
+<pre><span class="k">var</span> doc bson.D
 products.<span class="f">FindOne</span>(ctx,
     bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-020"</span>}},
     options.<span class="f">FindOne</span>().<span class="f">SetProjection</span>(bson.D{
         {Key: <span class="s">"stock"</span>, Value: <span class="n">0</span>},
         {Key: <span class="s">"specs"</span>, Value: <span class="n">0</span>},
         {Key: <span class="s">"added"</span>, Value: <span class="n">0</span>}}),
-).<span class="f">Decode</span>(&amp;doc)</pre>
+).<span class="f">Decode</span>(&amp;doc)
+fmt.<span class="f">Println</span>(doc)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>всё, кроме трёх полей</span></figcaption>
@@ -234,31 +259,19 @@ products.<span class="f">FindOne</span>(ctx,
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{'_id': 'p-020',
- 'sku': 'SKU-AC-020',
- 'title': 'Кабель USB-C 2 м',
- 'brand': 'OEM',
- 'category': 'аксессуары',
- 'price': 790,
- 'rating': 4.0,
- 'reviews': 39}</pre>
+<pre>{'_id': 'p-020', 'sku': 'SKU-AC-020', 'title': 'Кабель USB-C 2 м', 'brand': 'OEM', 'category': 'аксессуары', 'price': 790, 'rating': 4.0, 'reviews': 39}</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{ "_id" : "p-020", "sku" : "SKU-AC-020", "title" : "Кабель USB-C 2 м",
-  "brand" : "OEM", "category" : "аксессуары", "price" : 790,
-  "rating" : 4.0, "reviews" : 39 }</pre>
+<pre>{ "_id" : "p-020", "sku" : "SKU-AC-020", "title" : "Кабель USB-C 2 м", "brand" : "OEM", "category" : "аксессуары", "price" : 790, "rating" : 4.0, "reviews" : 39 }</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>map[_id:p-020 brand:OEM category:аксессуары price:790
- rating:4 reviews:39 sku:SKU-AC-020 title:Кабель USB-C 2 м]</pre>
+<pre>{"_id":"p-020","sku":"SKU-AC-020","title":"Кабель USB-C 2 м","brand":"OEM","category":"аксессуары","price":{"$numberInt":"790"},"rating":{"$numberDouble":"4.0"},"reviews":{"$numberInt":"39"}}</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{"_id"=&gt;"p-020", "sku"=&gt;"SKU-AC-020", "title"=&gt;"Кабель USB-C 2 м",
- "brand"=&gt;"OEM", "category"=&gt;"аксессуары", "price"=&gt;790,
- "rating"=&gt;4.0, "reviews"=&gt;39}</pre>
+<pre>{"_id"=&gt;"p-020", "sku"=&gt;"SKU-AC-020", "title"=&gt;"Кабель USB-C 2 м", "brand"=&gt;"OEM", "category"=&gt;"аксессуары", "price"=&gt;790, "rating"=&gt;4.0, "reviews"=&gt;39}</pre>
           </figure>
         </div>
         <p>Три поля исчезли, остальные вернулись как есть. У подхода есть особенность: <strong>новое поле, добавленное в документы завтра, попадёт в такой ответ автоматически</strong>. Иногда это удобно, иногда — способ случайно отдать наружу поле, которое отдавать не собирались. В ответах API надёжнее перечислять нужные поля явно.</p>
@@ -272,13 +285,21 @@ products.<span class="f">FindOne</span>(ctx,
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>Так нельзя</span><span>C++</span></figcaption>
-<pre>options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="n">0</span>)));
-products.<span class="f">find</span>(<span class="f">make_document</span>(), options);</pre>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="n">0</span>)));
+
+<span class="c">// запрос уходит на сервер при первом чтении курсора — там и ошибка</span>
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), options)) {}
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; error) {
+    std::cout &lt;&lt; error.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Так нельзя</span><span>Go</span></figcaption>
-<pre>products.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetProjection</span>(
-    bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"stock"</span>, Value: <span class="n">0</span>}}))</pre>
+<pre>_, err := products.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetProjection</span>(
+    bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"stock"</span>, Value: <span class="n">0</span>}}))
+fmt.<span class="f">Println</span>(err)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Так нельзя</span><span>Ruby</span></figcaption>
@@ -286,23 +307,19 @@ products.<span class="f">find</span>(<span class="f">make_document</span>(), opt
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
-<pre>OperationFailure: Cannot do exclusion on field stock
-in inclusion projection</pre>
+<pre>OperationFailure: Cannot do exclusion on field stock in inclusion projection</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
-<pre>Cannot do exclusion on field stock in inclusion projection:
-server error code 31254</pre>
+<pre>Cannot do exclusion on field stock in inclusion projection: server error code 31254: generic server error</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
-<pre>(Location31254) Cannot do exclusion on field stock
-in inclusion projection</pre>
+<pre>(Location31254) Cannot do exclusion on field stock in inclusion projection</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
-<pre>[31254:Location31254]: Cannot do exclusion on field stock
-in inclusion projection</pre>
+<pre>rb:39:in `block in execute'</pre>
           </figure>
         </div>
         <p>Логика простая: вы либо перечисляете белый список, либо чёрный. Смешение неоднозначно — непонятно, что делать с полями, которых нет ни в одном списке. Единственное исключение — <code>_id</code>: его разрешено выключать в любой проекции, потому что он подразумевается всегда.</p>
@@ -346,7 +363,13 @@ options.<span class="f">limit</span>(<span class="n">3</span>);
     bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}},
     options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{
         {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
-        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"delivery.city"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">3</span>))</pre>
+        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"delivery.city"</span>, Value: <span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">3</span>))
+
+<span class="k">var</span> rows []bson.D
+cursor.<span class="f">All</span>(ctx, &amp;rows)
+<span class="k">for</span> _, doc := <span class="k">range</span> rows {
+    fmt.<span class="f">Println</span>(doc)
+}</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>город доставки и сумма</span></figcaption>
@@ -359,23 +382,26 @@ options.<span class="f">limit</span>(<span class="n">3</span>);
         <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>{'number': '2026-0001', 'total': 5980, 'delivery': {'city': 'Ярославль'}}
-{'number': '2026-0011', 'total': 85980, 'delivery': {'city': 'Санкт-Петербург'}}
-{'number': '2026-0012', 'total': 222740, 'delivery': {'city': 'Новосибирск'}}</pre>
+{'number': '2026-0003', 'total': 86880, 'delivery': {'city': 'Новосибирск'}}
+{'number': '2026-0004', 'total': 106210, 'delivery': {'city': 'Москва'}}</pre>
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{ "number" : "2026-0004", "total" : 106210, "delivery" : { "city" : "Москва" } }
-{ "number" : "2026-0010", "total" : 120340, "delivery" : { "city" : "Ярославль" } }</pre>
+<pre>{ "number" : "2026-0001", "total" : 5980, "delivery" : { "city" : "Ярославль" } }
+{ "number" : "2026-0003", "total" : 86880, "delivery" : { "city" : "Новосибирск" } }
+{ "number" : "2026-0004", "total" : 106210, "delivery" : { "city" : "Москва" } }</pre>
         </figure>
         <figure class="code code--out" data-lang="go">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>map[delivery:map[city:Москва] number:2026-0004 total:106210]
-map[delivery:map[city:Ярославль] number:2026-0010 total:120340]</pre>
+<pre>{"number":"2026-0001","total":{"$numberInt":"5980"},"delivery":{"city":"Ярославль"}}
+{"number":"2026-0003","total":{"$numberInt":"86880"},"delivery":{"city":"Новосибирск"}}
+{"number":"2026-0004","total":{"$numberInt":"106210"},"delivery":{"city":"Москва"}}</pre>
         </figure>
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>{"number"=&gt;"2026-0004", "total"=&gt;106210, "delivery"=&gt;{"city"=&gt;"Москва"}}
-{"number"=&gt;"2026-0010", "total"=&gt;120340, "delivery"=&gt;{"city"=&gt;"Ярославль"}}</pre>
+<pre>{"number"=&gt;"2026-0001", "total"=&gt;5980, "delivery"=&gt;{"city"=&gt;"Ярославль"}}
+{"number"=&gt;"2026-0003", "total"=&gt;86880, "delivery"=&gt;{"city"=&gt;"Новосибирск"}}
+{"number"=&gt;"2026-0004", "total"=&gt;106210, "delivery"=&gt;{"city"=&gt;"Москва"}}</pre>
         </figure>
         <p>Структура сохраняется: <code>delivery</code> остаётся вложенным документом, просто с одним полем внутри. «Поднять» значение на верхний уровень проекция не умеет — для этого нужен <code>$project</code> в агрегации, глава 4.2.</p>
 

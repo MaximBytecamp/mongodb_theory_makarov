@@ -46,6 +46,14 @@
           <div><dt>Зачем это знать</dt><dd>Показывать списки страницами и не выгружать коллекцию целиком</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_6.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_6.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_6.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_6.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_6.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_6.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_6.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_6.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_6.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_6.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_6.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_6.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_6.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>. Заготовка при первом запуске создаёт коллекцию <code>sandbox.bench</code> на 20 000 документов — на ней замер из §6.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -107,14 +115,30 @@ cursor.<span class="f">All</span>(ctx, &amp;list)
         .<span class="f">limit</span>(<span class="n">5</span>)
         .<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="f">format</span>(<span class="s">"%8d  %s"</span>, doc[<span class="s">"price"</span>], doc[<span class="s">"title"</span>]) }</pre>
           </figure>
-          <figure class="code code--out">
-            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre> 114990 Ноутбук Apple MacBook Air 13
+        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span> 114990 Ноутбук Apple MacBook Air 13
   89990 Ноутбук Acer Nitro V15
   79990 Смартфон Apple iPhone 15
   67900 Ноутбук HP Pavilion 14
   51490 Ноутбук ASUS VivoBook 15</pre>
-          </figure>
+        </figure>
+        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>114990  Ноутбук Apple MacBook Air 13
+89990  Ноутбук Acer Nitro V15
+79990  Смартфон Apple iPhone 15
+67900  Ноутбук HP Pavilion 14
+51490  Ноутбук ASUS VivoBook 15</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>  114990  Ноутбук Apple MacBook Air 13
+   89990  Ноутбук Acer Nitro V15
+   79990  Смартфон Apple iPhone 15
+   67900  Ноутбук HP Pavilion 14
+   51490  Ноутбук ASUS VivoBook 15</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>  114990  Ноутбук Apple MacBook Air 13
+   89990  Ноутбук Acer Nitro V15
+   79990  Смартфон Apple iPhone 15
+   67900  Ноутбук HP Pavilion 14
+   51490  Ноутбук ASUS VivoBook 15</pre>
+        </figure>
         </div>
         <p>В <code>mongosh</code> направление задаётся тем же способом, но одним документом — в таком виде запрос и уходит на сервер:</p>
         <figure class="code">
@@ -138,6 +162,7 @@ cursor.<span class="f">All</span>(ctx, &amp;list)
         <figure class="code" data-lang="cpp">
           <figcaption><span>C++ · mongocxx</span><span>по категории, внутри — по цене</span></figcaption>
 <pre><span class="c">// порядок ключей в документе сортировки и есть порядок применения</span>
+mongocxx::options::find options;
 options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
 
 <span class="k">auto</span> cursor = products.<span class="f">find</span>(<span class="f">make_document</span>(), options);</pre>
@@ -148,7 +173,8 @@ options.<span class="f">sort</span>(<span class="f">make_document</span>(<span c
 cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
     options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{
         {Key: <span class="s">"category"</span>, Value: <span class="n">1</span>},
-        {Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}))</pre>
+        {Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}))
+<span class="k">defer</span> cursor.<span class="f">Close</span>(ctx)</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>по категории, внутри — по цене</span></figcaption>
@@ -191,7 +217,13 @@ cursor, _ := events.<span class="f">Find</span>(ctx,
         <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"ts"</span>, Value: <span class="n">1</span>},
             {Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}).
         <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}).
-        <span class="f">SetLimit</span>(<span class="n">3</span>))</pre>
+        <span class="f">SetLimit</span>(<span class="n">3</span>))
+
+<span class="k">var</span> rows []bson.D
+cursor.<span class="f">All</span>(ctx, &amp;rows)
+<span class="k">for</span> _, doc := <span class="k">range</span> rows {
+    fmt.<span class="f">Println</span>(doc)
+}</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>три самых свежих события</span></figcaption>
@@ -241,7 +273,13 @@ cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
         <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}).
         <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}).
         <span class="f">SetSkip</span>((page - <span class="n">1</span>) * perPage).
-        <span class="f">SetLimit</span>(perPage))</pre>
+        <span class="f">SetLimit</span>(perPage))
+
+<span class="k">var</span> rows []bson.M
+cursor.<span class="f">All</span>(ctx, &amp;rows)
+<span class="k">for</span> _, doc := <span class="k">range</span> rows {
+    fmt.<span class="f">Println</span>(doc[<span class="s">"title"</span>])
+}</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>вторая страница по пять</span></figcaption>
@@ -253,14 +291,30 @@ products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</sp
         .<span class="f">limit</span>(per_page)
         .<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span class="s">"title"</span>] }</pre>
           </figure>
-          <figure class="code code--out">
-            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>Кабель USB-C 2 м
+        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
 Клавиатура Keychron K2
 Монитор Dell P2422H
 Мышь Logitech MX Master 3S
 Наушники Sony WH-1000XM5</pre>
-          </figure>
+        </figure>
+        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+Клавиатура Keychron K2
+Монитор Dell P2422H
+Мышь Logitech MX Master 3S
+Наушники Sony WH-1000XM5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+Клавиатура Keychron K2
+Монитор Dell P2422H
+Мышь Logitech MX Master 3S
+Наушники Sony WH-1000XM5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+Клавиатура Keychron K2
+Монитор Dell P2422H
+Мышь Logitech MX Master 3S
+Наушники Sony WH-1000XM5</pre>
+        </figure>
         </div>
         <p>Формула страницы всегда одна: <code>skip = (номер страницы − 1) × размер страницы</code>. Наглядно это выглядит так — серые документы сервер пропускает, зелёные отдаёт:</p>
         <div class="pages">
@@ -291,7 +345,8 @@ products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</sp
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>Способ 1 · skip</span><span>C++</span></figcaption>
-<pre>options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<pre>mongocxx::options::find options;
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
 options.<span class="f">skip</span>(<span class="n">19990</span>);
 options.<span class="f">limit</span>(<span class="n">10</span>);
 
@@ -318,7 +373,9 @@ col.<span class="f">find</span>(<span class="f">make_document</span>(), options)
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>Способ 2 · якорь</span><span>C++</span></figcaption>
-<pre>options.<span class="f">skip</span>(<span class="n">0</span>);
+<pre>mongocxx::options::find options;
+options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+options.<span class="f">limit</span>(<span class="n">10</span>);
 
 col.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>,
         <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, last_seen_id)))), options);</pre>
@@ -361,11 +418,11 @@ col.<span class="f">find</span>(<span class="f">make_document</span>(<span class
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>C++ · mongocxx</span><span>счёт по фильтру</span></figcaption>
-<pre>std::cout &lt;&lt; products.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
-std::cout &lt;&lt; products.<span class="f">count_documents</span>(
+<pre>std::cout &lt;&lt; <span class="s">"всего товаров: "</span> &lt;&lt; products.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"ноутбуков: "</span> &lt;&lt; products.<span class="f">count_documents</span>(
     <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>))) &lt;&lt; std::endl;
-std::cout &lt;&lt; orders.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
-std::cout &lt;&lt; orders.<span class="f">count_documents</span>(
+std::cout &lt;&lt; <span class="s">"заказов: "</span> &lt;&lt; orders.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"доставленных: "</span> &lt;&lt; orders.<span class="f">count_documents</span>(
     <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>))) &lt;&lt; std::endl;</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -376,6 +433,9 @@ fmt.<span class="f">Println</span>(<span class="s">"всего товаров:"<
 n, _ = products.<span class="f">CountDocuments</span>(ctx,
     bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}})
 fmt.<span class="f">Println</span>(<span class="s">"ноутбуков:"</span>, n)
+
+n, _ = orders.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"заказов:"</span>, n)
 
 n, _ = orders.<span class="f">CountDocuments</span>(ctx,
     bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}})
@@ -388,13 +448,26 @@ fmt.<span class="f">Println</span>(<span class="s">"доставленных:"</
 <span class="f">puts</span> <span class="s">"заказов: #{orders.count_documents({})}"</span>
 <span class="f">puts</span> <span class="s">"доставленных: #{orders.count_documents({ 'status' =&gt; 'доставлен' })}"</span></pre>
           </figure>
-          <figure class="code code--out">
-            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>всего товаров: 21
+        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
 ноутбуков: 5
 заказов: 120
 доставленных: 69</pre>
-          </figure>
+        </figure>
+        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+ноутбуков: 5
+заказов: 120
+доставленных: 69</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+ноутбуков: 5
+заказов: 120
+доставленных: 69</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+ноутбуков: 5
+заказов: 120
+доставленных: 69</pre>
+        </figure>
         </div>
         <p>Пустой документ <code>{}</code> обязателен — метод не имеет значения по умолчанию, и это сделано намеренно: «посчитать всё» должно быть написано явно. Есть ещё <code>estimated_document_count()</code> — он берёт число из служебных данных коллекции мгновенно, но не принимает фильтр и может слегка расходиться с действительностью. Для счётчика на главной странице годится, для отчёта — нет.</p>
 

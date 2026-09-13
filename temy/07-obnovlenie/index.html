@@ -39,6 +39,14 @@
           <div><dt>Зачем это знать</dt><dd>Менять данные точечно и понимать, что именно изменилось</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_7.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_7.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_7.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_7.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_7.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_7.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_7.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_7.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_7.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_7.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_7.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_7.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_7.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>. Заготовка добавляет в песочницу три товара из главы 1.3 и копию заказов <code>sandbox.orders</code>, если их там нет.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -74,7 +82,7 @@
         </figure>
         <figure class="code" data-lang="go">
           <figcaption><span>Go · mongo-driver</span><span>подключение</span></figcaption>
-<pre>box := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)</pre>
+<pre>box = client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>подключение</span></figcaption>
@@ -185,24 +193,30 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>C++ · mongocxx</span><span>то же значение второй раз</span></figcaption>
-<pre>res = box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-101"</span>)),
+<pre><span class="k">auto</span> res = box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-101"</span>)),
                      <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>,
-                         <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">2690</span>)))));</pre>
+                         <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">2690</span>)))));
+std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>() &lt;&lt; <span class="s">" modified: "</span> &lt;&lt; res-&gt;<span class="f">modified_count</span>() &lt;&lt; std::endl;</pre>
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>то же значение второй раз</span></figcaption>
-<pre>res, _ = box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-101"</span>}},
-    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">2690</span>}}}})</pre>
+<pre>res, _ := box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-101"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">2690</span>}}}})
+fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount, <span class="s">"modified:"</span>, res.ModifiedCount)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>то же значение второй раз</span></figcaption>
 <pre>res = box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-101"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">2690</span> } })
 <span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
-          <figure class="code code--out">
-            <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
-<pre>matched: 1 modified: 0</pre>
-          </figure>
+        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        </figure>
         </div>
         <div class="table-scroll">
           <table>
@@ -230,6 +244,7 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
     {<span class="s">"$inc"</span>: {<span class="s">"reviews"</span>: <span class="n">1</span>},
      <span class="s">"$unset"</span>: {<span class="s">"discount"</span>: <span class="s">""</span>}})
 
+<span class="f">print</span>(<span class="s">"matched:"</span>, res.matched_count, <span class="s">"modified:"</span>, res.modified_count)
 <span class="f">print</span>(box.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-003"</span>},
                   {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"reviews"</span>: <span class="n">1</span>, <span class="s">"discount"</span>: <span class="n">1</span>}))</pre>
           </figure>
@@ -252,7 +267,14 @@ std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span cla
         {Key: <span class="s">"$unset"</span>, Value: bson.D{{Key: <span class="s">"discount"</span>, Value: <span class="s">""</span>}}},
     })
 
-fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount, <span class="s">"modified:"</span>, res.ModifiedCount)</pre>
+fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.MatchedCount, <span class="s">"modified:"</span>, res.ModifiedCount)
+
+<span class="k">var</span> doc bson.D
+box.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-003"</span>}},
+    options.<span class="f">FindOne</span>().<span class="f">SetProjection</span>(bson.D{
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"discount"</span>, Value: <span class="n">1</span>}}),
+).<span class="f">Decode</span>(&amp;doc)
+fmt.<span class="f">Println</span>(doc)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>+1 к отзывам, скидка снята</span></figcaption>
@@ -262,7 +284,8 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
     <span class="s">"$unset"</span> =&gt; { <span class="s">"discount"</span> =&gt; <span class="s">""</span> } }
 )
 
-<span class="f">puts</span> box.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-003"</span> },
+<span class="k">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span>
+<span class="k">puts</span> box.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-003"</span> },
               projection: { <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"reviews"</span> =&gt; <span class="n">1</span>,
                             <span class="s">"discount"</span> =&gt; <span class="n">1</span> }).first.inspect</pre>
           </figure>
@@ -328,10 +351,14 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
 
 <span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
-          <figure class="code code--out">
-            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>matched: 6 modified: 6</pre>
-          </figure>
+        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        </figure>
         </div>
         <p>Шесть документов: три исходных аксессуара, коврик и две позиции, добавленные в главе о вставке. Поле <code>free_shipping</code> появилось у них и только у них — остальные товары не изменились.</p>
         <div class="margin-note">
@@ -397,7 +424,8 @@ options.<span class="f">upsert</span>(<span class="k">true</span>);
         <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Товар из upsert"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">100</span>)))),
     options);
 
-std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>() &lt;&lt; std::endl;</pre>
+std::cout &lt;&lt; <span class="s">"matched: "</span> &lt;&lt; res-&gt;<span class="f">matched_count</span>()
+          &lt;&lt; <span class="s">" upserted_id: "</span> &lt;&lt; res-&gt;<span class="f">upserted_id</span>()-&gt;<span class="f">get_string</span>().value &lt;&lt; std::endl;</pre>
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>документа ещё нет</span></figcaption>
@@ -428,7 +456,7 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>matched: 0, upserted_id заполнен</pre>
+<pre>matched: 0 upserted_id: p-999</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -446,7 +474,9 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
 <pre>stats.<span class="f">update_one</span>(
     {<span class="s">"product_id"</span>: <span class="s">"p-003"</span>, <span class="s">"date"</span>: today},
     {<span class="s">"$inc"</span>: {<span class="s">"views"</span>: <span class="n">1</span>}},
-    upsert=<span class="k">True</span>)</pre>
+    upsert=<span class="k">True</span>)
+
+<span class="f">print</span>(stats.<span class="f">find_one</span>({<span class="s">"product_id"</span>: <span class="s">"p-003"</span>, <span class="s">"date"</span>: today}, {<span class="s">"_id"</span>: <span class="n">0</span>}))</pre>
         </figure>
         <figure class="code" data-lang="cpp">
           <figcaption><span>C++ · mongocxx</span><span>счётчик, который создаётся сам</span></figcaption>
@@ -456,14 +486,26 @@ options.<span class="f">upsert</span>(<span class="k">true</span>);
 stats.<span class="f">update_one</span>(
     <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"product_id"</span>, <span class="s">"p-003"</span>), <span class="f">kvp</span>(<span class="s">"date"</span>, today)),
     <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$inc"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"views"</span>, <span class="n">1</span>)))),
-    options);</pre>
+    options);
+
+mongocxx::options::find only;
+only.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>)));
+<span class="k">auto</span> doc = stats.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"product_id"</span>, <span class="s">"p-003"</span>), <span class="f">kvp</span>(<span class="s">"date"</span>, today)), only);
+std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(*doc) &lt;&lt; std::endl;</pre>
         </figure>
         <figure class="code" data-lang="go">
           <figcaption><span>Go · mongo-driver</span><span>счётчик, который создаётся сам</span></figcaption>
 <pre>stats.<span class="f">UpdateOne</span>(ctx,
     bson.D{{Key: <span class="s">"product_id"</span>, Value: <span class="s">"p-003"</span>}, {Key: <span class="s">"date"</span>, Value: today}},
     bson.D{{Key: <span class="s">"$inc"</span>, Value: bson.D{{Key: <span class="s">"views"</span>, Value: <span class="n">1</span>}}}},
-    options.<span class="f">UpdateOne</span>().<span class="f">SetUpsert</span>(<span class="k">true</span>))</pre>
+    options.<span class="f">UpdateOne</span>().<span class="f">SetUpsert</span>(<span class="k">true</span>))
+
+<span class="k">var</span> doc bson.D
+stats.<span class="f">FindOne</span>(ctx,
+    bson.D{{Key: <span class="s">"product_id"</span>, Value: <span class="s">"p-003"</span>}, {Key: <span class="s">"date"</span>, Value: today}},
+    options.<span class="f">FindOne</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}}),
+).<span class="f">Decode</span>(&amp;doc)
+fmt.<span class="f">Println</span>(doc)</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>счётчик, который создаётся сам</span></figcaption>
@@ -471,28 +513,29 @@ stats.<span class="f">update_one</span>(
   { <span class="s">"product_id"</span> =&gt; <span class="s">"p-003"</span>, <span class="s">"date"</span> =&gt; today },
   { <span class="s">"$inc"</span> =&gt; { <span class="s">"views"</span> =&gt; <span class="n">1</span> } },
   upsert: <span class="k">true</span>
-)</pre>
+)
+
+<span class="k">puts</span> stats.<span class="f">find</span>({ <span class="s">"product_id"</span> =&gt; <span class="s">"p-003"</span>, <span class="s">"date"</span> =&gt; today },
+                projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span> }).first.inspect</pre>
         </figure>
 
         <h2 id="s7"><span class="sec">§7</span>Обновление без операторов</h2>
         <p>Если забыть <code>$set</code> и передать просто документ, драйвер не пропустит запрос дальше:</p>
         <figure class="code code--out" data-lang="python">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>ValueError: update only works with $ operators</pre>
+<pre>{'product_id': 'p-003', 'date': '2026-09-13', 'views': 7}</pre>
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>mongocxx::logic_error: update document must only contain
-update operators (ключи, начинающиеся с $)</pre>
+<pre>{ "product_id" : "p-003", "date" : "2026-09-13", "views" : 10 }</pre>
         </figure>
         <figure class="code code--out" data-lang="go">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>update document must contain key beginning with '$'</pre>
+<pre>{"product_id":"p-003","date":"2026-09-13","views":{"$numberInt":"9"}}</pre>
         </figure>
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>WARN: Invalid update document provided. Updates documents must
-contain only atomic modifiers. The "price" key is invalid.</pre>
+<pre>{"product_id"=&gt;"p-003", "date"=&gt;"2026-09-13", "views"=&gt;8}</pre>
         </figure>
         <p>Метод <code>replace_one</code> при этом <strong>заменяет документ целиком</strong>. Все поля, которых нет в новом документе, исчезают; сохраняется только <code>_id</code>.</p>
         <div class="table-scroll">

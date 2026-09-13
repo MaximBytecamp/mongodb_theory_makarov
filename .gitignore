@@ -2,3 +2,6 @@
 node_modules/
 tools/node_modules/
 *.log
+__pycache__/
+# результаты прогона примеров — рабочие артефакты tools/examples.py
+tools/examples-results/

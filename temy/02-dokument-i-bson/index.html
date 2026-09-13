@@ -53,6 +53,14 @@
           <div><dt>Зачем это знать</dt><dd>Понимать, что именно лежит в базе и почему <code>"65000"</code> и <code>65000</code> — разные значения</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_2.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_2.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_2.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_2.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_2.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_2.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_2.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_2.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_2.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_2.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_2.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_2.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_2.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>. Значения <code>_id</code> и время создания у вас будут другими: их выдаёт сервер в момент вставки.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -283,6 +291,9 @@ std::cout &lt;&lt; <span class="s">"время создания: "</span> &lt;&l
     {Key: <span class="s">"title"</span>, Value: <span class="s">"Коврик для мыши XL"</span>},
     {Key: <span class="s">"price"</span>, Value: <span class="n">1290</span>},
 })
+<span class="k">if</span> err != <span class="k">nil</span> {
+    log.<span class="f">Fatal</span>(err)
+}
 
 oid := res.InsertedID.(bson.ObjectID)
 fmt.<span class="f">Println</span>(<span class="s">"присвоенный _id:"</span>, oid.<span class="f">Hex</span>())
@@ -302,26 +313,26 @@ oid = result.inserted_id
         </figure>
         <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>присвоенный _id: 6aa08c51503a4f190a669c88
+<pre>присвоенный _id: 6aa71d38b90e39ca06d0652f
 тип: ObjectId
-время создания: 2026-09-08 22:29:37+00:00</pre>
+время создания: 2026-09-13 22:01:28+00:00</pre>
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>присвоенный _id: 6aa36d266c58a79a8104b912
-время создания: 1789095206 (секунд от эпохи)</pre>
+<pre>присвоенный _id: 6aa720f5a9158e554300ecd1
+время создания: 1789337845</pre>
         </figure>
         <figure class="code code--out" data-lang="go">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>присвоенный _id: 6aa36d14d2ec35eb1ac3c85b
+<pre>присвоенный _id: 6aa720b3dc05457956c79cee
 тип: bson.ObjectID
-время создания: 2026-09-11 02:53:08 +0000 UTC</pre>
+время создания: 2026-09-13 22:16:19 +0000 UTC</pre>
         </figure>
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>присвоенный _id: 6aa36d00e48d0ebccd4e4acb
+<pre>присвоенный _id: 6aa71d3c542d887c86b10f0e
 тип: BSON::ObjectId
-время создания: 2026-09-11 02:52:48 UTC</pre>
+время создания: 2026-09-13 22:01:32 UTC</pre>
         </figure>
 
         <h2 id="s6"><span class="sec">§6</span>ObjectId по байтам</h2>

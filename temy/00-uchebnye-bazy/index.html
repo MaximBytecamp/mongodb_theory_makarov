@@ -41,8 +41,33 @@
     .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
     .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
     .steps > li b { display: block; margin-bottom: 3px; }
+
+    /* Схема папок репозитория. */
+    .tree { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .tree__head { padding: 9px 16px; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1.4 var(--mono); }
+    .tree__row { display: grid; grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); gap: 14px; padding: 9px 16px; border-bottom: 2px solid var(--rule); align-items: baseline; }
+    .tree__row:last-child { border-bottom: 0; }
+    .tree__row b { font: 700 13.5px/1.4 var(--mono); }
+    .tree__row b::before { content: "├─ "; color: var(--ink-faint); }
+    .tree__row:last-child b::before { content: "└─ "; }
+    .tree__row span { font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); }
+    .tree__row--hot { background: var(--leaf-pale); }
+    .tree__row--you { background: var(--clay-pale); }
+    @media (max-width: 560px) { .tree__row { grid-template-columns: 1fr; gap: 2px; } }
+
+    /* Файл-заготовка: где стоит пример. */
+    .slot { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .slot > div { padding: 10px 16px; border-bottom: 2px solid var(--rule); font: 600 13px/1.5 var(--mono); overflow-wrap: anywhere; }
+    .slot > div:last-child { border-bottom: 0; }
+    .slot small { display: block; font: 600 10px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); }
+    .slot__here { background: var(--leaf-pale); position: relative; }
+    .slot__here::after { content: "← сюда пример из главы"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font: 700 12px/1 var(--mono); color: var(--leaf); animation: slot-blink 1.4s ease-in-out infinite; }
+    @keyframes slot-blink { 50% { opacity: .35; } }
+    @media (max-width: 560px) { .slot__here::after { position: static; display: block; transform: none; margin-top: 6px; } }
   </style>
   <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
     /* Система проставляется до отрисовки: без сохранённого выбора определяется по браузеру. */
     (function () {
       var os = null;
@@ -92,9 +117,11 @@
             <li><a href="#s6">Способ 2. Скрипт с mongoimport</a></li>
             <li><a href="#s7">Способ 3. Вручную через Compass</a></li>
             <li><a href="#s8">Проверить, что всё загрузилось</a></li>
-            <li><a href="#s9">Частые ошибки</a></li>
-            <li><a href="#s10">Проверьте себя</a></li>
-            <li><a href="#s11">Шпаргалка</a></li>
+            <li><a href="#s9">Рабочее место: драйвер и первый запуск</a></li>
+            <li><a href="#s10">Как запускать примеры из глав</a></li>
+            <li><a href="#s11">Частые ошибки</a></li>
+            <li><a href="#s12">Проверьте себя</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
           </ol>
         </nav>
 
@@ -418,11 +445,221 @@ sandbox.warehouse 21</pre>
         </figure>
         <p>Двенадцать строк, и числа совпадают с таблицей — данные на месте, можно переходить к главе 1.1. Не хватает строки — коллекцию забыли или назвали иначе. Число больше ожидаемого — файл загрузили дважды, коллекцию нужно удалить и загрузить снова.</p>
 
-        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <h2 id="s9"><span class="sec">§9</span>Рабочее место: драйвер и первый запуск</h2>
+        <p>Данные на месте. Осталось подготовить то, чем вы будете к ним обращаться: драйвер своего языка и папку, где лежат заготовки примеров. Язык выбирается кнопкой «драйвер» вверху страницы, система — кнопкой «система»: команды ниже меняются вместе с ними.</p>
+        <p>В скачанном репозитории всё уже разложено по папкам:</p>
+        <div class="tree">
+          <p class="tree__head" style="margin:0">mongodb-practice/</p>
+          <div class="tree__row tree__row--hot"><b>lessons/</b><span>заготовки для примеров из глав: <code>ch1_2.py</code> … <code>ch1_8.cpp</code> — по файлу на главу и язык</span></div>
+          <div class="tree__row"><b>hello/</b><span>проверка подключения — первый запуск</span></div>
+          <div class="tree__row"><b>stend/</b><span>учебные данные и скрипты загрузки из §6</span></div>
+          <div class="tree__row"><b>practice01/</b><span>ПР-01: задание, эталонное решение, <code>check.py</code></span></div>
+          <div class="tree__row"><b>kt01/</b><span>КТ-01: задание, данные пересчёта, <code>check.py</code></span></div>
+          <div class="tree__row tree__row--you"><b>work/</b><span>ваш репозиторий с решениями — появится в ПР-01</span></div>
+        </div>
+
+        <h3>Шаг 1. Поставить драйвер</h3>
+        <p>Команды выполняются в терминале из корня репозитория — из папки <code>mongodb-practice</code>.</p>
+        <figure class="code" data-lang="python" data-os="win">
+          <figcaption><span>PowerShell</span><span>Python · pymongo</span></figcaption>
+<pre>python -m pip install pymongo</pre>
+        </figure>
+        <p data-lang="python" data-os="win">Если PowerShell отвечает, что <code>python</code> не найден, поставьте Python с <a href="https://www.python.org/downloads/">python.org</a> и отметьте в установщике <b>Add python.exe to PATH</b>, затем откройте новый терминал.</p>
+        <figure class="code" data-lang="python" data-os="mac linux">
+          <figcaption><span>Терминал</span><span>Python · pymongo в виртуальном окружении</span></figcaption>
+<pre>python3 -m venv .venv
+source .venv/bin/activate
+pip install pymongo</pre>
+        </figure>
+        <p data-lang="python" data-os="mac linux">Виртуальное окружение <code>.venv</code> — отдельная папка с Python и драйвером только для этого репозитория: системный Python на macOS и в свежих Linux не даёт ставить пакеты напрямую. В каждом новом терминале окружение включается снова: <code>source .venv/bin/activate</code>. <span data-os="linux">Если <code>venv</code> не найден — <code>sudo apt install python3-venv</code>.</span></p>
+        <figure class="code" data-lang="ruby" data-os="win">
+          <figcaption><span>PowerShell</span><span>Ruby · gem mongo</span></figcaption>
+<pre>gem install mongo</pre>
+        </figure>
+        <p data-lang="ruby" data-os="win">Ruby ставится с <a href="https://rubyinstaller.org/">rubyinstaller.org</a> — сборка <b>with Devkit</b>: драйверу нужен компилятор для расширения <code>bson</code>.</p>
+        <figure class="code" data-lang="ruby" data-os="mac">
+          <figcaption><span>Терминал</span><span>Ruby · gem mongo</span></figcaption>
+<pre>gem install --user-install mongo</pre>
+        </figure>
+        <figure class="code" data-lang="ruby" data-os="linux">
+          <figcaption><span>Терминал</span><span>Ruby · gem mongo</span></figcaption>
+<pre>sudo apt install ruby-full build-essential
+gem install --user-install mongo</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>Go · mongo-driver</span></figcaption>
+<pre>cd lessons
+go mod download</pre>
+        </figure>
+        <p data-lang="go">Go ставится с <a href="https://go.dev/dl/">go.dev/dl</a>. Отдельно драйвер ставить не нужно: в папке <code>lessons</code> уже лежит <code>go.mod</code>, и <code>go mod download</code> скачивает всё, что в нём перечислено.</p>
+        <figure class="code" data-lang="cpp" data-os="mac">
+          <figcaption><span>Терминал</span><span>C++ · mongocxx</span></figcaption>
+<pre>brew install mongo-cxx-driver</pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="win linux">
+          <figcaption><span>Терминал</span><span>C++ · сборка в контейнере</span></figcaption>
+<pre>docker compose run --rm cpp hello/hello.cpp</pre>
+        </figure>
+        <p data-lang="cpp" data-os="win linux">Драйвер C++ на Windows и Linux собирается из исходников долго и с зависимостями. Проще запускать код в готовом контейнере стенда — глава <a href="../01a-stend-v-docker/index.html">1.1а</a>: первая сборка образа занимает несколько минут, дальше запуск идёт за секунды.</p>
+        <p>Не ставится ничего — запускайте в Docker: <code>docker compose run --rm python hello/hello.py</code> (вместо <code>python</code> — <code>ruby</code>, <code>go</code> или <code>cpp</code> и файл с тем же расширением).</p>
+
+        <h3>Шаг 2. Проверить подключение</h3>
+        <p>В папке <code>hello</code> лежит программа, которая подключается к серверу и печатает, что на нём есть. Если она отработала — драйвер стоит и данные на месте.</p>
+        <figure class="code" data-lang="python" data-os="win">
+          <figcaption><span>PowerShell</span><span>из корня репозитория</span></figcaption>
+<pre>python hello/hello.py</pre>
+        </figure>
+        <figure class="code" data-lang="python" data-os="mac linux">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>python3 hello/hello.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>ruby hello/hello.rb</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>cd hello
+go run hello.go</pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="mac">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>g++ -std=c++17 hello/hello.cpp -o hello/hello $(pkg-config --cflags --libs libmongocxx1)
+./hello/hello</pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="win linux">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>docker compose run --rm cpp hello/hello.cpp</pre>
+        </figure>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Адрес: mongodb://localhost:27017/
+Сервер: 7.0.40
+Базы данных: ['admin', 'config', 'hh', 'local', 'logs', 'org', 'sandbox', 'shop']
+Коллекции shop: ['customers', 'orders', 'products']
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Адрес: mongodb://localhost:27017
+Сервер: 7.0.40
+Базы данных: admin config hh local logs org sandbox shop
+Коллекции shop: customers orders products
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Адрес: mongodb://localhost:27017
+Сервер: 7.0.40
+Базы данных: [admin config hh local logs org sandbox shop]
+Коллекции shop: [customers orders products]
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>Адрес: mongodb://localhost:27017/
+Сервер: 7.0.40
+Базы данных: ["admin", "config", "hh", "local", "logs", "org", "sandbox", "shop"]
+Коллекции shop: ["customers", "orders", "products"]
+Товаров: 21
+Заказов: 120</pre>
+        </figure>
+        <p>Числа в двух последних строках — те же, что в таблице из <a href="#s1">§1</a>. Ошибка вместо вывода разобрана в <a href="#s11">§11</a>.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Как запускать примеры из глав</h2>
+        <p>Для каждой главы с кодом в папке <code>lessons</code> есть файл-заготовка: <code>ch1_4.py</code> для главы 1.4 на Python, <code>ch1_4.go</code> — на Go и так далее. В заготовке уже есть подключение и переменные, которыми пользуются примеры главы: <code>client</code>, <code>db</code>, <code>products</code>, <code>orders</code> и <code>box</code> — песочница. Пример из главы вставляется в отмеченное место:</p>
+        <div class="slot" data-lang="python">
+          <div><small>lessons/ch1_4.py</small>import os<br>from pymongo import MongoClient</div>
+          <div>client = MongoClient(…)<br>db = client["shop"]<br>products = db["products"]<br>orders = db["orders"]<br>box = client["sandbox"]["products"]</div>
+          <div class="slot__here"># ── пример из главы ──</div>
+        </div>
+        <div class="slot" data-lang="ruby">
+          <div><small>lessons/ch1_4.rb</small>require "mongo"</div>
+          <div>client = Mongo::Client.new(…)<br>db = client.use("shop").database<br>products = db[:products]<br>orders = db[:orders]<br>box = client.use("sandbox").database[:products]</div>
+          <div class="slot__here"># ── пример из главы ──</div>
+        </div>
+        <div class="slot" data-lang="go">
+          <div><small>lessons/ch1_4.go</small>package main · import (…)</div>
+          <div>// ── функции и типы из примеров главы ──<br>type Product struct { … }</div>
+          <div>func main() {<br>&nbsp;&nbsp;client, err := mongo.Connect(…)<br>&nbsp;&nbsp;db, products, orders, box := …</div>
+          <div class="slot__here">&nbsp;&nbsp;{ // ── пример из главы ── }</div>
+          <div>}</div>
+        </div>
+        <div class="slot" data-lang="cpp">
+          <div><small>lessons/ch1_4.cpp</small>#include … · using make_document, kvp</div>
+          <div>// ── функции из примеров главы ──</div>
+          <div>int main() {<br>&nbsp;&nbsp;mongocxx::instance instance{};<br>&nbsp;&nbsp;mongocxx::client client{…};<br>&nbsp;&nbsp;auto db = …, products = …, orders = …, box = …;</div>
+          <div class="slot__here">&nbsp;&nbsp;{ // ── пример из главы ── }</div>
+          <div>}</div>
+        </div>
+        <p data-lang="go">Пример, который начинается с <code>func</code> или <code>type</code>, ставится выше <code>main</code> — у отметки «функции и типы из примеров главы». Всё остальное — внутрь фигурных скобок в конце <code>main</code>.</p>
+        <p data-lang="cpp">Пример, который объявляет функцию, ставится выше <code>main</code> — у отметки «функции из примеров главы». Всё остальное — внутрь фигурных скобок в конце <code>main</code>.</p>
+        <ol class="steps">
+          <li><b>Проверьте состояние баз</b>В начале каждой главы написано, меняет ли она данные. Если меняет — перед главой верните базы в исходное состояние, как в <a href="#s8">§8</a>: <code>docker compose run --rm reset</code> или скрипт из §6.</li>
+          <li><b>Вставьте пример</b>Скопируйте пример из главы в отмеченное место заготовки. Следующий пример вставляйте <strong>вместо</strong> предыдущего, а не под ним: иначе при повторном запуске предыдущий выполнится ещё раз.</li>
+          <li><b>Запустите из папки <code>lessons</code></b>Каждый пример — один раз и по порядку. Именно так получены все выводы в справочнике, поэтому ваш вывод совпадёт с книгой. Отличаться будут только <code>_id</code>, которые выдаёт сервер, и текущее время.</li>
+        </ol>
+        <figure class="code" data-lang="python" data-os="win">
+          <figcaption><span>PowerShell</span><span>запуск примера главы 1.4</span></figcaption>
+<pre>cd lessons
+python ch1_4.py</pre>
+        </figure>
+        <figure class="code" data-lang="python" data-os="mac linux">
+          <figcaption><span>Терминал</span><span>запуск примера главы 1.4</span></figcaption>
+<pre>cd lessons
+python3 ch1_4.py</pre>
+        </figure>
+        <figure class="code" data-lang="ruby">
+          <figcaption><span>Терминал</span><span>запуск примера главы 1.4</span></figcaption>
+<pre>cd lessons
+ruby ch1_4.rb</pre>
+        </figure>
+        <figure class="code" data-lang="go">
+          <figcaption><span>Терминал</span><span>запуск примера главы 1.4</span></figcaption>
+<pre>cd lessons
+go run ch1_4.go</pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="mac">
+          <figcaption><span>Терминал</span><span>запуск примера главы 1.4</span></figcaption>
+<pre>cd lessons
+g++ -std=c++17 ch1_4.cpp -o ch1_4 $(pkg-config --cflags --libs libmongocxx1)
+./ch1_4</pre>
+        </figure>
+        <figure class="code" data-lang="cpp" data-os="win linux">
+          <figcaption><span>Терминал</span><span>запуск примера главы 1.4 в контейнере</span></figcaption>
+<pre>docker compose run --rm cpp lessons/ch1_4.cpp</pre>
+        </figure>
+        <p>В Docker пример запускается той же командой, что <code>hello</code>: <code>docker compose run --rm python lessons/ch1_4.py</code>. Контейнер сам переходит в папку файла, поэтому пути вида <code>../stend/seed/…</code> в примерах работают одинаково.</p>
+        <p>Так выглядит первый пример главы 1.4 — «один документ», вставленный в заготовку и запущенный:</p>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>глава 1.4, первый пример</span></figcaption>
+<pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>глава 1.4, первый пример</span></figcaption>
+<pre>Смартфон Xiaomi Redmi Note 13</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>глава 1.4, первый пример</span></figcaption>
+<pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>глава 1.4, первый пример</span></figcaption>
+<pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
+        </figure>
+
+        <h2 id="s11"><span class="sec">§11</span>Частые ошибки</h2>
         <div class="table-scroll">
           <table>
             <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
             <tbody>
+              <tr data-lang="python"><td>Драйвер не установлен</td><td><code>ModuleNotFoundError: No module named 'pymongo'</code></td><td>Поставьте драйвер, <a href="#s9">§9</a>. На macOS и Linux — проверьте, что включено окружение: <code>source .venv/bin/activate</code></td></tr>
+              <tr data-lang="python" data-os="mac linux"><td>Пакет ставится мимо окружения</td><td><code>error: externally-managed-environment</code></td><td>Система не даёт ставить пакеты в свой Python. Создайте и включите <code>.venv</code>, <a href="#s9">§9</a></td></tr>
+              <tr data-lang="ruby"><td>Драйвер не установлен</td><td><code>cannot load such file -- mongo (LoadError)</code></td><td><code>gem install mongo</code>, <a href="#s9">§9</a></td></tr>
+              <tr><td>Пример вставлен под предыдущим, а не вместо</td><td>Числа не совпадают с книгой, в песочнице лишние документы или <code>E11000</code></td><td>Предыдущий пример выполнился второй раз. Верните базы и пройдите примеры главы заново, по одному</td></tr>
               <tr data-os="win"><td><code>mongoimport</code> не установлен</td><td><code>mongoimport : The term 'mongoimport' is not recognized…</code> или сообщение <code>load.ps1</code>: «mongoimport не найден»</td><td>Установите Database Tools и добавьте папку <code>bin</code> в <code>PATH</code>, затем откройте новый PowerShell. Или загрузите базы через Compass, <a href="#s7">§7</a></td></tr>
               <tr data-os="mac"><td><code>mongoimport</code> не установлен</td><td><code>zsh: command not found: mongoimport</code></td><td><code>brew install mongodb-database-tools</code>. <code>load.sh</code> без утилиты попробует взять её из контейнера стенда</td></tr>
               <tr data-os="linux"><td><code>mongoimport</code> не установлен</td><td><code>bash: mongoimport: command not found</code></td><td>Установите пакет Database Tools. <code>load.sh</code> без утилиты попробует взять её из контейнера стенда</td></tr>
@@ -436,7 +673,7 @@ sandbox.warehouse 21</pre>
           </table>
         </div>
 
-        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <h2 id="s12"><span class="sec">§12</span>Проверьте себя</h2>
         <details>
           <summary>В какую базу и коллекцию загружается файл <code>hh.interviews.json</code>?</summary>
           <p>База <code>hh</code>, коллекция <code>interviews</code>: имя базы стоит до первой точки, имя коллекции — между точками. После загрузки в ней 60 документов.</p>
@@ -454,7 +691,7 @@ sandbox.warehouse 21</pre>
           <p>120. Вторая попытка не добавит ни одного: у каждого документа тот же <code>_id</code>, и сервер отклонит дубликаты. Compass покажет <code>Import completed 0/120 with errors</code>, но данные не удвоятся.</p>
         </details>
 
-        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
         <div class="cheat">
           <div>
             <b>Скачать</b>

@@ -159,7 +159,7 @@
             <div class="dock__client"><b>терминал</b>команды <code>docker compose</code><br><i>из папки репозитория</i></div>
           </div>
           <div class="dock__engine">
-            <p>Docker · проект mongodb-practice · внутренняя сеть, где сервер называется mongo</p>
+            <p>Docker · проект mongodb-practice · контейнеры запуска в сети сервера: для них он тоже localhost:27017</p>
             <div class="dock__boxes">
               <div class="dock__box dock__box--main"><b>mongo</b><span>MongoDB 7 — тот самый сервер</span><em>работает всё время</em></div>
               <div class="dock__box dock__box--done"><b>seed</b><span>заливает учебные базы, если сервер пустой</span><em>завершается сам</em></div>
@@ -609,16 +609,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
         </figure>
         <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
-<pre> Container course-mongo Running 
- Container course-mongo Waiting 
- Container course-mongo Healthy 
- Container mongodb-practice-seed-1 Starting 
- Container mongodb-practice-seed-1 Started 
- Container mongodb-practice-seed-1 Waiting 
- Container mongodb-practice-seed-1 Exited 
- Container mongodb-practice-python-run-5b04fa56d68f Creating 
- Container mongodb-practice-python-run-5b04fa56d68f Created 
-Адрес: mongodb://mongo:27017/
+<pre>Адрес: mongodb://localhost:27017/
 Сервер: 7.0.40
 Базы данных: ['admin', 'config', 'hh', 'local', 'logs', 'org', 'sandbox', 'shop']
 Коллекции shop: ['customers', 'orders', 'products']
@@ -627,7 +618,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
-<pre>Адрес: mongodb://mongo:27017/
+<pre>Адрес: mongodb://localhost:27017
 Сервер: 7.0.40
 Базы данных: admin config hh local logs org sandbox shop
 Коллекции shop: customers orders products
@@ -636,11 +627,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
         </figure>
         <figure class="code code--out" data-lang="go">
           <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
-<pre> Volume mongodb-practice_go-modules Creating 
- Volume mongodb-practice_go-modules Creating 
- Volume mongodb-practice_go-modules Created 
- Volume mongodb-practice_go-modules Created 
-Адрес: mongodb://mongo:27017/
+<pre>Адрес: mongodb://localhost:27017
 Сервер: 7.0.40
 Базы данных: [admin config hh local logs org sandbox shop]
 Коллекции shop: [customers orders products]
@@ -649,7 +636,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
         </figure>
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Вывод в терминал</span><span>стенд в Docker, MongoDB 7.0.40</span></figcaption>
-<pre>Адрес: mongodb://mongo:27017/
+<pre>Адрес: mongodb://localhost:27017/
 Сервер: 7.0.40
 Базы данных: ["admin", "config", "hh", "local", "logs", "org", "sandbox", "shop"]
 Коллекции shop: ["customers", "orders", "products"]
@@ -657,20 +644,20 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
 Заказов: 120</pre>
         </figure>
         <p>Разберём команду по словам. <code>run</code> — запустить сервис один раз; <code>--rm</code> — удалить контейнер после завершения, чтобы они не копились; <code>python</code> — имя сервиса из <code>compose.yaml</code>; дальше — путь к файлу от корня репозитория. <span data-os="win">Путь с обратным слэшем, который подставляет PowerShell по <b>Tab</b> (<code>.\hello\hello.py</code>), тоже подойдёт.</span></p>
-        <p>Посмотрите на первую строку вывода: адрес сервера — <code>mongo</code>, а не <code>localhost</code>. Это главное отличие работы в контейнере:</p>
+        <p>Первая строка вывода — адрес сервера: <code>mongodb://localhost:27017</code>, тот же, что у программы на компьютере и у Compass. Так устроен стенд:</p>
         <div class="where">
           <div>
             <small>программа на компьютере · Compass</small>
             <code>mongodb://localhost:27017</code>
-            <p>Docker пробрасывает порт контейнера на компьютер, поэтому снаружи сервер доступен по <code>localhost</code>.</p>
+            <p>Docker пробрасывает порт сервера на компьютер: снаружи контейнера сервер слушает <code>localhost:27017</code>.</p>
           </div>
           <div>
-            <small>программа в контейнере</small>
-            <code>mongodb://mongo:27017</code>
-            <p>У каждого контейнера свой <code>localhost</code> — он сам. Сервер находится по имени сервиса во внутренней сети Docker.</p>
+            <small>программа в контейнере запуска</small>
+            <code>mongodb://localhost:27017</code>
+            <p>Контейнеры <code>python</code>, <code>ruby</code>, <code>go</code> и <code>cpp</code> подключены к сети сервера (<code>network_mode: service:mongo</code>), поэтому для них сервер — тоже <code>localhost</code>.</p>
           </div>
         </div>
-        <p>Поэтому адрес в код не вписывают, а берут из переменной окружения <code>MONGO_URI</code>, как в решениях практик. В контейнерах стенда она уже равна <code>mongodb://mongo:27017/</code>, а без неё программа подключается к <code>localhost</code> — и один и тот же файл работает в обоих местах:</p>
+        <p>Поэтому примеры из глав работают без изменений где угодно: на компьютере, в Docker и в Codespaces. А в рабочем проекте сервер будет на другой машине, поэтому адрес в решениях практик и в заготовках глав берётся из переменной окружения <code>MONGO_URI</code>; если её нет, программа подключается к <code>localhost</code>:</p>
         <figure class="code" data-lang="python">
           <figcaption><span>Адрес из окружения</span><span>Python</span></figcaption>
 <pre><span class="k">import</span> os
@@ -697,27 +684,6 @@ client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Clie
           <figcaption><span>Адрес из окружения</span><span>Ruby</span></figcaption>
 <pre>SERVER = ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>)
 client = Mongo::Client.<span class="f">new</span>(SERVER)</pre>
-        </figure>
-        <p>Если написать в коде <code>localhost</code> и запустить его в контейнере, программа не найдёт сервер:</p>
-        <figure class="code code--out" data-lang="python">
-          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
-<pre>pymongo.errors.ServerSelectionTimeoutError: localhost:27017: [Errno 111] Connection refused
-(configured timeouts: …), Timeout: 5.0s, Topology Description: …</pre>
-        </figure>
-        <figure class="code code--out" data-lang="cpp">
-          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
-<pre>terminate called after throwing an instance of 'mongocxx::v_noabi::operation_exception'
-  what():  No suitable servers found (`serverSelectionTryOnce` set): [connection refused calling hello on 'localhost:27017']. Topology type: Single: generic server error</pre>
-        </figure>
-        <figure class="code code--out" data-lang="go">
-          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
-<pre>2026/09/13 20:55:18 server selection error: context deadline exceeded, current topology: { Type: Unknown, Servers: [{ Addr: localhost:27017, Type: Unknown, Last error: dial tcp [::1]:27017: connect: connection refused }, ] }
-exit status 1</pre>
-        </figure>
-        <figure class="code code--out" data-lang="ruby">
-          <figcaption><span>Вывод · MONGO_URI=mongodb://localhost:27017 в контейнере</span><span>сервер не найден</span></figcaption>
-<pre>No primary_preferred server is available in cluster: #&lt;Cluster topology=Unknown[localhost:27017] servers=[#&lt;Server address=localhost:27017 UNKNOWN&gt;]&gt;
-with timeout=5, LT=0.015 (Mongo::Error::NoServerAvailable)</pre>
         </figure>
 
         <h2 id="s9"><span class="sec">§9</span>Шаг 6. Практика и контрольная точка</h2>
@@ -829,7 +795,7 @@ python check.py</pre>
 ruby solution.rb
 python check.py</pre>
         </figure>
-        <p>mongo-express открывается на вкладке <b>Ports</b> рядом с терминалом: строка с портом 8081, значок глобуса. Вместо Compass в Codespaces удобнее расширение <b>MongoDB for VS Code</b> — оно уже установлено. В нём создаётся подключение <code>mongodb://mongo:27017</code>, и базы видны деревом в боковой панели.</p>
+        <p>mongo-express открывается на вкладке <b>Ports</b> рядом с терминалом: строка с портом 8081, значок глобуса. Вместо Compass в Codespaces удобнее расширение <b>MongoDB for VS Code</b> — оно уже установлено. В нём создаётся подключение <code>mongodb://localhost:27017</code>, и базы видны деревом в боковой панели.</p>
         <div class="stat">
           <span><strong>120</strong><em>ядро-часов в месяц бесплатно на личном аккаунте GitHub</em></span>
           <span><strong>≈ 60 ч</strong><em>работы на стандартной машине с двумя ядрами</em></span>
@@ -871,7 +837,6 @@ python check.py</pre>
               <tr data-os="win"><td>Порт 27017 занят MongoDB, установленной в систему</td><td><code>ports are not available: exposing port TCP 0.0.0.0:27017 … bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.</code></td><td>Кто занял: <code>Get-NetTCPConnection -LocalPort 27017</code>. Служба останавливается командой <code>Stop-Service MongoDB</code> от администратора. Прав нет — возьмите другой порт: <code>Set-Content .env "MONGO_PORT=27018"</code> в корне репозитория, и Compass подключайте к <code>localhost:27018</code></td></tr>
               <tr data-os="mac"><td>Порт 27017 занят MongoDB, установленной в систему</td><td><code>ports are not available: exposing port TCP 0.0.0.0:27017 -&gt; 127.0.0.1:0: listen tcp 0.0.0.0:27017: bind: address already in use</code></td><td>Кто занял: <code>lsof -nP -iTCP:27017 -sTCP:LISTEN</code>. MongoDB из Homebrew останавливается командой <code>brew services stop mongodb-community</code>. Или другой порт: <code>echo "MONGO_PORT=27018" &gt; .env</code> в корне репозитория, и Compass — к <code>localhost:27018</code></td></tr>
               <tr data-os="linux"><td>Порт 27017 занят MongoDB, установленной в систему</td><td><code>Error starting userland proxy: listen tcp4 0.0.0.0:27017: bind: address already in use</code></td><td>Кто занял: <code>sudo ss -ltnp 'sport = :27017'</code>. Служба останавливается командой <code>sudo systemctl stop mongod</code>. Или другой порт: <code>echo "MONGO_PORT=27018" &gt; .env</code> в корне репозитория</td></tr>
-              <tr><td>В коде в контейнере адрес <code>localhost</code></td><td><code>localhost:27017: [Errno 111] Connection refused</code> в Python, <code>NoServerAvailable</code> в Ruby, <code>server selection error</code> в Go</td><td>Внутри контейнера <code>localhost</code> — сам контейнер. Берите адрес из <code>MONGO_URI</code></td></tr>
               <tr><td>Путь к файлу от папки практики</td><td><code>Файл не найден: solution.py (путь считается от корня репозитория)</code></td><td>Команда выполняется из корня, путь пишется целиком: <code>practice01/solution.py</code></td></tr>
               <tr><td>Числа в <code>check.py</code> не сходятся после второго прогона</td><td>Ошибка <code>E11000</code> или лишние документы</td><td>Базы остались от прошлого запуска. Перед прогоном — <code>docker compose run --rm reset</code></td></tr>
             </tbody>
@@ -884,8 +849,8 @@ python check.py</pre>
           <p>Нет. Compass работает — он дошёл до порта и получил отказ. На порту нет сервера. После <code>docker compose up -d</code> то же подключение заработает без изменений.</p>
         </details>
         <details>
-          <summary>Программа на компьютере подключается к <code>localhost:27017</code>, а та же программа в контейнере — нет. Почему?</summary>
-          <p>У контейнера свой сетевой адрес, и <code>localhost</code> для него — он сам, а там сервера нет. Сервер виден по имени сервиса: <code>mongodb://mongo:27017</code>. Поэтому адрес читают из <code>MONGO_URI</code>.</p>
+          <summary>Пример из главы подключается к <code>mongodb://localhost:27017</code>. Почему он работает и в контейнере <code>python</code>, хотя у каждого контейнера свой <code>localhost</code>?</summary>
+          <p>Контейнеры запуска подключены к сети контейнера с сервером — в <code>compose.yaml</code> у них указано <code>network_mode: service:mongo</code>. Для программы внутри такой контейнер и сервер — одна машина, и порт 27017 открыт на её <code>localhost</code>.</p>
         </details>
         <details>
           <summary>Вы выполнили <code>docker compose down</code>. Пропали ли документы в <code>sandbox</code>?</summary>
@@ -929,7 +894,7 @@ python check.py</pre>
         </div>
 
         <h3>Итог главы</h3>
-        <p>Если Compass не подключается, чаще всего дело в сервере: его нет на порту 27017. Сервер в контейнере поднимается командой <code>docker compose up -d</code> вместе с учебными базами и mongo-express на <code>localhost:8081</code>. Код запускается командой <code>docker compose run --rm</code> с путём к файлу, и внутри контейнера сервер называется <code>mongo</code>, а не <code>localhost</code>. Если не ставится и Docker Desktop, тот же стенд открывается в Codespaces. Дальше — снова к данным: глава 1.2 о том, как устроен документ.</p>
+        <p>Если Compass не подключается, чаще всего дело в сервере: его нет на порту 27017. Сервер в контейнере поднимается командой <code>docker compose up -d</code> вместе с учебными базами и mongo-express на <code>localhost:8081</code>. Код запускается командой <code>docker compose run --rm</code> с путём к файлу, а адрес сервера везде один — <code>mongodb://localhost:27017</code>. Если не ставится и Docker Desktop, тот же стенд открывается в Codespaces. Дальше — снова к данным: глава 1.2 о том, как устроен документ.</p>
 
         <div class="pager"><a href="../01-klient-baza-kollekciya/index.html">← 1.1 Сервер, база, коллекция</a><a href="../02-dokument-i-bson/index.html">1.2 Документ и BSON →</a></div>
 

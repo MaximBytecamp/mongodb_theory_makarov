@@ -39,6 +39,14 @@
           <div><dt>Зачем это знать</dt><dd>Класть данные так, чтобы их потом можно было найти и не задвоить</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_3.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_3.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_3.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_3.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_3.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_3.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_3.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_3.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_3.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_3.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_3.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_3.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_3.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>. Значения <code>_id</code> у вас будут другими: их выдаёт сервер в момент вставки.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -69,7 +77,7 @@ box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>
         </figure>
         <figure class="code" data-lang="cpp">
           <figcaption><span>C++ · mongocxx</span><span>подключение к песочнице</span></figcaption>
-<pre>mongocxx::instance instance{};
+<pre><span class="c">// mongocxx::instance уже создан в заготовке: второй экземпляр программа не переживёт</span>
 mongocxx::client client{mongocxx::uri{<span class="s">"mongodb://localhost:27017"</span>}};
 <span class="k">auto</span> box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>];   <span class="c">// здесь можно ломать</span>
 
@@ -186,22 +194,22 @@ fmt.<span class="f">Println</span>(<span class="s">"присвоенный _id:"
         <figure class="code code--out" data-lang="python">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>подтверждено: True
-присвоенный _id: 6aa08c51503a4f190a669c88
+присвоенный _id: 6aa7242b708f072aeb471236
 тип: ObjectId</pre>
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>подтверждено: да
-присвоенный _id: 6aa36dbe485f2a8b33073182</pre>
+присвоенный _id: 6aa72484d8d50a91a109a7f1</pre>
         </figure>
         <figure class="code code--out" data-lang="go">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>присвоенный _id: ObjectID("6aa36daa045c48d4137c7b12")</pre>
+<pre>присвоенный _id: ObjectID("6aa72439598d2ddc60f4355e")</pre>
         </figure>
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>подтверждено: true
-присвоенный _id: 6aa36d95dc5d3091728a8ba3
+присвоенный _id: 6aa72431a1b7c40511bb4b10
 тип: BSON::ObjectId</pre>
         </figure>
         <div class="ops">
@@ -236,7 +244,8 @@ batch.<span class="f">push_back</span>(<span class="f">make_document</span>(<spa
     <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1890</span>)));
 
 <span class="k">auto</span> many = box.<span class="f">insert_many</span>(batch);
-std::cout &lt;&lt; <span class="s">"вставлено: "</span> &lt;&lt; many-&gt;<span class="f">inserted_count</span>() &lt;&lt; std::endl;</pre>
+std::cout &lt;&lt; <span class="s">"вставлено: "</span> &lt;&lt; many-&gt;<span class="f">inserted_count</span>() &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"документов в песочнице: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;</pre>
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>вставка списка</span></figcaption>
@@ -246,8 +255,13 @@ std::cout &lt;&lt; <span class="s">"вставлено: "</span> &lt;&lt; many-&
     bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-102"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Чехол для планшета"</span>},
         {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1890</span>}},
 })
+<span class="k">if</span> err != <span class="k">nil</span> {
+    log.<span class="f">Fatal</span>(err)
+}
 
-fmt.<span class="f">Println</span>(<span class="s">"вставлено:"</span>, <span class="f">len</span>(many.InsertedIDs), <span class="s">"→"</span>, many.InsertedIDs)</pre>
+fmt.<span class="f">Println</span>(<span class="s">"вставлено:"</span>, <span class="f">len</span>(many.InsertedIDs), <span class="s">"→"</span>, many.InsertedIDs)
+count, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"документов в песочнице:"</span>, count)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>вставка списка</span></figcaption>
@@ -299,18 +313,18 @@ fmt.<span class="f">Println</span>(<span class="s">"вставлено:"</span>,
     box.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"p-101"</span>, <span class="s">"title"</span>: <span class="s">"Ещё одна подставка"</span>})
 <span class="k">except</span> DuplicateKeyError <span class="k">as</span> error:
     <span class="f">print</span>(<span class="f">type</span>(error).__name__)
-    <span class="f">print</span>(<span class="f">str</span>(error)[:<span class="n">110</span>])</pre>
+    <span class="f">print</span>(error.details[<span class="s">"errmsg"</span>])</pre>
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>C++ · mongocxx</span><span>повторный ключ</span></figcaption>
-<pre><span class="k">#include</span> <span class="s">&lt;mongocxx/exception/bulk_write_exception.hpp&gt;</span>
+<pre>#include &lt;mongocxx/exception/bulk_write_exception.hpp&gt;
 
 <span class="k">try</span> {
     box.<span class="f">insert_one</span>(<span class="f">make_document</span>(
         <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-101"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Ещё одна подставка"</span>)));
 } <span class="k">catch</span> (<span class="k">const</span> mongocxx::bulk_write_exception&amp; error) {
     std::cout &lt;&lt; <span class="s">"код ошибки: "</span> &lt;&lt; error.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
-    std::cout &lt;&lt; std::<span class="f">string</span>(error.<span class="f">what</span>()).<span class="f">substr</span>(<span class="n">0</span>, <span class="n">90</span>) &lt;&lt; std::endl;
+    std::cout &lt;&lt; error.<span class="f">what</span>() &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -321,7 +335,7 @@ fmt.<span class="f">Println</span>(<span class="s">"вставлено:"</span>,
 })
 
 <span class="k">if</span> mongo.<span class="f">IsDuplicateKeyError</span>(err) {
-    fmt.<span class="f">Println</span>(<span class="s">"дубликат ключа:"</span>, err.<span class="f">Error</span>()[:<span class="n">96</span>])
+    fmt.<span class="f">Println</span>(<span class="s">"дубликат ключа:"</span>, err)
 }</pre>
           </figure>
           <figure class="code" data-lang="ruby">
@@ -329,32 +343,28 @@ fmt.<span class="f">Println</span>(<span class="s">"вставлено:"</span>,
 <pre><span class="k">begin</span>
   box.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-101"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Ещё одна подставка"</span> })
 <span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; error
-  <span class="f">puts</span> error.class
-  <span class="f">puts</span> error.message[<span class="n">0</span>, <span class="n">110</span>]
+  <span class="k">puts</span> error.<span class="k">class</span>
+  <span class="k">puts</span> error.message
 <span class="k">end</span></pre>
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>DuplicateKeyError
-E11000 duplicate key error collection:
-sandbox.products index: _id_ dup key: { _id: "p-101" }</pre>
+E11000 duplicate key error collection: sandbox.products index: _id_ dup key: { _id: "p-101" }</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>код ошибки: 11000
-E11000 duplicate key error collection: sandbox.products
-index: _id_ dup key: { _id: "p-101" }</pre>
+E11000 duplicate key error collection: sandbox.products index: _id_ dup key: { _id: "p-101" }: generic server error</pre>
           </figure>
           <figure class="code code--out" data-lang="go">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>дубликат ключа: write exception: write errors: [E11000 duplicate key
-error collection: sandbox.products index: _id_ …]</pre>
+<pre>дубликат ключа: write exception: write errors: [E11000 duplicate key error collection: sandbox.products index: _id_ dup key: { _id: "p-101" }]</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
 <pre>Mongo::Error::OperationFailure
-[11000]: E11000 duplicate key error collection: sandbox.products
-index: _id_ dup key: { _id: "p-101" }</pre>
+[11000]: E11000 duplicate key error collection: sandbox.products index: _id_ dup key: { _id: "p-101" } (on localhost:27017, legacy retry, attempt 1)</pre>
           </figure>
         </div>
         <p>Код <code>E11000</code> — тот самый случай, когда база спасает данные от вас. Читается сообщение целиком: коллекция <code>sandbox.products</code>, индекс <code>_id_</code>, значение <code>"p-101"</code>. Тот же код вы увидите и при нарушении любого другого уникального индекса — например, если запретите повторяющиеся артикулы.</p>
@@ -382,15 +392,30 @@ index: _id_ dup key: { _id: "p-101" }</pre>
           <figcaption><span>Python · PyMongo</span><span>загрузка с пропуском сбойных</span></figcaption>
 <pre><span class="k">from</span> pymongo.errors <span class="k">import</span> BulkWriteError
 
+batch = [
+    {<span class="s">"_id"</span>: <span class="s">"p-103"</span>, <span class="s">"title"</span>: <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">690</span>},
+    {<span class="s">"_id"</span>: <span class="s">"p-101"</span>, <span class="s">"title"</span>: <span class="s">"Подставка — повтор"</span>},   <span class="c"># такой _id уже есть</span>
+    {<span class="s">"_id"</span>: <span class="s">"p-104"</span>, <span class="s">"title"</span>: <span class="s">"Салфетки для экрана"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">390</span>},
+]
+
 <span class="k">try</span>:
     box.<span class="f">insert_many</span>(batch, ordered=<span class="k">False</span>)
 <span class="k">except</span> BulkWriteError <span class="k">as</span> error:
     failed = error.details[<span class="s">"writeErrors"</span>]
-    <span class="f">print</span>(<span class="s">f"не вставлено: {len(failed)} из {len(batch)}"</span>)</pre>
+    <span class="f">print</span>(<span class="s">f"не вставлено: {len(failed)} из {len(batch)}"</span>)
+
+<span class="f">print</span>(<span class="s">"документов в песочнице:"</span>, box.<span class="f">count_documents</span>({}))</pre>
         </figure>
         <figure class="code" data-lang="cpp">
           <figcaption><span>C++ · mongocxx</span><span>загрузка с пропуском сбойных</span></figcaption>
-<pre>mongocxx::options::insert options;
+<pre>std::vector&lt;bsoncxx::document::value&gt; batch;
+batch.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-103"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>),
+                               <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">690</span>)));
+batch.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-101"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Подставка — повтор"</span>)));  <span class="c">// такой _id уже есть</span>
+batch.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-104"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Салфетки для экрана"</span>),
+                               <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">390</span>)));
+
+mongocxx::options::insert options;
 options.<span class="f">ordered</span>(<span class="k">false</span>);
 
 <span class="k">try</span> {
@@ -398,28 +423,67 @@ options.<span class="f">ordered</span>(<span class="k">false</span>);
 } <span class="k">catch</span> (<span class="k">const</span> mongocxx::bulk_write_exception&amp; error) {
     std::cout &lt;&lt; <span class="s">"часть документов не прошла: "</span>
               &lt;&lt; error.<span class="f">what</span>() &lt;&lt; std::endl;
-}</pre>
+}
+
+std::cout &lt;&lt; <span class="s">"документов в песочнице: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;</pre>
         </figure>
         <figure class="code" data-lang="go">
           <figcaption><span>Go · mongo-driver</span><span>загрузка с пропуском сбойных</span></figcaption>
-<pre>options := options.<span class="f">InsertMany</span>().<span class="f">SetOrdered</span>(<span class="k">false</span>)
+<pre>batch := []<span class="k">any</span>{
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-103"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Кабель HDMI 2 м"</span>}, {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">690</span>}},
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-101"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Подставка — повтор"</span>}}, <span class="c">// такой _id уже есть</span>
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-104"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Салфетки для экрана"</span>}, {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">390</span>}},
+}
+
+options := options.<span class="f">InsertMany</span>().<span class="f">SetOrdered</span>(<span class="k">false</span>)
 
 _, err := box.<span class="f">InsertMany</span>(ctx, batch, options)
 <span class="k">var</span> bulkErr mongo.BulkWriteException
 <span class="k">if</span> errors.<span class="f">As</span>(err, &amp;bulkErr) {
     fmt.<span class="f">Printf</span>(<span class="s">"не вставлено: %d из %d\n"</span>, <span class="f">len</span>(bulkErr.WriteErrors), <span class="f">len</span>(batch))
-}</pre>
+}
+
+count, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"документов в песочнице:"</span>, count)</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>загрузка с пропуском сбойных</span></figcaption>
-<pre><span class="k">begin</span>
+<pre>batch = [
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-103"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">690</span> },
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-101"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Подставка — повтор"</span> },   <span class="c"># такой _id уже есть</span>
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-104"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Салфетки для экрана"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">390</span> },
+]
+
+<span class="k">begin</span>
   box.<span class="f">insert_many</span>(batch, ordered: <span class="k">false</span>)
-<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; error
-  <span class="c"># в сообщении перечислены все неудачные документы пачки</span>
-  <span class="f">puts</span> <span class="s">"часть документов не прошла: #{error.message[0, 80]}"</span>
-<span class="k">end</span></pre>
+<span class="k">rescue</span> Mongo::Error::BulkWriteError =&gt; error
+  failed = error.result[<span class="s">"writeErrors"</span>]
+  <span class="f">puts</span> <span class="s">"не вставлено: #{failed.size} из #{batch.size}"</span>
+<span class="k">end</span>
+
+<span class="f">puts</span> <span class="s">"документов в песочнице: #{box.count_documents({})}"</span></pre>
         </figure>
-        <p>Часть данных при этом записана. Исключение означает «прошло не всё», а не «не произошло ничего»: при повторном запуске загрузчика разница существенная.</p>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>пачка из трёх документов, второй — повтор p-101</span></figcaption>
+<pre>не вставлено: 1 из 3
+документов в песочнице: 26</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>пачка из трёх документов, второй — повтор p-101</span></figcaption>
+<pre>часть документов не прошла: E11000 duplicate key error collection: sandbox.products index: _id_ dup key: { _id: "p-101" }: generic server error
+документов в песочнице: 26</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>пачка из трёх документов, второй — повтор p-101</span></figcaption>
+<pre>не вставлено: 1 из 3
+документов в песочнице: 26</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>пачка из трёх документов, второй — повтор p-101</span></figcaption>
+<pre>не вставлено: 1 из 3
+документов в песочнице: 26</pre>
+        </figure>
+        <p>В пачке три документа, и второй повторяет <code>_id</code> товара из §4. Два записаны, один отклонён — в песочнице стало на два документа больше. Исключение означает «прошло не всё», а не «не произошло ничего»: при повторном запуске загрузчика разница существенная.</p>
 
         <h2 id="s7"><span class="sec">§7</span>Вставка руками в Compass</h2>
         <p>Тот же документ можно положить мышью: в коллекции есть кнопка <b>ADD DATA → Insert document</b>. Compass откроет окно, в котором документ пишется как JSON.</p>
@@ -437,21 +501,22 @@ _, err := box.<span class="f">InsertMany</span>(ctx, batch, options)
             <figcaption><span>Терминал</span><span>mongoimport: массив JSON</span></figcaption>
 <pre>mongoimport --uri <span class="s">"mongodb://localhost:27017"</span> \
   --db sandbox --collection products \
-  --file products.json --jsonArray --drop</pre>
+  --file stend/seed/sandbox.products.json --jsonArray --drop</pre>
           </figure>
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>тот же файл из кода</span></figcaption>
-<pre><span class="k">import</span> json
+<pre><span class="k">from</span> bson <span class="k">import</span> json_util      <span class="c"># понимает {"$date": …} в файле</span>
 
-<span class="k">with</span> <span class="f">open</span>(<span class="s">"products.json"</span>, encoding=<span class="s">"utf-8"</span>) <span class="k">as</span> handle:
-    docs = json.<span class="f">load</span>(handle)
+<span class="k">with</span> <span class="f">open</span>(<span class="s">"../stend/seed/sandbox.products.json"</span>, encoding=<span class="s">"utf-8"</span>) <span class="k">as</span> handle:
+    docs = json_util.<span class="f">loads</span>(handle.<span class="f">read</span>())
 
 box.<span class="f">delete_many</span>({})           <span class="c"># повтор без задвоения</span>
-box.<span class="f">insert_many</span>(docs)</pre>
+box.<span class="f">insert_many</span>(docs)
+<span class="f">print</span>(<span class="s">"документов в песочнице:"</span>, box.<span class="f">count_documents</span>({}))</pre>
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>C++ · mongocxx</span><span>тот же файл из кода</span></figcaption>
-<pre>std::ifstream file{<span class="s">"products.json"</span>};
+<pre>std::ifstream file{<span class="s">"../stend/seed/sandbox.products.json"</span>};
 std::stringstream buffer;
 buffer &lt;&lt; file.<span class="f">rdbuf</span>();
 
@@ -461,28 +526,48 @@ std::vector&lt;bsoncxx::document::value&gt; docs;
     docs.<span class="f">push_back</span>(bsoncxx::document::<span class="f">value</span>{item.<span class="f">get_document</span>().value});
 
 box.<span class="f">delete_many</span>(<span class="f">make_document</span>());   <span class="c">// повтор без задвоения</span>
-box.<span class="f">insert_many</span>(docs);</pre>
+box.<span class="f">insert_many</span>(docs);
+std::cout &lt;&lt; <span class="s">"документов в песочнице: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;</pre>
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>тот же файл из кода</span></figcaption>
-<pre>raw, _ := os.<span class="f">ReadFile</span>(<span class="s">"products.json"</span>)
+<pre>raw, _ := os.<span class="f">ReadFile</span>(<span class="s">"../stend/seed/sandbox.products.json"</span>)
 
 <span class="k">var</span> docs []<span class="k">any</span>
 bson.<span class="f">UnmarshalExtJSON</span>(raw, <span class="k">false</span>, &amp;docs)
 
 box.<span class="f">DeleteMany</span>(ctx, bson.D{})      <span class="c">// повтор без задвоения</span>
-box.<span class="f">InsertMany</span>(ctx, docs)</pre>
+box.<span class="f">InsertMany</span>(ctx, docs)
+count, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"документов в песочнице:"</span>, count)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>тот же файл из кода</span></figcaption>
-<pre><span class="k">require</span> <span class="s">"json"</span>
-
-docs = JSON.<span class="f">parse</span>(File.<span class="f">read</span>(<span class="s">"products.json"</span>))
+<pre><span class="c"># BSON::ExtJSON понимает {"$date": …} в файле, обычный JSON.parse — нет</span>
+docs = BSON::ExtJSON.<span class="f">parse</span>(File.<span class="f">read</span>(<span class="s">"../stend/seed/sandbox.products.json"</span>))
 
 box.<span class="f">delete_many</span>({})             <span class="c"># повтор без задвоения</span>
-box.<span class="f">insert_many</span>(docs)</pre>
+box.<span class="f">insert_many</span>(docs)
+<span class="f">puts</span> <span class="s">"документов в песочнице: #{box.count_documents({})}"</span></pre>
           </figure>
         </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>песочница снова из файла стенда</span></figcaption>
+<pre>документов в песочнице: 21</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>песочница снова из файла стенда</span></figcaption>
+<pre>документов в песочнице: 21</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>песочница снова из файла стенда</span></figcaption>
+<pre>документов в песочнице: 21</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>песочница снова из файла стенда</span></figcaption>
+<pre>документов в песочнице: 21</pre>
+        </figure>
+        <p>Путь в коде начинается с <code>../</code>, потому что пример запускается из папки <code>lessons</code>, а файл лежит в <code>stend/seed</code> того же репозитория. Файл записан в Extended JSON, поэтому читается не обычным разбором JSON, а функцией драйвера: иначе даты из <code>{"$date": …}</code> попадут в базу вложенными документами.</p>
         <p>Ключ <code>--drop</code> у <code>mongoimport</code> и <code>delete_many({})</code> в коде делают одно и то же: очищают коллекцию перед загрузкой. Без этого повторный запуск удвоит данные. Это самая частая причина расхождения чисел в работах: загрузку выполнили дважды.</p>
         <p>В Compass тому же соответствует <b>ADD DATA → Import JSON or CSV file</b>. Файл может быть массивом документов или потоком объектов по одному на строку — Compass поймёт оба формата.</p>
 

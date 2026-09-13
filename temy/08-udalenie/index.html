@@ -39,6 +39,14 @@
           <div><dt>Зачем это знать</dt><dd>Удалять ровно то, что задумано, и понимать цену ошибки</dd></div>
         </dl>
 
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_8.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_8.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_8.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_8.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_8.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_8.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_8.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_8.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_8.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_8.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_8.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_8.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_8.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
         <nav class="contents">
           <b>В этой главе</b>
           <ol>
@@ -100,34 +108,68 @@ res = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt;
         <p>Если ничего не нашлось, ошибки не будет — число удалённых окажется нулём. Это тот же принцип, что и у <code>find_one</code>: отсутствие данных не считается сбоем. Поэтому <strong>результат нужно проверять</strong>: ноль означает, что документ либо уже удалён, либо фильтр написан не так, как задумано.</p>
         <figure class="code" data-lang="python">
           <figcaption><span>Python · PyMongo</span><span>честный ответ вызывающему</span></figcaption>
-<pre>res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: product_id})
+<pre><span class="k">def</span> <span class="f">delete_product</span>(product_id):
+    res = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: product_id})
+    <span class="k">if</span> res.deleted_count == <span class="n">0</span>:
+        <span class="k">raise</span> <span class="f">LookupError</span>(<span class="s">f"товар {product_id} не найден"</span>)
 
-<span class="k">if</span> res.deleted_count == <span class="n">0</span>:
-    <span class="k">raise</span> <span class="f">LookupError</span>(<span class="s">f"товар {product_id} не найден"</span>)</pre>
+<span class="f">delete_product</span>(<span class="s">"p-020"</span>)        <span class="c"># p-020 уже удалён предыдущим примером</span></pre>
         </figure>
         <figure class="code" data-lang="cpp">
           <figcaption><span>C++ · mongocxx</span><span>честный ответ вызывающему</span></figcaption>
-<pre><span class="k">auto</span> res = box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, product_id)));
+<pre><span class="k">void</span> <span class="f">delete_product</span>(mongocxx::collection&amp; box, <span class="k">const</span> std::string&amp; product_id) {
+    <span class="k">auto</span> res = box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, product_id)));
+    <span class="k">if</span> (res-&gt;<span class="f">deleted_count</span>() == <span class="n">0</span>) {
+        <span class="k">throw</span> std::<span class="f">runtime_error</span>(<span class="s">"товар не найден: "</span> + product_id);
+    }
+}
 
-<span class="k">if</span> (res-&gt;<span class="f">deleted_count</span>() == <span class="n">0</span>) {
-    <span class="k">throw</span> std::<span class="f">runtime_error</span>(<span class="s">"товар не найден: "</span> + product_id);
-}</pre>
+<span class="c">// в main: p-020 уже удалён предыдущим примером</span>
+<span class="f">delete_product</span>(box, <span class="s">"p-020"</span>);</pre>
         </figure>
         <figure class="code" data-lang="go">
           <figcaption><span>Go · mongo-driver</span><span>честный ответ вызывающему</span></figcaption>
-<pre>res, err := box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: productID}})
-<span class="k">if</span> err != <span class="k">nil</span> {
-    <span class="k">return</span> err
+<pre><span class="k">func</span> <span class="f">deleteProduct</span>(ctx context.Context, box *mongo.Collection, productID <span class="k">string</span>) <span class="k">error</span> {
+    res, err := box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: productID}})
+    <span class="k">if</span> err != <span class="k">nil</span> {
+        <span class="k">return</span> err
+    }
+    <span class="k">if</span> res.DeletedCount == <span class="n">0</span> {
+        <span class="k">return</span> fmt.<span class="f">Errorf</span>(<span class="s">"товар %s не найден"</span>, productID)
+    }
+    <span class="k">return</span> <span class="k">nil</span>
 }
-<span class="k">if</span> res.DeletedCount == <span class="n">0</span> {
-    <span class="k">return</span> fmt.<span class="f">Errorf</span>(<span class="s">"товар %s не найден"</span>, productID)
+
+<span class="c">// в main: p-020 уже удалён предыдущим примером</span>
+<span class="k">if</span> err := <span class="f">deleteProduct</span>(ctx, box, <span class="s">"p-020"</span>); err != <span class="k">nil</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"ошибка:"</span>, err)
 }</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Ruby · mongo</span><span>честный ответ вызывающему</span></figcaption>
-<pre>res = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; product_id })
+<pre><span class="k">def</span> <span class="f">delete_product</span>(box, product_id)
+  res = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; product_id })
+  <span class="k">raise</span> KeyError, <span class="s">"товар #{product_id} не найден"</span> <span class="k">if</span> res.deleted_count.zero?
+<span class="k">end</span>
 
-<span class="k">raise</span> KeyError, <span class="s">"товар #{product_id} не найден"</span> <span class="k">if</span> res.deleted_count.zero?</pre>
+<span class="f">delete_product</span>(box, <span class="s">"p-020"</span>)   <span class="c"># p-020 уже удалён предыдущим примером</span></pre>
+        </figure>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>повторное удаление того же товара</span></figcaption>
+<pre>LookupError: товар p-020 не найден</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>повторное удаление того же товара</span></figcaption>
+<pre>terminate called after throwing an instance of 'std::runtime_error'
+what():  товар не найден: p-020</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>повторное удаление того же товара</span></figcaption>
+<pre>ошибка: товар p-020 не найден</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>повторное удаление того же товара</span></figcaption>
+<pre>товар p-020 не найден (KeyError)</pre>
         </figure>
 
         <h2 id="s2"><span class="sec">§2</span>delete_many: все подходящие</h2>
@@ -159,11 +201,18 @@ fmt.<span class="f">Println</span>(<span class="s">"осталось:"</span>, c
 <span class="f">puts</span> <span class="s">"удалено: #{res.deleted_count}"</span>
 <span class="f">puts</span> <span class="s">"осталось: #{box.count_documents({})}"</span></pre>
           </figure>
-          <figure class="code code--out">
-            <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>удалено: 2
+        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>удалено: 2
 осталось: 18</pre>
-          </figure>
+        </figure>
+        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>удалено: 2
+осталось: 18</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>удалено: 2
+осталось: 18</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>удалено: 2
+осталось: 18</pre>
+        </figure>
         </div>
         <p>Аксессуаров было три, а удалилось два: один из них, кабель <code>p-020</code>, удалён строкой выше. Отсюда свойство, которое отличает удаление от остальных операций: <strong>оно необратимо и меняет данные, на которых построен следующий запрос</strong>. Числа, снятые до удаления, после него уже не воспроизвести.</p>
 
@@ -270,7 +319,7 @@ fmt.<span class="f">Println</span>(doc[<span class="s">"_id"</span>], doc[<span 
           </figure>
           <figure class="code code--out" data-lang="python">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>p-007 Смартфон Samsung Galaxy A55 32990</pre>
+<pre>p-006 Смартфон Xiaomi Redmi Note 13 18990</pre>
           </figure>
           <figure class="code code--out" data-lang="cpp">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
@@ -282,7 +331,7 @@ fmt.<span class="f">Println</span>(doc[<span class="s">"_id"</span>], doc[<span 
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>p-008 Смартфон Apple iPhone 15</pre>
+<pre>p-006 Смартфон Xiaomi Redmi Note 13</pre>
           </figure>
         </div>
         <p>Вариант «прочитать, потом удалить» двумя запросами хуже: между ними документ может изменить или удалить другой процесс, и в архив уедет не то, что удалилось. Соображение то же, что и у <code>$inc</code> в прошлой главе: одна операция на сервере надёжнее двух по отдельности.</p>
@@ -416,7 +465,8 @@ box.<span class="f">update_one</span>(
 <pre>visible := bson.D{{Key: <span class="s">"deleted_at"</span>,
     Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}}
 
-cursor, _ := box.<span class="f">Find</span>(ctx, visible)</pre>
+cursor, _ := box.<span class="f">Find</span>(ctx, visible)
+<span class="k">defer</span> cursor.<span class="f">Close</span>(ctx)</pre>
           </figure>
           <figure class="code" data-lang="ruby">
             <figcaption><span>Ruby · mongo</span><span>витрина показывает живые</span></figcaption>
