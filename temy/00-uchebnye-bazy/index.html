@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.0 Учебные базы · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* Имя файла → база и коллекция. */
+    .fname { margin: 22px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .fname__line { padding: 16px 18px; border-bottom: 2px solid var(--ink); font: 700 clamp(18px, 2.6vw, 28px)/1.4 var(--mono); word-break: break-all; }
+    .fname__line i { font-style: normal; padding: 2px 5px; }
+    .fname__line i:nth-child(1) { background: var(--leaf-pale); }
+    .fname__line i:nth-child(2) { background: var(--clay-pale); }
+    .fname__line i:nth-child(3) { background: #E4DDF2; }
+    .fname__parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .fname__parts > div { padding: 12px 16px; border-right: 2px solid var(--rule); }
+    .fname__parts > div:last-child { border-right: 0; }
+    .fname__parts b { display: block; font: 700 13px/1.5 var(--mono); margin-bottom: 4px; }
+    .fname__parts span { font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+    .fname__flow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 18px; border-top: 2px solid var(--ink); background: var(--leaf-pale); font: 600 13px/1.4 var(--mono); }
+    .fname__flow em { font-style: normal; padding: 3px 8px; border: 2px solid var(--ink); background: #fff; }
+    .fname__flow s { text-decoration: none; color: var(--leaf); animation: fname-blink 1.4s ease-in-out infinite; }
+    @keyframes fname-blink { 50% { opacity: .3; } }
+
+    /* Выбор способа. */
+    .fork { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .fork > div { padding: 14px 16px; border-right: 2px solid var(--rule); }
+    .fork > div:last-child { border-right: 0; }
+    .fork b { display: block; font-family: var(--display); font-size: 19px; margin-bottom: 4px; }
+    .fork small { display: block; margin-bottom: 8px; font: 600 10.5px/1.3 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--leaf); }
+    .fork ul { margin: 0; padding-left: 18px; font-size: 14.5px; line-height: 1.5; }
+    .fork a { font-size: 14px; }
+
+    /* Пошаговые инструкции. */
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li b { display: block; margin-bottom: 3px; }
+  </style>
+  <script>
+    /* Система проставляется до отрисовки: без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.0</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.0</span>
+          <h1>Учебные базы:<br>скачать и загрузить</h1>
+          <p class="lead">Все примеры, числа и кадры справочника получены на одних и тех же данных: четыре учебные базы и песочница. Данные лежат в репозитории практик на GitHub в виде JSON-файлов. В этой главе — как их скачать, как загрузить в MongoDB тремя способами и как проверить, что всё на месте. Главу проходят один раз, до первых запросов.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Подготовка рабочего места</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>1.1 Сервер, база, коллекция · 1.1а Стенд в Docker</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Чтобы примеры из глав давали у вас те же числа, что в книге</dd></div>
+        </dl>
+
+        <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/stend/seed">github.com/MaximBytecamp/mongodb-practice → stend/seed</a></p>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Какие базы нужны</a></li>
+            <li><a href="#s2">Файлы с данными</a></li>
+            <li><a href="#s3">Скачать репозиторий</a></li>
+            <li><a href="#s4">Какой способ загрузки выбрать</a></li>
+            <li><a href="#s5">Способ 1. Docker</a></li>
+            <li><a href="#s6">Способ 2. Скрипт с mongoimport</a></li>
+            <li><a href="#s7">Способ 3. Вручную через Compass</a></li>
+            <li><a href="#s8">Проверить, что всё загрузилось</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Какие базы нужны</h2>
+        <p>На сервере должно оказаться пять баз и двенадцать коллекций. Четыре базы — эталонные: на них построены все примеры, и менять их нельзя. Пятая, <code>sandbox</code>, — песочница: в ней делают упражнения, вставляют, обновляют и удаляют.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>База</th><th>Коллекция</th><th>Документов</th><th>Что внутри</th></tr></thead>
+            <tbody>
+              <tr><td rowspan="3"><code>shop</code></td><td><code>products</code></td><td>21</td><td rowspan="3">Интернет-магазин: товары, заказы с позициями, покупатели. Основная база модуля 1</td></tr>
+              <tr><td><code>orders</code></td><td>120</td></tr>
+              <tr><td><code>customers</code></td><td>20</td></tr>
+              <tr><td rowspan="4"><code>hh</code></td><td><code>companies</code></td><td>8</td><td rowspan="4">Найм: компании, вакансии, резюме и собеседования. На ней разбирается язык фильтров</td></tr>
+              <tr><td><code>interviews</code></td><td>60</td></tr>
+              <tr><td><code>resumes</code></td><td>9</td></tr>
+              <tr><td><code>vacancies</code></td><td>8</td></tr>
+              <tr><td><code>logs</code></td><td><code>events</code></td><td>1200</td><td>Журнал запросов сервиса: время, маршрут, статус, длительность. Индексы и группировки</td></tr>
+              <tr><td rowspan="2"><code>org</code></td><td><code>categories</code></td><td>10</td><td rowspan="2">Оргструктура и дерево категорий: иерархии и связи</td></tr>
+              <tr><td><code>employees</code></td><td>15</td></tr>
+              <tr><td rowspan="2"><code>sandbox</code></td><td><code>products</code></td><td>21</td><td rowspan="2">Песочница: копия товаров для упражнений и складской учёт для КТ-01</td></tr>
+              <tr><td><code>warehouse</code></td><td>21</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Числа в третьей колонке пригодятся в <a href="#s8">§8</a>: по ним проверяют, что загрузка прошла целиком.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Файлы с данными</h2>
+        <p>Данные лежат в папке <code>stend/seed</code> репозитория практик: по одному JSON-файлу на коллекцию. Там же скрипт <code>generate.py</code>, который эти файлы собирает. Запускать его не нужно: файлы уже готовы, и у всех они одинаковые.</p>
+        <figure class="shot">
+          <img src="../../shots/15-github-seed.png" alt="Папка stend/seed на GitHub: generate.py и двенадцать JSON-файлов от hh.companies.json до shop.products.json">
+          <figcaption>GitHub · <code>mongodb-practice/stend/seed</code> — двенадцать файлов, двенадцать коллекций</figcaption>
+        </figure>
+        <p>Имя каждого файла говорит, куда его загружать:</p>
+        <div class="fname">
+          <p class="fname__line"><i>shop</i>.<i>orders</i>.<i>json</i></p>
+          <div class="fname__parts">
+            <div><b>shop</b><span>Имя базы — до первой точки.</span></div>
+            <div><b>orders</b><span>Имя коллекции — между точками.</span></div>
+            <div><b>json</b><span>Формат: массив документов в JSON.</span></div>
+          </div>
+          <p class="fname__flow"><em>shop.orders.json</em><s>→</s><em>база shop</em><s>→</s><em>коллекция orders</em><s>→</s><em>120 документов</em></p>
+        </div>
+        <p>Внутри файла — массив документов в квадратных скобках. Так начинается <code>shop.products.json</code>:</p>
+        <figure class="code">
+          <figcaption><span>stend/seed/shop.products.json</span><span>начало файла</span></figcaption>
+<pre>[
+ {
+  <span class="s">"_id"</span>: <span class="s">"p-001"</span>,
+  <span class="s">"sku"</span>: <span class="s">"SKU-NB-001"</span>,
+  <span class="s">"title"</span>: <span class="s">"Ноутбук Lenovo IdeaPad 3"</span>,
+  <span class="s">"brand"</span>: <span class="s">"Lenovo"</span>,
+  <span class="s">"category"</span>: <span class="s">"ноутбуки"</span>,
+  <span class="s">"price"</span>: <span class="n">42990</span>,
+  <span class="s">"specs"</span>: [<span class="s">"15.6\""</span>, <span class="s">"8 ГБ"</span>, <span class="s">"SSD 512 ГБ"</span>],
+  <span class="s">"stock"</span>: [{ <span class="s">"warehouse"</span>: <span class="s">"Санкт-Петербург"</span>, <span class="s">"qty"</span>: <span class="n">5</span> }],
+  <span class="s">"rating"</span>: <span class="n">4.2</span>,
+  <span class="s">"reviews"</span>: <span class="n">57</span>,
+  <span class="s">"added"</span>: { <span class="s">"$date"</span>: <span class="s">"2026-02-05T00:00:00.000Z"</span> }
+ },
+ …</pre>
+        </figure>
+        <p>Обратите внимание на поле <code>added</code>. В обычном JSON нет типа «дата», поэтому она записана особым объектом <code>{ "$date": "…" }</code> — это формат <span class="term">Extended JSON</span>. И <code>mongoimport</code>, и Compass понимают его и сохраняют поле как настоящую дату, а не как вложенный документ. Если открыть файл и «поправить» такую запись руками, в базе окажется уже не дата, и запросы по времени из следующих глав перестанут работать.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Скачать репозиторий</h2>
+        <p>Скачивается весь репозиторий: кроме данных, в нём скрипты загрузки, стенд для Docker и практические работы. Если установлен Git — одной командой:</p>
+        <figure class="code">
+          <figcaption><span>Терминал</span><span>через Git</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice</pre>
+        </figure>
+        <p>Без Git — архивом. На <a href="https://github.com/MaximBytecamp/mongodb-practice">странице репозитория</a> нажмите зелёную кнопку <b>Code</b> и в конце меню — <b>Download ZIP</b>:</p>
+        <figure class="shot">
+          <img src="../../shots/14-github-code-zip.png" alt="Меню кнопки Code на странице репозитория mongodb-practice: адрес для клонирования и пункт Download ZIP">
+          <figcaption>GitHub · кнопка <b>Code</b> — сверху адрес для <code>git clone</code>, внизу <b>Download ZIP</b></figcaption>
+        </figure>
+        <p>Архив называется <code>mongodb-practice-main.zip</code>. Распакуйте его и перейдите в папку:</p>
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>«Извлечь всё» создаёт папку в папке</span></figcaption>
+<pre><span class="k">cd</span> $HOME\Downloads\mongodb-practice-main\mongodb-practice-main
+<span class="f">ls</span> stend\seed               <span class="c"># двенадцать .json и generate.py</span></pre>
+        </figure>
+        <figure class="code" data-os="mac">
+          <figcaption><span>Терминал</span><span>архив распакован двойным щелчком в Finder</span></figcaption>
+<pre><span class="k">cd</span> ~/Downloads/mongodb-practice-main
+<span class="f">ls</span> stend/seed               <span class="c"># двенадцать .json и generate.py</span></pre>
+        </figure>
+        <figure class="code" data-os="linux">
+          <figcaption><span>Терминал</span><span>распаковка в терминале</span></figcaption>
+<pre><span class="k">cd</span> ~/Downloads
+unzip mongodb-practice-main.zip
+<span class="k">cd</span> mongodb-practice-main
+<span class="f">ls</span> stend/seed               <span class="c"># двенадцать .json и generate.py</span></pre>
+        </figure>
+        <p>Дальше все команды выполняются из этой папки — корня репозитория.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Какой способ загрузки выбрать</h2>
+        <div class="fork">
+          <div>
+            <small>способ 1</small>
+            <b>Docker</b>
+            <ul>
+              <li>MongoDB не установлена или не запускается;</li>
+              <li>базы загружаются сами при старте стенда;</li>
+              <li><a href="#s5">§5</a> и глава <a href="../01a-stend-v-docker/index.html">1.1а</a>.</li>
+            </ul>
+          </div>
+          <div>
+            <small>способ 2</small>
+            <b>Скрипт</b>
+            <ul>
+              <li>сервер установлен, есть <code>mongoimport</code>;</li>
+              <li>одна команда на все двенадцать коллекций;</li>
+              <li><a href="#s6">§6</a>.</li>
+            </ul>
+          </div>
+          <div>
+            <small>способ 3</small>
+            <b>Compass вручную</b>
+            <ul>
+              <li>есть только сервер и Compass;</li>
+              <li>двенадцать раз одно и то же действие мышью;</li>
+              <li><a href="#s7">§7</a>.</li>
+            </ul>
+          </div>
+        </div>
+        <p>Результат у всех трёх одинаковый. Скрипт и Docker удобнее ещё и тем, что их можно повторить в любой момент — когда данные в песочнице разъедутся после упражнений.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Способ 1. Docker</h2>
+        <p>Если стенд запускается в Docker, отдельно загружать ничего не нужно. При первом <code>docker compose up -d</code> сервис <code>seed</code> видит пустой сервер и сам заливает все файлы из <code>stend/seed</code>:</p>
+        <figure class="code">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>docker compose up -d
+docker compose logs seed</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод docker compose logs seed</span><span>стенд курса</span></figcaption>
+<pre>hh.companies           &lt;- hh.companies.json
+hh.interviews          &lt;- hh.interviews.json
+hh.resumes             &lt;- hh.resumes.json
+hh.vacancies           &lt;- hh.vacancies.json
+logs.events            &lt;- logs.events.json
+org.categories         &lt;- org.categories.json
+org.employees          &lt;- org.employees.json
+sandbox.products       &lt;- sandbox.products.json
+sandbox.warehouse      &lt;- sandbox.warehouse.json
+shop.customers         &lt;- shop.customers.json
+shop.orders            &lt;- shop.orders.json
+shop.products          &lt;- shop.products.json
+Готово: учебные базы загружены</pre>
+        </figure>
+        <p>Вернуть базы в исходное состояние — <code>docker compose run --rm reset</code>. Как поставить Docker и что делать при ошибках, разобрано в главе <a href="../01a-stend-v-docker/index.html">1.1а</a>.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Способ 2. Скрипт с mongoimport</h2>
+        <p><span class="term">mongoimport</span> — консольная утилита MongoDB: читает JSON-файл и записывает документы в указанную коллекцию. Она входит в набор <b>MongoDB Command Line Database Tools</b> и ставится отдельно от сервера:</p>
+        <div data-os="win">
+          <p>Скачайте ZIP-архив <b>MongoDB Command Line Database Tools</b> для Windows со страницы <a href="https://www.mongodb.com/try/download/database-tools">mongodb.com/try/download/database-tools</a> и распакуйте. Права администратора для архива не нужны. Добавьте папку <code>bin</code> из архива в переменную <code>PATH</code> или запускайте <code>mongoimport</code> по полному пути к этой папке. Проверка: <code>mongoimport --version</code>.</p>
+        </div>
+        <div data-os="mac">
+          <p>Через Homebrew: <code>brew tap mongodb/brew</code> и <code>brew install mongodb-database-tools</code>. Проверка: <code>mongoimport --version</code>.</p>
+        </div>
+        <div data-os="linux">
+          <p>Со страницы <a href="https://www.mongodb.com/try/download/database-tools">mongodb.com/try/download/database-tools</a> скачайте пакет <code>.deb</code> или <code>.rpm</code> для вашего дистрибутива и установите его (<code>sudo apt install ./mongodb-database-tools-….deb</code>). Проверка: <code>mongoimport --version</code>.</p>
+        </div>
+        <p>Загружать двенадцать файлов по одному не нужно: в папке <code>stend</code> лежат скрипты, которые проходят по всем файлам и берут имена базы и коллекции из имени файла.</p>
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>из корня репозитория</span></figcaption>
+<pre>powershell -ExecutionPolicy Bypass -File stend\load.ps1
+<span class="c"># другой адрес сервера:</span>
+powershell -ExecutionPolicy Bypass -File stend\load.ps1 -Uri mongodb://localhost:27018</pre>
+        </figure>
+        <figure class="code code--out" data-os="win">
+          <figcaption><span>Вывод load.ps1</span><span>стенд курса, PowerShell 7.6</span></figcaption>
+<pre>hh.companies           &lt;- hh.companies.json
+hh.interviews          &lt;- hh.interviews.json
+hh.resumes             &lt;- hh.resumes.json
+hh.vacancies           &lt;- hh.vacancies.json
+logs.events            &lt;- logs.events.json
+org.categories         &lt;- org.categories.json
+org.employees          &lt;- org.employees.json
+sandbox.products       &lt;- sandbox.products.json
+sandbox.warehouse      &lt;- sandbox.warehouse.json
+shop.customers         &lt;- shop.customers.json
+shop.orders            &lt;- shop.orders.json
+shop.products          &lt;- shop.products.json
+
+Готово. Проверка в Compass: база shop, коллекция orders — 120 документов.</pre>
+        </figure>
+        <p data-os="win">Флаг <code>-ExecutionPolicy Bypass</code> разрешает запустить этот скрипт один раз, не меняя настроек Windows: без него PowerShell по умолчанию отказывается выполнять файлы <code>.ps1</code>.</p>
+        <figure class="code" data-os="mac linux">
+          <figcaption><span>Терминал</span><span>из корня репозитория</span></figcaption>
+<pre>bash stend/load.sh
+<span class="c"># другой адрес сервера:</span>
+MONGO_URI=mongodb://localhost:27018 bash stend/load.sh</pre>
+        </figure>
+        <figure class="code code--out" data-os="mac linux">
+          <figcaption><span>Вывод load.sh</span><span>стенд курса</span></figcaption>
+<pre>mongoimport не найден локально — работаем через контейнер course-mongo
+hh.companies           ← hh.companies.json
+hh.interviews          ← hh.interviews.json
+hh.resumes             ← hh.resumes.json
+hh.vacancies           ← hh.vacancies.json
+logs.events            ← logs.events.json
+org.categories         ← org.categories.json
+org.employees          ← org.employees.json
+sandbox.products       ← sandbox.products.json
+sandbox.warehouse      ← sandbox.warehouse.json
+shop.customers         ← shop.customers.json
+shop.orders            ← shop.orders.json
+shop.products          ← shop.products.json
+
+Готово. Проверка:
+  mongosh "mongodb://localhost:27017" --quiet --eval 'db.getSiblingDB("shop").orders.countDocuments()'   # 120</pre>
+        </figure>
+        <p data-os="mac linux">Первая строка появилась потому, что кадр снят на компьютере без <code>mongoimport</code>: <code>load.sh</code> в таком случае сам берёт утилиту из запущенного контейнера со стендом. Если <code>mongoimport</code> установлен, этой строки не будет, а остальной вывод совпадёт.</p>
+        <p>Внутри скрипта для каждого файла выполняется одна и та же команда. Её полезно знать и саму по себе — например, чтобы перезагрузить одну коллекцию:</p>
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>одна коллекция</span></figcaption>
+<pre>mongoimport --db shop --collection orders --file stend\seed\shop.orders.json --jsonArray --drop</pre>
+        </figure>
+        <figure class="code" data-os="mac linux">
+          <figcaption><span>Терминал</span><span>одна коллекция</span></figcaption>
+<pre>mongoimport --db shop --collection orders --file stend/seed/shop.orders.json --jsonArray --drop</pre>
+        </figure>
+        <div class="ops">
+          <div><b>--db shop</b><span>В какую базу писать. Базы нет — сервер создаст её при первой записи.</span><i>из имени файла</i></div>
+          <div><b>--collection orders</b><span>В какую коллекцию.</span><i>из имени файла</i></div>
+          <div><b>--file …</b><span>Путь к файлу с данными.</span><i>обязательно</i></div>
+          <div><b>--jsonArray</b><span>Файл — это массив <code>[ … ]</code>, а не документы по одному на строку. Без флага импорт падает.</span><i>обязательно</i></div>
+          <div><b>--drop</b><span>Удалить коллекцию перед загрузкой. Без него повторный запуск упрётся в дубли <code>_id</code>.</span><i>для повтора</i></div>
+        </div>
+        <p>Адрес сервера не указан — <code>mongoimport</code> по умолчанию подключается к <code>mongodb://localhost:27017</code>. Другой задаётся флагом <code>--uri</code>.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Способ 3. Вручную через Compass</h2>
+        <p>Если нет ни Docker, ни <code>mongoimport</code>, но сервер и Compass работают, файлы загружаются мышью. На кадрах ниже — пустой сервер, на который загружаем первую коллекцию, <code>shop.products</code>.</p>
+        <ol class="steps">
+          <li><b>Подключитесь к серверу</b>Откройте подключение к <code>mongodb://localhost:27017</code>. Если учебных баз ещё нет, в списке только три служебные: <code>admin</code>, <code>config</code>, <code>local</code>.</li>
+        </ol>
+        <figure class="shot">
+          <img src="../../shots/16-compass-empty-server.png" alt="Compass: подключение к серверу, в списке только служебные базы admin, config и local, справа кнопка Create database">
+          <figcaption>Compass 1.50 · пустой сервер — только служебные базы</figcaption>
+        </figure>
+        <ol class="steps" start="2" style="counter-reset: step 1">
+          <li><b>Создайте базу и первую коллекцию</b>Кнопка <b>Create database</b> справа вверху. В поле <b>Database Name</b> — имя базы из файла, в <b>Collection Name</b> — имя коллекции. Для <code>shop.products.json</code> это <code>shop</code> и <code>products</code>. Compass не создаёт пустую базу без коллекции, поэтому оба поля обязательны. Галочку <b>Time-Series</b> не ставьте.</li>
+        </ol>
+        <figure class="shot">
+          <img src="../../shots/17-compass-create-database.png" alt="Окно Create Database в Compass: Database Name shop, Collection Name products, кнопка Create Database">
+          <figcaption>Compass · <b>Create Database</b> — база <code>shop</code>, коллекция <code>products</code></figcaption>
+        </figure>
+        <ol class="steps" start="3" style="counter-reset: step 2">
+          <li><b>Откройте импорт</b>Откройте новую коллекцию: щёлкните по <code>products</code> под базой <code>shop</code> в левой панели. Коллекция пустая — нажмите <b>Add data → Import JSON or CSV file</b> или кнопку <b>Import data</b> посередине.</li>
+        </ol>
+        <figure class="shot">
+          <img src="../../shots/18-compass-add-data.png" alt="Пустая коллекция shop.products в Compass, открыто меню Add data с пунктами Import JSON or CSV file и Insert document">
+          <figcaption>Compass · <code>shop.products</code> пока пустая — меню <b>Add data</b></figcaption>
+        </figure>
+        <ol class="steps" start="4" style="counter-reset: step 3">
+          <li><b>Выберите файл</b>Откроется окно выбора файла вашей системы. Найдите в папке репозитория <code>stend/seed/shop.products.json</code>. Проверьте строку <b>To collection</b>: коллекция должна совпадать с именем файла. <b>Stop on errors</b> можно не отмечать.</li>
+        </ol>
+        <figure class="shot">
+          <img src="../../shots/19-compass-import-file.png" alt="Окно Import в Compass: To collection shop.products, Import file shop.products.json, кнопка Import">
+          <figcaption>Compass · окно <b>Import</b> — файл <code>shop.products.json</code> в коллекцию <code>shop.products</code></figcaption>
+        </figure>
+        <ol class="steps" start="5" style="counter-reset: step 4">
+          <li><b>Нажмите Import</b>Внизу слева появится сообщение <b>Import completed. 21 documents imported.</b>, а в коллекции — 21 документ.</li>
+        </ol>
+        <figure class="shot">
+          <img src="../../shots/20-compass-imported.png" alt="Коллекция shop.products после импорта: 21 документ, уведомление Import completed, 21 documents imported">
+          <figcaption>Compass · после импорта — <b>Documents 21</b> и уведомление внизу слева</figcaption>
+        </figure>
+        <p>Посмотрите на поле <code>added</code> на кадре: Compass показывает его свёрнутым, и внутри уже дата, а не объект с <code>$date</code>. Это и есть работа Extended JSON из <a href="#s2">§2</a>.</p>
+        <p>Остальные одиннадцать файлов загружаются так же. Если база уже есть, создавать её заново не нужно: наведите на неё в левой панели, нажмите <b>+</b> и создайте только коллекцию.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Файл</th><th>Database Name</th><th>Collection Name</th><th>Документов после импорта</th></tr></thead>
+            <tbody>
+              <tr><td><code>shop.products.json</code></td><td><code>shop</code></td><td><code>products</code></td><td>21</td></tr>
+              <tr><td><code>shop.orders.json</code></td><td><code>shop</code></td><td><code>orders</code></td><td>120</td></tr>
+              <tr><td><code>shop.customers.json</code></td><td><code>shop</code></td><td><code>customers</code></td><td>20</td></tr>
+              <tr><td><code>hh.companies.json</code></td><td><code>hh</code></td><td><code>companies</code></td><td>8</td></tr>
+              <tr><td><code>hh.interviews.json</code></td><td><code>hh</code></td><td><code>interviews</code></td><td>60</td></tr>
+              <tr><td><code>hh.resumes.json</code></td><td><code>hh</code></td><td><code>resumes</code></td><td>9</td></tr>
+              <tr><td><code>hh.vacancies.json</code></td><td><code>hh</code></td><td><code>vacancies</code></td><td>8</td></tr>
+              <tr><td><code>logs.events.json</code></td><td><code>logs</code></td><td><code>events</code></td><td>1200</td></tr>
+              <tr><td><code>org.categories.json</code></td><td><code>org</code></td><td><code>categories</code></td><td>10</td></tr>
+              <tr><td><code>org.employees.json</code></td><td><code>org</code></td><td><code>employees</code></td><td>15</td></tr>
+              <tr><td><code>sandbox.products.json</code></td><td><code>sandbox</code></td><td><code>products</code></td><td>21</td></tr>
+              <tr><td><code>sandbox.warehouse.json</code></td><td><code>sandbox</code></td><td><code>warehouse</code></td><td>21</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: у Compass нет «перезаписать»</b>
+          <p>Повторный импорт в коллекцию, где документы уже есть, их не заменяет: у каждого документа свой <code>_id</code>, и Compass сообщит <code>Import completed 0/21 with errors: E11000 duplicate key error…</code> — ни один документ не добавится. Чтобы загрузить коллекцию заново, сначала удалите её: <b>⋯</b> рядом с коллекцией в левой панели → <b>Drop collection</b>. Скрипт из <a href="#s6">§6</a> делает это сам флагом <code>--drop</code>.</p>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Проверить, что всё загрузилось</h2>
+        <p>После любого способа нажмите в Compass <b>Refresh</b> в списке баз. Должно быть восемь строк: пять учебных баз и три служебные.</p>
+        <figure class="shot">
+          <img src="../../shots/21-compass-all-loaded.png" alt="Список баз в Compass после загрузки: admin, config, hh, local, logs, org, sandbox, shop">
+          <figcaption>Compass · после загрузки — пять учебных баз и три служебные</figcaption>
+        </figure>
+        <p>Надёжнее сверить число документов в каждой коллекции с таблицей из <a href="#s1">§1</a>. Для этого не нужен установленный <code>mongosh</code>: в Compass есть встроенная оболочка — кнопка <b>Open MongoDB shell</b> над списком баз. Вставьте туда одну строку:</p>
+        <figure class="code">
+          <figcaption><span>Open MongoDB shell · mongosh</span><span>число документов во всех коллекциях</span></figcaption>
+<pre><span class="k">for</span> (<span class="k">const</span> d <span class="k">of</span> [<span class="s">'shop'</span>,<span class="s">'hh'</span>,<span class="s">'logs'</span>,<span class="s">'org'</span>,<span class="s">'sandbox'</span>]) <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> db.<span class="f">getSiblingDB</span>(d).<span class="f">getCollectionNames</span>().<span class="f">sort</span>()) <span class="f">print</span>(d + <span class="s">'.'</span> + c, db.<span class="f">getSiblingDB</span>(d)[c].<span class="f">countDocuments</span>())</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
+<pre>shop.customers 20
+shop.orders 120
+shop.products 21
+hh.companies 8
+hh.interviews 60
+hh.resumes 9
+hh.vacancies 8
+logs.events 1200
+org.categories 10
+org.employees 15
+sandbox.products 21
+sandbox.warehouse 21</pre>
+        </figure>
+        <p>Двенадцать строк, и числа совпадают с таблицей — данные на месте, можно переходить к главе 1.1. Не хватает строки — коллекцию забыли или назвали иначе. Число больше ожидаемого — файл загрузили дважды, коллекцию нужно удалить и загрузить снова.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>В чём дело</th></tr></thead>
+            <tbody>
+              <tr data-os="win"><td><code>mongoimport</code> не установлен</td><td><code>mongoimport : The term 'mongoimport' is not recognized…</code> или сообщение <code>load.ps1</code>: «mongoimport не найден»</td><td>Установите Database Tools и добавьте папку <code>bin</code> в <code>PATH</code>, затем откройте новый PowerShell. Или загрузите базы через Compass, <a href="#s7">§7</a></td></tr>
+              <tr data-os="mac"><td><code>mongoimport</code> не установлен</td><td><code>zsh: command not found: mongoimport</code></td><td><code>brew install mongodb-database-tools</code>. <code>load.sh</code> без утилиты попробует взять её из контейнера стенда</td></tr>
+              <tr data-os="linux"><td><code>mongoimport</code> не установлен</td><td><code>bash: mongoimport: command not found</code></td><td>Установите пакет Database Tools. <code>load.sh</code> без утилиты попробует взять её из контейнера стенда</td></tr>
+              <tr data-os="win"><td>PowerShell не запускает скрипт</td><td><code>load.ps1 cannot be loaded because running scripts is disabled on this system</code></td><td>Запускайте через <code>powershell -ExecutionPolicy Bypass -File stend\load.ps1</code> — это разрешение на один запуск, права администратора не нужны</td></tr>
+              <tr><td>Забыт <code>--jsonArray</code></td><td><code>Failed: cannot decode array into a D</code><br><code>0 document(s) imported successfully. 0 document(s) failed to import.</code></td><td>Файл — массив документов, а <code>mongoimport</code> по умолчанию ждёт по документу на строку</td></tr>
+              <tr><td>Повторная загрузка без <code>--drop</code></td><td><code>E11000 duplicate key error collection: shop.products index: _id_ dup key: { _id: "p-008" }</code><br><code>0 document(s) imported successfully. 21 document(s) failed to import.</code></td><td>Документы с такими <code>_id</code> уже есть. Добавьте <code>--drop</code></td></tr>
+              <tr><td>Повторный импорт в Compass</td><td><code>Import completed 0/21 with errors: E11000 duplicate key error collection: shop.products index: _id_ dup key: { _id: "p-001" }…</code></td><td>Коллекция уже загружена. Нужны свежие данные — <b>⋯ → Drop collection</b>, затем импорт заново</td></tr>
+              <tr><td>Опечатка в имени базы или коллекции</td><td>Импорт прошёл, но примеры из глав возвращают пустой результат</td><td>Например, база названа <code>Shop</code> или коллекция <code>product</code>. Имена чувствительны к регистру; удалите коллекцию и загрузите под именем из файла</td></tr>
+              <tr><td>Сервер не запущен</td><td><code>connect ECONNREFUSED 127.0.0.1:27017</code> в Compass или <code>error connecting to host</code> у <code>mongoimport</code></td><td>На порту 27017 никто не слушает. Запустите службу MongoDB или поднимите стенд в Docker — глава <a href="../01a-stend-v-docker/index.html">1.1а</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>В какую базу и коллекцию загружается файл <code>hh.interviews.json</code>?</summary>
+          <p>База <code>hh</code>, коллекция <code>interviews</code>: имя базы стоит до первой точки, имя коллекции — между точками. После загрузки в ней 60 документов.</p>
+        </details>
+        <details>
+          <summary>Зачем в файлах даты записаны как <code>{ "$date": "…" }</code>, а не строкой?</summary>
+          <p>В JSON нет типа «дата». Запись <code>$date</code> — формат Extended JSON: <code>mongoimport</code> и Compass превращают её в настоящую дату. Строка так и осталась бы строкой, и сравнение по времени работало бы неправильно.</p>
+        </details>
+        <details>
+          <summary>После упражнений в <code>sandbox.products</code> 19 документов вместо 21. Что делать?</summary>
+          <p>Перезагрузить коллекцию: <code>docker compose run --rm reset</code> в Docker, скрипт из §6 или одна команда <code>mongoimport … --drop</code>. В Compass — удалить коллекцию и импортировать файл заново. Чинить документы руками не нужно.</p>
+        </details>
+        <details>
+          <summary>Вы дважды импортировали <code>shop.orders.json</code> через Compass. Сколько документов окажется в коллекции?</summary>
+          <p>120. Вторая попытка не добавит ни одного: у каждого документа тот же <code>_id</code>, и сервер отклонит дубликаты. Compass покажет <code>Import completed 0/120 with errors</code>, но данные не удвоятся.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Скачать</b>
+            <code>git clone https://github.com/</code>
+            <code>  MaximBytecamp/mongodb-practice.git</code>
+            <code># или Code → Download ZIP</code>
+          </div>
+          <div>
+            <b>Загрузить всё</b>
+            <code>docker compose up -d         # Docker</code>
+            <code>bash stend/load.sh           # macOS, Linux</code>
+            <code>powershell -ExecutionPolicy Bypass</code>
+            <code>  -File stend\load.ps1        # Windows</code>
+          </div>
+          <div>
+            <b>Одна коллекция</b>
+            <code>mongoimport --db shop</code>
+            <code>  --collection orders</code>
+            <code>  --file stend/seed/shop.orders.json</code>
+            <code>  --jsonArray --drop</code>
+          </div>
+          <div>
+            <b>Проверить</b>
+            <code>Compass → Refresh: 8 баз</code>
+            <code>shop.orders — 120 документов</code>
+            <code>logs.events — 1200 документов</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Учебные данные — двенадцать JSON-файлов в <code>stend/seed</code> репозитория практик; имя файла задаёт базу и коллекцию. Загрузить их можно Docker-стендом, скриптом с <code>mongoimport</code> или вручную через Compass — результат одинаковый, и проверяется он числом документов в каждой коллекции. Когда числа сошлись, переходим к главе 1.1: что такое сервер, база и коллекция и как до них дойти из кода.</p>
+
+        <div class="pager"><a href="../../index.html">К содержанию справочника</a><a href="../01-klient-baza-kollekciya/index.html">1.1 Сервер, база, коллекция →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.0 · Учебные базы · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

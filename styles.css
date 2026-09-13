@@ -445,7 +445,7 @@ figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); 
 }
 
 /* Длинные адреса и имена в тексте переносятся, а не растягивают страницу. */
-:not(pre) > code { overflow-wrap: anywhere; }
+:not(pre) > code { overflow-wrap: break-word; }
 @media (max-width: 480px) {
   .passport { grid-template-columns: 1fr; }
   .passport > div { border-right: 0; border-bottom: 2px solid var(--rule); }
