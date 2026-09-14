@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Тест · Модуль 1 · Справочник по MongoDB</title>
+<meta name="description" content="Итоговый тест модуля 1: подключение, документ и BSON, вставка, чтение, проекция, сортировка, обновление и удаление. 25 вопросов, 30 минут, одна попытка.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:opsz,wght@7..72,600;7..72,700&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="chrome">
+  <a class="brand" href="../../index.html">
+    <span class="brand-mark">M1</span>
+    <span>СПРАВОЧНИК ПО MONGODB<br><b>Тест модуля 1</b></span>
+  </a>
+  <div id="timer" class="timer hidden" role="timer" aria-live="off">30:00</div>
+</header>
+
+<main class="wrap">
+
+  <!-- ЭКРАН 1. Начало -->
+  <section id="screen-start">
+    <p class="eyebrow">модуль 1 · итоговый тест</p>
+    <h1>Подключение и первые данные</h1>
+    <div class="panel">
+      <h2>Как это устроено</h2>
+      <ul class="rules">
+        <li><b>25 вопросов</b> по главам 1.1–1.8: сервер и клиент, документ и BSON, вставка, чтение и курсор, проекция, сортировка и страницы, обновление, удаление.</li>
+        <li><b>30 минут.</b> Отсчёт начинается по кнопке «Начать» и не останавливается, если закрыть вкладку или перезагрузить страницу. Когда время выйдет, работа отправится сама с теми ответами, что успели отметить.</li>
+        <li>В вопросах с кодом он показан <b>на выбранном языке</b>. Язык выбирается один раз, до начала, — и отвечать нужно про поведение именно этого драйвера.</li>
+        <li>Четыре вопроса — <b>с несколькими верными вариантами</b>. Балл за них — только если отмечены ровно все верные и ни одного лишнего. Такие вопросы подписаны.</li>
+        <li>Каждый вопрос — <b>1 балл</b>. Оценка: 23–25 → «5», 19–22 → «4», 14–18 → «3», меньше 14 → «2».</li>
+        <li><b>Пройти можно один раз.</b> После отправки ответы не меняются, а повторное открытие ссылки покажет уже готовую оценку. Порядок вопросов и вариантов у каждого свой.</li>
+        <li><b>Уход со вкладки считается.</b> Переключение на другое окно или вкладку во время теста записывается в код результата — преподаватель это увидит.</li>
+        <li>В конце вы получите <b>код результата</b> — скопируйте его и пришлите преподавателю.</li>
+      </ul>
+
+      <label class="field">
+        <span>Фамилия и имя</span>
+        <input id="in-name" type="text" autocomplete="off" placeholder="Иванов Иван" maxlength="60">
+      </label>
+      <label class="field">
+        <span>Группа</span>
+        <input id="in-group" type="text" autocomplete="off" placeholder="ИС-31" maxlength="20">
+      </label>
+      <div class="field">
+        <span>Язык, на котором вы проходили модуль</span>
+        <div class="langs" id="langs" role="radiogroup">
+          <button type="button" data-lang="python" role="radio" aria-checked="false">Python</button>
+          <button type="button" data-lang="cpp" role="radio" aria-checked="false">C++</button>
+          <button type="button" data-lang="go" role="radio" aria-checked="false">Go</button>
+          <button type="button" data-lang="ruby" role="radio" aria-checked="false">Ruby</button>
+        </div>
+      </div>
+      <p id="start-err" class="err" role="alert"></p>
+      <button id="btn-start" class="btn">Начать · 30 минут</button>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 2. Вопросы -->
+  <section id="screen-quiz" class="hidden">
+    <div class="progress">
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+      <div class="progress-row">
+        <span id="progress-text" class="progress-text">ОТВЕЧЕНО 0 ИЗ 25</span>
+        <span id="lang-badge" class="progress-text"></span>
+      </div>
+    </div>
+    <div id="leave-note" class="notice warn hidden"></div>
+    <p class="context" id="context"></p>
+    <div id="questions"></div>
+    <div class="submit-bar">
+      <button id="btn-finish" class="btn">Завершить и получить оценку</button>
+      <span id="finish-note" class="muted"></span>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 3. Результат -->
+  <section id="screen-result" class="hidden">
+    <p class="eyebrow">результат</p>
+    <h1 id="result-title">Работа завершена</h1>
+
+    <div class="panel">
+      <div class="score">
+        <div id="mark" class="mark m2">2</div>
+        <div class="score-text">
+          <p class="score-line"><b id="score-line">0 из 25</b></p>
+          <p class="muted" id="who"></p>
+          <p class="muted" id="when"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Код результата</h2>
+      <p class="muted">Скопируйте и пришлите преподавателю. В коде зашиты фамилия, язык, ответы, баллы, уходы со вкладки и контрольная сумма — правка вручную будет видна при проверке.</p>
+      <div class="code-box">
+        <textarea id="code" readonly spellcheck="false"></textarea>
+        <button id="btn-copy" class="btn ghost">Скопировать</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>По вопросам</h2>
+      <p class="muted">Верные ответы и разбор не показываются, пока тест пишет вся группа, — их разберём на занятии.</p>
+      <div id="review" class="review"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="quiz-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

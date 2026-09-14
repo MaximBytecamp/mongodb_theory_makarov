@@ -535,24 +535,49 @@ fmt.<span class="f">Println</span>(doc)</pre>
                 projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span> }).first.inspect</pre>
         </figure>
 
-        <h2 id="s7"><span class="sec">§7</span>Обновление без операторов</h2>
-        <p>Если забыть <code>$set</code> и передать просто документ, драйвер не пропустит запрос дальше:</p>
+        
         <figure class="code code--out" data-lang="python">
-          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+          <figcaption><span>Вывод в терминал</span><span>первый запуск за день</span></figcaption>
 <pre>{'product_id': 'p-003', 'date': '2026-09-14', 'views': 1}</pre>
         </figure>
         <figure class="code code--out" data-lang="cpp">
-          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+          <figcaption><span>Вывод в терминал</span><span>первый запуск за день</span></figcaption>
 <pre>{ "product_id" : "p-003", "date" : "2026-09-14", "views" : 1 }</pre>
         </figure>
         <figure class="code code--out" data-lang="go">
-          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+          <figcaption><span>Вывод в терминал</span><span>первый запуск за день</span></figcaption>
 <pre>{"date":"2026-09-14","product_id":"p-003","views":{"$numberInt":"1"}}</pre>
         </figure>
         <figure class="code code--out" data-lang="ruby">
-          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+          <figcaption><span>Вывод в терминал</span><span>первый запуск за день</span></figcaption>
 <pre>{"date"=&gt;"2026-09-14", "product_id"=&gt;"p-003", "views"=&gt;1}</pre>
         </figure>
+
+<h2 id="s7"><span class="sec">§7</span>Обновление без операторов</h2>
+        <p>Если забыть <code>$set</code> и передать просто документ, драйвер не пропустит запрос дальше<span data-lang="ruby"> — во всех языках курса, кроме Ruby</span>:</p>
+        <figure class="code code--out" data-lang="python" data-run="no">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+<pre>ValueError: update only works with $ operators</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp" data-run="no">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+<pre>terminate called after throwing an instance of 'mongocxx::v_noabi::logic_error'
+  what():  Invalid key 'price': update only works with $ operators and pipelines: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go" data-run="no">
+          <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
+<pre>update document must contain key beginning with '$'</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby" data-run="no">
+          <figcaption><span>Предупреждение</span><span>запрос всё равно выполнен</span></figcaption>
+<pre>WARN -- : Invalid update document provided. Updates documents must only contain only atomic modifiers. The "price" key is invalid.
+matched: 1 modified: 1
+{"_id"=&gt;"p-001", "price"=&gt;100}</pre>
+        </figure>
+        <div class="margin-note margin-note--warn" data-lang="ruby">
+          <b>Осторожно: в Ruby такой запрос проходит</b>
+          <p>Драйвер Ruby только пишет предупреждение в журнал и отправляет запрос. Сервер понимает документ без операторов как замену: у <code>p-001</code> остались только <code>_id</code> и <code>price</code>, название, категория и склады исчезли. Ошибки нет, <code>modified</code> равен единице — поэтому предупреждение <code>Invalid update document</code> в выводе нужно читать, а не пропускать.</p>
+        </div>
         <p>Метод <code>replace_one</code> при этом <strong>заменяет документ целиком</strong>. Все поля, которых нет в новом документе, исчезают; сохраняется только <code>_id</code>.</p>
         <div class="table-scroll">
           <table>
