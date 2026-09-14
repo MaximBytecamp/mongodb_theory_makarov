@@ -61,7 +61,7 @@ def base(chapter: str, lang: str) -> tuple[str, str, str]:
         head = f'''"""Глава {chapter} · {title} — заготовка для примеров.
 
 {state}
-Пример из главы вставьте в конец файла, под чертой, и запустите:
+Пример из главы вставьте под чертой вместо проверочных строк и запустите:
 
     cd lessons
     python {name}.py          # Windows
@@ -85,7 +85,7 @@ box = client["sandbox"]["products"]        # песочница: здесь мо
         head = f'''# Глава {chapter} · {title} — заготовка для примеров.
 #
 # {state}
-# Пример из главы вставьте в конец файла, под чертой, и запустите:
+# Пример из главы вставьте под чертой вместо проверочных строк и запустите:
 #
 #     cd lessons
 #     ruby {name}.rb
@@ -108,7 +108,8 @@ box = client.use("sandbox").database[:products]   # песочница: здес
         head = f'''// Глава {chapter} · {title} — заготовка для примеров.
 //
 // {state}
-// Пример из главы вставьте внутрь фигурных скобок в конце main и запустите:
+// Пример из главы вставьте в фигурные скобки в конце main вместо проверочных строк
+// и запустите:
 //
 //	cd lessons
 //	go run {name}.go
@@ -158,7 +159,8 @@ func main() {{
         head = f'''// Глава {chapter} · {title} — заготовка для примеров.
 //
 // {state}
-// Пример из главы вставьте внутрь фигурных скобок в конце main и запустите:
+// Пример из главы вставьте в фигурные скобки в конце main вместо проверочных строк
+// и запустите:
 //
 //     cd lessons
 //     g++ -std=c++17 {name}.cpp -o {name} $(pkg-config --cflags --libs libmongocxx1) && ./{name}   # macOS, Homebrew
@@ -497,6 +499,31 @@ def snippets(chapter: str, lang: str) -> list[str]:
 
 # ── Прогон ────────────────────────────────────────────────────────────────
 
+# Что стоит в заготовке на месте примера: без него программа молчала бы,
+# и было бы непонятно, запустилась ли она вообще. Прогон примеров этих строк не видит.
+PING_TEXT = "Заготовка главы @@CH@@ подключилась к серверу. Замените проверочные строки примером из главы."
+PING = {
+    "python": f'''# Проверочные строки: замените их примером из главы.
+client.admin.command("ping")
+print("{PING_TEXT}")
+''',
+    "ruby": f'''# Проверочные строки: замените их примером из главы.
+client.database.command(ping: 1)
+puts "{PING_TEXT}"
+''',
+    "go": f'''\t\t// Проверочные строки: замените их примером из главы.
+\t\tif err := client.Ping(ctx, nil); err != nil {{
+\t\t\tlog.Fatal(err)
+\t\t}}
+\t\tfmt.Println("{PING_TEXT}")
+''',
+    "cpp": f'''        // Проверочные строки: замените их примером из главы.
+        client["admin"].run_command(make_document(kvp("ping", 1)));
+        std::cout << "{PING_TEXT}" << std::endl;
+''',
+}
+
+
 def write_starters() -> None:
     lessons = PRACTICE / "lessons"
     lessons.mkdir(exist_ok=True)
@@ -504,7 +531,12 @@ def write_starters() -> None:
         if chapter == "1.1":
             continue            # глава 1.1 сама учит подключаться: заготовка — это hello/
         for lang in LANGS:
-            program = starter(chapter, lang, snippets(chapter, lang)).replace("@@TOP@@", "").replace("@@BODY@@", "")
+            program = starter(chapter, lang, snippets(chapter, lang)).replace("@@TOP@@", "")
+            check = PING[lang].replace("@@CH@@", chapter)
+            if lang in ("python", "ruby"):
+                program += check
+            else:
+                program = program.replace("@@BODY@@", check.rstrip("\n"))
             path = lessons / f"ch{chapter.replace('.', '_')}.{EXT[lang]}"
             path.write_text(program)
     print("заготовки записаны в", lessons)

@@ -611,32 +611,38 @@ go run hello.go</pre>
         <div class="slot" data-lang="python">
           <div><small>lessons/ch1_4.py</small>import os<br>from pymongo import MongoClient</div>
           <div>client = MongoClient(…)<br>db = client["shop"]<br>products = db["products"]<br>orders = db["orders"]<br>box = client["sandbox"]["products"]</div>
-          <div class="slot__here"># ── пример из главы ──</div>
+          <div class="slot__here"># ── пример из главы ──<br>client.admin.command("ping")<br>print("Заготовка главы 1.4 подключилась…")</div>
         </div>
         <div class="slot" data-lang="ruby">
           <div><small>lessons/ch1_4.rb</small>require "mongo"</div>
           <div>client = Mongo::Client.new(…)<br>db = client.use("shop").database<br>products = db[:products]<br>orders = db[:orders]<br>box = client.use("sandbox").database[:products]</div>
-          <div class="slot__here"># ── пример из главы ──</div>
+          <div class="slot__here"># ── пример из главы ──<br>client.database.command(ping: 1)<br>puts "Заготовка главы 1.4 подключилась…"</div>
         </div>
         <div class="slot" data-lang="go">
           <div><small>lessons/ch1_4.go</small>package main · import (…)</div>
           <div>// ── функции и типы из примеров главы ──<br>type Product struct { … }</div>
           <div>func main() {<br>&nbsp;&nbsp;client, err := mongo.Connect(…)<br>&nbsp;&nbsp;db, products, orders, box := …</div>
-          <div class="slot__here">&nbsp;&nbsp;{ // ── пример из главы ── }</div>
+          <div class="slot__here">&nbsp;&nbsp;{ // ── пример из главы ──<br>&nbsp;&nbsp;&nbsp;&nbsp;client.Ping(ctx, nil)<br>&nbsp;&nbsp;&nbsp;&nbsp;fmt.Println("Заготовка главы 1.4 подключилась…") }</div>
           <div>}</div>
         </div>
         <div class="slot" data-lang="cpp">
           <div><small>lessons/ch1_4.cpp</small>#include … · using make_document, kvp</div>
           <div>// ── функции из примеров главы ──</div>
           <div>int main() {<br>&nbsp;&nbsp;mongocxx::instance instance{};<br>&nbsp;&nbsp;mongocxx::client client{…};<br>&nbsp;&nbsp;auto db = …, products = …, orders = …, box = …;</div>
-          <div class="slot__here">&nbsp;&nbsp;{ // ── пример из главы ── }</div>
+          <div class="slot__here">&nbsp;&nbsp;{ // ── пример из главы ──<br>&nbsp;&nbsp;&nbsp;&nbsp;client["admin"].run_command(make_document(kvp("ping", 1)));<br>&nbsp;&nbsp;&nbsp;&nbsp;std::cout &lt;&lt; "Заготовка главы 1.4 подключилась…"; }</div>
           <div>}</div>
         </div>
-        <p data-lang="go">Пример, который начинается с <code>func</code> или <code>type</code>, ставится выше <code>main</code> — у отметки «функции и типы из примеров главы». Всё остальное — внутрь фигурных скобок в конце <code>main</code>.</p>
-        <p data-lang="cpp">Пример, который объявляет функцию, ставится выше <code>main</code> — у отметки «функции из примеров главы». Всё остальное — внутрь фигурных скобок в конце <code>main</code>.</p>
+        <p data-lang="go">Пример, который начинается с <code>func</code> или <code>type</code>, ставится выше <code>main</code> — у отметки «функции и типы из примеров главы». Всё остальное — внутрь фигурных скобок в конце <code>main</code>, вместо проверочных строк.</p>
+        <p data-lang="cpp">Пример, который объявляет функцию, ставится выше <code>main</code> — у отметки «функции из примеров главы». Всё остальное — внутрь фигурных скобок в конце <code>main</code>, вместо проверочных строк.</p>
+        <p>Под отметкой стоят проверочные строки: пока пример не вставлен, заготовка только проверяет связь с сервером. Её можно запустить сразу — командой из шага 3 ниже — и убедиться, что всё работает:</p>
+        <figure class="code code--out">
+          <figcaption><span>Вывод в терминал</span><span>заготовка главы 1.4 без примера</span></figcaption>
+<pre>Заготовка главы 1.4 подключилась к серверу. Замените проверочные строки примером из главы.</pre>
+        </figure>
+        <p>Если вместо этой строки — ошибка, связи с сервером нет: разбор в <a href="#s11">§11</a>.</p>
         <ol class="steps">
           <li><b>Проверьте состояние баз</b>В начале каждой главы написано, меняет ли она данные. Если меняет — перед главой верните базы в исходное состояние, как в <a href="#s8">§8</a>: <code>docker compose run --rm reset</code> или скрипт из §6.</li>
-          <li><b>Вставьте пример</b>Скопируйте пример из главы в отмеченное место заготовки. Следующий пример вставляйте <strong>вместо</strong> предыдущего, а не под ним: иначе при повторном запуске предыдущий выполнится ещё раз.</li>
+          <li><b>Вставьте пример</b>Скопируйте пример из главы в отмеченное место заготовки <strong>вместо</strong> проверочных строк. Следующий пример вставляйте <strong>вместо</strong> предыдущего, а не под ним: иначе при повторном запуске предыдущий выполнится ещё раз.</li>
           <li><b>Запустите из папки <code>lessons</code></b>Каждый пример — один раз и по порядку. Именно так получены все выводы в справочнике, поэтому ваш вывод совпадёт с книгой. Отличаться будут только <code>_id</code>, которые выдаёт сервер, текущее время и последняя цифра версии сервера: образ <code>mongo:7</code> обновляется, в книге — 7.0.40.<span data-lang="ruby"> В Ruby 3.4 и новее хэш печатается с пробелами вокруг стрелки: <code>{"price" =&gt; 42990}</code>, в книге — формат Ruby 3.3, <code>{"price"=&gt;42990}</code>.</span><span data-lang="cpp" data-os="mac"> Необработанное исключение C++ на macOS выглядит иначе, чем в книге: <code>libc++abi: terminating due to uncaught exception of type std::runtime_error: …</code> вместо двух строк <code>terminate called …</code> и <code>what(): …</code>.</span></li>
         </ol>
         <figure class="code" data-lang="python" data-os="win">
