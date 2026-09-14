@@ -640,11 +640,10 @@ report[<span class="s">"снято с продажи"</span>] = BOX.<span class=
           <li><b>Опишите результат</b>Рядом с решением — <code>README.md</code>: как запустить и какие числа получились. Пяти строк достаточно.</li>
           <li><b>Отправьте и пришлите ссылку</b>Из папки <code>work</code>: <code>git add practice01</code>, <code>git commit -m "ПР-01: каталог товаров"</code>, <code>git push</code>. Преподавателю — ссылку на репозиторий.</li>
         </ol>
-        <div class="shot-todo">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>GitHub, страница <b>Create a new repository</b>: имя <code>mongodb-ivanov</code>, без README и .gitignore, кнопка <b>Create repository</b>.</p>
-          <p>Файл: <code>shots/github-new-repository.png</code></p>
-        </div>
+        <figure class="shot">
+          <img src="../../shots/github-new-repository.png" alt="Форма Create a new repository с именем mongodb-ivanov">
+          <figcaption>GitHub · <b>Create a new repository</b> — имя <code>mongodb-ivanov</code>, без README и .gitignore, затем <b>Create repository</b></figcaption>
+        </figure>
         <figure class="code" data-lang="python">
           <figcaption><span>Терминал</span><span>ваше решение: из корня mongodb-practice</span></figcaption>
 <pre>docker compose run --rm reset
@@ -686,11 +685,10 @@ docker compose run --rm python practice01/check.py        # Пройдено 12 
           <figcaption>VS Code · macOS · <code>work/practice01/solution.rb</code>, запуск и <code>check.py</code> — «Пройдено 12 из 12» (в кадре вместо вашего решения — эталонное)</figcaption>
         </figure>
         <p>Без Docker команды те же, что в начале страницы, только решение запускается из своей папки: <code>cd work/practice01</code>, а проверка — из <code>practice01</code>. Скриншот вывода <code>check.py</code> прикладывать не нужно: на приёмке решение запускается заново на свежих данных.</p>
-        <div class="shot-todo">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>Ваш репозиторий на GitHub после <code>git push</code>: видна папка <code>practice01</code> с решением и README.md.</p>
-          <p>Файл: <code>shots/github-after-push.png</code></p>
-        </div>
+        <figure class="shot">
+          <img src="../../shots/github-after-push.png" alt="Репозиторий mongodb-ivanov на GitHub с папкой practice01 после git push">
+          <figcaption>GitHub · репозиторий после <code>git push</code>: папка <code>practice01</code> с решением и README внутри неё</figcaption>
+        </figure>
         <div class="margin-note margin-note--warn">
           <b>Что спросят на приёмке</b>
           <p>Почему сортировка по двум ключам, а не по одному. Что вернёт функция для девятой страницы. Почему остатки меняются через <code>$inc</code>. Что произойдёт при повторном запуске скрипта приёмки. Ответ «так было в примере» не принимается — на эти четыре вопроса и написана работа.</p>

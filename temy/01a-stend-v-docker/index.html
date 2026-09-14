@@ -177,11 +177,10 @@
           <p>Docker Desktop для Windows скачивается с <a href="https://docs.docker.com/desktop/setup/install/windows-install/">docs.docker.com</a>. Установщику нужны права администратора, а при первом запуске он включает подсистему WSL 2. После установки Docker Desktop нужно <strong>запустить</strong>: команды работают, только пока он открыт и внизу его окна написано <b>Engine running</b>.</p>
           <p>Терминал на Windows — <b>PowerShell</b>: <b>Win + X</b> → «Терминал». Все команды главы набираются в нём. Проверьте две вещи:</p>
         </div>
-        <div class="shot-todo" data-os="win">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>Docker Desktop на Windows после запуска: внизу окна зелёная надпись <b>Engine running</b>.</p>
-          <p>Файл: <code>shots/win-docker-desktop.png</code></p>
-        </div>
+        <figure class="shot" data-os="win">
+          <img src="../../shots/docker-desktop-engine.png" alt="Боковая панель Docker Desktop с надписью Engine running внизу">
+          <figcaption>Docker Desktop — внизу слева <b>Engine running</b>: движок запущен. Кадр с macOS, в Windows эта строка на том же месте</figcaption>
+        </figure>
         <div data-os="mac">
           <p>Docker Desktop для Mac скачивается с <a href="https://docs.docker.com/desktop/setup/install/mac-install/">docs.docker.com</a>. Сборок две — для Apple Silicon и для Intel; какой у вас процессор, видно в меню  → «Об этом Mac», строка «Чип» или «Процессор». После установки Docker Desktop нужно <strong>запустить</strong> из «Программ»: команды работают, пока он открыт и в его окне написано <b>Engine running</b>.</p>
           <p>Терминал на macOS — приложение <b>Терминал</b>: <b>Cmd + Пробел</b>, набрать «Терминал». Проверьте две вещи:</p>
@@ -770,13 +769,13 @@ docker compose run --rm python kt01/check.py</pre>
           <li>Войдите на <a href="https://github.com">github.com</a> — аккаунт бесплатный.</li>
           <li>Откройте <a href="https://github.com/MaximBytecamp/mongodb-practice">репозиторий практик</a> и нажмите <b>Code → Codespaces → Create codespace on main</b>.</li>
           <li>Подождите 3–5 минут: в первый раз окружение собирается с нуля. Когда в нижней панели откроется терминал, всё готово.</li>
+          <li>При первом открытии терминала редактор спросит <b>«Вы доверяете авторам файлов в этой папке?»</b> — нажмите <b>Доверять папке и продолжить</b>. Без этого терминал не запустится.</li>
           <li>Проверьте подключение и запустите практику прямо в терминале редактора — Docker там уже не нужен, вы и так внутри контейнера.</li>
         </ol>
-        <div class="shot-todo">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>Страница репозитория практик на GitHub: открыто меню <b>Code → Codespaces</b> с кнопкой <b>Create codespace on main</b>.</p>
-          <p>Файл: <code>shots/codespaces-create.png</code></p>
-        </div>
+        <figure class="shot">
+          <img src="../../shots/codespaces-create.png" alt="Меню Code, вкладка Codespaces, кнопка Create codespace on main">
+          <figcaption>GitHub · <b>Code → Codespaces → Create codespace on main</b>. Меню одинаковое у любого репозитория</figcaption>
+        </figure>
         <figure class="code" data-lang="python">
           <figcaption><span>Терминал Codespaces</span><span>Python</span></figcaption>
 <pre>python hello/hello.py

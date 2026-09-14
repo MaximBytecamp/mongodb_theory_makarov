@@ -279,11 +279,10 @@ shop.products          &lt;- shop.products.json
         <div data-os="win">
           <p>Скачайте ZIP-архив <b>MongoDB Command Line Database Tools</b> для Windows со страницы <a href="https://www.mongodb.com/try/download/database-tools">mongodb.com/try/download/database-tools</a> и распакуйте. Права администратора для архива не нужны. Добавьте папку <code>bin</code> из архива в переменную <code>PATH</code> или запускайте <code>mongoimport</code> по полному пути к этой папке. Проверка: <code>mongoimport --version</code>.</p>
         </div>
-        <div class="shot-todo" data-os="win">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>Окно <b>Переменные среды</b> Windows: в списке <code>Path</code> добавлена папка <code>bin</code> из распакованного архива Database Tools.</p>
-          <p>Файл: <code>shots/win-tools-path.png</code></p>
-        </div>
+        <figure class="shot" data-os="win">
+          <img src="../../shots/win-tools-path.png" alt="Окно редактирования переменной Path с папкой bin из MongoDB Database Tools">
+          <figcaption>Windows · <b>Переменные среды → Path → Изменить</b>: добавлена папка <code>bin</code> из архива Database Tools (в английской Windows — Edit environment variable)</figcaption>
+        </figure>
         <div data-os="mac">
           <p>Через Homebrew: <code>brew tap mongodb/brew</code>, <code>brew trust mongodb/brew</code> и <code>brew install mongodb-database-tools</code>. Без второй команды свежий Homebrew откажется ставить формулу: <code>Refusing to load formula … from untrusted tap mongodb/brew</code>. Проверка: <code>mongoimport --version</code>.</p>
         </div>
@@ -474,11 +473,10 @@ sandbox.warehouse 21</pre>
           <figcaption><span>PowerShell</span><span>Python · pymongo</span></figcaption>
 <pre>python -m pip install pymongo</pre>
         </figure>
-        <div class="shot-todo" data-lang="python" data-os="win">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>Установщик Python для Windows с python.org: первый экран с отмеченной галочкой <b>Add python.exe to PATH</b>.</p>
-          <p>Файл: <code>shots/win-python-installer.png</code></p>
-        </div>
+        <figure class="shot" data-lang="python" data-os="win">
+          <img src="../../shots/win-python-installer.png" alt="Установщик Python с окном «Add python.exe to PATH» и отмеченной галочкой">
+          <figcaption>Windows · установщик Python 3.12 — галочка <b>Add python.exe to PATH</b> отмечена, дальше <b>Install Now</b></figcaption>
+        </figure>
         <p data-lang="python" data-os="win">Если PowerShell отвечает, что <code>python</code> не найден, поставьте Python с <a href="https://www.python.org/downloads/">python.org</a> и отметьте в установщике <b>Add python.exe to PATH</b>, затем откройте новый терминал.</p>
         <figure class="code" data-lang="python" data-os="mac linux">
           <figcaption><span>Терминал</span><span>Python · pymongo в виртуальном окружении</span></figcaption>
@@ -491,11 +489,10 @@ pip install pymongo</pre>
           <figcaption><span>PowerShell</span><span>Ruby · gem mongo</span></figcaption>
 <pre>gem install mongo</pre>
         </figure>
-        <div class="shot-todo" data-lang="ruby" data-os="win">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>RubyInstaller для Windows: последний экран установки с отмеченной галочкой <b>Run ridk install</b> и окно MSYS2, где выбран пункт 3.</p>
-          <p>Файл: <code>shots/win-rubyinstaller.png</code></p>
-        </div>
+        <figure class="shot" data-lang="ruby" data-os="win">
+          <img src="../../shots/win-rubyinstaller.png" alt="Последний экран RubyInstaller с отмеченной галочкой Run ridk install">
+          <figcaption>Windows · RubyInstaller 3.3 — последний экран, галочка <b>Run 'ridk install'</b> отмечена; после <b>Finish</b> в окне MSYS2 выберите пункт 3</figcaption>
+        </figure>
         <p data-lang="ruby" data-os="win">Ruby ставится с <a href="https://rubyinstaller.org/">rubyinstaller.org</a> — сборка <b>with Devkit</b>: драйверу нужен компилятор для расширения <code>bson</code>.</p>
         <figure class="code" data-lang="ruby" data-os="mac">
           <figcaption><span>Терминал</span><span>Ruby · gem mongo</span></figcaption>
@@ -521,11 +518,10 @@ go mod download</pre>
 <pre>docker compose run --rm cpp hello/hello.cpp</pre>
         </figure>
         <p data-lang="cpp" data-os="win linux">Драйвер C++ на Windows и Linux собирается из исходников долго и с зависимостями. Проще запускать код в готовом контейнере стенда — глава <a href="../01a-stend-v-docker/index.html">1.1а</a>: первая сборка образа занимает несколько минут, дальше запуск идёт за секунды.</p>
-        <div class="shot-todo" data-os="win">
-          <b>Здесь будет кадр с учебного компьютера</b>
-          <p>PowerShell на учебном компьютере: команда <code>python hello/hello.py</code> (или ruby, go) и её вывод из корня репозитория.</p>
-          <p>Файл: <code>shots/win-hello-powershell.png</code></p>
-        </div>
+        <figure class="shot" data-os="win">
+          <img src="../../shots/win-hello-powershell.png" alt="PowerShell на Windows: вывод python hello/hello.py">
+          <figcaption>Windows · PowerShell — <code>python hello/hello.py</code> из корня репозитория</figcaption>
+        </figure>
         <p>Не ставится ничего — запускайте в Docker: <code>docker compose run --rm python hello/hello.py</code> (вместо <code>python</code> — <code>ruby</code>, <code>go</code> или <code>cpp</code> и файл с тем же расширением).</p>
 
         <h3>Шаг 2. Проверить подключение</h3>
