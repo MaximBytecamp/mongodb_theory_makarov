@@ -38,14 +38,14 @@ def steady(text: str) -> list[str]:
     lines = [re.sub(r"\s+", " ", l).strip() for l in text.strip().splitlines() if l.strip()]
     out = []
     for line in lines:
+        # Ruby 3.4 печатает хэш с пробелами вокруг =>, Ruby 3.3 — без них
+        line = re.sub(r"\s*=>\s*", "=>", line)
         # сервер не обещает порядок в списке коллекций — сравниваем как множество
         words = re.findall(r"[A-Za-z_]+", line)
         # порядок полей в документе, созданном upsert, тоже не гарантирован
         if NAMES <= set(words) or {"product_id", "views"} <= set(words):
             line = re.sub(r"[\[\]'\",]", " ", line)
             line = " ".join(sorted(line.split()))
-        # Ruby 3.4 печатает хэш с пробелами вокруг =>, Ruby 3.3 — без них
-        line = re.sub(r"\s*=>\s*", "=>", line)
         for pattern, mark in VOLATILE:
             line = pattern.sub(mark, line)
         out.append(line)
