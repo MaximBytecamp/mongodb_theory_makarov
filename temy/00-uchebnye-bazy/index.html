@@ -518,10 +518,6 @@ go mod download</pre>
 <pre>docker compose run --rm cpp hello/hello.cpp</pre>
         </figure>
         <p data-lang="cpp" data-os="win linux">Драйвер C++ на Windows и Linux собирается из исходников долго и с зависимостями. Проще запускать код в готовом контейнере стенда — глава <a href="../01a-stend-v-docker/index.html">1.1а</a>: первая сборка образа занимает несколько минут, дальше запуск идёт за секунды.</p>
-        <figure class="shot" data-os="win">
-          <img src="../../shots/win-hello-powershell.png" alt="PowerShell на Windows: вывод python hello/hello.py">
-          <figcaption>Windows · PowerShell — <code>python hello/hello.py</code> из корня репозитория</figcaption>
-        </figure>
         <p>Не ставится ничего — запускайте в Docker: <code>docker compose run --rm python hello/hello.py</code> (вместо <code>python</code> — <code>ruby</code>, <code>go</code> или <code>cpp</code> и файл с тем же расширением).</p>
 
         <h3>Шаг 2. Проверить подключение</h3>
@@ -560,6 +556,10 @@ go run hello.go</pre>
 Коллекции shop: ['customers', 'orders', 'products']
 Товаров: 21
 Заказов: 120</pre>
+        </figure>
+        <figure class="shot" data-lang="python" data-os="win">
+          <img src="../../shots/win-hello-powershell.png" alt="PowerShell на Windows: вывод python hello/hello.py">
+          <figcaption>Windows · PowerShell — <code>python hello/hello.py</code> из корня репозитория</figcaption>
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Вывод в терминал</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
