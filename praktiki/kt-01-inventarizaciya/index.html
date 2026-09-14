@@ -13,7 +13,7 @@
     .steps { counter-reset: step; margin: 20px 0; padding: 0; list-style: none; }
     .steps > li { position: relative; margin: 0 0 12px; padding: 13px 16px 13px 54px; border: 2px solid var(--ink); background: var(--page); }
     .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 12px; width: 28px; height: 28px; display: grid; place-items: center; background: var(--clay); color: #fff; font: 700 13px/1 var(--mono); }
-    .steps b { display: block; margin-bottom: 5px; }
+    .steps > li > b:first-child { display: block; margin-bottom: 5px; }
     .blank { margin: 20px 0; padding: 16px 18px; border: 2px dashed var(--ink); background: var(--page); }
     .blank h4 { margin: 0 0 8px; font-family: var(--display); font-size: 17px; }
     .blank ul { margin: 0; }
