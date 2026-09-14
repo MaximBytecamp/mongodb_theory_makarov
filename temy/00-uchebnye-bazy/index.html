@@ -279,6 +279,11 @@ shop.products          &lt;- shop.products.json
         <div data-os="win">
           <p>Скачайте ZIP-архив <b>MongoDB Command Line Database Tools</b> для Windows со страницы <a href="https://www.mongodb.com/try/download/database-tools">mongodb.com/try/download/database-tools</a> и распакуйте. Права администратора для архива не нужны. Добавьте папку <code>bin</code> из архива в переменную <code>PATH</code> или запускайте <code>mongoimport</code> по полному пути к этой папке. Проверка: <code>mongoimport --version</code>.</p>
         </div>
+        <div class="shot-todo" data-os="win">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>Окно <b>Переменные среды</b> Windows: в списке <code>Path</code> добавлена папка <code>bin</code> из распакованного архива Database Tools.</p>
+          <p>Файл: <code>shots/win-tools-path.png</code></p>
+        </div>
         <div data-os="mac">
           <p>Через Homebrew: <code>brew tap mongodb/brew</code>, <code>brew trust mongodb/brew</code> и <code>brew install mongodb-database-tools</code>. Без второй команды свежий Homebrew откажется ставить формулу: <code>Refusing to load formula … from untrusted tap mongodb/brew</code>. Проверка: <code>mongoimport --version</code>.</p>
         </div>
@@ -426,7 +431,7 @@ shop.products          ← shop.products.json
         <p>Надёжнее сверить число документов в каждой коллекции с таблицей из <a href="#s1">§1</a>. Для этого не нужен установленный <code>mongosh</code>: в Compass есть встроенная оболочка — кнопка <b>Open MongoDB shell</b> над списком баз. Вставьте туда одну строку:</p>
         <figure class="code">
           <figcaption><span>Open MongoDB shell · mongosh</span><span>число документов во всех коллекциях</span></figcaption>
-<pre><span class="k">for</span> (<span class="k">const</span> d <span class="k">of</span> [<span class="s">'shop'</span>,<span class="s">'hh'</span>,<span class="s">'logs'</span>,<span class="s">'org'</span>,<span class="s">'sandbox'</span>]) <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> db.<span class="f">getSiblingDB</span>(d).<span class="f">getCollectionNames</span>().<span class="f">sort</span>()) <span class="f">print</span>(d + <span class="s">'.'</span> + c, db.<span class="f">getSiblingDB</span>(d)[c].<span class="f">countDocuments</span>())</pre>
+<pre><span class="k">for</span> (<span class="k">const</span> d <span class="k">of</span> [<span class="s">'shop'</span>,<span class="s">'hh'</span>,<span class="s">'logs'</span>,<span class="s">'org'</span>,<span class="s">'sandbox'</span>]) <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> db.<span class="f">getSiblingDB</span>(d).<span class="f">getCollectionNames</span>().<span class="f">sort</span>()) <span class="f">print</span>(d + <span class="s">'.'</span> + c + <span class="s">' '</span> + db.<span class="f">getSiblingDB</span>(d)[c].<span class="f">countDocuments</span>())</pre>
         </figure>
         <figure class="code code--out">
           <figcaption><span>Вывод</span><span>стенд курса, MongoDB 7.0.40</span></figcaption>
@@ -443,7 +448,12 @@ org.employees 15
 sandbox.products 21
 sandbox.warehouse 21</pre>
         </figure>
-        <p>Двенадцать строк, и числа совпадают с таблицей — данные на месте, можно переходить к главе 1.1. Не хватает строки — коллекцию забыли или назвали иначе. Число больше ожидаемого — файл загрузили дважды, коллекцию нужно удалить и загрузить снова.</p>
+        <figure class="shot">
+          <img src="../../shots/22-compass-shell-counts.png" alt="Встроенная оболочка Compass: команда подсчёта и двенадцать строк с числом документов в каждой коллекции">
+          <figcaption>Compass · <b>Open MongoDB shell</b> — та же команда и тот же вывод</figcaption>
+        </figure>
+        <p>Текст склеивается в одну строку внутри <code>print</code> не для красоты: встроенная оболочка Compass печатает каждый аргумент <code>print</code> с новой строки, и вызов <code>print(имя, число)</code> там выдал бы двадцать четыре строки вместо двенадцати.</p>
+        <p>Двенадцать строк, и числа совпадают с таблицей — данные на месте, можно переходить к главе 1.1. Не хватает строки — коллекцию забыли или назвали иначе. Если вы уже проходили главы 1.6–1.7, в <code>sandbox</code> будут ещё <code>bench</code>, <code>orders</code> и <code>product_stats</code> — их создают заготовки этих глав, это нормально. Число больше ожидаемого — файл загрузили дважды, коллекцию нужно удалить и загрузить снова.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Рабочее место: драйвер и первый запуск</h2>
         <p>Данные на месте. Осталось подготовить то, чем вы будете к ним обращаться: драйвер своего языка и папку, где лежат заготовки примеров. Язык выбирается кнопкой «драйвер» вверху страницы, система — кнопкой «система»: команды ниже меняются вместе с ними.</p>
@@ -464,6 +474,11 @@ sandbox.warehouse 21</pre>
           <figcaption><span>PowerShell</span><span>Python · pymongo</span></figcaption>
 <pre>python -m pip install pymongo</pre>
         </figure>
+        <div class="shot-todo" data-lang="python" data-os="win">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>Установщик Python для Windows с python.org: первый экран с отмеченной галочкой <b>Add python.exe to PATH</b>.</p>
+          <p>Файл: <code>shots/win-python-installer.png</code></p>
+        </div>
         <p data-lang="python" data-os="win">Если PowerShell отвечает, что <code>python</code> не найден, поставьте Python с <a href="https://www.python.org/downloads/">python.org</a> и отметьте в установщике <b>Add python.exe to PATH</b>, затем откройте новый терминал.</p>
         <figure class="code" data-lang="python" data-os="mac linux">
           <figcaption><span>Терминал</span><span>Python · pymongo в виртуальном окружении</span></figcaption>
@@ -476,6 +491,11 @@ pip install pymongo</pre>
           <figcaption><span>PowerShell</span><span>Ruby · gem mongo</span></figcaption>
 <pre>gem install mongo</pre>
         </figure>
+        <div class="shot-todo" data-lang="ruby" data-os="win">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>RubyInstaller для Windows: последний экран установки с отмеченной галочкой <b>Run ridk install</b> и окно MSYS2, где выбран пункт 3.</p>
+          <p>Файл: <code>shots/win-rubyinstaller.png</code></p>
+        </div>
         <p data-lang="ruby" data-os="win">Ruby ставится с <a href="https://rubyinstaller.org/">rubyinstaller.org</a> — сборка <b>with Devkit</b>: драйверу нужен компилятор для расширения <code>bson</code>.</p>
         <figure class="code" data-lang="ruby" data-os="mac">
           <figcaption><span>Терминал</span><span>Ruby · gem mongo</span></figcaption>
@@ -501,6 +521,11 @@ go mod download</pre>
 <pre>docker compose run --rm cpp hello/hello.cpp</pre>
         </figure>
         <p data-lang="cpp" data-os="win linux">Драйвер C++ на Windows и Linux собирается из исходников долго и с зависимостями. Проще запускать код в готовом контейнере стенда — глава <a href="../01a-stend-v-docker/index.html">1.1а</a>: первая сборка образа занимает несколько минут, дальше запуск идёт за секунды.</p>
+        <div class="shot-todo" data-os="win">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>PowerShell на учебном компьютере: команда <code>python hello/hello.py</code> (или ruby, go) и её вывод из корня репозитория.</p>
+          <p>Файл: <code>shots/win-hello-powershell.png</code></p>
+        </div>
         <p>Не ставится ничего — запускайте в Docker: <code>docker compose run --rm python hello/hello.py</code> (вместо <code>python</code> — <code>ruby</code>, <code>go</code> или <code>cpp</code> и файл с тем же расширением).</p>
 
         <h3>Шаг 2. Проверить подключение</h3>
@@ -566,6 +591,22 @@ go run hello.go</pre>
 Коллекции shop: ["customers", "orders", "products"]
 Товаров: 21
 Заказов: 120</pre>
+        </figure>
+        <figure class="shot" data-lang="python">
+          <img src="../../shots/23-vscode-hello-python.png" alt="VS Code на macOS: <code>hello/hello.py</code> и его запуск в терминале">
+          <figcaption>VS Code · macOS · <code>hello/hello.py</code> и его запуск в терминале</figcaption>
+        </figure>
+        <figure class="shot" data-lang="cpp">
+          <img src="../../shots/23-vscode-hello-cpp.png" alt="VS Code на macOS: <code>hello/hello.cpp</code> и его запуск в терминале">
+          <figcaption>VS Code · macOS · <code>hello/hello.cpp</code> и его запуск в терминале</figcaption>
+        </figure>
+        <figure class="shot" data-lang="go">
+          <img src="../../shots/23-vscode-hello-go.png" alt="VS Code на macOS: <code>hello/hello.go</code> и его запуск в терминале">
+          <figcaption>VS Code · macOS · <code>hello/hello.go</code> и его запуск в терминале</figcaption>
+        </figure>
+        <figure class="shot" data-lang="ruby">
+          <img src="../../shots/23-vscode-hello-ruby.png" alt="VS Code на macOS: <code>hello/hello.rb</code> и его запуск в терминале">
+          <figcaption>VS Code · macOS · <code>hello/hello.rb</code> и его запуск в терминале</figcaption>
         </figure>
         <p>Числа в двух последних строках — те же, что в таблице из <a href="#s1">§1</a>. Ошибка вместо вывода разобрана в <a href="#s11">§11</a>.</p>
 
@@ -649,6 +690,23 @@ g++ -std=c++17 ch1_4.cpp -o ch1_4 $(pkg-config --cflags --libs libmongocxx1)
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Вывод в терминал</span><span>глава 1.4, первый пример</span></figcaption>
 <pre>Смартфон Xiaomi Redmi Note 13 18990</pre>
+        </figure>
+        <p>Так это выглядит в редакторе: заготовка, пример на своём месте и запуск в терминале из папки <code>lessons</code>.</p>
+        <figure class="shot" data-lang="python">
+          <img src="../../shots/24-vscode-lesson-python.png" alt="VS Code на macOS: пример главы 1.4 в <code>lessons/ch1_4.py</code> и его вывод">
+          <figcaption>VS Code · macOS · пример главы 1.4 в <code>lessons/ch1_4.py</code> и его вывод</figcaption>
+        </figure>
+        <figure class="shot" data-lang="cpp">
+          <img src="../../shots/24-vscode-lesson-cpp.png" alt="VS Code на macOS: пример главы 1.4 в <code>lessons/ch1_4.cpp</code> и его вывод">
+          <figcaption>VS Code · macOS · пример главы 1.4 в <code>lessons/ch1_4.cpp</code> и его вывод</figcaption>
+        </figure>
+        <figure class="shot" data-lang="go">
+          <img src="../../shots/24-vscode-lesson-go.png" alt="VS Code на macOS: пример главы 1.4 в <code>lessons/ch1_4.go</code> и его вывод">
+          <figcaption>VS Code · macOS · пример главы 1.4 в <code>lessons/ch1_4.go</code> и его вывод</figcaption>
+        </figure>
+        <figure class="shot" data-lang="ruby">
+          <img src="../../shots/24-vscode-lesson-ruby.png" alt="VS Code на macOS: пример главы 1.4 в <code>lessons/ch1_4.rb</code> и его вывод">
+          <figcaption>VS Code · macOS · пример главы 1.4 в <code>lessons/ch1_4.rb</code> и его вывод</figcaption>
         </figure>
 
         <h2 id="s11"><span class="sec">§11</span>Частые ошибки</h2>

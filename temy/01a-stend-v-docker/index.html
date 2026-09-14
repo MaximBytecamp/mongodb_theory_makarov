@@ -177,6 +177,11 @@
           <p>Docker Desktop для Windows скачивается с <a href="https://docs.docker.com/desktop/setup/install/windows-install/">docs.docker.com</a>. Установщику нужны права администратора, а при первом запуске он включает подсистему WSL 2. После установки Docker Desktop нужно <strong>запустить</strong>: команды работают, только пока он открыт и внизу его окна написано <b>Engine running</b>.</p>
           <p>Терминал на Windows — <b>PowerShell</b>: <b>Win + X</b> → «Терминал». Все команды главы набираются в нём. Проверьте две вещи:</p>
         </div>
+        <div class="shot-todo" data-os="win">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>Docker Desktop на Windows после запуска: внизу окна зелёная надпись <b>Engine running</b>.</p>
+          <p>Файл: <code>shots/win-docker-desktop.png</code></p>
+        </div>
         <div data-os="mac">
           <p>Docker Desktop для Mac скачивается с <a href="https://docs.docker.com/desktop/setup/install/mac-install/">docs.docker.com</a>. Сборок две — для Apple Silicon и для Intel; какой у вас процессор, видно в меню  → «Об этом Mac», строка «Чип» или «Процессор». После установки Docker Desktop нужно <strong>запустить</strong> из «Программ»: команды работают, пока он открыт и в его окне написано <b>Engine running</b>.</p>
           <p>Терминал на macOS — приложение <b>Терминал</b>: <b>Cmd + Пробел</b>, набрать «Терминал». Проверьте две вещи:</p>
@@ -767,6 +772,11 @@ docker compose run --rm python kt01/check.py</pre>
           <li>Подождите 3–5 минут: в первый раз окружение собирается с нуля. Когда в нижней панели откроется терминал, всё готово.</li>
           <li>Проверьте подключение и запустите практику прямо в терминале редактора — Docker там уже не нужен, вы и так внутри контейнера.</li>
         </ol>
+        <div class="shot-todo">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>Страница репозитория практик на GitHub: открыто меню <b>Code → Codespaces</b> с кнопкой <b>Create codespace on main</b>.</p>
+          <p>Файл: <code>shots/codespaces-create.png</code></p>
+        </div>
         <figure class="code" data-lang="python">
           <figcaption><span>Терминал Codespaces</span><span>Python</span></figcaption>
 <pre>python hello/hello.py
@@ -796,6 +806,11 @@ ruby solution.rb
 python check.py</pre>
         </figure>
         <p>mongo-express открывается на вкладке <b>Ports</b> рядом с терминалом: строка с портом 8081, значок глобуса. Вместо Compass в Codespaces удобнее расширение <b>MongoDB for VS Code</b> — оно уже установлено. В нём создаётся подключение <code>mongodb://localhost:27017</code>, и базы видны деревом в боковой панели.</p>
+        <div class="shot-todo">
+          <b>Здесь будет кадр с учебного компьютера</b>
+          <p>Codespace в браузере: вкладка <b>Ports</b> с портом 8081 и значком глобуса, рядом открытый терминал с выводом <code>python hello/hello.py</code>.</p>
+          <p>Файл: <code>shots/codespaces-ports.png</code></p>
+        </div>
         <div class="stat">
           <span><strong>120</strong><em>ядро-часов в месяц бесплатно на личном аккаунте GitHub</em></span>
           <span><strong>≈ 60 ч</strong><em>работы на стандартной машине с двумя ядрами</em></span>

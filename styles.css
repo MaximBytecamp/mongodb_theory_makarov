@@ -463,3 +463,9 @@ figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); 
 
 /* Длинные слова в заголовках переносятся по слогам, а не раздвигают страницу на узком экране. */
 .leaf h1, .leaf h2, .leaf h3 { overflow-wrap: break-word; hyphens: auto; }
+
+/* ── Место под кадр с учебного ПК ─────────────────────────────── */
+.shot-todo { margin: 22px 0; padding: 18px 20px; border: 3px dashed var(--ink-soft); background: repeating-linear-gradient(135deg, var(--page), var(--page) 12px, var(--leaf-pale) 12px, var(--leaf-pale) 24px); }
+.shot-todo b { display: block; margin-bottom: 6px; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); }
+.shot-todo p { margin: 0 0 6px; font-size: 14.5px; line-height: 1.5; }
+.shot-todo p:last-child { margin-bottom: 0; }
