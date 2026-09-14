@@ -218,6 +218,10 @@ unzip mongodb-practice-main.zip
         <p>Дальше все команды выполняются из этой папки — корня репозитория.</p>
 
         <h2 id="s4"><span class="sec">§4</span>Какой способ загрузки выбрать</h2>
+        <div class="margin-note margin-note--warn" data-os="win">
+          <b>Осторожно: Windows 10 и MongoDB 8.0</b>
+          <p>Сайт MongoDB по умолчанию предлагает сервер 8.0 и последний Compass, а они рассчитаны на Windows 11. Если на компьютере Windows 10 и сервер или Compass не ставятся, не запускаются или уже установлены в версии 8.x, сначала пройдите главу <a href="../00a-windows-10-mongodb-7/index.html">1.0а</a>: там — как удалить их командами PowerShell и поставить сервер 7.0 и Compass 1.46.</p>
+        </div>
         <div class="fork">
           <div>
             <small>способ 1</small>
@@ -784,7 +788,7 @@ g++ -std=c++17 ch1_4.cpp -o ch1_4 $(pkg-config --cflags --libs libmongocxx1)
         <h3>Итог главы</h3>
         <p>Учебные данные — двенадцать JSON-файлов в <code>stend/seed</code> репозитория практик; имя файла задаёт базу и коллекцию. Загрузить их можно Docker-стендом, скриптом с <code>mongoimport</code> или вручную через Compass — результат одинаковый, и проверяется он числом документов в каждой коллекции. Когда числа сошлись, переходим к главе 1.1: что такое сервер, база и коллекция и как до них дойти из кода.</p>
 
-        <div class="pager"><a href="../../index.html">К содержанию справочника</a><a href="../01-klient-baza-kollekciya/index.html">1.1 Сервер, база, коллекция →</a></div>
+        <div class="pager"><a href="../../index.html">К содержанию справочника</a><a href="../00a-windows-10-mongodb-7/index.html">1.0а Windows 10: MongoDB 7.0 →</a></div>
 
         <div class="colophon">
           <span>Глава 1.0 · Учебные базы · Справочник по MongoDB</span>

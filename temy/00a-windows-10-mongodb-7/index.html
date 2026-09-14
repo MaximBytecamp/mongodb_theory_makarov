@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.0а Windows 10: MongoDB 7.0 вместо 8.0 · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* Какая версия на какой Windows. */
+    .versions { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); overflow-x: auto; }
+    .versions table { margin: 0; min-width: 560px; }
+    .versions td.yes { color: var(--leaf); font-weight: 700; }
+    .versions td.no { color: var(--clay); font-weight: 700; }
+    .versions tr.pick td { background: var(--leaf-pale); }
+    /* Шаги-кадры установщика: два в ряд на широком экране. */
+    .shots2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin: 20px 0; }
+    .shots2 figure.shot { margin: 0; }
+  </style>
+  <script>
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 1 · Подключение и первые данные</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">Глава 1.0а</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.0а</span>
+          <h1>Windows 10:<br>MongoDB 7.0 вместо 8.0</h1>
+          <p class="lead">Сайт MongoDB по умолчанию предлагает последнюю версию сервера и Compass, а они на Windows 10 уже не поддерживаются: сервер 8.0 рассчитан на Windows 11, и на компьютерах колледжа он не ставится или не запускается. В этой главе — как полностью убрать то, что успело установиться, командами в PowerShell, а затем скачать с mongodb.com сервер 7.0 — ту самую версию, на которой сняты все выводы книги, — и подходящий к нему Compass.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Окружение и установка</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Для кого</dt><dd>Только Windows 10. На Windows 11, macOS и Linux глава не нужна</dd></div>
+          <div><dt>Сколько времени</dt><dd>Около 20 минут, большая часть — скачивание</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Почему 8.0 не подходит</a></li>
+            <li><a href="#s2">Что поставим вместо</a></li>
+            <li><a href="#s3">Шаг 1. PowerShell от имени администратора</a></li>
+            <li><a href="#s4">Шаг 2. Посмотреть, что установлено</a></li>
+            <li><a href="#s5">Шаг 3. Закрыть Compass, остановить сервер</a></li>
+            <li><a href="#s6">Шаг 4. Удалить сервер и Compass</a></li>
+            <li><a href="#s7">Шаг 5. Убрать папки, службу и Path</a></li>
+            <li><a href="#s8">Шаг 6. Проверить, что ничего не осталось</a></li>
+            <li><a href="#s9">Шаг 7. Скачать сервер 7.0</a></li>
+            <li><a href="#s10">Шаг 8. Установить сервер</a></li>
+            <li><a href="#s11">Шаг 9. Скачать Compass 1.46</a></li>
+            <li><a href="#s12">Шаг 10. Установить Compass и подключиться</a></li>
+            <li><a href="#s13">Частые ошибки</a></li>
+            <li><a href="#s14">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Почему 8.0 не подходит</h2>
+        <p>У каждой версии MongoDB есть список систем, на которых её проверяли и поддерживают. Для Windows он такой — по документации установки на <a href="https://www.mongodb.com/docs/v8.0/tutorial/install-mongodb-on-windows/">mongodb.com</a>:</p>
+        <div class="versions">
+          <table>
+            <thead><tr><th>Сервер</th><th>Windows 11</th><th>Windows 10</th><th>Что в книге</th></tr></thead>
+            <tbody>
+              <tr><td><b>8.0 и новее</b></td><td class="yes">да</td><td class="no">нет</td><td>на этой версии выводы не сверялись</td></tr>
+              <tr class="pick"><td><b>7.0</b></td><td class="yes">да</td><td class="yes">ставится и работает</td><td>все выводы книги — MongoDB 7.0</td></tr>
+              <tr><td><b>6.0</b></td><td class="yes">да</td><td class="yes">да</td><td>запасной вариант, см. §13</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>С Compass то же самое: начиная с версии 1.38 он требует Windows 10 или новее, а выпуски 1.47 и позже вышли уже после окончания поддержки Windows 10 и рассчитаны на новые системы. Узнать свою версию Windows можно командой <code>winver</code> в строке «Выполнить» (<kbd>Win</kbd>+<kbd>R</kbd>) или в PowerShell:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell</span><span>какая у меня Windows</span></figcaption>
+<pre>(Get-CimInstance Win32_OperatingSystem).Caption</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>например</span></figcaption>
+<pre>Microsoft Windows 10 Pro</pre>
+        </figure>
+        <p>Если там <b>Windows 11</b>, эта глава не нужна: ставьте версии с сайта как есть. Если <b>Windows 10</b> — идём дальше.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Что поставим вместо</h2>
+        <div class="ops">
+          <div><b>MongoDB Server 7.0.43</b><span>Последний выпуск ветки 7.0. Выводы книги сняты на 7.0.40 — отличаться будет только последняя цифра версии.</span><i>сервер</i></div>
+          <div><b>MongoDB Compass 1.46.11</b><span>Последний выпуск Compass, вышедший до окончания поддержки Windows 10. С сервером 7.0 работает полностью.</span><i>клиент</i></div>
+          <div><b>mongosh и Database Tools</b><span>Их трогать не нужно: они не зависят от версии сервера и работают с 7.0 так же. Команды ниже их не удаляют.</span><i>остаются</i></div>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Осторожно: данные сервера 8.0 будут удалены</b>
+          <p>Сервер 7.0 не открывает файлы, записанные сервером 8.0, поэтому папка данных удаляется вместе с сервером. Для курса это не потеря: учебные базы загружаются заново из репозитория практик за минуту — глава <a href="../00-uchebnye-bazy/index.html#s6">1.0, §6</a>. Если вы успели сделать что-то своё, сначала выгрузите это в Compass: <b>Export Data</b> у нужной коллекции.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Шаг 1. PowerShell от имени администратора</h2>
+        <p>Удалять программы и службу может только администратор. Нажмите <kbd>Win</kbd>+<kbd>X</kbd> и выберите <b>Windows PowerShell (администратор)</b> — на некоторых компьютерах пункт называется <b>Терминал (администратор)</b>. На вопрос «Разрешить этому приложению вносить изменения?» ответьте <b>Да</b>. В заголовке окна должно быть слово «Администратор».</p>
+        <p>Все команды главы вставляются в это окно целиком, блоком: скопируйте блок, щёлкните в окне правой кнопкой мыши — PowerShell вставит текст — и нажмите <kbd>Enter</kbd>. Команды главы проверены на Windows: ниже показано ровно то, что они выводят.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Шаг 2. Посмотреть, что установлено</h2>
+        <p>Windows хранит список установленных программ в реестре — там же, откуда его берёт окно «Приложения и возможности». Спросим у него всё, в названии чего есть MongoDB:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>вставить блоком</span></figcaption>
+<pre>$keys = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+Get-ItemProperty $keys -ErrorAction SilentlyContinue |
+    Where-Object DisplayName -like '*MongoDB*' |
+    Select-Object DisplayName, DisplayVersion</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>Windows, проверено</span></figcaption>
+<pre>DisplayName                            DisplayVersion
+-----------                            --------------
+MongoDB 8.0.32 2008R2Plus SSL (64 bit) 8.0.32
+MongoDB Shell                          2.10.0
+MongoDB Compass                        1.50.0</pre>
+        </figure>
+        <p>У нас три программы: сервер 8.0, Compass и оболочка mongosh. Первые две удалим, mongosh оставим — она работает с любой версией сервера. Если в вашем списке Compass нет, ничего страшного: следующие шаги просто его пропустят.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-ps-list.png" alt="Windows · PowerShell — список установленных программ MongoDB" loading="lazy">
+          <figcaption>Windows · PowerShell — список установленных программ MongoDB</figcaption>
+        </figure>
+
+        <h2 id="s5"><span class="sec">§5</span>Шаг 3. Закрыть Compass, остановить сервер</h2>
+        <p>Работающую программу удалить нельзя: файлы заняты. Закроем Compass и остановим службу сервера. Ключ <code>-ErrorAction SilentlyContinue</code> означает «если такой программы или службы нет — молча продолжить».</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>вставить блоком</span></figcaption>
+<pre>Stop-Process -Name 'MongoDB Compass', MongoDBCompass -Force -ErrorAction SilentlyContinue
+Stop-Service -Name MongoDB -Force -ErrorAction SilentlyContinue
+Get-Service -Name MongoDB -ErrorAction SilentlyContinue</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>Windows, проверено</span></figcaption>
+<pre>Status   Name               DisplayName
+------   ----               -----------
+Stopped  MongoDB            MongoDB Server (MongoDB)</pre>
+        </figure>
+        <p>Последняя строка показывает службу после остановки: <code>Stopped</code>. Если вывода нет вовсе, службы не было — сервер ставился без неё.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Шаг 4. Удалить сервер и Compass</h2>
+        <p>Удаляем программы их же деинсталляторами — так же, как кнопка «Удалить» в «Приложениях и возможностях», только без окон. Сервер установлен пакетом MSI, его удаляет <code>msiexec /x</code>. Compass, скачанный как <code>.exe</code>, устанавливается в папку пользователя и удаляется своей программой <code>Update.exe --uninstall</code>. Команда сама разберётся, какой случай перед ней, и не тронет mongosh и Database Tools:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>вставить блоком</span></figcaption>
+<pre>$keys = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$apps = Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object {
+    $_.DisplayName -like 'MongoDB*' -and
+    $_.DisplayName -notlike '*Tools*' -and $_.DisplayName -notlike '*Shell*' }
+foreach ($app in $apps) {
+    Write-Host "Удаляю: $($app.DisplayName)"
+    if ($app.UninstallString -like 'MsiExec*') {
+        Start-Process msiexec.exe -ArgumentList "/x $($app.PSChildName) /qn /norestart" -Wait
+    } else {
+        $exe = ($app.UninstallString -split '"')[1]
+        Start-Process $exe -ArgumentList '--uninstall', '-s' -Wait
+    }
+}</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>Windows, проверено</span></figcaption>
+<pre>Удаляю: MongoDB 8.0.32 2008R2Plus SSL (64 bit)
+Удаляю: MongoDB Compass</pre>
+        </figure>
+        <p>Каждое удаление занимает от нескольких секунд до минуты; пока оно идёт, новое приглашение <code>PS&gt;</code> не появится. Дождитесь его.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-ps-uninstall.png" alt="Windows · PowerShell — удаление сервера 8.0 и Compass" loading="lazy">
+          <figcaption>Windows · PowerShell — удаление сервера 8.0 и Compass</figcaption>
+        </figure>
+
+        <h2 id="s7"><span class="sec">§7</span>Шаг 5. Убрать папки, службу и Path</h2>
+        <p>Деинсталлятор удаляет файлы, которые сам поставил, но оставляет созданное позже: папку данных сервера, настройки и сохранённые подключения Compass. Удалим их, службу — если она осталась — и папку сервера из переменной <code>Path</code>:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>вставить блоком</span></figcaption>
+<pre>$paths = "$env:ProgramFiles\MongoDB\Server",
+         "$env:ProgramFiles\MongoDB Compass",
+         "$env:LOCALAPPDATA\MongoDBCompass",
+         "$env:APPDATA\MongoDB Compass",
+         'C:\data\db'
+foreach ($p in $paths) {
+    if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "Удалено: $p" }
+}
+if (Get-Service -Name MongoDB -ErrorAction SilentlyContinue) { sc.exe delete MongoDB }
+foreach ($scope in 'Machine', 'User') {
+    $old = [Environment]::GetEnvironmentVariable('Path', $scope)
+    if (-not $old) { continue }
+    $new = ($old -split ';' | Where-Object { $_ -and $_ -notlike '*MongoDB\Server*' }) -join ';'
+    if ($new -ne $old) {
+        [Environment]::SetEnvironmentVariable('Path', $new, $scope)
+        Write-Host "Path ($scope): убраны папки MongoDB\Server"
+    }
+}</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>Windows, проверено</span></figcaption>
+<pre>Удалено: C:\Program Files\MongoDB\Server
+Удалено: C:\Users\student\AppData\Local\MongoDBCompass
+Удалено: C:\Users\student\AppData\Roaming\MongoDB Compass
+Удалено: C:\data\db</pre>
+        </figure>
+        <p>Строки «Удалено» — только о тех папках, которые нашлись; у вас их список может быть другим. Переменная <code>Path</code> меняется лишь для новых окон — это важно в §10.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Шаг 6. Проверить, что ничего не осталось</h2>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>вставить блоком</span></figcaption>
+<pre>$keys = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$left = Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object {
+    $_.DisplayName -like 'MongoDB*' -and
+    $_.DisplayName -notlike '*Tools*' -and $_.DisplayName -notlike '*Shell*' }
+"Программ MongoDB и Compass:  " + @($left).Count
+"Служба MongoDB есть:         " + [bool](Get-Service -Name MongoDB -ErrorAction SilentlyContinue)
+"Папка MongoDB\Server есть:   " + (Test-Path "$env:ProgramFiles\MongoDB\Server")
+"Настройки Compass есть:      " + (Test-Path "$env:APPDATA\MongoDB Compass")</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>Windows, проверено</span></figcaption>
+<pre>Программ MongoDB и Compass:  0
+Служба MongoDB есть:         False
+Папка MongoDB\Server есть:   False
+Настройки Compass есть:      False</pre>
+        </figure>
+        <p>Должно быть ровно так: ноль программ и три <code>False</code>. Если какая-то строка отличается, выполните шаги 3–5 ещё раз — чаще всего мешал незакрытый Compass. Удаление завершено; перезагружать компьютер не нужно.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-ps-check.png" alt="Windows · PowerShell — после удаления: ни программ, ни службы, ни папок" loading="lazy">
+          <figcaption>Windows · PowerShell — после удаления: ни программ, ни службы, ни папок</figcaption>
+        </figure>
+
+        <h2 id="s9"><span class="sec">§9</span>Шаг 7. Скачать сервер 7.0</h2>
+        <p>Откройте страницу <a href="https://www.mongodb.com/try/download/community">mongodb.com/try/download/community</a> и прокрутите до карточки <b>Community Server</b>. Нажмите <b>Select Package</b> — под карточкой появятся три списка.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-site-server-1-card.png" alt="mongodb.com · Community Server — кнопка Select Package раскрывает выбор версии" loading="lazy">
+          <figcaption>mongodb.com · Community Server — кнопка Select Package раскрывает выбор версии</figcaption>
+        </figure>
+        <p>В списке <b>Version</b> по умолчанию стоит самая новая версия с пометкой <code>(current)</code>. Выберите <b>7.0.43</b>:</p>
+        <figure class="shot">
+          <img src="../../shots/w10-site-server-2-versions.png" alt="mongodb.com · список Version: выбираем 7.0.43" loading="lazy">
+          <figcaption>mongodb.com · список Version: выбираем 7.0.43</figcaption>
+        </figure>
+        <p>В <b>Platform</b> выберите <b>Windows x64</b>, в <b>Package</b> — <b>msi</b>, и нажмите <b>Download</b>. Файл <code>mongodb-windows-x86_64-7.0.43-signed.msi</code> весит около 600 МБ.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-site-server-3-selected.png" alt="mongodb.com · выбрано: 7.0.43, Windows x64, msi" loading="lazy">
+          <figcaption>mongodb.com · выбрано: 7.0.43, Windows x64, msi</figcaption>
+        </figure>
+        <p>Та же ссылка напрямую: <a href="https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-7.0.43-signed.msi">fastdl.mongodb.org/windows/mongodb-windows-x86_64-7.0.43-signed.msi</a>.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Шаг 8. Установить сервер</h2>
+        <p>Запустите скачанный файл двойным щелчком и пройдите мастер. На двух экранах нужно действовать не так, как предлагается по умолчанию, — они отмечены.</p>
+        <div class="shots2">
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-00.png" alt="Приветствие мастера — Next" loading="lazy">
+          <figcaption>1. Приветствие мастера — <b>Next</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-01-accept.png" alt="Лицензия: отметить I accept the terms — Next" loading="lazy">
+          <figcaption>2. Лицензия: отметить <b>I accept the terms</b> — <b>Next</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-02.png" alt="Тип установки: Complete" loading="lazy">
+          <figcaption>3. Тип установки: <b>Complete</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-03.png" alt="Служба: оставить как есть — сервер будет запускаться сам. Next" loading="lazy">
+          <figcaption>4. Служба: оставить как есть — сервер будет запускаться сам. <b>Next</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-04-nocompass.png" alt="Важно: снять галочку Install MongoDB Compass, иначе установщик скачает последний Compass. Next" loading="lazy">
+          <figcaption>5. <b>Важно:</b> снять галочку <b>Install MongoDB Compass</b>, иначе установщик скачает последний Compass. <b>Next</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-05.png" alt="Готово к установке — Install" loading="lazy">
+          <figcaption>6. Готово к установке — <b>Install</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-msi7-finish.png" alt="Установка завершена — Finish" loading="lazy">
+          <figcaption>7. Установка завершена — <b>Finish</b></figcaption>
+        </figure>
+        </div>
+        <p>Тот же результат одной командой, без окон, — в PowerShell администратора из папки «Загрузки»:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>установка без мастера</span></figcaption>
+<pre>cd $env:USERPROFILE\Downloads
+msiexec.exe /i mongodb-windows-x86_64-7.0.43-signed.msi /qb SHOULD_INSTALL_COMPASS=0 ADDLOCAL=ServerService,Client</pre>
+        </figure>
+        <p><code>SHOULD_INSTALL_COMPASS=0</code> обязателен: иначе установщик сам скачает последнюю версию Compass, ту самую, которая нам не подходит.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Шаг 9. Скачать Compass 1.46</h2>
+        <p>На странице <a href="https://www.mongodb.com/try/download/compass">mongodb.com/try/download/compass</a> в списке версий есть только последняя. Старые выпуски MongoDB хранит в архиве: под кнопкой <b>Download</b> нажмите <b>More Options</b> → <b>Archived releases</b>.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-site-compass-1-archived.png" alt="mongodb.com · Compass — More Options → Archived releases" loading="lazy">
+          <figcaption>mongodb.com · Compass — More Options → Archived releases</figcaption>
+        </figure>
+        <p>Ссылка ведёт на страницу выпусков Compass на GitHub — это официальный репозиторий MongoDB <code>mongodb-js/compass</code>. Найдите выпуск <b>1.46.11</b> (прямая ссылка: <a href="https://github.com/mongodb-js/compass/releases/tag/v1.46.11">github.com/mongodb-js/compass/releases/tag/v1.46.11</a>).</p>
+        <figure class="shot">
+          <img src="../../shots/w10-site-compass-2-release.png" alt="GitHub · выпуск Compass 1.46.11" loading="lazy">
+          <figcaption>GitHub · выпуск Compass 1.46.11</figcaption>
+        </figure>
+        <p>Внизу страницы в разделе <b>Assets</b> скачайте <b>mongodb-compass-1.46.11-win32-x64.msi</b>. Не перепутайте: файлы со словами <code>isolated</code> и <code>readonly</code> в названии — урезанные версии, <code>darwin</code> — для macOS.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-site-compass-3-asset.png" alt="GitHub · Assets — нужен mongodb-compass-1.46.11-win32-x64.msi" loading="lazy">
+          <figcaption>GitHub · Assets — нужен mongodb-compass-1.46.11-win32-x64.msi</figcaption>
+        </figure>
+        <p>Тот же файл лежит и на сервере MongoDB: <a href="https://downloads.mongodb.com/compass/mongodb-compass-1.46.11-win32-x64.msi">downloads.mongodb.com/compass/mongodb-compass-1.46.11-win32-x64.msi</a>.</p>
+
+        <h2 id="s12"><span class="sec">§12</span>Шаг 10. Установить Compass и подключиться</h2>
+        <p>Запустите скачанный <code>.msi</code>. Мастер короткий: <b>Next</b>, папку оставить как есть, <b>Install</b>, <b>Finish</b>.</p>
+        <div class="shots2">
+        <figure class="shot">
+          <img src="../../shots/w10-compass146-00.png" alt="Приветствие — Next" loading="lazy">
+          <figcaption>1. Приветствие — <b>Next</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-compass146-01.png" alt="Папка установки — оставить, Next" loading="lazy">
+          <figcaption>2. Папка установки — оставить, <b>Next</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-compass146-02.png" alt="Install" loading="lazy">
+          <figcaption>3. <b>Install</b></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-compass146-finish.png" alt="Finish" loading="lazy">
+          <figcaption>4. <b>Finish</b></figcaption>
+        </figure>
+        </div>
+        <p>Проверим всё сразу в <b>новом</b> окне PowerShell — в старом переменная <code>Path</code> прежняя:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>PowerShell · администратор</span><span>вставить блоком</span></figcaption>
+<pre>$keys = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+Get-ItemProperty $keys -ErrorAction SilentlyContinue |
+    Where-Object DisplayName -like 'MongoDB*' | Format-Table DisplayName, DisplayVersion
+Get-Service -Name MongoDB | Format-Table Status, StartType, Name
+&amp; "$env:ProgramFiles\MongoDB\Server\7.0\bin\mongod.exe" --version | Select-Object -First 1</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод</span><span>Windows, проверено</span></figcaption>
+<pre>DisplayName                            DisplayVersion
+-----------                            --------------
+MongoDB Compass                        1.46.11.0
+MongoDB Shell                          2.10.0
+MongoDB 7.0.43 2008R2Plus SSL (64 bit) 7.0.43
+
+ Status StartType Name
+ ------ --------- ----
+Running Automatic MongoDB
+
+db version v7.0.43</pre>
+        </figure>
+        <figure class="shot">
+          <img src="../../shots/w10-ps-verify.png" alt="Windows · PowerShell — сервер 7.0.43 работает как служба, Compass 1.46.11 установлен" loading="lazy">
+          <figcaption>Windows · PowerShell — сервер 7.0.43 работает как служба, Compass 1.46.11 установлен</figcaption>
+        </figure>
+        <p>Служба <code>MongoDB</code> в состоянии <code>Running</code> с автозапуском, сервер — версии 7.0.43. Откройте Compass из меню «Пуск», на приветствии нажмите <b>Start</b>, затем <b>Add new connection</b> → <b>Save &amp; Connect</b>: адрес <code>mongodb://localhost:27017</code> уже подставлен.</p>
+        <figure class="shot">
+          <img src="../../shots/w10-compass146-13-connected.png" alt="Compass 1.46.11 подключён к серверу 7.0.43 на localhost:27017 — после загрузки видны учебные базы hh, logs, org, sandbox и shop" loading="lazy">
+          <figcaption>Compass 1.46.11 подключён к серверу 7.0.43 на localhost:27017 — после загрузки видны учебные базы hh, logs, org, sandbox и shop</figcaption>
+        </figure>
+        <p>Сервер новый и пустой. Загрузите учебные базы — глава <a href="../00-uchebnye-bazy/index.html#s6">1.0, §6</a>, — и дальше всё идёт по книге.</p>
+        <div class="margin-note">
+          <b>На полях: не соглашайтесь на обновление Compass</b>
+          <p>Через несколько минут работы Compass может предложить обновиться до последней версии — той, что на Windows 10 не поддерживается. Нажмите <b>Close</b>, а чтобы вопрос не повторялся, в <b>Settings → Privacy</b> снимите галочку <b>Enable Automatic Updates</b>.</p>
+        </div>
+
+        <h2 id="s13"><span class="sec">§13</span>Частые ошибки</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Что происходит</th><th>Что видно</th><th>Что делать</th></tr></thead>
+            <tbody>
+              <tr><td>PowerShell открыт без прав администратора</td><td><code>Access is denied</code>, <code>Stop-Service: Cannot open MongoDB service</code>, удаление не происходит</td><td>Закрыть окно и открыть заново через <kbd>Win</kbd>+<kbd>X</kbd> → «(администратор)», §3</td></tr>
+              <tr><td>Compass не закрыт</td><td>После §8 «Настройки Compass есть: True» или ошибка «файл используется другим процессом»</td><td>Закрыть Compass в диспетчере задач и повторить шаги 3–5</td></tr>
+              <tr><td>Осталась папка данных 8.0</td><td>Служба 7.0 не запускается; в журнале <code>C:\Program Files\MongoDB\Server\7.0\log\mongod.log</code> — ошибка о несовместимых файлах данных</td><td>Удалить сервер, выполнить §7 и поставить 7.0 заново</td></tr>
+              <tr><td>Установщик 7.0 сам поставил новый Compass</td><td>В списке программ Compass 1.50 или новее</td><td>В мастере не сняли галочку <b>Install MongoDB Compass</b>. Удалить Compass шагами 4–5 и поставить 1.46.11</td></tr>
+              <tr><td>Ошибка 1603 или 2503 в установщике</td><td>Окно «The installer has encountered an unexpected error»</td><td>Установщик запущен без прав администратора: правой кнопкой по файлу → «Запуск от имени администратора»</td></tr>
+              <tr><td>Служба 7.0 не стартует на старом процессоре</td><td>Служба сразу останавливается, в журнале нет строки <code>Waiting for connections</code></td><td>Серверу 5.0 и новее нужен процессор с инструкциями AVX. Поставить сервер 6.0 не поможет — тоже нужен AVX; поднять стенд в Docker тоже нельзя. Путь — Codespaces в браузере, глава <a href="../01a-stend-v-docker/index.html#s10">1.1а, §10</a></td></tr>
+              <tr><td>7.0 не ставится вовсе</td><td>Установщик сообщает о неподдерживаемой системе</td><td>Взять сервер 6.0.29 на той же странице (§9, список Version) — он официально поддерживает Windows 10. Compass 1.46.11 работает и с ним</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s14"><span class="sec">§14</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Что установлено</b>
+            <code>Get-ItemProperty $keys |</code>
+            <code>  Where DisplayName -like '*MongoDB*'</code>
+          </div>
+          <div>
+            <b>Удалить</b>
+            <code>msiexec /x {код} /qn   # сервер</code>
+            <code>Update.exe --uninstall -s   # Compass .exe</code>
+          </div>
+          <div>
+            <b>Скачать</b>
+            <code>mongodb.com/try/download/community</code>
+            <code># Version 7.0.43 · Windows x64 · msi</code>
+            <code>github.com/mongodb-js/compass/releases</code>
+            <code># v1.46.11 · win32-x64.msi</code>
+          </div>
+          <div>
+            <b>Проверить</b>
+            <code>Get-Service MongoDB</code>
+            <code>mongod.exe --version   # v7.0.43</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>MongoDB 8.0 и свежий Compass рассчитаны на Windows 11, поэтому на Windows 10 ставим сервер 7.0.43 — версию, на которой сняты выводы книги, — и Compass 1.46.11. Перед установкой старое удаляется целиком: программы — их деинсталляторами, затем папки данных и настроек, служба и запись в <code>Path</code>; проверка должна показать ноль программ и три <code>False</code>. Сервер скачивается с mongodb.com выбором версии в списке, Compass — из архива выпусков по ссылке <b>Archived releases</b>. Главное в мастере — снять галочку <b>Install MongoDB Compass</b>. После установки загрузите учебные базы и возвращайтесь к главе 1.0.</p>
+
+        <div class="pager"><a href="../00-uchebnye-bazy/index.html">← 1.0 Учебные базы</a><a href="../01-klient-baza-kollekciya/index.html">1.1 Сервер, база, коллекция →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.0а · Windows 10: MongoDB 7.0 вместо 8.0 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
