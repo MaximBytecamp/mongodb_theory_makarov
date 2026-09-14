@@ -209,13 +209,21 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
 <pre>res = box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-101"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">2690</span> } })
 <span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
-        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
+<pre>matched: 1 modified: 0</pre>
         </figure>
-        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
+<pre>matched: 1 modified: 0</pre>
         </figure>
-        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
+<pre>matched: 1 modified: 0</pre>
         </figure>
-        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>второй запуск</span>matched: 1 modified: 0</pre>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>второй запуск</span></figcaption>
+<pre>matched: 1 modified: 0</pre>
         </figure>
         </div>
         <div class="table-scroll">
@@ -351,13 +359,21 @@ fmt.<span class="f">Println</span>(<span class="s">"matched:"</span>, res.Matche
 
 <span class="f">puts</span> <span class="s">"matched: #{res.matched_count} modified: #{res.modified_count}"</span></pre>
           </figure>
-        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 6 modified: 6</pre>
         </figure>
-        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 6 modified: 6</pre>
         </figure>
-        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 6 modified: 6</pre>
         </figure>
-        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>matched: 6 modified: 6</pre>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>matched: 6 modified: 6</pre>
         </figure>
         </div>
         <p>Шесть документов: три исходных аксессуара, коврик и две позиции, добавленные в главе о вставке. Поле <code>free_shipping</code> появилось у них и только у них — остальные товары не изменились.</p>
@@ -523,19 +539,19 @@ fmt.<span class="f">Println</span>(doc)</pre>
         <p>Если забыть <code>$set</code> и передать просто документ, драйвер не пропустит запрос дальше:</p>
         <figure class="code code--out" data-lang="python">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>{'product_id': 'p-003', 'date': '2026-09-13', 'views': 7}</pre>
+<pre>{'product_id': 'p-003', 'date': '2026-09-14', 'views': 1}</pre>
         </figure>
         <figure class="code code--out" data-lang="cpp">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>{ "product_id" : "p-003", "date" : "2026-09-13", "views" : 10 }</pre>
+<pre>{ "product_id" : "p-003", "date" : "2026-09-14", "views" : 1 }</pre>
         </figure>
         <figure class="code code--out" data-lang="go">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>{"product_id":"p-003","date":"2026-09-13","views":{"$numberInt":"9"}}</pre>
+<pre>{"date":"2026-09-14","product_id":"p-003","views":{"$numberInt":"1"}}</pre>
         </figure>
         <figure class="code code--out" data-lang="ruby">
           <figcaption><span>Ошибка</span><span>обновление без оператора</span></figcaption>
-<pre>{"product_id"=&gt;"p-003", "date"=&gt;"2026-09-13", "views"=&gt;8}</pre>
+<pre>{"date"=&gt;"2026-09-14", "product_id"=&gt;"p-003", "views"=&gt;1}</pre>
         </figure>
         <p>Метод <code>replace_one</code> при этом <strong>заменяет документ целиком</strong>. Все поля, которых нет в новом документе, исчезают; сохраняется только <code>_id</code>.</p>
         <div class="table-scroll">

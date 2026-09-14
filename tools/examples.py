@@ -274,6 +274,7 @@ if orders_box.count_documents({}) == 0:
     orders_box.insert_many(orders.find())
 
 stats = client["sandbox"]["product_stats"]    # счётчики просмотров для §6
+stats.drop()                                  # каждый запуск заготовки считает с нуля
 from datetime import date
 today = date.today().isoformat()
 ''',
@@ -293,6 +294,7 @@ orders_box = client.use("sandbox").database[:orders]   # копия заказо
 orders_box.insert_many(orders.find.to_a) if orders_box.count_documents({}).zero?
 
 stats = client.use("sandbox").database[:product_stats] # счётчики просмотров для §6
+stats.drop                                             # каждый запуск заготовки считает с нуля
 require "date"
 today = Date.today.iso8601
 ''',
@@ -320,6 +322,7 @@ today = Date.today.iso8601
 	}
 
 	stats := client.Database("sandbox").Collection("product_stats") // счётчики просмотров для §6
+	stats.Drop(ctx)                                                 // каждый запуск заготовки считает с нуля
 	today := time.Now().Format("2006-01-02")
 ''',
     ("1.7", "cpp"): '''
@@ -344,6 +347,7 @@ today = Date.today.iso8601
     }
 
     auto stats = client["sandbox"]["product_stats"];   // счётчики просмотров для §6
+    stats.drop();                                      // каждый запуск заготовки считает с нуля
     auto now = std::time(nullptr);
     std::ostringstream day;
     day << std::put_time(std::gmtime(&now), "%Y-%m-%d");
@@ -545,6 +549,12 @@ def load_results() -> dict:
     return merged
 
 
+GO_BARE_IMPORTS = ("package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\n"
+                   "\t\"go.mongodb.org/mongo-driver/v2/bson\"\n\t\"go.mongodb.org/mongo-driver/v2/mongo\"\n"
+                   "\t\"go.mongodb.org/mongo-driver/v2/mongo/options\"\n)\n\nvar _ = fmt.Sprint\nvar _ = log.Fatal\n"
+                   "var _ = os.Getenv\nvar _ = bson.D{}\nvar _ = mongo.Connect\nvar _ = options.Client\n")
+
+
 def run(langs: list[str], chapters: list[str]) -> None:
     RESULTS.mkdir(exist_ok=True)
     for chapter in chapters:
@@ -559,7 +569,7 @@ def run(langs: list[str], chapters: list[str]) -> None:
             plan = programs(chapter, lang)
             for n, mode, program in plan:
                 if lang == "go" and chapter == "1.1":
-                    program = program.replace("package main\n", "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\n\t\"go.mongodb.org/mongo-driver/v2/bson\"\n\t\"go.mongodb.org/mongo-driver/v2/mongo\"\n\t\"go.mongodb.org/mongo-driver/v2/mongo/options\"\n)\n\nvar _ = fmt.Sprint\nvar _ = log.Fatal\nvar _ = os.Getenv\nvar _ = bson.D{}\nvar _ = mongo.Connect\nvar _ = options.Client\n", 1)
+                    program = program.replace("package main\n", GO_BARE_IMPORTS, 1)
                 (folder / f"{n:02d}.{EXT[lang]}").write_text(program)
             subprocess.run(["docker", "compose", "run", "--rm", "reset"], cwd=PRACTICE, capture_output=True)
             rel = folder.relative_to(PRACTICE)
@@ -576,7 +586,7 @@ def run(langs: list[str], chapters: list[str]) -> None:
                 err = (PRACTICE / (name + ".err")).read_text(errors="replace")
                 err = "\n".join(l for l in err.splitlines() if not l.startswith(("go: downloading", "go: finding")))
                 mode = next(m for k, m, _ in plan if k == n)
-                got[str(n)] = {"exit": code, "stdout": out, "stderr": err[-1500:], "mode": mode}
+                got[str(n)] = {"exit": code, "stdout": out, "stderr": err if len(err) < 4000 else err[:2000] + "\n…\n" + err[-2000:], "mode": mode}
             path = RESULTS / f"{lang}.json"
             saved = json.loads(path.read_text()) if path.exists() else {}
             saved.setdefault(chapter, {})[lang] = got
@@ -721,13 +731,41 @@ def apply(chapters: list[str]) -> None:
                     if not run_:
                         continue
                     body = html.escape(shown(each, run_), quote=False)
-                    parts.append(f'        <figure class="code code--out" data-lang="{each}">{caption}{body}</pre>\n        </figure>\n')
+                    parts.append(f'        <figure class="code code--out" data-lang="{each}">\n'
+                                 f'          <figcaption>{caption}</figcaption>\n<pre>{body}</pre>\n        </figure>\n')
                 if parts:
                     edits.append((figure_start, figure_end, "".join(parts)))
         for a, b, text_ in sorted(edits, reverse=True):
             page = page[:a] + text_ + page[b:]
         path.write_text(page)
         print(f"{chapter}: обновлено блоков вывода {len(edits)}")
+
+
+def export(target: pathlib.Path) -> None:
+    """Проверочный набор для чужих машин: программы глав и ожидаемые выводы.
+
+    Кладёт в target/_v_<глава>_<язык>/NN.<ext> те же программы, что прогоняет
+    run(), и target/_verify/expected.json с выводами прогона на стенде."""
+    results = load_results()
+    expected = {}
+    for chapter in CHAPTERS:
+        for lang in LANGS:
+            folder = target / f"_v_{chapter.replace('.', '_')}_{lang}"
+            subprocess.run(["rm", "-rf", str(folder)])
+            folder.mkdir(parents=True)
+            if lang == "go":
+                for name in ("go.mod", "go.sum"):
+                    (folder / name).write_text((PRACTICE / "lessons" / name).read_text())
+            for n, mode, program in programs(chapter, lang):
+                if lang == "go" and chapter == "1.1":
+                    program = program.replace("package main\n", GO_BARE_IMPORTS, 1)
+                (folder / f"{n:02d}.{EXT[lang]}").write_text(program)
+                run_ = results[chapter][lang][str(n)]
+                expected.setdefault(chapter, {}).setdefault(lang, {})[str(n)] = {
+                    "exit": run_["exit"], "shown": shown(lang, run_)}
+    (target / "_verify").mkdir(exist_ok=True)
+    (target / "_verify" / "expected.json").write_text(json.dumps(expected, ensure_ascii=False, indent=1))
+    print("проверочный набор записан в", target)
 
 
 if __name__ == "__main__":
@@ -738,6 +776,8 @@ if __name__ == "__main__":
         langs = LANGS if sys.argv[2] == "all" else sys.argv[2].split(",")
         chapters = sys.argv[3:] or list(CHAPTERS)
         run(langs, chapters)
+    elif command == "export":
+        export(pathlib.Path(sys.argv[2]))
     elif command == "apply":
         apply(sys.argv[2:] or list(CHAPTERS))
     elif command == "report":

@@ -319,7 +319,7 @@ fmt.<span class="f">Println</span>(err)</pre>
           </figure>
           <figure class="code code--out" data-lang="ruby">
             <figcaption><span>Ошибка</span><span>ответ сервера</span></figcaption>
-<pre>rb:39:in `block in execute'</pre>
+<pre>[31254:Location31254]: Cannot do exclusion on field stock in inclusion projection (on localhost:27017, modern retry, attempt 1) (Mongo::Error::OperationFailure)</pre>
           </figure>
         </div>
         <p>Логика простая: вы либо перечисляете белый список, либо чёрный. Смешение неоднозначно — непонятно, что делать с полями, которых нет ни в одном списке. Единственное исключение — <code>_id</code>: его разрешено выключать в любой проекции, потому что он подразумевается всегда.</p>

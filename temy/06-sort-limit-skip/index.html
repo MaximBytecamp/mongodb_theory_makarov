@@ -115,25 +115,33 @@ cursor.<span class="f">All</span>(ctx, &amp;list)
         .<span class="f">limit</span>(<span class="n">5</span>)
         .<span class="f">each</span> { |doc| <span class="f">puts</span> <span class="f">format</span>(<span class="s">"%8d  %s"</span>, doc[<span class="s">"price"</span>], doc[<span class="s">"title"</span>]) }</pre>
           </figure>
-        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span> 114990 Ноутбук Apple MacBook Air 13
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre> 114990 Ноутбук Apple MacBook Air 13
   89990 Ноутбук Acer Nitro V15
   79990 Смартфон Apple iPhone 15
   67900 Ноутбук HP Pavilion 14
   51490 Ноутбук ASUS VivoBook 15</pre>
         </figure>
-        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>114990  Ноутбук Apple MacBook Air 13
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>114990  Ноутбук Apple MacBook Air 13
 89990  Ноутбук Acer Nitro V15
 79990  Смартфон Apple iPhone 15
 67900  Ноутбук HP Pavilion 14
 51490  Ноутбук ASUS VivoBook 15</pre>
         </figure>
-        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>  114990  Ноутбук Apple MacBook Air 13
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>  114990  Ноутбук Apple MacBook Air 13
    89990  Ноутбук Acer Nitro V15
    79990  Смартфон Apple iPhone 15
    67900  Ноутбук HP Pavilion 14
    51490  Ноутбук ASUS VivoBook 15</pre>
         </figure>
-        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>  114990  Ноутбук Apple MacBook Air 13
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>  114990  Ноутбук Apple MacBook Air 13
    89990  Ноутбук Acer Nitro V15
    79990  Смартфон Apple iPhone 15
    67900  Ноутбук HP Pavilion 14
@@ -291,25 +299,33 @@ products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</sp
         .<span class="f">limit</span>(per_page)
         .<span class="f">each</span> { |doc| <span class="f">puts</span> doc[<span class="s">"title"</span>] }</pre>
           </figure>
-        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Кабель USB-C 2 м
 Клавиатура Keychron K2
 Монитор Dell P2422H
 Мышь Logitech MX Master 3S
 Наушники Sony WH-1000XM5</pre>
         </figure>
-        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Кабель USB-C 2 м
 Клавиатура Keychron K2
 Монитор Dell P2422H
 Мышь Logitech MX Master 3S
 Наушники Sony WH-1000XM5</pre>
         </figure>
-        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Кабель USB-C 2 м
 Клавиатура Keychron K2
 Монитор Dell P2422H
 Мышь Logitech MX Master 3S
 Наушники Sony WH-1000XM5</pre>
         </figure>
-        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>Кабель USB-C 2 м
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Кабель USB-C 2 м
 Клавиатура Keychron K2
 Монитор Dell P2422H
 Мышь Logitech MX Master 3S
@@ -448,22 +464,30 @@ fmt.<span class="f">Println</span>(<span class="s">"доставленных:"</
 <span class="f">puts</span> <span class="s">"заказов: #{orders.count_documents({})}"</span>
 <span class="f">puts</span> <span class="s">"доставленных: #{orders.count_documents({ 'status' =&gt; 'доставлен' })}"</span></pre>
           </figure>
-        <figure class="code code--out" data-lang="python"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего товаров: 21
 ноутбуков: 5
 заказов: 120
 доставленных: 69</pre>
         </figure>
-        <figure class="code code--out" data-lang="cpp"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего товаров: 21
 ноутбуков: 5
 заказов: 120
 доставленных: 69</pre>
         </figure>
-        <figure class="code code--out" data-lang="go"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего товаров: 21
 ноутбуков: 5
 заказов: 120
 доставленных: 69</pre>
         </figure>
-        <figure class="code code--out" data-lang="ruby"><span>Вывод в терминал</span><span>результат запуска</span>всего товаров: 21
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего товаров: 21
 ноутбуков: 5
 заказов: 120
 доставленных: 69</pre>
