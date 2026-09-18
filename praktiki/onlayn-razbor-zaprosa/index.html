@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>Практикум · Онлайн-разбор запроса: explain и индексы · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    .task { margin: 26px 0; border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--leaf); background: var(--page); }
+    .task__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 18px; background: var(--ink); color: var(--leaf-pale); font: 600 11px/1.4 var(--pixel); letter-spacing: 1.3px; text-transform: uppercase; }
+    .task__body { padding: 18px 20px 6px; }
+    .task__body h3:first-child { margin-top: 0; }
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 4px; }
+
+    /* Три внешних сайта: что именно делает каждый. */
+    .sites { display: grid; gap: 14px; margin: 22px 0; }
+    .site { border: 2px solid var(--ink); background: var(--page); padding: 14px 16px; }
+    .site b { display: block; font-family: var(--display); font-size: 17px; }
+    .site a { font: 600 13px/1.5 var(--mono); word-break: break-all; }
+    .site p { margin: 6px 0 0; font-size: 15px; line-height: 1.5; }
+
+    /* Бланк отчёта: то, что студент заполняет числами. */
+    .blank { margin: 20px 0; padding: 16px 18px; border: 2px dashed var(--ink); background: var(--page); }
+    .blank h4 { margin: 0 0 8px; font-family: var(--display); font-size: 17px; }
+    .blank ul { margin: 0; }
+
+    /* Где лежит отчёт студента. */
+    .tree { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .tree__head { margin: 0; padding: 9px 16px; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1.4 var(--mono); }
+    .tree__row { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); gap: 14px; padding: 9px 16px; border-bottom: 2px solid var(--rule); align-items: baseline; }
+    .tree__row:last-child { border-bottom: 0; }
+    .tree__row b { font: 700 13.5px/1.4 var(--mono); }
+    .tree__row b::before { content: "├─ "; color: var(--ink-faint); }
+    .tree__row--deep b::before { content: "│  └─ "; }
+    .tree__row span { font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); }
+    .tree__row--you { background: var(--clay-pale); }
+    @media (max-width: 560px) { .tree__row { grid-template-columns: 1fr; gap: 2px; } }
+  </style>
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Практикум · после модуля 1</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · практикум · после модуля 1</p>
+          <p class="running__folio">ПРАКТИКУМ</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">ПРАКТИКУМ</span>
+          <h1>Онлайн-разбор запроса:<br>explain и индексы</h1>
+          <p class="lead">Запрос к журналу сервиса возвращает 33 записи, а сервер при этом читает все 1200. Работа состоит в том, чтобы увидеть это в плане выполнения, построить индекс и повторить замер. План разбирается на бесплатном сайте, который рисует его схемой и называет нужный порядок полей.</p>
+          <blockquote class="quote"><p>«Просмотрено 1200 документов, возвращено 33.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>После модуля</dt><dd>1 · подключение и первые данные</dd></div>
+          <div><dt>База</dt><dd><code>logs</code>, коллекция <code>events</code> — 1200 документов</dd></div>
+          <div><dt>Инструмент</dt><dd>оболочка <code>mongosh</code> и три сайта, без установки</dd></div>
+          <div><dt>Время</dt><dd>90 минут</dd></div>
+          <div><dt>Результат</dt><dd><code>README.md</code> с числами и четыре ссылки на разборы</dd></div>
+        </dl>
+
+        <h2 id="s1"><span class="sec">§1</span>Что здесь разбирается</h2>
+        <p>В модуле 1 все запросы шли по маленьким коллекциям: 21 товар, 120 заказов. На таком объёме любой запрос отвечает мгновенно, и понять, дорого он обходится или дёшево, по времени ответа нельзя. Коллекция <code>logs.events</code> содержит 1200 записей журнала — этого уже хватает, чтобы разница была видна в числах.</p>
+        <p>MongoDB умеет показать, как именно она выполнила запрос. Метод <code>explain("executionStats")</code> возвращает документ с планом выполнения: какие шаги сервер прошёл, сколько документов прочитал и сколько вернул. Этот документ и есть предмет работы.</p>
+        <p>Ключевых чисел в нём три:</p>
+        <ul>
+          <li><code>nReturned</code> — сколько документов запрос вернул;</li>
+          <li><code>totalDocsExamined</code> — сколько документов сервер для этого прочитал;</li>
+          <li><code>totalKeysExamined</code> — сколько записей индекса он просмотрел.</li>
+        </ul>
+        <p>Когда <code>totalDocsExamined</code> равно числу документов в коллекции, сервер прочитал коллекцию целиком. Такой шаг называется <span class="term">COLLSCAN</span> — полный перебор. Когда чтению предшествует индекс, в плане появляется шаг <span class="term">IXSCAN</span>, и <code>totalDocsExamined</code> становится близким к <code>nReturned</code>: сервер идёт сразу к нужным документам.</p>
+        <p>Полный вид документа explain — вложенные объекты на несколько экранов, и читать его в терминале неудобно. Поэтому план выгружается в файл и разбирается на сайте, который показывает шаги схемой сверху вниз и подсвечивает дорогие места.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Три сайта</h2>
+        <p>Все три работают в браузере, бесплатны и не требуют регистрации. В работе обязателен первый, второй берётся для сверки, третий — запасной вариант, если нужно проверить запрос без стенда. Остальное рабочее окружение вокруг базы разобрано в разделе <a href="../../materialy/index.html">«Инструменты и материалы»</a>.</p>
+
+        <div class="sites">
+          <div class="site">
+            <b>Paste the Plan</b>
+            <a href="https://dfrancour.dev/tools/mongodb-paste-the-plan" target="_blank" rel="noopener">dfrancour.dev/tools/mongodb-paste-the-plan</a>
+            <p>Принимает JSON плана, рисует шаги дерева выполнения и раскрашивает их по стоимости. Разбирает запрос по правилу ESR и пишет, какой индекс под него подходит. Кнопка обмена сворачивает план в ссылку — её и нужно сдать.</p>
+          </div>
+          <div class="site">
+            <b>MongoPilot Explain Plan Visualizer</b>
+            <a href="https://mongopilot.com/tools/mongodb-explain-plan-visualizer/" target="_blank" rel="noopener">mongopilot.com/tools/mongodb-explain-plan-visualizer/</a>
+            <p>Тот же разбор, но с общей оценкой эффективности запроса в баллах. Пригодится, чтобы сверить вывод: два разных инструмента на одном плане должны назвать одно и то же узкое место.</p>
+          </div>
+          <div class="site">
+            <b>Mongo Playground</b>
+            <a href="https://mongoplayground.net/" target="_blank" rel="noopener">mongoplayground.net</a>
+            <p>Песочница: слева документы коллекции, справа запрос, снизу результат. Сервера и данных не требует, плана выполнения не показывает. Нужна, чтобы собрать и проверить сам запрос, если стенд под рукой не запускается.</p>
+          </div>
+        </div>
+
+        <div class="margin-note">
+          <b>Данные наружу</b>
+          <p>Вставленный план уходит на чужой сайт, а ссылка на него доступна любому, кто её получил. В учебной работе данные учебные, поэтому ограничений нет. На рабочем проекте перед вставкой из плана убирают значения фильтра: в поле <code>command</code> видны реальные параметры запроса.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Стенд и как получить план</h2>
+        <p>Работа идёт в оболочке <code>mongosh</code> на базе <code>logs</code>. Драйвер языка здесь не нужен: все команды одинаковы для всех.</p>
+
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>стенд и оболочка</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice
+docker compose up -d                      <span class="c"># сервер и учебные базы</span>
+docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span>
+docker compose exec mongo mongosh logs    <span class="c"># оболочка на базе logs</span></pre>
+        </figure>
+        <figure class="code" data-os="mac">
+          <figcaption><span>Терминал</span><span>стенд и оболочка</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice
+docker compose up -d                      <span class="c"># сервер и учебные базы</span>
+docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span>
+docker compose exec mongo mongosh logs    <span class="c"># оболочка на базе logs</span></pre>
+        </figure>
+        <figure class="code" data-os="linux">
+          <figcaption><span>Терминал</span><span>стенд и оболочка</span></figcaption>
+<pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
+<span class="k">cd</span> mongodb-practice
+docker compose up -d                      <span class="c"># сервер и учебные базы</span>
+docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span>
+docker compose exec mongo mongosh logs    <span class="c"># оболочка на базе logs</span></pre>
+        </figure>
+
+        <p>Если MongoDB стоит на компьютере без Docker, оболочка запускается напрямую: <code>mongosh "mongodb://localhost:27017/logs"</code>, а данные заливаются скриптом <code>bash stend/load.sh</code>, как в главе 1.0.</p>
+
+        <p>Документ события выглядит так. Поля <code>service</code>, <code>level</code>, <code>ts</code> и <code>duration_ms</code> участвуют в запросах работы.</p>
+        <figure class="code">
+          <figcaption><span>mongosh · оболочка</span><span>одна запись журнала</span></figcaption>
+<pre>logs&gt; db.events.<span class="f">findOne</span>()
+
+{
+  _id: <span class="s">'e-00001'</span>,
+  ts: <span class="f">ISODate</span>(<span class="s">'2026-09-01T00:00:59.000Z'</span>),
+  service: <span class="s">'api-gateway'</span>,     <span class="c">// какой сервис записал событие</span>
+  level: <span class="s">'info'</span>,               <span class="c">// info, warn или error</span>
+  route: <span class="s">'/api/orders/{id}'</span>,
+  status: <span class="n">200</span>,
+  duration_ms: <span class="n">16</span>,             <span class="c">// сколько заняла обработка</span>
+  user_id: <span class="s">'c-015'</span>,
+  trace: <span class="s">'tr-886522'</span>
+}</pre>
+        </figure>
+
+        <p>План выгружается в файл одной командой. Она запускается не внутри оболочки, а в обычном терминале из корня репозитория: вывод <code>mongosh</code> перенаправляется в файл на вашем компьютере.</p>
+        <figure class="code">
+          <figcaption><span>Терминал</span><span>план выполнения в файл</span></figcaption>
+<pre>docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+  EJSON.stringify(
+    db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
+             .sort({ ts: -1 })
+             .explain("executionStats")
+  )'</span> &gt; plan-1.json</pre>
+        </figure>
+        <p>Флаг <code>-T</code> отключает выделение терминала — без него перенаправление в файл ломается. <code>--quiet</code> убирает приветствие сервера, чтобы в файле остался только JSON. Функция <code>EJSON.stringify</code> превращает документ плана в строку JSON, в которой даты и числа BSON записаны так, что сайт их разберёт.</p>
+        <p>Получившийся файл — около двух килобайт. Его содержимое целиком вставляется в поле на Paste the Plan, кнопка <b>Analyze Plan</b> строит схему.</p>
+
+        <div class="task">
+          <div class="task__head"><span>Задача 1</span><span>запрос без индекса</span></div>
+          <div class="task__body">
+            <h3>Медленные ошибки платежей</h3>
+            <p>Дежурный инженер ищет в журнале ошибки сервиса <code>payments</code>, обработка которых заняла больше полусекунды, и смотрит их от свежих к старым. Запрос уже написан:</p>
+            <figure class="code">
+              <figcaption><span>mongosh · оболочка</span><span>запрос дежурного</span></figcaption>
+<pre>db.events.<span class="f">find</span>({
+  service: <span class="s">"payments"</span>,
+  level: <span class="s">"error"</span>,
+  duration_ms: { $gt: <span class="n">500</span> }
+}).<span class="f">sort</span>({ ts: <span class="n">-1</span> })</pre>
+            </figure>
+            <ol class="steps">
+              <li><b>Выполните запрос и посчитайте результат.</b> Число записей даст <code>db.events.countDocuments()</code> с тем же фильтром. Запишите его.</li>
+              <li><b>Выгрузите план в <code>plan-1.json</code></b> командой из §3.</li>
+              <li><b>Разберите план на Paste the Plan.</b> Найдите на схеме шаги выполнения и три числа: <code>nReturned</code>, <code>totalDocsExamined</code>, <code>totalKeysExamined</code>.</li>
+              <li><b>Сохраните ссылку на разбор</b> кнопкой обмена и запишите её в отчёт.</li>
+            </ol>
+            <p>Ожидаемая картина: возвращено 33 документа, просмотрено 1200, записей индекса просмотрено 0. В дереве выполнения два шага — <code>COLLSCAN</code> внизу и <code>SORT</code> над ним. Нижний означает, что сервер прочитал всю коллекцию, верхний — что сортировку он делал в памяти уже после чтения, потому что готового порядка у него не было.</p>
+            <div class="blank">
+              <h4>В отчёт</h4>
+              <ul>
+                <li>три числа плана;</li>
+                <li>названия шагов в порядке снизу вверх;</li>
+                <li>ссылка на разбор;</li>
+                <li>одно предложение: почему сервер прочитал 1200 документов, чтобы вернуть 33.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>Правило ESR</h2>
+        <p>Индекс — это отсортированный список значений поля со ссылками на документы. Составной индекс хранит несколько полей сразу, и порядок полей в нём важен: список отсортирован сначала по первому полю, внутри одинаковых значений — по второму, и так далее.</p>
+        <p>Порядок полей подбирают по правилу <span class="term">ESR</span> — Equality, Sort, Range. Условия запроса делятся на три вида, и в индекс они ставятся в этом порядке:</p>
+        <div class="ops">
+          <div><b>E · Equality</b><span>Поля, которые сравниваются на точное равенство: <code>service: "payments"</code>, <code>level: "error"</code>.</span><i>первыми</i></div>
+          <div><b>S · Sort</b><span>Поля из <code>sort</code>: здесь <code>ts</code>.</span><i>вторыми</i></div>
+          <div><b>R · Range</b><span>Поля с диапазоном: <code>$gt</code>, <code>$lt</code>, <code>$gte</code>, <code>$lte</code>. Здесь <code>duration_ms</code>.</span><i>последними</i></div>
+        </div>
+        <p>Логика такая. Равенство сужает список до одного непрерывного участка индекса. Внутри этого участка документы уже лежат в порядке следующего поля — поэтому поле сортировки ставят сразу за равенствами: сервер читает участок подряд и получает готовый порядок, отдельный шаг <code>SORT</code> ему не нужен. Диапазон даёт участок переменной длины и порядок внутри себя не сохраняет, поэтому его ставят в конец.</p>
+
+        <div class="task">
+          <div class="task__head"><span>Задача 2</span><span>индекс по правилу</span></div>
+          <div class="task__body">
+            <h3>Построить индекс и повторить замер</h3>
+            <ol class="steps">
+              <li><b>Разберите запрос из задачи 1 по ESR.</b> Выпишите, какие поля попадают в E, какое в S, какое в R.</li>
+              <li><b>Создайте индекс</b> в оболочке: <code>db.events.createIndex({ service: 1, level: 1, ts: -1, duration_ms: 1 })</code>. Числа задают направление сортировки поля: 1 — по возрастанию, −1 — по убыванию.</li>
+              <li><b>Выгрузите план заново</b> в <code>plan-2.json</code> той же командой.</li>
+              <li><b>Разберите его на Paste the Plan</b> и сохраните ссылку.</li>
+            </ol>
+            <p>Ожидаемая картина: возвращено те же 33 документа, просмотрено 33, записей индекса просмотрено 43. Шагов снова два — <code>IXSCAN</code> внизу и <code>FETCH</code> над ним. Шаг <code>SORT</code> из плана исчез.</p>
+            <div class="blank">
+              <h4>В отчёт</h4>
+              <ul>
+                <li>разбор запроса по E, S и R;</li>
+                <li>команда создания индекса;</li>
+                <li>три числа нового плана и названия шагов;</li>
+                <li>ссылка на разбор;</li>
+                <li>во сколько раз уменьшилось число просмотренных документов;</li>
+                <li>одно предложение: почему из плана пропал шаг <code>SORT</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="task__head"><span>Задача 3</span><span>порядок полей</span></div>
+          <div class="task__body">
+            <h3>Проверить, что порядок полей решает</h3>
+            <p>Индекс покрывает те же четыре поля — меняется только их порядок. Каждый вариант проверяется отдельно: старый индекс удаляется, создаётся новый, план снимается заново.</p>
+            <figure class="code">
+              <figcaption><span>mongosh · оболочка</span><span>смена индекса</span></figcaption>
+<pre><span class="c">// посмотреть, какие индексы сейчас есть, и узнать имя</span>
+db.events.<span class="f">getIndexes</span>()
+
+<span class="c">// удалить по описанию ключей</span>
+db.events.<span class="f">dropIndex</span>({ service: <span class="n">1</span>, level: <span class="n">1</span>, ts: <span class="n">-1</span>, duration_ms: <span class="n">1</span> })
+
+<span class="c">// вариант А: диапазон впереди</span>
+db.events.<span class="f">createIndex</span>({ duration_ms: <span class="n">1</span>, service: <span class="n">1</span>, level: <span class="n">1</span>, ts: <span class="n">-1</span> })
+
+<span class="c">// вариант Б: диапазон перед сортировкой</span>
+db.events.<span class="f">createIndex</span>({ service: <span class="n">1</span>, level: <span class="n">1</span>, duration_ms: <span class="n">1</span>, ts: <span class="n">-1</span> })</pre>
+            </figure>
+            <p>Снимите план на каждом из двух вариантов и заполните таблицу. Первая и вторая строки у вас уже есть из задач 1 и 2.</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Индекс</th><th>Порядок</th><th>Возвращено</th><th>Документов просмотрено</th><th>Ключей просмотрено</th><th>Шаги плана</th></tr></thead>
+                <tbody>
+                  <tr><td>нет</td><td>—</td><td>33</td><td>1200</td><td>0</td><td>COLLSCAN → SORT</td></tr>
+                  <tr><td><code>service, level, ts, duration_ms</code></td><td>E, S, R</td><td>33</td><td>33</td><td>43</td><td>IXSCAN → FETCH</td></tr>
+                  <tr><td><code>duration_ms, service, level, ts</code></td><td>R, E, S</td><td>33</td><td>?</td><td>?</td><td>?</td></tr>
+                  <tr><td><code>service, level, duration_ms, ts</code></td><td>E, R, S</td><td>33</td><td>?</td><td>?</td><td>?</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Вариант Б даёт интересный результат: ключей индекса он просматривает меньше, чем правильный вариант, но шаг <code>SORT</code> в плане остаётся. Сортировка в памяти ограничена 100 мегабайтами: на 1200 записях она проходит, на реальном журнале запрос с таким индексом упадёт с ошибкой. Поэтому вариант по ESR лучше, хотя по числу ключей он проигрывает.</p>
+            <div class="blank">
+              <h4>В отчёт</h4>
+              <ul>
+                <li>заполненная таблица целиком;</li>
+                <li>объяснение, почему в варианте А просмотрено столько ключей;</li>
+                <li>объяснение, почему в варианте Б остался шаг <code>SORT</code>;</li>
+                <li>вывод: какой из четырёх вариантов вы оставили бы в рабочей базе и почему.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="task__head"><span>Задача 4</span><span>самостоятельно</span></div>
+          <div class="task__body">
+            <h3>Подобрать индекс без подсказки</h3>
+            <p>Второй запрос из той же коллекции: десять самых долгих ошибок за всё время.</p>
+            <figure class="code">
+              <figcaption><span>mongosh · оболочка</span><span>второй запрос</span></figcaption>
+<pre>db.events.<span class="f">find</span>({ level: <span class="s">"error"</span> })
+         .<span class="f">sort</span>({ duration_ms: <span class="n">-1</span> })
+         .<span class="f">limit</span>(<span class="n">10</span>)</pre>
+            </figure>
+            <ol class="steps">
+              <li><b>Удалите индексы, оставшиеся от задачи 3.</b> Индекс <code>_id_</code> удалить нельзя и не нужно — он создаётся сервером.</li>
+              <li><b>Снимите план без индекса</b> и запишите числа.</li>
+              <li><b>Разберите запрос по ESR</b> и создайте индекс сами. Диапазона в этом запросе нет — значит, в индексе будет два поля.</li>
+              <li><b>Снимите план заново</b> и сохраните ссылку на разбор.</li>
+            </ol>
+            <p>Ориентир: без индекса запрос читает всю коллекцию — 1200 документов. С верно подобранным индексом сервер просматривает 10 ключей и читает 10 документов, а в плане появляется шаг <code>LIMIT</code>.</p>
+            <div class="blank">
+              <h4>В отчёт</h4>
+              <ul>
+                <li>ваш индекс и объяснение порядка полей;</li>
+                <li>числа до и после;</li>
+                <li>ссылка на разбор;</li>
+                <li>одно предложение: почему в коллекции 180 ошибок, а сервер прочитал только 10 документов.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <h2 id="s5"><span class="sec">§5</span>Отчёт и сдача</h2>
+        <p>Отчёт — один файл <code>README.md</code> в вашем репозитории, склонированном в папку <code>work/</code>, как в ПР-01. Рядом лежат выгруженные планы: по ним преподаватель проверит числа, если ссылка перестанет открываться.</p>
+
+        <div class="tree">
+          <p class="tree__head">work/praktikum-explain/</p>
+          <div class="tree__row tree__row--you"><b>README.md</b><span>отчёт: числа, ссылки, ответы на вопросы из блоков «В отчёт»</span></div>
+          <div class="tree__row tree__row--you"><b>plan-1.json</b><span>план запроса 1 без индекса</span></div>
+          <div class="tree__row tree__row--you"><b>plan-2.json</b><span>план запроса 1 с индексом по ESR</span></div>
+          <div class="tree__row tree__row--you"><b>plan-3a.json</b><span>вариант А из задачи 3</span></div>
+          <div class="tree__row tree__row--you"><b>plan-3b.json</b><span>вариант Б из задачи 3</span></div>
+          <div class="tree__row tree__row--you"><b>plan-4.json</b><span>запрос 2 с вашим индексом</span></div>
+        </div>
+
+        <p>Сводная таблица в начале отчёта — обязательная часть: шесть строк по числу снятых планов, в каждой индекс, три числа и шаги плана. Остальной текст идёт после неё по задачам.</p>
+
+        <div class="margin-note margin-note--warn">
+          <b>Что спросят на приёмке</b>
+          <p>Чем <code>totalKeysExamined</code> отличается от <code>totalDocsExamined</code>. Почему шаг <code>FETCH</code> нужен, если индекс уже нашёл документы. Почему индекс из задачи 2 просматривает 43 ключа, а возвращает 33 документа. Что случится с этим индексом при вставке новой записи в журнал. Почему на индексы не ставят все поля подряд. Ответ «так вышло в инструменте» не принимается: сайт показывает числа, объясняет их студент.</p>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>План выполнения</b>
+            <code>db.col.find(q).explain(</code>
+            <code>  "executionStats")</code>
+          </div>
+          <div>
+            <b>Список индексов</b>
+            <code>db.col.getIndexes()</code>
+          </div>
+          <div>
+            <b>Создать</b>
+            <code>db.col.createIndex(</code>
+            <code>  { a: 1, b: -1 })</code>
+          </div>
+          <div>
+            <b>Удалить</b>
+            <code>db.col.dropIndex(</code>
+            <code>  { a: 1, b: -1 })</code>
+          </div>
+          <div>
+            <b>Порядок полей</b>
+            <code>E — равенство</code>
+            <code>S — sort</code>
+            <code>R — диапазон</code>
+          </div>
+          <div>
+            <b>Шаги в плане</b>
+            <code>COLLSCAN — перебор</code>
+            <code>IXSCAN — по индексу</code>
+            <code>SORT — в памяти</code>
+          </div>
+        </div>
+
+        <h3>Дальше</h3>
+        <p>Полный разбор индексов и плана выполнения — главы 3.2 и 3.3 модуля 3: составные и уникальные индексы, покрывающие запросы, выбор плана сервером и кэш планов. Здесь разобран только базовый случай, которого хватает, чтобы найти полный перебор в своём коде.</p>
+
+        <div class="pager"><a href="../kt-01-inventarizaciya/index.html">← КТ-01 Инвентаризация склада</a><a href="../../testy/modul-1/index.html">Тест модуля 1 →</a></div>
+
+        <div class="colophon">
+          <span>Практикум · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

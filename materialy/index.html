@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>Инструменты и материалы по MongoDB · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+  </script>
+  <style>
+    /* Карточка инструмента: название, адрес, кто выпустил, чем полезен. */
+    .tool { margin: 20px 0; border: 3px solid var(--ink); background: var(--page); box-shadow: 7px 7px 0 var(--ink); }
+    .tool__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 11px 17px; background: var(--ink); }
+    .tool__name { flex: 1 1 220px; font-family: var(--display); font-size: 18px; line-height: 1.25; color: #fff; }
+    .tool__tag { font: 600 10px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; padding: 4px 9px; border: 2px solid var(--leaf-bright); color: var(--leaf-bright); }
+    .tool__tag--pay { border-color: var(--clay); color: #F0A882; }
+    .tool__body { padding: 15px 18px 5px; }
+    .tool__body p { margin: 0 0 11px; }
+    .tool__link { display: block; margin: 0 0 11px; font: 600 13.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+    .tool dl { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 5px 14px; margin: 12px 0 14px; font-size: 15px; }
+    .tool dt { font: 600 10.5px/1.6 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; color: var(--leaf); }
+    .tool dd { margin: 0; }
+    .tool--official { box-shadow: 7px 7px 0 var(--leaf); }
+
+    /* Куда идти с вопросом: короткий указатель наверху раздела. */
+    .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin: 22px 0; }
+    .routes > div { padding: 13px 15px; border: 2px solid var(--ink); background: var(--page); font-size: 14.5px; line-height: 1.5; }
+    .routes b { display: block; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; margin-bottom: 6px; color: var(--leaf); }
+    .vendor { display: inline-block; margin-left: 6px; padding: 1px 7px; border: 1px solid var(--clay); color: var(--clay); font: 600 9.5px/1.6 var(--pixel); letter-spacing: .8px; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Материалы · инструменты и источники</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · инструменты и источники</p>
+          <p class="running__folio">Материалы</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">МАТЕРИАЛЫ</span>
+          <h1>Инструменты<br>и материалы</h1>
+          <p class="lead">Где смотреть данные, чем проверить запрос без сервера, как разобрать план выполнения и куда идти за ответом, которого нет в этой книге. Каждый инструмент разобран: что он делает, чего не делает и в какой момент работы он нужен.</p>
+          <blockquote class="quote"><p>«Инструмент показывает числа. Объясняет их инженер.»</p></blockquote>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Зачем раздел</dt><dd>Рабочее окружение вокруг базы: просмотр, проверка, разбор, документация</dd></div>
+          <div><dt>Что внутри</dt><dd>Шесть групп инструментов и материалов, у каждого — адрес и назначение</dd></div>
+          <div><dt>Цена</dt><dd>Помечена у каждого: бесплатно, бесплатная версия или платно</dd></div>
+          <div><dt>Проверено</dt><dd>Все адреса открывались на момент выпуска раздела</dd></div>
+        </dl>
+
+        <h2 id="s0"><span class="sec">§0</span>Куда идти с вопросом</h2>
+        <p>Вопросы к базе бывают четырёх видов, и отвечают на них разные источники. Ошибка новичка — искать любой ответ поиском в интернете: статьи устаревают вместе с версиями, а документация обновляется вместе с ними.</p>
+        <div class="routes">
+          <div><b>Как пишется оператор</b>Справочник операторов в документации. Там же примеры и версия, с которой оператор работает.</div>
+          <div><b>Что лежит в базе</b>Графический клиент: Compass, расширение VS&nbsp;Code или mongo-express со стенда.</div>
+          <div><b>Почему запрос медленный</b><code>explain</code> плюс визуализатор плана. Догадки по коду тут не работают.</div>
+          <div><b>Как спроектировать</b>Шаблоны проектирования схемы и разбор чужих решений. Готового ответа не бывает.</div>
+        </div>
+        <p>Пометка <span class="vendor">вендорский</span> у материала означает, что его выпустила сама компания MongoDB Inc. Такие материалы точны в части команд и версий, но написаны, чтобы показать продукт с удачной стороны: сравнений с другими базами и разбора неудачных внедрений там не будет.</p>
+
+        <h2 id="s1"><span class="sec">§1</span>Документация</h2>
+        <p>Документация MongoDB разделена на несколько отдельных сайтов, и это сбивает с толку: поиск выдаёт страницу из руководства по Atlas, когда нужна страница про оболочку. Полезно знать, какой раздел за что отвечает.</p>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">MongoDB Manual — основное руководство</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/manual/" target="_blank" rel="noreferrer">mongodb.com/docs/manual/</a>
+            <p>Описание самой базы: типы BSON, методы коллекции, операторы запроса и обновления, индексы, агрегация, репликация. Первое место, куда стоит смотреть по любому вопросу о поведении сервера.</p>
+            <dl>
+              <dt>Что открыть</dt><dd>Раздел <a href="https://www.mongodb.com/docs/manual/reference/operator/query/" target="_blank" rel="noreferrer">Query Operators</a> — полный список операторов фильтра с примерами. Он заменяет половину поисковых запросов.</dd>
+              <dt>Версия</dt><dd>В левом верхнем углу переключатель версии сервера. На стенде курса стоит MongoDB 7 — выбирайте её, иначе примеры могут не запуститься.</dd>
+              <dt>Язык</dt><dd>Английский. Русского перевода официальной документации нет; переводы на сторонних сайтах отстают на несколько версий.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">mongosh — документация оболочки</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/mongodb-shell/" target="_blank" rel="noreferrer">mongodb.com/docs/mongodb-shell/</a>
+            <p>Оболочка <code>mongosh</code> — это программа JavaScript с подключением к серверу, поэтому у неё свои возможности: переменные, циклы, функции, загрузка скриптов файлом, настройка вывода. В основное руководство это не входит.</p>
+            <dl>
+              <dt>Что открыть</dt><dd>Раздел Reference — список команд оболочки, и Write Scripts — как оформить набор команд файлом и запустить его разом.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">Database Tools — утилиты командной строки</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/database-tools/" target="_blank" rel="noreferrer">mongodb.com/docs/database-tools/</a>
+            <p>Набор отдельных программ: <code>mongoimport</code> и <code>mongoexport</code> для JSON и CSV, <code>mongodump</code> и <code>mongorestore</code> для двоичных копий базы. Они не входят в поставку сервера и ставятся отдельно.</p>
+            <dl>
+              <dt>Где встречается</dt><dd>Скрипт <code>stend/load.sh</code> в репозитории практик заливает учебные базы именно через <code>mongoimport</code> — глава <a href="../temy/00-uchebnye-bazy/index.html">1.0</a>.</dd>
+              <dt>Разница</dt><dd><code>mongoexport</code> отдаёт JSON, читаемый человеком, но теряет часть типов BSON. <code>mongodump</code> сохраняет типы точно, но его файл открыть текстовым редактором нельзя. Для резервной копии берут второе, для обмена данными — первое.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Посмотреть данные глазами</h2>
+        <p>Графический клиент показывает документы таблицей или деревом, строит фильтры без синтаксиса и выводит статистику коллекции. На учебных задачах он экономит время: структуру незнакомой коллекции быстрее увидеть, чем вычитать из кода.</p>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">MongoDB Compass</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/products/tools/compass" target="_blank" rel="noreferrer">mongodb.com/products/tools/compass</a>
+            <p>Официальный клиент, на нём сняты все кадры в этой книге. Кроме просмотра документов умеет три вещи, которых нет у большинства остальных: анализ схемы, сборку конвейера агрегации по стадиям и разбор плана выполнения запроса схемой.</p>
+            <dl>
+              <dt>Анализ схемы</dt><dd>Вкладка Schema берёт выборку документов и показывает, какие поля вообще встречаются в коллекции, какого они типа и в какой доле документов есть. На чужой базе это первое, что стоит открыть.</dd>
+              <dt>План выполнения</dt><dd>Вкладка Explain Plan рисует те же шаги, что разбираются в <a href="../praktiki/onlayn-razbor-zaprosa/index.html">практикуме</a>, прямо в окне клиента — без выгрузки JSON на сторонний сайт.</dd>
+              <dt>Ограничение</dt><dd>Анализ схемы идёт по выборке, а не по всей коллекции. Редкое поле, которое есть у одного документа из десяти тысяч, в отчёт может не попасть.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">Расширение MongoDB для VS Code</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/mongodb-vscode/" target="_blank" rel="noreferrer">mongodb.com/docs/mongodb-vscode/</a>
+            <p>Подключение к серверу прямо из редактора: коллекции видны в боковой панели, а запросы пишутся в файле <code>.mongodb.js</code> и запускаются по кнопке. Результат открывается соседней вкладкой.</p>
+            <dl>
+              <dt>Чем удобно</dt><dd>Запросы остаются файлом в репозитории: их видно в истории изменений, можно показать преподавателю и запустить повторно. В оболочке набранная команда теряется вместе с окном терминала.</dd>
+              <dt>Установка</dt><dd>Поиск «MongoDB for VS Code» в разделе расширений редактора.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool">
+          <div class="tool__head"><span class="tool__name">NoSQLBooster и Studio 3T</span><span class="tool__tag tool__tag--pay">бесплатная версия</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://nosqlbooster.com/" target="_blank" rel="noreferrer">nosqlbooster.com</a>
+            <p>Два клиента с автодополнением команд и переводом запросов из SQL в язык MongoDB — это помогает тем, кто пришёл из реляционных баз. У обоих есть бесплатная редакция с ограничениями и платная полная.</p>
+            <dl>
+              <dt>Когда нужны</dt><dd>Когда работа идёт с большой незнакомой базой каждый день. Для учебных задач возможностей Compass хватает целиком.</dd>
+              <dt>Осторожно</dt><dd>Перевод SQL в запрос MongoDB работает на простых случаях и создаёт ложное ощущение, что базы устроены одинаково. Соединения и вложенные документы он передаёт плохо.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <p>На стенде курса есть третий вариант, который ставить не нужно: <b>mongo-express</b> по адресу <code>localhost:8081</code>, логин и пароль <code>student</code>. Он запускается вместе с сервером командой <code>docker compose up -d</code> и показывает базы и документы в браузере. Возможностей у него меньше, чем у Compass, но он работает там, где ничего нельзя установить.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Проверить запрос без сервера</h2>
+        <p>Бывает нужно проверить один запрос, когда стенд не под рукой: на чужом компьютере, на паре, в переписке с коллегой. Для этого есть песочницы — сайты, где документы и запрос набираются прямо в браузере.</p>
+
+        <div class="tool">
+          <div class="tool__head"><span class="tool__name">Mongo Playground</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://mongoplayground.net/" target="_blank" rel="noreferrer">mongoplayground.net</a>
+            <p>Три поля на одной странице: документы коллекции, запрос или конвейер агрегации, результат. Регистрации нет, сохранённая ссылка живёт постоянно. Проект открытый, исходники — на <a href="https://github.com/feliixx/mongoplayground" target="_blank" rel="noreferrer">github.com/feliixx/mongoplayground</a>.</p>
+            <dl>
+              <dt>Для чего</dt><dd>Разобрать оператор на трёх документах вместо полутора тысяч. Показать коллеге воспроизводимый пример ссылкой, а не скриншотом.</dd>
+              <dt>Чего не делает</dt><dd>Плана выполнения не показывает: данных мало, замерять там нечего. Скорость запроса на песочнице ни о чём не говорит.</dd>
+              <dt>Данные</dt><dd>Сохранённая песочница открыта любому по ссылке. Рабочие данные туда не вставляют.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">MongoDB Search Playground</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://search-playground.mongodb.com/" target="_blank" rel="noreferrer">search-playground.mongodb.com</a>
+            <p>Официальная песочница для полнотекстового поиска: там настраивается индекс поиска и проверяется стадия <code>$search</code>. Обычные запросы <code>find</code> она не выполняет.</p>
+            <dl>
+              <dt>Когда пригодится</dt><dd>В модуле 3, на теме текстового поиска. Настройка поискового индекса сложнее обычного, и подбирать её на живой базе долго.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>Разобрать план выполнения</h2>
+        <p>Документ <code>explain</code> — вложенные объекты на несколько экранов, и читать его в терминале тяжело. Визуализатор превращает его в схему шагов и подписывает, сколько документов прочитано на каждом. Как это делается по шагам, разобрано в <a href="../praktiki/onlayn-razbor-zaprosa/index.html">практикуме после модуля 1</a>.</p>
+
+        <div class="tool">
+          <div class="tool__head"><span class="tool__name">Paste the Plan</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://dfrancour.dev/tools/mongodb-paste-the-plan" target="_blank" rel="noreferrer">dfrancour.dev/tools/mongodb-paste-the-plan</a>
+            <p>Принимает JSON плана и строит дерево выполнения с раскраской шагов по стоимости. Разбирает запрос по правилу ESR и называет порядок полей для индекса. Кнопка обмена сворачивает план в ссылку — по ней разбор открывает любой, файл пересылать не нужно.</p>
+            <dl>
+              <dt>Основной инструмент</dt><dd>В практикуме работа идёт на нём: из трёх визуализаторов только он объясняет, почему порядок полей в индексе именно такой.</dd>
+              <dt>Исходники</dt><dd><a href="https://github.com/dfrancour/mongodb-paste-the-plan" target="_blank" rel="noreferrer">github.com/dfrancour/mongodb-paste-the-plan</a>, лицензия MIT. Инструмент можно поднять у себя, если наружу отдавать планы нельзя.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool">
+          <div class="tool__head"><span class="tool__name">MongoPilot Explain Plan Visualizer</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://mongopilot.com/tools/mongodb-explain-plan-visualizer/" target="_blank" rel="noreferrer">mongopilot.com/tools/mongodb-explain-plan-visualizer/</a>
+            <p>Тот же разбор плана, но с общей оценкой запроса в баллах. Оценка удобна как ориентир в задании: «доведите запрос до такого-то значения». Второй инструмент нужен ещё и для сверки — два разных разбора одного плана должны указать на одно узкое место.</p>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">Правило ESR и разбор плана в документации</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/" target="_blank" rel="noreferrer">mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/</a>
+            <p>Первоисточник правила Equality — Sort — Range: как расставить поля в составном индексе и почему именно так. Рядом лежит страница <a href="https://www.mongodb.com/docs/manual/tutorial/analyze-query-plan/" target="_blank" rel="noreferrer">Interpret Explain Plan Results</a> с расшифровкой всех шагов плана, включая редкие.</p>
+            <dl>
+              <dt>Зачем читать</dt><dd>Визуализатор даёт готовый ответ. На приёмке и на собеседовании спрашивают обоснование, а оно здесь.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <h2 id="s5"><span class="sec">§5</span>Спроектировать схему</h2>
+        <p>В MongoDB схема не задаётся заранее: сервер примет любой документ. Решение о том, какие поля завести и что во что вложить, принимает разработчик, и цена ошибки видна не сразу, а на объёме данных и на запросах, которые понадобятся через полгода.</p>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">Schema Design Patterns</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns/" target="_blank" rel="noreferrer">mongodb.com/docs/manual/data-modeling/design-patterns/</a>
+            <p>Двенадцать типовых решений с разбором: когда данные вкладывают в документ, а когда разносят по коллекциям; как хранить историю версий; что делать с документом, который растёт без предела. У каждого шаблона указано, какую задачу он решает и чем за это платит.</p>
+            <dl>
+              <dt>С чего начать</dt><dd>С шаблонов Extended Reference и Subset: они отвечают на самый частый вопрос новичка — вкладывать связанные данные или ссылаться на них.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">Проверка схемы на стороне базы</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/manual/core/schema-validation/" target="_blank" rel="noreferrer">mongodb.com/docs/manual/core/schema-validation/</a>
+            <p>Правило <code>$jsonSchema</code> заставляет сервер отвергать документы, в которых нет обязательного поля или тип не тот. Свобода формы при этом сохраняется: проверяется только то, что вы перечислили.</p>
+            <dl>
+              <dt>Где в книге</dt><dd>Глава 3.1 модуля 3. Раздел документации пригодится раньше, если в своём проекте данные уже расползаются.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool">
+          <div class="tool__head"><span class="tool__name">Hackolade Studio и Mongo Modeler</span><span class="tool__tag tool__tag--pay">бесплатная версия</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://hackolade.com/nosqldb/mongodb-data-modeling.html" target="_blank" rel="noreferrer">hackolade.com/nosqldb/mongodb-data-modeling.html</a>
+            <p>Рисование схемы коллекций мышью с выгрузкой готового скрипта: правила проверки и индексы генерируются из нарисованной модели. <a href="https://mongomodeler.com/" target="_blank" rel="noreferrer">Mongo Modeler</a> делает то же самое проще и бесплатно, с открытым исходным кодом.</p>
+            <dl>
+              <dt>Для чего</dt><dd>Показать структуру базы на защите курсовой или дипломной: схема из такого редактора читается без пояснений.</dd>
+              <dt>Не заменяет</dt><dd>Решение о структуре. Редактор аккуратно нарисует и неудачную модель.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">Atlas Performance Advisor<span class="vendor">вендорский</span></span><span class="tool__tag tool__tag--pay">платный кластер</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/docs/atlas/performance-advisor/schema-suggestions/" target="_blank" rel="noreferrer">mongodb.com/docs/atlas/performance-advisor/schema-suggestions/</a>
+            <p>Служба облака Atlas сама смотрит на медленные запросы работающего кластера и предлагает индексы и правки схемы — то, что в практикуме делается руками. На бесплатном уровне M0 недоступна, нужен платный кластер, поэтому в курсе она разбирается по документации.</p>
+            <dl>
+              <dt>Зачем знать</dt><dd>На рабочем проекте с этой вкладки начинают разбор жалоб на скорость. Смысл её выводов будет понятен, если вы прошли практикум: там те же числа плана.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Учиться дальше</h2>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">MongoDB University<span class="vendor">вендорский</span></span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://learn.mongodb.com/" target="_blank" rel="noreferrer">learn.mongodb.com</a>
+            <p>Курсы самой компании с видео, заданиями в браузере и экзаменами на сертификат. Учебные пути собраны по ролям: разработчик, администратор, специалист по данным. Курсы бесплатные; платный только экзамен.</p>
+            <dl>
+              <dt>Язык</dt><dd>Английский, с субтитрами. Терминология совпадает с документацией, так что после этой книги материал читается.</dd>
+              <dt>Сертификат</dt><dd>Прохождение учебного пути даёт скидку 50% на экзамен. Студентам и преподавателям по программе <a href="https://www.mongodb.com/students" target="_blank" rel="noreferrer">MongoDB Students</a> экзамен дают бесплатно, вместе с кредитами на облако Atlas. Заявка подаётся через GitHub Student Developer Pack.</dd>
+              <dt>Значки навыков</dt><dd>Skill Badges — короткие курсы на одну тему с отдельным подтверждением. Занимают несколько часов, в отличие от полного учебного пути.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool">
+          <div class="tool__head"><span class="tool__name">Practical MongoDB Aggregations</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.practical-mongodb-aggregations.com/" target="_blank" rel="noreferrer">practical-mongodb-aggregations.com</a>
+            <p>Книга Пола Дона о конвейере агрегации, выложенная целиком и бесплатно. Разбирает то, чего нет в документации: как строить конвейер по шагам, какие приёмы ускоряют его и какие типовые задачи какими стадиями решаются.</p>
+            <dl>
+              <dt>Когда читать</dt><dd>После модуля 4. До него пользы будет мало: примеры опираются на стадии, которые там разбираются.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="tool tool--official">
+          <div class="tool__head"><span class="tool__name">MongoDB Community Forums</span><span class="tool__tag">бесплатно</span></div>
+          <div class="tool__body">
+            <a class="tool__link" href="https://www.mongodb.com/community/forums/" target="_blank" rel="noreferrer">mongodb.com/community/forums/</a>
+            <p>Официальный форум, где отвечают инженеры компании. Полезен не столько своими вопросами, сколько чужими: в разделе о производительности разобраны десятки реальных планов выполнения с объяснением, что в них не так.</p>
+            <dl>
+              <dt>Как спрашивать</dt><dd>К вопросу о скорости прикладывают вывод <code>explain("executionStats")</code>, версию сервера и список индексов коллекции. Без этих трёх вещей ответить нельзя, и первым же сообщением их попросят.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <h2 id="s7"><span class="sec">§7</span>Что проверять в чужом материале</h2>
+        <p>Статьи о MongoDB устаревают быстрее, чем статьи о языках программирования: поведение сервера меняется от версии к версии, и совет 2015 года может быть прямо вредным сегодня. Три проверки перед тем, как применять прочитанное.</p>
+        <div class="routes">
+          <div><b>Версия</b>Указана ли версия сервера. До 3.6 сервер по умолчанию слушал внешний адрес, до 4.0 не было транзакций, до 4.4 предел сортировки в памяти был 32 МБ вместо 100 МБ.</div>
+          <div><b>Кто написал</b>Документация, независимый инженер или поставщик. У каждого свои причины писать материал, и это видно по тому, чего в нём нет.</div>
+          <div><b>Воспроизводимость</b>Есть ли данные и команды, чтобы повторить самому. Числа без способа их проверить — не доказательство.</div>
+        </div>
+        <div class="margin-note margin-note--warn">
+          <b>Про сгенерированные ответы</b>
+          <p>Языковые модели уверенно выдают операторы MongoDB, которых не существует, и путают синтаксис агрегации с синтаксисом <code>find</code>. Полученный от модели запрос проверяют двумя способами: ищут каждый оператор в справочнике операторов и выполняют запрос на учебных данных. Оба шага занимают минуту, а разбор последствий неверного <code>updateMany</code> — гораздо дольше.</p>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Сводка</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Задача</th><th>Инструмент</th><th>Адрес</th></tr></thead>
+            <tbody>
+              <tr><td>Найти оператор</td><td>MongoDB Manual</td><td><code>mongodb.com/docs/manual/</code></td></tr>
+              <tr><td>Посмотреть данные</td><td>Compass</td><td><code>mongodb.com/products/tools/compass</code></td></tr>
+              <tr><td>Посмотреть данные без установки</td><td>mongo-express на стенде</td><td><code>localhost:8081</code>, student / student</td></tr>
+              <tr><td>Проверить запрос без сервера</td><td>Mongo Playground</td><td><code>mongoplayground.net</code></td></tr>
+              <tr><td>Разобрать план выполнения</td><td>Paste the Plan</td><td><code>dfrancour.dev/tools/mongodb-paste-the-plan</code></td></tr>
+              <tr><td>Подобрать порядок полей в индексе</td><td>Правило ESR</td><td><code>mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/</code></td></tr>
+              <tr><td>Спроектировать схему</td><td>Schema Design Patterns</td><td><code>mongodb.com/docs/manual/data-modeling/design-patterns/</code></td></tr>
+              <tr><td>Разобраться в агрегации</td><td>Practical MongoDB Aggregations</td><td><code>practical-mongodb-aggregations.com</code></td></tr>
+              <tr><td>Пройти курс и сдать экзамен</td><td>MongoDB University</td><td><code>learn.mongodb.com</code></td></tr>
+              <tr><td>Задать вопрос</td><td>Community Forums</td><td><code>mongodb.com/community/forums/</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager"><a href="../keysy/index.html">← Кейсы: MongoDB в реальных проектах</a><a href="../praktiki/onlayn-razbor-zaprosa/index.html">Практикум: explain и индексы →</a></div>
+
+        <div class="colophon">
+          <span>Материалы · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
