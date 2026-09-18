@@ -174,16 +174,36 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
         </figure>
 
         <p>План выгружается в файл одной командой. Она запускается не внутри оболочки, а в обычном терминале из корня репозитория: вывод <code>mongosh</code> перенаправляется в файл на вашем компьютере.</p>
-        <figure class="code">
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>план выполнения в файл</span></figcaption>
+<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval &#x27;EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))&#x27; | Out-File plan-1.json -Encoding utf8">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+  EJSON.stringify(
+    db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
+             .sort({ ts: -1 })
+             .explain("executionStats")
+  )'</span> | Out-File plan-1.json -Encoding utf8</pre>
+        </figure>
+        <figure class="code" data-os="mac">
           <figcaption><span>Терминал</span><span>план выполнения в файл</span></figcaption>
-<pre>docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval &#x27;EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))&#x27; &gt; plan-1.json">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
   EJSON.stringify(
     db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
              .sort({ ts: -1 })
              .explain("executionStats")
   )'</span> &gt; plan-1.json</pre>
         </figure>
+        <figure class="code" data-os="linux">
+          <figcaption><span>Терминал</span><span>план выполнения в файл</span></figcaption>
+<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval &#x27;EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))&#x27; &gt; plan-1.json">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+  EJSON.stringify(
+    db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
+             .sort({ ts: -1 })
+             .explain("executionStats")
+  )'</span> &gt; plan-1.json</pre>
+        </figure>
+        <p>Команда показана в несколько строк, чтобы её было видно целиком. Вставлять в терминал её надо <strong>одной строкой</strong>: при вставке многострочного текста оболочка выполняет каждую строку отдельно, и команда рвётся на первом же переносе. Кнопка <b>копировать в одну строку</b> в шапке блока кладёт в буфер уже собранный однострочный вариант.</p>
         <p>Флаг <code>-T</code> отключает выделение терминала — без него перенаправление в файл ломается. <code>--quiet</code> убирает приветствие сервера, чтобы в файле остался только JSON. Функция <code>EJSON.stringify</code> превращает документ плана в строку JSON, в которой даты и числа BSON записаны так, что сайт их разберёт.</p>
+        <p data-os="win">В PowerShell вывод пишется через <code>Out-File</code> с явной кодировкой: обычное перенаправление <code>&gt;</code> в Windows PowerShell 5.1 сохраняет файл в UTF-16, и визуализатор такой файл не прочитает.</p>
         <p>Получившийся файл — около двух килобайт. Его содержимое целиком вставляется в поле на Paste the Plan, кнопка <b>Analyze Plan</b> строит схему.</p>
 
         <div class="task">

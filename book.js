@@ -120,6 +120,54 @@
     fallback: detectOs,
   });
 
+  /* ---- Копирование команд -------------------------------------- */
+  /* Кнопка в подписи блока кода. Обычный блок отдаёт в буфер то, что видно;
+     блок с data-copy на <pre> — строку из атрибута. Это нужно там, где команда
+     показана в несколько строк для чтения, а вставлять её в терминал надо одной:
+     при вставке многострочного текста оболочка выполняет каждую строку отдельно
+     и команда рвётся на первом же переносе. */
+  document.querySelectorAll('figure.code > figcaption').forEach(caption => {
+    const block = caption.parentElement.querySelector('pre');
+    if (!block) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'copy';
+    button.textContent = block.dataset.copy ? 'копировать в одну строку' : 'копировать';
+    button.title = block.dataset.copy
+      ? 'Команда попадёт в буфер одной строкой — вставляйте прямо в терминал'
+      : 'Скопировать содержимое блока';
+
+    let timer = 0;
+    const report = (text, state) => {
+      button.textContent = text;
+      button.dataset.state = state;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        button.textContent = block.dataset.copy ? 'копировать в одну строку' : 'копировать';
+        delete button.dataset.state;
+      }, 2000);
+    };
+
+    button.addEventListener('click', async () => {
+      const text = block.dataset.copy || block.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        report('скопировано', 'done');
+      } catch (_) {
+        // Буфер недоступен (страница открыта файлом, старый браузер) — выделяем текст.
+        const range = document.createRange();
+        range.selectNodeContents(block);
+        const selection = getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        report('выделено — Ctrl+C', 'fail');
+      }
+    });
+
+    caption.appendChild(button);
+  });
+
   /* ---- Подсветка стадии конвейера ------------------------------ */
   document.querySelectorAll('.pipeline').forEach(pipeline => {
     const stages = [...pipeline.querySelectorAll('.pipeline__stage')];
