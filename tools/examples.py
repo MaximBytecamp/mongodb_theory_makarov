@@ -35,6 +35,7 @@ CHAPTERS = {
     "1.6": ("06-sort-limit-skip", "Порядок и порции: sort, limit, skip", False),
     "1.7": ("07-obnovlenie", "Обновление: $set, $inc, $unset", True),
     "1.8": ("08-udalenie", "Удаление", True),
+    "2.1": ("09-filtr-i-tochechnaya-notaciya", "Фильтр — это документ. Точечная нотация", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -75,10 +76,7 @@ import os
 from pymongo import MongoClient
 
 client = MongoClient(os.environ.get("MONGO_URI", "mongodb://localhost:27017/"))
-db = client["shop"]
-products = db["products"]
-orders = db["orders"]
-box = client["sandbox"]["products"]        # песочница: здесь можно менять
+{scope(chapter, lang)}
 '''
         return head, "", "\n# ── пример из главы ───────────────────────────────────────────\n"
     if lang == "ruby":
@@ -98,10 +96,7 @@ require "mongo"
 Mongo::Logger.logger.level = Logger::WARN
 
 client = Mongo::Client.new(ENV.fetch("MONGO_URI", "mongodb://localhost:27017/"))
-db = client.use("shop").database
-products = db[:products]
-orders = db[:orders]
-box = client.use("sandbox").database[:products]   # песочница: здесь можно менять
+{scope(chapter, lang)}
 '''
         return head, "", "\n# ── пример из главы ───────────────────────────────────────────\n"
     if lang == "go":
@@ -142,10 +137,7 @@ func main() {{
 	ctx := context.Background()
 	defer client.Disconnect(ctx)
 
-	db := client.Database("shop")
-	products := db.Collection("products")
-	orders := db.Collection("orders")
-	box := client.Database("sandbox").Collection("products") // песочница: здесь можно менять
+{scope(chapter, lang)}
 '''
         tail = '''
 	{
@@ -207,10 +199,7 @@ int main() {{
     const char* env = std::getenv("MONGO_URI");
     mongocxx::client client{{mongocxx::uri{{env ? env : "mongodb://localhost:27017"}}}};
 
-    auto db = client["shop"];
-    auto products = db["products"];
-    auto orders = db["orders"];
-    auto box = client["sandbox"]["products"];   // песочница: здесь можно менять
+{scope(chapter, lang)}
 '''
         tail = '''
     {
@@ -221,6 +210,29 @@ int main() {{
 '''
         return head, "", tail
     raise ValueError(lang)
+
+
+# С какими коллекциями глава работает. Модуль 1 живёт на shop, модуль 2 — на hh.
+# Песочница box есть в любой главе: в неё пишут, когда пример меняет данные.
+SCOPE = {
+    "1": {
+        "python": 'db = client["shop"]\nproducts = db["products"]\norders = db["orders"]\nbox = client["sandbox"]["products"]        # песочница: здесь можно менять',
+        "ruby": 'db = client.use("shop").database\nproducts = db[:products]\norders = db[:orders]\nbox = client.use("sandbox").database[:products]   # песочница: здесь можно менять',
+        "go": '\tdb := client.Database("shop")\n\tproducts := db.Collection("products")\n\torders := db.Collection("orders")\n\tbox := client.Database("sandbox").Collection("products") // песочница: здесь можно менять',
+        "cpp": '    auto db = client["shop"];\n    auto products = db["products"];\n    auto orders = db["orders"];\n    auto box = client["sandbox"]["products"];   // песочница: здесь можно менять',
+    },
+    "2": {
+        "python": 'db = client["hh"]\nresumes = db["resumes"]\nvacancies = db["vacancies"]\ncompanies = db["companies"]\ninterviews = db["interviews"]\nbox = client["sandbox"]["products"]        # песочница: здесь можно менять',
+        "ruby": 'db = client.use("hh").database\nresumes = db[:resumes]\nvacancies = db[:vacancies]\ncompanies = db[:companies]\ninterviews = db[:interviews]\nbox = client.use("sandbox").database[:products]   # песочница: здесь можно менять',
+        "go": '\tdb := client.Database("hh")\n\tresumes := db.Collection("resumes")\n\tvacancies := db.Collection("vacancies")\n\tcompanies := db.Collection("companies")\n\tinterviews := db.Collection("interviews")\n\tbox := client.Database("sandbox").Collection("products") // песочница: здесь можно менять',
+        "cpp": '    auto db = client["hh"];\n    auto resumes = db["resumes"];\n    auto vacancies = db["vacancies"];\n    auto companies = db["companies"];\n    auto interviews = db["interviews"];\n    auto box = client["sandbox"]["products"];   // песочница: здесь можно менять',
+    },
+}
+
+
+def scope(chapter: str, lang: str) -> str:
+    """Строки заготовки, которые открывают коллекции нужной главе."""
+    return SCOPE[chapter.split(".")[0]][lang]
 
 
 # Что глава добавляет к общей заготовке: данные, которых нет в учебных базах.
@@ -406,7 +418,9 @@ def starter(chapter: str, lang: str, snippets: list[str]) -> str:
     if lang == "go":
         imports, blanks = go_imports(snippets + [extra])
         head = head.replace("@@IMPORTS@@", imports).replace("@@BLANKS@@", blanks)
-        head += "\t_, _, _, _ = db, products, orders, box\n"
+        # Гасим «declared and not used» по тем коллекциям, которые открыла заготовка.
+        names = re.findall(r"^\t(\w+) :=", scope(chapter, lang), re.M)
+        head += "\t" + ", ".join("_" for _ in names) + " = " + ", ".join(names) + "\n"
         used = [v for v in ("col", "lastSeenID", "ordersBox", "stats", "today") if re.search(r"\b%s :=" % v, extra)]
         if used:
             extra += "\t" + ", ".join("_" for _ in used) + " = " + ", ".join(used) + "\n"
