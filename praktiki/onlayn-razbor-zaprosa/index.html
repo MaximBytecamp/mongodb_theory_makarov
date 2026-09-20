@@ -79,7 +79,7 @@
         <dl class="passport">
           <div><dt>После модуля</dt><dd>1 · подключение и первые данные</dd></div>
           <div><dt>База</dt><dd><code>logs</code>, коллекция <code>events</code> — 1200 документов</dd></div>
-          <div><dt>Инструмент</dt><dd>оболочка <code>mongosh</code> и три сайта, без установки</dd></div>
+          <div><dt>Инструмент</dt><dd>Compass или оболочка <code>mongosh</code> и онлайн-разбор плана</dd></div>
           <div><dt>Время</dt><dd>90 минут</dd></div>
           <div><dt>Результат</dt><dd><code>README.md</code> с числами и три ссылки на разборы</dd></div>
         </dl>
@@ -98,6 +98,7 @@
 
         <h2 id="s2"><span class="sec">§2</span>Три сайта</h2>
         <p>Все три работают в браузере, бесплатны и не требуют регистрации. В работе обязателен первый, второй берётся для сверки, третий — запасной вариант, если нужно проверить запрос без стенда. Остальное рабочее окружение вокруг базы разобрано в разделе <a href="../../materialy/index.html">«Инструменты и материалы»</a>.</p>
+        <p>Четвёртый инструмент работы — Compass, тот же графический клиент, что в модуле 1. Он не сайт, а программа на вашем компьютере, и план умеет показывать сам; как это делается, разобрано в §3.</p>
 
         <div class="sites">
           <div class="site">
@@ -122,38 +123,37 @@
           <p>Вставленный план уходит на чужой сайт, а ссылка на него доступна любому, кто её получил. Данные на стенде учебные, поэтому здесь ограничений нет. На рабочем проекте перед вставкой из плана убирают значения фильтра: в поле <code>command</code> видны реальные параметры запроса.</p>
         </div>
 
-        <h2 id="s3"><span class="sec">§3</span>Стенд и как получить план</h2>
-        <p>Работа идёт в оболочке <code>mongosh</code> на базе <code>logs</code>. Драйвер языка здесь не нужен: все команды одинаковы для всех.</p>
+        <h2 id="s3"><span class="sec">§3</span>Стенд и три способа снять план</h2>
+        <p>Работа идёт на базе <code>logs</code> учебного стенда. Стенд поднимается один раз и дальше просто работает.</p>
 
         <figure class="code" data-os="win">
-          <figcaption><span>PowerShell</span><span>стенд и оболочка</span></figcaption>
+          <figcaption><span>PowerShell</span><span>стенд: один раз в начале работы</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice
-docker compose up -d                      <span class="c"># сервер и учебные базы</span>
-docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span>
-docker compose exec mongo mongosh logs    <span class="c"># оболочка на базе logs</span></pre>
+docker compose up -d                      <span class="c"># сервер, учебные базы и mongo-express</span>
+docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span></pre>
         </figure>
         <figure class="code" data-os="mac">
-          <figcaption><span>Терминал</span><span>стенд и оболочка</span></figcaption>
+          <figcaption><span>Терминал</span><span>стенд: один раз в начале работы</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice
-docker compose up -d                      <span class="c"># сервер и учебные базы</span>
-docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span>
-docker compose exec mongo mongosh logs    <span class="c"># оболочка на базе logs</span></pre>
+docker compose up -d                      <span class="c"># сервер, учебные базы и mongo-express</span>
+docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span></pre>
         </figure>
         <figure class="code" data-os="linux">
-          <figcaption><span>Терминал</span><span>стенд и оболочка</span></figcaption>
+          <figcaption><span>Терминал</span><span>стенд: один раз в начале работы</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice
-docker compose up -d                      <span class="c"># сервер и учебные базы</span>
-docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span>
-docker compose exec mongo mongosh logs    <span class="c"># оболочка на базе logs</span></pre>
+docker compose up -d                      <span class="c"># сервер, учебные базы и mongo-express</span>
+docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span></pre>
         </figure>
 
-        <p><a class="repo" href="https://github.com/MaximBytecamp/mongodb-practice/tree/main/praktikum-explain">github.com/MaximBytecamp/mongodb-practice → praktikum-explain</a></p>
-        <p>В этой папке лежит то же задание коротко, скрипт <code>plans.sh</code> (и <code>plans.ps1</code> для PowerShell), который снимает все шесть планов разом, и папка <code>etalon</code> с эталонными планами для самопроверки. Скрипт нужен для повторного прогона и сверки; задачи 1–4 проходятся руками.</p>
-
-        <p>Если MongoDB стоит на компьютере без Docker, оболочка запускается напрямую: <code>mongosh "mongodb://localhost:27017/logs"</code>, а данные заливаются скриптом <code>bash stend/load.sh</code>, как в главе 1.0.</p>
+        <p>Индексы по ходу работы создаются и удаляются в оболочке <code>mongosh</code>. Она открывается одной командой и дальше остаётся открытой всю работу:</p>
+        <figure class="code">
+          <figcaption><span>Терминал или PowerShell</span><span>оболочка на базе logs</span></figcaption>
+<pre>docker compose exec mongo mongosh logs</pre>
+        </figure>
+        <p>Без Docker оболочка запускается напрямую: <code>mongosh "mongodb://localhost:27017/logs"</code>, а данные заливаются скриптом <code>bash stend/load.sh</code>, как в главе <a href="../../temy/00-uchebnye-bazy/index.html">1.0</a>.</p>
 
         <p>Документ события выглядит так. Поля <code>service</code>, <code>level</code>, <code>ts</code> и <code>duration_ms</code> участвуют в запросах работы.</p>
         <figure class="code">
@@ -173,10 +173,118 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
 }</pre>
         </figure>
 
-        <p>План выгружается в файл одной командой. Она запускается не внутри оболочки, а в обычном терминале из корня репозитория: вывод <code>mongosh</code> перенаправляется в файл на вашем компьютере.</p>
+        <h3>Какой способ выбрать</h3>
+        <p>План снимают тремя способами. Они дают одинаковый результат и отличаются тем, чем вы пользуетесь и что получаете на выходе.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Способ</th><th>Чем пользуетесь</th><th>Что получаете</th><th>Когда брать</th></tr></thead>
+            <tbody>
+              <tr><td><b>A · Compass</b></td><td>Окно программы, мышь</td><td>План на экране, JSON по кнопке в буфере</td><td>Посмотреть план и разобраться. Терминал не нужен совсем</td></tr>
+              <tr><td><b>Б · скрипт</b></td><td>Одна команда без кавычек</td><td>Готовый файл <code>plan-N.json</code> в папке отчёта</td><td>Собрать файлы для сдачи. Работает в любой оболочке</td></tr>
+              <tr><td><b>В · mongosh</b></td><td>Длинная команда в терминале</td><td>Файл через перенаправление вывода</td><td>Если привычнее терминал. В <code>cmd.exe</code> не работает</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>В работе понадобятся два: способ А, чтобы видеть план сразу после каждого изменения индекса, и способ Б, чтобы получить файлы для отчёта. Способ В оставлен как запасной.</p>
+
+        <h3>Способ А · Compass: план на экране</h3>
+        <p>Compass — официальный графический клиент, тот же, что в главах модуля 1. Подключение к стенду — адрес <code>mongodb://localhost:27017</code>, затем база <code>logs</code> и коллекция <code>events</code>.</p>
+        <p>Запрос набирается в панели наверху: фильтр — в поле <b>Type a query</b>, сортировка — в <b>Options → Sort</b>. Кнопка <b>Find</b> выполняет запрос, кнопка <b>Explain</b> рядом с ней снимает план.</p>
+        <figure class="shot">
+          <img src="../../shots/50-compass-zapros.png" alt="Панель запроса Compass: фильтр по service, level и duration_ms, сортировка по ts, кнопки Explain и Find">
+          <figcaption>Compass · <code>logs.events</code>: фильтр в верхнем поле, сортировка в <b>Options → Sort</b>, кнопка <b>Explain</b> слева от <b>Find</b></figcaption>
+        </figure>
+        <p>Фильтр и сортировка здесь пишутся ровно так же, как в <code>find</code> и <code>sort</code> — это те же документы. Кавычки вокруг имён полей Compass не требует.</p>
+        <p>Кнопка <b>Explain</b> открывает окно с планом. Вкладка <b>Visual Tree</b> — схема шагов, справа — сводка по запросу.</p>
+        <figure class="shot">
+          <img src="../../shots/51-compass-explain-derevo.png" alt="Окно Explain Plan в Compass: дерево SORT над COLLSCAN и сводка Query Performance Summary с числами 33 и 1200">
+          <figcaption>Compass · <b>Explain Plan</b>, вкладка <b>Visual Tree</b>: те же два шага, что и в онлайн-разборе, и сводка с числами справа</figcaption>
+        </figure>
+        <p>Сводка <b>Query Performance Summary</b> — это те же числа, которые дальше разбираются в §4, только словами: <code>33 documents returned</code>, <code>1200 documents examined</code>, <code>0 index keys examined</code>. Строка <code>Is sorted in memory</code> отвечает на главный вопрос работы, а <code>No index available for this query</code> прямо говорит, что индекса под этот запрос нет.</p>
+        <p>Вторая вкладка отдаёт тот же план текстом.</p>
+        <figure class="shot">
+          <img src="../../shots/52-compass-explain-json.png" alt="Окно Explain Plan, вкладка Raw Output: полный JSON плана и кнопка Copy">
+          <figcaption>Compass · вкладка <b>Raw Output</b>: полный JSON плана. Кнопка <b>Copy</b> кладёт его в буфер целиком</figcaption>
+        </figure>
+        <p>Отсюда план попадает в онлайн-разбор без единого файла: <b>Copy</b> — и сразу вставка в поле на Paste the Plan. Для отчёта файл всё равно понадобится, поэтому скопированный JSON либо сохраняют в редакторе как <code>plan-N.json</code>, либо берут способ Б, который делает это сам.</p>
+
+        <h3>Способ Б · скрипт: запрос внутри файла</h3>
+        <p>В репозитории практик лежит <code>plan.py</code>. Запрос в нём задан прямо в тексте файла, поэтому через оболочку не проходят ни кавычки, ни фигурные скобки, ни знак <code>$</code>. Команда запуска состоит из простых слов и одинаково работает в PowerShell, <code>cmd.exe</code>, Терминале macOS и Linux.</p>
+        <p>Скопируйте файл в свою рабочую папку — он станет частью отчёта вместе с планами:</p>
+        <figure class="code" data-os="win">
+          <figcaption><span>PowerShell</span><span>из корня mongodb-practice</span></figcaption>
+<pre>mkdir work\praktikum-explain
+copy praktikum-explain\plan.py work\praktikum-explain\</pre>
+        </figure>
+        <figure class="code" data-os="mac">
+          <figcaption><span>Терминал</span><span>из корня mongodb-practice</span></figcaption>
+<pre>mkdir -p work/praktikum-explain
+cp praktikum-explain/plan.py work/praktikum-explain/</pre>
+        </figure>
+        <figure class="code" data-os="linux">
+          <figcaption><span>Терминал</span><span>из корня mongodb-practice</span></figcaption>
+<pre>mkdir -p work/praktikum-explain
+cp praktikum-explain/plan.py work/praktikum-explain/</pre>
+        </figure>
+        <p>Внутри файла есть блок, в котором вы меняете запрос. Всё остальное трогать не нужно.</p>
+        <figure class="code">
+          <figcaption><span>work/praktikum-explain/plan.py</span><span>блок запроса</span></figcaption>
+<pre><span class="c"># ─────────────────────────────────────────────────────────────</span>
+<span class="c">#  ЗАПРОС. Меняете только этот блок.</span>
+<span class="c"># ─────────────────────────────────────────────────────────────</span>
+
+BAZA = <span class="s">"logs"</span>
+KOLLEKCIYA = <span class="s">"events"</span>
+
+<span class="c"># Фильтр — тот же документ, что вы пишете в find({...}).</span>
+FILTR = {
+    <span class="s">"service"</span>: <span class="s">"payments"</span>,
+    <span class="s">"level"</span>: <span class="s">"error"</span>,
+    <span class="s">"duration_ms"</span>: {<span class="s">"$gt"</span>: <span class="n">500</span>},
+}
+
+<span class="c"># Сортировка: поле и направление. 1 — по возрастанию, -1 — по убыванию.</span>
+SORTIROVKA = [(<span class="s">"ts"</span>, <span class="n">-1</span>)]
+
+<span class="c"># Сколько документов вернуть. 0 — все.</span>
+PREDEL = <span class="n">0</span>
+
+<span class="c"># Куда положить план. Файл ложится рядом с этим скриптом.</span>
+FAYL = <span class="s">"plan-1.json"</span></pre>
+        </figure>
+        <p>Запуск — одна команда. Кавычек в ней нет, поэтому вставлять её можно куда угодно:</p>
+        <figure class="code">
+          <figcaption><span>Терминал или PowerShell</span><span>из корня mongodb-practice</span></figcaption>
+<pre>docker compose run --rm python work/praktikum-explain/plan.py</pre>
+        </figure>
+        <p>Имя файла можно задать одним словом в конце — тогда менять <code>FAYL</code> в тексте не нужно:</p>
+        <figure class="code">
+          <figcaption><span>Терминал или PowerShell</span><span>имя файла на ходу</span></figcaption>
+<pre>docker compose run --rm python work/praktikum-explain/plan.py plan-2.json</pre>
+        </figure>
+        <p>Скрипт печатает то, что записал, — по этому выводу числа попадают в отчёт, не открывая файл:</p>
+        <figure class="code code--out">
+          <figcaption><span>Вывод</span><span>запрос 1 без индекса</span></figcaption>
+<pre>Запрос к logs.events, всего документов в коллекции: 1200
+  фильтр:                {"service": "payments", "level": "error", "duration_ms": {"$gt": 500}}
+  сортировка:            [('ts', -1)]
+  предел:                нет
+
+  файл с планом:         plan-1.json
+  возвращено:            33
+  документов просмотрено:1200
+  ключей просмотрено:    0
+  шаги плана:            COLLSCAN → SORT
+  индексы коллекции:     _id_</pre>
+        </figure>
+        <p>Последняя строка показывает индексы коллекции на момент замера. По ней сразу видно, если от предыдущей задачи остался лишний индекс; от этого чаще всего и расходятся числа.</p>
+        <p>Индексы скрипт не создаёт и не удаляет: он снимает план того состояния коллекции, которое вы сделали в оболочке или в Compass. Порядок работы от этого не меняется — создали индекс, сняли план, разобрали его на сайте.</p>
+
+        <h3>Способ В · mongosh: одной командой</h3>
+        <p>Тот же план можно снять из терминала. Команда длинная, и у неё два ограничения: в <code>cmd.exe</code> она не работает, потому что там одинарные кавычки не группируют текст в один аргумент, а в Windows PowerShell 5.1 обычное перенаправление <code>&gt;</code> сохраняет файл в UTF-16, и визуализатор такой файл не прочитает.</p>
         <figure class="code" data-os="win">
           <figcaption><span>PowerShell</span><span>план выполнения в файл</span></figcaption>
-<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval &#x27;EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))&#x27; | Out-File plan-1.json -Encoding utf8">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval 'EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))' | Out-File plan-1.json -Encoding utf8">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
   EJSON.stringify(
     db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
              .sort({ ts: -1 })
@@ -185,7 +293,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
         </figure>
         <figure class="code" data-os="mac">
           <figcaption><span>Терминал</span><span>план выполнения в файл</span></figcaption>
-<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval &#x27;EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))&#x27; &gt; plan-1.json">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval 'EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))' &gt; plan-1.json">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
   EJSON.stringify(
     db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
              .sort({ ts: -1 })
@@ -194,7 +302,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
         </figure>
         <figure class="code" data-os="linux">
           <figcaption><span>Терминал</span><span>план выполнения в файл</span></figcaption>
-<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval &#x27;EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))&#x27; &gt; plan-1.json">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
+<pre data-copy="docker compose exec -T mongo mongosh --quiet logs --eval 'EJSON.stringify(db.events.find({ service: &quot;payments&quot;, level: &quot;error&quot;, duration_ms: { $gt: 500 } }).sort({ ts: -1 }).explain(&quot;executionStats&quot;))' &gt; plan-1.json">docker compose exec -T mongo mongosh --quiet logs --eval <span class="s">'
   EJSON.stringify(
     db.events.find({ service: "payments", level: "error", duration_ms: { $gt: 500 } })
              .sort({ ts: -1 })
@@ -202,29 +310,12 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
   )'</span> &gt; plan-1.json</pre>
         </figure>
         <p>Команда показана в несколько строк, чтобы её было видно целиком. Вставлять в терминал её надо <strong>одной строкой</strong>: при вставке многострочного текста оболочка выполняет каждую строку отдельно, и команда рвётся на первом же переносе. Кнопка <b>копировать в одну строку</b> в шапке блока кладёт в буфер уже собранный однострочный вариант.</p>
-        <p>Эта команда придирчива к оболочке. Она рассчитана на PowerShell, Терминал macOS и Linux; в <code>cmd.exe</code> она не работает, потому что там одинарные кавычки не группируют текст в один аргумент — <code>mongosh</code> получает обрывок запроса и отвечает ошибкой разбора. Если команда не проходит, снимайте план вторым способом.</p>
         <p>Флаг <code>-T</code> отключает выделение терминала — без него перенаправление в файл ломается. <code>--quiet</code> убирает приветствие сервера, чтобы в файле остался только JSON. Функция <code>EJSON.stringify</code> превращает документ плана в строку JSON, в которой даты и числа BSON записаны так, что сайт их разберёт.</p>
-        <p data-os="win">В PowerShell вывод пишется через <code>Out-File</code> с явной кодировкой: обычное перенаправление <code>&gt;</code> в Windows PowerShell 5.1 сохраняет файл в UTF-16, и визуализатор такой файл не прочитает.</p>
 
-        <h3>Второй способ: одинаково на любой системе</h3>
-        <p>Весь разбор выше упирается в то, как оболочка разбирает кавычки. В репозитории практик лежит скрипт, который снимает тот же план и кладёт его в файл, а запускается тем же способом, что решения ПР-01 — через контейнер с Python. Кавычек в такой команде нет совсем, а запрос и запись файла выполняются внутри контейнера. Поэтому она работает одинаково в Windows, macOS и Linux и в любой оболочке — PowerShell, <code>cmd.exe</code>, Терминал, Git&nbsp;Bash.</p>
-        <figure class="code">
-          <figcaption><span>Терминал или PowerShell</span><span>из корня mongodb-practice</span></figcaption>
-<pre>docker compose run --rm python praktikum-explain/plan.py <span class="n">1</span> plan-1.json</pre>
-        </figure>
-        <p>Первое число — номер запроса практикума: <code>1</code> — запрос про ошибки платежей, <code>2</code> — запрос из задачи 4. Второе слово — имя файла. Файл ложится в <code>work/praktikum-explain/</code>, то есть сразу туда, где собирается отчёт. Скрипт печатает три числа и шаги плана, чтобы их было видно, не открывая файл:</p>
-        <figure class="code code--out">
-          <figcaption><span>Вывод</span><span>после запуска</span></figcaption>
-<pre>Запрос 1 — ошибки payments дольше 500 мс, свежие сверху
-  файл:                  work/praktikum-explain/plan-1.json
-  возвращено:            33
-  документов просмотрено:1200
-  ключей просмотрено:    0
-  шаги плана:            COLLSCAN → SORT
-  индексы коллекции:     _id_</pre>
-        </figure>
-        <p>Индексы скрипт не создаёт и не удаляет: он снимает план того состояния коллекции, которое вы сделали в оболочке. Порядок работы от этого не меняется — создали индекс в <code>mongosh</code>, сняли план скриптом, разобрали его на сайте. Последняя строка вывода показывает, какие индексы сейчас есть, и по ней сразу видно, если от предыдущей задачи остался лишний.</p>
-        <p>Получившийся файл — около двух килобайт. Его содержимое целиком вставляется в поле на Paste the Plan, кнопка <b>Analyze Plan</b> строит схему.</p>
+        <div class="margin-note">
+          <b>Один план — три источника</b>
+          <p>Compass, скрипт и <code>mongosh</code> обращаются к одному серверу и получают один и тот же документ плана. Числа у всех трёх совпадут. Если не совпали, дело не в способе: между замерами изменилось состояние коллекции — чаще всего остался индекс от прошлой задачи.</p>
+        </div>
 
         <h2 id="s4"><span class="sec">§4</span>Что показывает разбор</h2>
         <p>Дальше разобрано, что именно выводит Paste the Plan и на какие места смотреть. Кадры сняты на планах этого практикума, поэтому числа на них совпадут с вашими, если базы сброшены командой <code>docker compose run --rm reset</code>.</p>
@@ -235,7 +326,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
           <img src="../../shots/30-pp-vvod.png" alt="Поле ввода Paste the Plan: вставленный JSON плана, зелёная отметка Valid JSON, кнопка Analyze Plan">
           <figcaption>Paste the Plan · вставленный план. Отметка <b>Valid JSON</b> под полем — первое, что стоит проверить: если там ошибка, файл сохранён не целиком или в неверной кодировке</figcaption>
         </figure>
-        <p>Отметка <b>Valid JSON</b> зелёная — файл разобран. Если вместо неё сообщение об ошибке, причина почти всегда одна из двух: в файл попало приветствие сервера (забыт флаг <code>--quiet</code>) или файл сохранён в UTF-16 через <code>&gt;</code> в Windows PowerShell.</p>
+        <p>Отметка <b>Valid JSON</b> зелёная — файл разобран. Если вместо неё сообщение об ошибке, план снят способом В и в файл попало лишнее: приветствие сервера (забыт флаг <code>--quiet</code>) или кодировка UTF-16 от перенаправления <code>&gt;</code> в Windows PowerShell. У Compass и у скрипта такой ошибки не бывает.</p>
 
         <h3>Разобранная команда</h3>
         <p>Первое, что показывает сайт после нажатия <b>Analyze Plan</b>, — сам запрос, восстановленный из плана.</p>
@@ -289,7 +380,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
           <img src="../../shots/33-pp-ascii-bez-indeksa.png" alt="Текстовое дерево плана без индекса: SORT, под ним COLLSCAN с docsExamined 1200">
           <figcaption>Paste the Plan · вкладка <b>ASCII</b>, запрос без индекса. Здесь дерево читается сверху вниз: <code>SORT</code> вызывает <code>COLLSCAN</code></figcaption>
         </figure>
-        <p>Обратите внимание: в текстовом виде порядок обратный схеме. В карточках нижний шаг выполняется первым, а в ASCII первым напечатан тот, кто вызывает остальных. Число <code>docsExamined=1200</code> стоит у <code>COLLSCAN</code> — именно этот шаг прочитал всю коллекцию.</p>
+        <p>Порядок в текстовом виде обратный схеме. В карточках нижний шаг выполняется первым, а в ASCII первым напечатан тот, кто вызывает остальных. Число <code>docsExamined=1200</code> стоит у <code>COLLSCAN</code> — именно этот шаг прочитал всю коллекцию.</p>
 
         <h3>Разбор по правилу ESR</h3>
         <p>Отдельный блок внизу страницы раскладывает запрос на три части и сверяет их с индексом. Без индекса он показывает только разбор запроса.</p>
@@ -309,7 +400,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
 
         <div class="margin-note margin-note--warn">
           <b>Чего инструмент не решает за вас</b>
-          <p>Сайт считает числа и подсвечивает подозрительные места, но решение об индексе принимает разработчик. В задаче 3 вы увидите вариант, где все плитки выглядят лучше, чем у верного ответа, а индекс при этом хуже. Плитка «зелёная» означает только то, что проверка инструмента прошла, а не что запрос хорош.</p>
+          <p>Сайт считает числа и подсвечивает подозрительные места, но решение об индексе принимает разработчик. Индекс, у которого все плитки выглядят лучше, вполне может оказаться хуже верного — такой случай разбирается в задаче 3. Плитка «зелёная» означает только то, что проверка инструмента прошла, а не что запрос хорош.</p>
         </div>
 
         <div class="task">
@@ -327,7 +418,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
             </figure>
             <ol class="steps">
               <li><b>Выполните запрос и посчитайте результат.</b> Число записей даст <code>db.events.countDocuments()</code> с тем же фильтром. Запишите его.</li>
-              <li><b>Выгрузите план в <code>plan-1.json</code></b> любым из двух способов §3, а что смотреть в разборе — в §4. Если команда <code>mongosh</code> в вашей оболочке не проходит, берите второй способ — он не зависит от системы.</li>
+              <li><b>Выгрузите план в <code>plan-1.json</code></b> любым из трёх способов §3, а что смотреть в разборе — в §4.</li>
               <li><b>Разберите план на Paste the Plan.</b> Найдите на схеме шаги выполнения и три числа: <code>nReturned</code>, <code>totalDocsExamined</code>, <code>totalKeysExamined</code>.</li>
               <li><b>Сохраните ссылку на разбор</b> кнопкой обмена и запишите её в отчёт.</li>
             </ol>
@@ -361,7 +452,7 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
             <ol class="steps">
               <li><b>Разберите запрос из задачи 1 по ESR.</b> Выпишите, какие поля попадают в E, какое в S, какое в R.</li>
               <li><b>Создайте индекс</b> в оболочке: <code>db.events.createIndex({ service: 1, level: 1, ts: -1, duration_ms: 1 })</code>. Числа задают направление сортировки поля: 1 — по возрастанию, −1 — по убыванию.</li>
-              <li><b>Выгрузите план заново</b> в <code>plan-2.json</code> тем же способом, что и в задаче 1.</li>
+              <li><b>Снимите план заново</b> в <code>plan-2.json</code> тем же способом, что и в задаче 1.</li>
               <li><b>Разберите его на Paste the Plan</b> и сохраните ссылку.</li>
             </ol>
             <p>Ожидаемая картина: возвращено те же 33 документа, просмотрено 33, записей индекса просмотрено 43. Шагов снова два — <code>IXSCAN</code> внизу и <code>FETCH</code> над ним. Шаг <code>SORT</code> из плана исчез.</p>
@@ -370,16 +461,19 @@ docker compose exec mongo mongosh logs    <span class="c"># оболочка н�
               <figcaption>Те же плитки после создания индекса: Document Efficiency стала 100%, а <b>In-memory Sort?</b> — <code>No</code></figcaption>
             </figure>
             <p>Сравните с кадром из §4. Изменились три плитки: просмотрено стало 33 вместо 1200, появилось число просмотренных ключей, а <b>In-memory Sort?</b> сменилась с <code>Yes</code> на <code>No</code>. Последнее и есть результат задачи: сортировку теперь обеспечивает индекс.</p>
+            <p>Дерево тоже стало короче — шага <code>SORT</code> в нём больше нет:</p>
             <figure class="shot">
               <img src="../../shots/38-pp-ascii-s-indeksom.png" alt="Текстовое дерево плана: FETCH, под ним IXSCAN с keysExamined 43 и именем индекса">
               <figcaption>Вкладка <b>ASCII</b>: два шага вместо трёх, и рядом с <code>IXSCAN</code> в скобках — имя индекса, который выбрал сервер</figcaption>
             </figure>
             <p>Имя индекса в скобках MongoDB собрала из его полей: <code>service_1_level_1_ts_-1_duration_ms_1</code>. По нему на приёмке видно, каким индексом снят план и не остался ли в коллекции индекс от прошлой задачи.</p>
+            <p>Карточка самого шага <code>IXSCAN</code> показывает, каким индекс увидел сервер:</p>
             <figure class="shot">
               <img src="../../shots/39-pp-ixscan.png" alt="Карточка IXSCAN: keyPattern с четырьмя полями, indexName, isMultiKey No, isUnique No">
               <figcaption>Карточка <code>IXSCAN</code>: <code>keyPattern</code> — поля индекса в том порядке, в котором они в нём лежат, с направлением каждого</figcaption>
             </figure>
             <p>Ниже в этой карточке есть строка <code>indexBounds</code> — границы участка индекса, по которому сервер прошёл. У полей с равенством там одно значение (<code>["payments", "payments"]</code>), у диапазона — интервал (<code>(500, inf.0]</code>), у поля сортировки — весь диапазон целиком. Длина этого участка и даёт 43 просмотренных ключа.</p>
+            <p>Блок ESR внизу страницы теперь сверяет запрос с индексом и подтверждает порядок полей:</p>
             <figure class="shot">
               <img src="../../shots/40-pp-esr-s-indeksom.png" alt="Блок ESR с индексом: Index used, отметка ESR guideline met for query, четыре поля индекса по порядку">
               <figcaption>Блок <b>ESR Index Analysis</b> с индексом: зелёная отметка <b>ESR guideline met for query</b> и поля индекса по порядку с назначением каждого</figcaption>
@@ -430,24 +524,6 @@ db.events.<span class="f">createIndex</span>({ service: <span class="n">1</span>
                 </tbody>
               </table>
             </div>
-            <figure class="shot">
-              <img src="../../shots/42-pp-ascii-variant-a.png" alt="Текстовое дерево варианта А: FETCH, SORT, IXSCAN с keysExamined 378">
-              <figcaption>Вариант А (<code>duration_ms</code> впереди): просмотрено 378 ключей, и шаг <code>SORT</code> вернулся в план</figcaption>
-            </figure>
-            <figure class="shot">
-              <img src="../../shots/41-pp-metriki-variant-a.png" alt="Плитки метрик варианта А: totalKeysExamined 378, Index Efficiency 8.7 процента, In-memory Sort Yes">
-              <figcaption>Плитки варианта А: <b>Index Efficiency</b> 8,7% — из 378 просмотренных ключей пригодились 33. Инструмент всё равно пишет это число зелёным</figcaption>
-            </figure>
-            <figure class="shot">
-              <img src="../../shots/44-pp-ascii-variant-b.png" alt="Текстовое дерево варианта Б: FETCH, SORT, IXSCAN с keysExamined 33">
-              <figcaption>Вариант Б (<code>duration_ms</code> перед <code>ts</code>): ключей всего 33 — меньше, чем у верного варианта, — но <code>SORT</code> тоже остался</figcaption>
-            </figure>
-            <p>Два кадра рядом и есть разбор задачи. У варианта А плохи обе цифры: ключей в девять раз больше, чем у верного индекса, и сортировка всё равно в памяти. У варианта Б число ключей лучшее из всех четырёх, а сортировка всё равно в памяти. Плитки метрик у него тоже выглядят прилично:</p>
-            <figure class="shot">
-              <img src="../../shots/43-pp-metriki-variant-b.png" alt="Плитки метрик варианта Б: Document Efficiency 100 процентов, Index Efficiency 100 процентов, In-memory Sort Yes">
-              <figcaption>Плитки варианта Б: обе доли по 100%, и только <b>In-memory Sort?</b> со значением <code>Yes</code> говорит, что с индексом что-то не так</figcaption>
-            </figure>
-            <p>У варианта Б ключей индекса просматривается меньше, чем у варианта по ESR, но шаг <code>SORT</code> в плане остаётся. Сортировка в памяти ограничена 100 мегабайтами: на 1200 записях она проходит, на реальном журнале запрос с таким индексом упадёт с ошибкой. Поэтому в рабочей базе оставляют вариант по ESR, хотя ключей он просматривает больше.</p>
             <div class="blank">
               <h4>В отчёт</h4>
               <ul>
@@ -457,6 +533,29 @@ db.events.<span class="f">createIndex</span>({ service: <span class="n">1</span>
                 <li>вывод: какой из четырёх вариантов вы оставили бы в рабочей базе и почему.</li>
               </ul>
             </div>
+
+            <h4>Сверьте себя</h4>
+            <p>Дальше — те же два плана, снятые на исходных данных. Открывайте после того, как заполнили таблицу своими числами.</p>
+            <figure class="shot">
+              <img src="../../shots/42-pp-ascii-variant-a.png" alt="Текстовое дерево варианта А: FETCH, SORT, IXSCAN с keysExamined 378">
+              <figcaption>Вариант А, <code>duration_ms</code> впереди: просмотрено 378 ключей, и шаг <code>SORT</code> вернулся в план</figcaption>
+            </figure>
+            <p>У варианта А плохи обе цифры. Ключей просмотрено 378 — в девять раз больше, чем у индекса по ESR, потому что первым полем стоит диапазон: сервер проходит весь участок «дольше 500 мс», а туда попадают события всех сервисов и всех уровней. Сортировка при этом всё равно в памяти. Видно это и по плиткам:</p>
+            <figure class="shot">
+              <img src="../../shots/41-pp-metriki-variant-a.png" alt="Плитки метрик варианта А: totalKeysExamined 378, Index Efficiency 8.7 процента, In-memory Sort Yes">
+              <figcaption>Плитки варианта А: <b>Index Efficiency</b> 8,7% — из 378 просмотренных ключей пригодились 33. Инструмент всё равно пишет это число зелёным</figcaption>
+            </figure>
+            <p>Вариант Б интереснее: по числу ключей он лучший из всех четырёх.</p>
+            <figure class="shot">
+              <img src="../../shots/44-pp-ascii-variant-b.png" alt="Текстовое дерево варианта Б: FETCH, SORT, IXSCAN с keysExamined 33">
+              <figcaption>Вариант Б, <code>duration_ms</code> перед <code>ts</code>: ключей всего 33 — меньше, чем у верного варианта, — но <code>SORT</code> тоже остался</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../../shots/43-pp-metriki-variant-b.png" alt="Плитки метрик варианта Б: Document Efficiency 100 процентов, Index Efficiency 100 процентов, In-memory Sort Yes">
+              <figcaption>Плитки варианта Б: обе доли по 100%, и только <b>In-memory Sort?</b> со значением <code>Yes</code> говорит, что с индексом что-то не так</figcaption>
+            </figure>
+            <p>Обе доли по 100%, ключей меньше всех — и при этом индекс хуже верного. Причина в том, что поле сортировки <code>ts</code> стоит после диапазона: внутри участка, отобранного диапазоном, порядок по <code>ts</code> не сохраняется, и сервер досортировывает результат отдельным шагом. Число просмотренных ключей стоимость этого шага не учитывает.</p>
+            <p>Сортировка в памяти ограничена 100 мегабайтами. На 1200 записях она проходит незаметно, на реальном журнале запрос с таким индексом упадёт с ошибкой. Поэтому в рабочей базе оставляют вариант по ESR, хотя ключей он просматривает больше.</p>
           </div>
         </div>
 
