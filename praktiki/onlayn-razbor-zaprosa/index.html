@@ -98,7 +98,7 @@
 
         <h2 id="s2"><span class="sec">§2</span>Три сайта</h2>
         <p>Все три работают в браузере, бесплатны и не требуют регистрации. В работе обязателен первый, второй берётся для сверки, третий — запасной вариант, если нужно проверить запрос без стенда. Остальное рабочее окружение вокруг базы разобрано в разделе <a href="../../materialy/index.html">«Инструменты и материалы»</a>.</p>
-        <p>Четвёртый инструмент работы — Compass, тот же графический клиент, что в модуле 1. Он не сайт, а программа на вашем компьютере, и план умеет показывать сам; как это делается, разобрано в §3.</p>
+        <p>Четвёртый инструмент работы — Compass, тот же графический клиент, что в модуле 1. Он ставится на компьютер и показывает план сам; как это делается, разобрано в §3.</p>
 
         <div class="sites">
           <div class="site">
@@ -124,7 +124,7 @@
         </div>
 
         <h2 id="s3"><span class="sec">§3</span>Стенд и три способа снять план</h2>
-        <p>Работа идёт на базе <code>logs</code> учебного стенда. Стенд поднимается один раз и дальше просто работает.</p>
+        <p>Работа идёт на базе <code>logs</code> учебного стенда. Стенд поднимается один раз и дальше используется без перезапуска.</p>
 
         <figure class="code" data-os="win">
           <figcaption><span>PowerShell</span><span>стенд: один раз в начале работы</span></figcaption>
@@ -200,7 +200,7 @@ docker compose run --rm reset             <span class="c"># исходное с�
           <img src="../../shots/51-compass-explain-derevo.png" alt="Окно Explain Plan в Compass: дерево SORT над COLLSCAN и сводка Query Performance Summary с числами 33 и 1200">
           <figcaption>Compass · <b>Explain Plan</b>, вкладка <b>Visual Tree</b>: те же два шага, что и в онлайн-разборе, и сводка с числами справа</figcaption>
         </figure>
-        <p>Сводка <b>Query Performance Summary</b> — это те же числа, которые дальше разбираются в §4, только словами: <code>33 documents returned</code>, <code>1200 documents examined</code>, <code>0 index keys examined</code>. Строка <code>Is sorted in memory</code> отвечает на главный вопрос работы, а <code>No index available for this query</code> прямо говорит, что индекса под этот запрос нет.</p>
+        <p>Сводка <b>Query Performance Summary</b> — это те же числа, которые дальше разбираются в §4, только словами: <code>33 documents returned</code>, <code>1200 documents examined</code>, <code>0 index keys examined</code>. Строка <code>Is sorted in memory</code> говорит, что сортировка шла в памяти, а <code>No index available for this query</code> — что индекса под этот запрос нет.</p>
         <p>Вторая вкладка отдаёт тот же план текстом.</p>
         <figure class="shot">
           <img src="../../shots/52-compass-explain-json.png" alt="Окно Explain Plan, вкладка Raw Output: полный JSON плана и кнопка Copy">
@@ -252,7 +252,7 @@ PREDEL = <span class="n">0</span>
 <span class="c"># Куда положить план. Файл ложится рядом с этим скриптом.</span>
 FAYL = <span class="s">"plan-1.json"</span></pre>
         </figure>
-        <p>Запуск — одна команда. Кавычек в ней нет, поэтому вставлять её можно куда угодно:</p>
+        <p>Запуск — одна команда. Кавычек в ней нет, поэтому её можно вставлять в любую оболочку:</p>
         <figure class="code">
           <figcaption><span>Терминал или PowerShell</span><span>из корня mongodb-practice</span></figcaption>
 <pre>docker compose run --rm python work/praktikum-explain/plan.py</pre>
@@ -262,7 +262,7 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
           <figcaption><span>Терминал или PowerShell</span><span>имя файла на ходу</span></figcaption>
 <pre>docker compose run --rm python work/praktikum-explain/plan.py plan-2.json</pre>
         </figure>
-        <p>Скрипт печатает то, что записал, — по этому выводу числа попадают в отчёт, не открывая файл:</p>
+        <p>Скрипт печатает то, что записал: числа для отчёта видны сразу, открывать файл не нужно.</p>
         <figure class="code code--out">
           <figcaption><span>Вывод</span><span>запрос 1 без индекса</span></figcaption>
 <pre>Запрос к logs.events, всего документов в коллекции: 1200
@@ -314,14 +314,14 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
 
         <div class="margin-note">
           <b>Один план — три источника</b>
-          <p>Compass, скрипт и <code>mongosh</code> обращаются к одному серверу и получают один и тот же документ плана. Числа у всех трёх совпадут. Если не совпали, дело не в способе: между замерами изменилось состояние коллекции — чаще всего остался индекс от прошлой задачи.</p>
+          <p>Compass, скрипт и <code>mongosh</code> обращаются к одному серверу и получают один и тот же документ плана. Числа у всех трёх совпадут. Если не совпали, между замерами изменилось состояние коллекции — чаще всего остался индекс от прошлой задачи.</p>
         </div>
 
         <h2 id="s4"><span class="sec">§4</span>Что показывает разбор</h2>
         <p>Дальше разобрано, что именно выводит Paste the Plan и на какие места смотреть. Кадры сняты на планах этого практикума, поэтому числа на них совпадут с вашими, если базы сброшены командой <code>docker compose run --rm reset</code>.</p>
 
         <h3>Поле ввода</h3>
-        <p>Плана на сайте нет, пока вы его не вставили: инструмент ничего не знает о вашей базе и никуда не подключается. В поле идёт содержимое файла целиком, от первой скобки до последней.</p>
+        <p>Плана на сайте нет, пока вы его не вставили: сайт к вашей базе не подключается и работает только с тем текстом, который вы дали. В поле идёт содержимое файла целиком, от первой скобки до последней.</p>
         <figure class="shot">
           <img src="../../shots/30-pp-vvod.png" alt="Поле ввода Paste the Plan: вставленный JSON плана, зелёная отметка Valid JSON, кнопка Analyze Plan">
           <figcaption>Paste the Plan · вставленный план. Отметка <b>Valid JSON</b> под полем — первое, что стоит проверить: если там ошибка, файл сохранён не целиком или в неверной кодировке</figcaption>
@@ -337,7 +337,7 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
         <p>Эта карточка нужна для проверки, что разбирается тот план, который вы сняли. В шапке стоят база и коллекция — <code>logs · events</code>, справа вид операции — <code>FIND</code>. Если там оказалась другая коллекция или другой фильтр, вы вставили файл от прошлой задачи.</p>
 
         <h3>Плитки метрик</h3>
-        <p>Главный экран разбора — восемь плиток под заголовком <b>Execution Stats</b>. Три верхних числа и есть то, что записывается в отчёт.</p>
+        <p>Под заголовком <b>Execution Stats</b> идут восемь плиток. Три верхних числа записываются в отчёт.</p>
         <figure class="shot">
           <img src="../../shots/32-pp-metriki-bez-indeksa.png" alt="Плитки метрик для запроса без индекса: nReturned 33, totalDocsExamined 1200, totalKeysExamined 0, Document Efficiency 2.8 процента, Has Sort Yes, In-memory Sort Yes">
           <figcaption>Paste the Plan · метрики запроса <b>без индекса</b>: вернулось 33 документа, прочитано 1200, записей индекса просмотрено 0</figcaption>
@@ -354,7 +354,7 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
               <tr><td>Document Efficiency</td><td>Доля прочитанного, которая пригодилась: <code>nReturned</code> к <code>totalDocsExamined</code></td><td>2,8% со знаком предупреждения: из ста прочитанных документов нужными оказались три</td></tr>
               <tr><td>Index Efficiency</td><td>То же для записей индекса</td><td><code>N/A</code>, пока индекса нет. После создания индекса здесь появится процент</td></tr>
               <tr><td>Has Sort?</td><td>Есть ли в запросе сортировка</td><td>Отвечает на вопрос, участвует ли в разборе буква S правила ESR</td></tr>
-              <tr><td>In-memory Sort?</td><td>Сортировал ли сервер в памяти</td><td><b>Главная плитка работы.</b> <code>Yes</code> значит, что готового порядка у сервера не было и он досортировывал результат отдельным шагом</td></tr>
+              <tr><td>In-memory Sort?</td><td>Сортировал ли сервер в памяти</td><td><code>Yes</code> значит, что готового порядка у сервера не было и он досортировывал результат отдельным шагом. По этой плитке проверяется результат задачи 2</td></tr>
             </tbody>
           </table>
         </div>
@@ -460,14 +460,14 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
               <img src="../../shots/37-pp-metriki-s-indeksom.png" alt="Плитки метрик с индексом по ESR: nReturned 33, totalDocsExamined 33, totalKeysExamined 43, Document Efficiency 100 процентов, In-memory Sort No">
               <figcaption>Те же плитки после создания индекса: Document Efficiency стала 100%, а <b>In-memory Sort?</b> — <code>No</code></figcaption>
             </figure>
-            <p>Сравните с кадром из §4. Изменились три плитки: просмотрено стало 33 вместо 1200, появилось число просмотренных ключей, а <b>In-memory Sort?</b> сменилась с <code>Yes</code> на <code>No</code>. Последнее и есть результат задачи: сортировку теперь обеспечивает индекс.</p>
+            <p>Сравните с кадром из §4. Изменились три плитки: просмотрено стало 33 вместо 1200, появилось число просмотренных ключей, а <b>In-memory Sort?</b> сменилась с <code>Yes</code> на <code>No</code>. Третья из этих перемен и есть результат задачи: сортировку теперь обеспечивает индекс.</p>
             <p>Дерево тоже стало короче — шага <code>SORT</code> в нём больше нет:</p>
             <figure class="shot">
               <img src="../../shots/38-pp-ascii-s-indeksom.png" alt="Текстовое дерево плана: FETCH, под ним IXSCAN с keysExamined 43 и именем индекса">
               <figcaption>Вкладка <b>ASCII</b>: два шага вместо трёх, и рядом с <code>IXSCAN</code> в скобках — имя индекса, который выбрал сервер</figcaption>
             </figure>
             <p>Имя индекса в скобках MongoDB собрала из его полей: <code>service_1_level_1_ts_-1_duration_ms_1</code>. По нему на приёмке видно, каким индексом снят план и не остался ли в коллекции индекс от прошлой задачи.</p>
-            <p>Карточка самого шага <code>IXSCAN</code> показывает, каким индекс увидел сервер:</p>
+            <p>Карточка шага <code>IXSCAN</code> показывает, какой индекс выбрал сервер и как тот устроен:</p>
             <figure class="shot">
               <img src="../../shots/39-pp-ixscan.png" alt="Карточка IXSCAN: keyPattern с четырьмя полями, indexName, isMultiKey No, isUnique No">
               <figcaption>Карточка <code>IXSCAN</code>: <code>keyPattern</code> — поля индекса в том порядке, в котором они в нём лежат, с направлением каждого</figcaption>
@@ -478,7 +478,7 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
               <img src="../../shots/40-pp-esr-s-indeksom.png" alt="Блок ESR с индексом: Index used, отметка ESR guideline met for query, четыре поля индекса по порядку">
               <figcaption>Блок <b>ESR Index Analysis</b> с индексом: зелёная отметка <b>ESR guideline met for query</b> и поля индекса по порядку с назначением каждого</figcaption>
             </figure>
-            <p>Два места на этом кадре читаются не сразу. <b>Sort (0)</b> вверху — не ошибка: отдельной сортировки в плане больше нет, её взял на себя индекс, а инструмент считает условия по шагам плана. По той же причине поле <code>ts</code> в списке помечено «Not used in query»: инструмент сопоставляет поля индекса с условиями фильтра, а сортировку в этот список не заносит. Работу поля <code>ts</code> проверяют не по этой пометке, а по отсутствию шага <code>SORT</code> в дереве.</p>
+            <p>Два места на этом кадре читаются не сразу. <b>Sort (0)</b> вверху означает, что отдельной сортировки в плане больше нет: её взял на себя индекс, а инструмент считает условия по шагам плана. По той же причине поле <code>ts</code> в списке помечено «Not used in query»: инструмент сопоставляет поля индекса с условиями фильтра, а сортировку в этот список не заносит. Работу поля <code>ts</code> проверяют не по этой пометке, а по отсутствию шага <code>SORT</code> в дереве.</p>
             <div class="blank">
               <h4>В отчёт</h4>
               <ul>
@@ -540,12 +540,12 @@ db.events.<span class="f">createIndex</span>({ service: <span class="n">1</span>
               <img src="../../shots/42-pp-ascii-variant-a.png" alt="Текстовое дерево варианта А: FETCH, SORT, IXSCAN с keysExamined 378">
               <figcaption>Вариант А, <code>duration_ms</code> впереди: просмотрено 378 ключей, и шаг <code>SORT</code> вернулся в план</figcaption>
             </figure>
-            <p>У варианта А плохи обе цифры. Ключей просмотрено 378 — в девять раз больше, чем у индекса по ESR, потому что первым полем стоит диапазон: сервер проходит весь участок «дольше 500 мс», а туда попадают события всех сервисов и всех уровней. Сортировка при этом всё равно в памяти. Видно это и по плиткам:</p>
+            <p>У варианта А обе цифры хуже. Ключей просмотрено 378 — в девять раз больше, чем у индекса по ESR, потому что первым полем стоит диапазон: сервер проходит весь участок «дольше 500 мс», а туда попадают события всех сервисов и всех уровней. Сортировка при этом всё равно в памяти. Видно это и по плиткам:</p>
             <figure class="shot">
               <img src="../../shots/41-pp-metriki-variant-a.png" alt="Плитки метрик варианта А: totalKeysExamined 378, Index Efficiency 8.7 процента, In-memory Sort Yes">
               <figcaption>Плитки варианта А: <b>Index Efficiency</b> 8,7% — из 378 просмотренных ключей пригодились 33. Инструмент всё равно пишет это число зелёным</figcaption>
             </figure>
-            <p>Вариант Б интереснее: по числу ключей он лучший из всех четырёх.</p>
+            <p>У варианта Б число просмотренных ключей меньше, чем у остальных трёх.</p>
             <figure class="shot">
               <img src="../../shots/44-pp-ascii-variant-b.png" alt="Текстовое дерево варианта Б: FETCH, SORT, IXSCAN с keysExamined 33">
               <figcaption>Вариант Б, <code>duration_ms</code> перед <code>ts</code>: ключей всего 33 — меньше, чем у верного варианта, — но <code>SORT</code> тоже остался</figcaption>
@@ -554,7 +554,7 @@ db.events.<span class="f">createIndex</span>({ service: <span class="n">1</span>
               <img src="../../shots/43-pp-metriki-variant-b.png" alt="Плитки метрик варианта Б: Document Efficiency 100 процентов, Index Efficiency 100 процентов, In-memory Sort Yes">
               <figcaption>Плитки варианта Б: обе доли по 100%, и только <b>In-memory Sort?</b> со значением <code>Yes</code> говорит, что с индексом что-то не так</figcaption>
             </figure>
-            <p>Обе доли по 100%, ключей меньше всех — и при этом индекс хуже верного. Причина в том, что поле сортировки <code>ts</code> стоит после диапазона: внутри участка, отобранного диапазоном, порядок по <code>ts</code> не сохраняется, и сервер досортировывает результат отдельным шагом. Число просмотренных ключей стоимость этого шага не учитывает.</p>
+            <p>Обе доли по 100%, ключей меньше, чем у остальных вариантов, и при этом индекс хуже верного. Причина в том, что поле сортировки <code>ts</code> стоит после диапазона: внутри участка, отобранного диапазоном, порядок по <code>ts</code> не сохраняется, и сервер досортировывает результат отдельным шагом. Число просмотренных ключей стоимость этого шага не учитывает.</p>
             <p>Сортировка в памяти ограничена 100 мегабайтами. На 1200 записях она проходит незаметно, на реальном журнале запрос с таким индексом упадёт с ошибкой. Поэтому в рабочей базе оставляют вариант по ESR, хотя ключей он просматривает больше.</p>
           </div>
         </div>
@@ -603,6 +603,7 @@ db.events.<span class="f">createIndex</span>({ service: <span class="n">1</span>
         <div class="tree">
           <p class="tree__head">work/praktikum-explain/</p>
           <div class="tree__row tree__row--you"><b>README.md</b><span>отчёт: числа, ссылки, ответы на вопросы из блоков «В отчёт»</span></div>
+          <div class="tree__row tree__row--you"><b>plan.py</b><span>скрипт с вашим последним запросом, если снимали планы способом Б</span></div>
           <div class="tree__row tree__row--you"><b>plan-1.json</b><span>план запроса 1 без индекса</span></div>
           <div class="tree__row tree__row--you"><b>plan-2.json</b><span>план запроса 1 с индексом по ESR</span></div>
           <div class="tree__row tree__row--you"><b>plan-3a.json</b><span>вариант А из задачи 3</span></div>
