@@ -38,6 +38,7 @@ CHAPTERS = {
     "2.1": ("09-filtr-i-tochechnaya-notaciya", "Фильтр — это документ. Точечная нотация", False),
     "2.2": ("10-sravnenie", "Сравнение: $eq $ne $gt $gte $lt $lte", False),
     "2.3": ("11-spiski-in-nin", "Списки значений: $in и $nin", False),
+    "2.4": ("12-logika", "Логика: $and $or $not $nor", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.

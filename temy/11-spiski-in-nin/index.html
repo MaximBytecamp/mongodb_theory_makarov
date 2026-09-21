@@ -89,7 +89,7 @@
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"Москва"</span>, <span class="s">"Казань"</span>))))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -153,7 +153,7 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"v-008"</span>, <span class="s">"v-001"</span>))))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -209,7 +209,7 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"MongoDB"</span>, <span class="s">"ClickHouse"</span>))))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -277,7 +277,7 @@ mongocxx::options::find options;
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nin"</span>, <span class="f">make_array</span>(<span class="s">"Python"</span>, <span class="s">"SQL"</span>))))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -353,7 +353,7 @@ mongocxx::options::find options;
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"education.level"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"education.level"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nin"</span>, <span class="f">make_array</span>(<span class="s">"СПО"</span>))))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">

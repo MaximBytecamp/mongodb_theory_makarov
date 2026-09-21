@@ -104,7 +104,7 @@
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"employees"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : companies.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"employees"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>)))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -244,7 +244,7 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">70000</span>), <span class="f">kvp</span>(<span class="s">"$lte"</span>, <span class="n">100000</span>)))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -328,20 +328,22 @@ $gt 70000 и $lte 100000:  3
           </figure>
           <figure class="code" data-lang="cpp">
             <figcaption><span>C++ · mongocxx</span><span>вилка, в которую попадает 120 000</span></figcaption>
-<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary.from"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, <span class="n">120000</span>))),
-                           <span class="f">kvp</span>(<span class="s">"salary.to"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">120000</span>))));
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"salary.from"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, <span class="n">120000</span>))),
+    <span class="f">kvp</span>(<span class="s">"salary.to"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">120000</span>))));
 
 mongocxx::options::find options;
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(filtr.view(), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
             <figcaption><span>Go · mongo-driver</span><span>вилка, в которую попадает 120 000</span></figcaption>
-<pre>filtr := bson.D{{Key: <span class="s">"salary.from"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: <span class="n">120000</span>}}},
-                {Key: <span class="s">"salary.to"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">120000</span>}}}}
+<pre>filtr := bson.D{
+    {Key: <span class="s">"salary.from"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: <span class="n">120000</span>}}},
+    {Key: <span class="s">"salary.to"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">120000</span>}}}}
 
 cursor, _ := vacancies.<span class="f">Find</span>(ctx, filtr,
     options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"salary"</span>, Value: <span class="n">1</span>}}))
@@ -534,7 +536,7 @@ sep28 = Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : companies.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"name"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="s">"А"</span>)))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">
@@ -600,7 +602,7 @@ mongocxx::options::find options;
 options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="n">1</span>)));
 
 <span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, <span class="k">true</span>)))), options)) {
-    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
 }</pre>
           </figure>
           <figure class="code" data-lang="go">

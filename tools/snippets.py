@@ -86,8 +86,13 @@ def dates_in(value) -> list:
 
 # ── литералы ───────────────────────────────────────────────────────────────
 
+class Ref(str):
+    """Имя переменной, в которой уже лежит документ условия."""
+
 def lit(value, lang: str) -> str:
     """Значение на языке драйвера, с подсветкой."""
+    if type(value).__name__ == "Ref":          # класс сравнивается по имени: chapters2 импортирует модуль заново
+        return str(value) + (".view()" if lang == "cpp" else "")
     if isinstance(value, bool):
         return k(("True" if value else "False") if lang == "python" else ("true" if value else "false"))
     if value is None:
@@ -164,6 +169,68 @@ def date_lines(dates, lang: str) -> list[str]:
             out.append(f"{k('auto')} {name} = bsoncxx::types::b_date{{std::chrono::milliseconds{{{n(millis(d))}}}}};"
                        + "   " + c(f"// {d:%d.%m.%Y %H:%M} UTC"))
     return out
+
+
+LOGIC = ("$and", "$or", "$nor")
+
+
+def pretty(value, lang: str, indent: str) -> str:
+    """Документ фильтра в несколько строк: пары верхнего уровня — по строке,
+    элементы $and/$or/$nor — по строке. Короткие части остаются в одну строку."""
+    if not isinstance(value, dict) or visible_len(lit(value, lang)) + len(indent) <= 88:
+        return lit(value, lang)
+    if lang == "python":
+        open_, close = "{", "}"
+    elif lang == "ruby":
+        open_, close = "{ ", " }"
+    elif lang == "go":
+        open_, close = "bson.D{", "}"
+    else:
+        open_, close = f"{f('make_document')}(", ")"
+    if lang in ("go", "cpp"):
+        return block(value, lang, "")           # отступ Go и C++ — от начала строки, а не от имени переменной
+    inner = indent + " " * visible_len(open_)
+    parts = []
+    for key, v in value.items():
+        if key in LOGIC and isinstance(v, list):
+            if lang == "python":
+                head, arr_open, arr_close = f"{s(q(key))}: ", "[", "]"
+            elif lang == "ruby":
+                head, arr_open, arr_close = f"{s(q(key))} =&gt; ", "[", "]"
+            elif lang == "go":
+                head, arr_open, arr_close = f"{{Key: {s(q(key))}, Value: ", "bson.A{", "}}"
+            else:
+                head, arr_open, arr_close = f"{f('kvp')}({s(q(key))}, ", f"{f('make_array')}(", "))"
+            item_indent = inner + " " * (visible_len(head) + visible_len(arr_open))
+            items = [pretty(item, lang, item_indent) for item in v]
+            parts.append(head + arr_open + ("," + "\n" + item_indent).join(items) + arr_close)
+        else:
+            parts.append(pair(key, v, lang))
+    return open_ + ("," + "\n" + inner).join(parts) + close
+
+
+def block(value, lang: str, indent: str) -> str:
+    """Go и C++: перенос после открытия массива логического оператора,
+    отступ — четыре пробела на уровень."""
+    step = "    "
+    if isinstance(value, dict) and len(value) == 1:
+        (key, v), = value.items()
+        if key in LOGIC and isinstance(v, list):
+            inner = indent + step
+            items = [block(item, lang, inner) if visible_len(lit(item, lang)) + len(inner) > 88 else lit(item, lang)
+                     for item in v]
+            if lang == "go":
+                return (f"bson.D{{{{Key: {s(q(key))}, Value: bson.A{{" + "\n" + inner
+                        + (",\n" + inner).join(items) + "}}}")
+            return (f"{f('make_document')}({f('kvp')}({s(q(key))}, {f('make_array')}(" + "\n" + inner
+                    + (",\n" + inner).join(items) + ")))")
+    if isinstance(value, dict) and len(value) > 1:
+        inner = indent + step
+        parts = [pair(k_, v, lang) for k_, v in value.items()]
+        if lang == "go":
+            return "bson.D{\n" + inner + (",\n" + inner).join(parts) + "}"
+        return f"{f('make_document')}(" + "\n" + inner + (",\n" + inner).join(parts) + ")"
+    return lit(value, lang)
 
 # ── шаги примера ───────────────────────────────────────────────────────────
 
@@ -263,7 +330,7 @@ def find_lines(step, lang: str) -> list[str]:
         lines.append("")
     arg = step.get("cpp_filter") or lit(filt, lang)
     lines.append(f"{k('for')} ({k('const auto')}&amp; doc : {coll}.{f('find')}({arg}" + (", options" if lines else "") + ")) {")
-    lines.append(f"    std::cout &lt;&lt; bsoncxx::{f('to_json')}(doc) &lt;&lt; std::endl;")
+    lines.append(f"    std::cout &lt;&lt; bsoncxx::{f('to_json')}(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;")
     lines.append("}")
     return lines
 
@@ -271,17 +338,12 @@ def find_lines(step, lang: str) -> list[str]:
 def filter_var(step, lang: str) -> list[str]:
     """Длинный фильтр выносится в переменную filtr — по паре верхнего уровня на строку."""
     value = step["filter"]
-    if lang == "python":
-        head = "filtr = "
-        return [head + doc(value, lang, " " * len(head), wrap=True)]
-    if lang == "ruby":
-        head = "filtr = "
-        return [head + doc(value, lang, " " * len(head), wrap=True)]
-    if lang == "go":
-        head = "filtr := "
-        return [head + doc(value, lang, " " * len(head), wrap=True)]
-    head = f"{k('auto')} filtr = "
-    return [head + doc(value, lang, " " * len("auto filtr = "), wrap=True) + ";"]
+    plain_head = {"python": "filtr = ", "ruby": "filtr = ", "go": "filtr := ", "cpp": "auto filtr = "}[lang]
+    head = f"{k('auto')} filtr = " if lang == "cpp" else plain_head
+    body = pretty(value, lang, " " * len(plain_head))
+    if body == lit(value, lang):                 # короткий фильтр: по паре на строку, как раньше
+        body = doc(value, lang, " " * len(plain_head), wrap=True)
+    return [head + body + (";" if lang == "cpp" else "")]
 
 
 def code(spec, lang: str) -> str:
@@ -291,7 +353,8 @@ def code(spec, lang: str) -> str:
     steps = spec["steps"]
     lines = []
     values = [st.get("filter") for st in steps if "filter" in st] + \
-             [r["filter"] for st in steps for r in st.get("rows", [])]
+             [r["filter"] for st in steps for r in st.get("rows", [])] + \
+             [v for st in steps for _, v in st.get("define", [])]
     dates = sorted({d for v in values for d in dates_in(v)})
     if dates:
         lines += date_lines(dates, lang) + [""]
@@ -302,7 +365,13 @@ def code(spec, lang: str) -> str:
             mark = "#" if lang in ("python", "ruby") else "//"
             for text in st["comment"].split("\n"):
                 lines.append(c(f"{mark} {text}"))
-        if "rows" in st:
+        if "define" in st:
+            for name, value in st["define"]:
+                head = {"python": f"{name} = ", "ruby": f"{name} = ", "go": f"{name} := ",
+                        "cpp": f"auto {name} = "}[lang]
+                shown_head = f"{k('auto')} {name} = " if lang == "cpp" else head
+                lines.append(shown_head + pretty(value, lang, " " * len(head)) + (";" if lang == "cpp" else ""))
+        elif "rows" in st:
             lines += count_lines(st["rows"], lang)
         elif "filter" in st:
             use_var = st.get("var")

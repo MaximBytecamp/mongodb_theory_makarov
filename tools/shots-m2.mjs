@@ -41,6 +41,7 @@ expect('db.companies.countDocuments({employees:{$gte:500}})', 4, 'компани
 expect('db.resumes.countDocuments({ready_to_move:{$ne:true}})', 5, 'ready_to_move не равно true');
 expect('db.vacancies.countDocuments({city:{$in:["Москва","Казань"]}})', 4, 'вакансии в Москве или Казани');
 expect('db.resumes.countDocuments({skills:{$in:["MongoDB","ClickHouse"]}})', 4, 'MongoDB или ClickHouse');
+expect('db.resumes.countDocuments({$or:[{city:"Ярославль"},{ready_to_move:true}]})', 8, 'из Ярославля или готов к переезду');
 console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
@@ -343,5 +344,28 @@ await withCompass(async page => {
     await useJsonView();
     await expandAll(1);
     await shot('64-hh-in-array', 760);
+  }
+  // --- 65 · глава 2.4 §8: $or -------------------------------------
+  if (need('65-hh-or')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ $or: [{ city: "Ярославль" }, { ready_to_move: true }] }' });
+    await collapseOptions();
+    await useJsonView();
+    await shot('65-hh-or', 1000);
+  }
+
+  // --- 66 · 2.4 §8: $and из двух $or ------------------------------
+  if (need('66-hh-and-or')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ $and: [{ $or: [{ city: "Ярославль" }, { ready_to_move: true }] }, { $or: [{ "education.level": "Высшее" }, { "experience.months": { $gte: 10 } }] }] }' });
+    await collapseOptions();
+    await useJsonView();
+    await expandAll(1);
+    // Длинный фильтр Compass показывает прокрученным к концу: возвращаем начало строки
+    await page.locator('[data-testid="query-bar-option-filter-input"] .cm-content').first().click();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Meta+ArrowLeft');
+    await settle(400);
+    await shot('66-hh-and-or', 900);
   }
 });

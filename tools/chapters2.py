@@ -7,6 +7,8 @@
 
 from datetime import datetime
 
+from snippets import Ref
+
 EXAMPLES: dict = {}
 ERRORS: dict = {}
 CHEATS: dict = {}
@@ -184,4 +186,90 @@ CHEATS["2.3"] = [
     ("Хотя бы один элемент массива", ("f", {"skills": {"$in": ["MongoDB", "ClickHouse"]}})),
     ("Ни одно из значений", ("f", {"city": {"$nin": ["Москва", "Ярославль"]}})),
     ("Значение или нет поля", ("f", {"ready_to_move": {"$in": [False, None]}})),
+]
+
+# ── 2.4 Логика ─────────────────────────────────────────────────────────────
+
+YAR_OR_MOVE = {"$or": [{"city": "Ярославль"}, {"ready_to_move": True}]}
+SKILLED = {"$or": [{"education.level": "Высшее"}, {"experience.months": {"$gte": 10}}]}
+
+EXAMPLES["2.4"] = {
+    # 5, 4, 8; Лапина подходит по обоим условиям и входит один раз
+    "or": {"caption": "из Ярославля или готов к переезду", "steps": [
+        {"rows": [
+            {"label": "из Ярославля", "coll": "resumes", "filter": {"city": "Ярославль"}, "go": "yar"},
+            {"label": "готов к переезду", "coll": "resumes", "filter": {"ready_to_move": True}, "go": "pereezd"},
+            {"label": "одно из двух ($or)", "coll": "resumes", "filter": YAR_OR_MOVE, "go": "ili"},
+        ]},
+        {"coll": "resumes", "filter": YAR_OR_MOVE, "fields": ["fio", "city", "ready_to_move"]},
+    ]},
+    # 4 и 4
+    "or_in": {"caption": "$or на одном поле и $in", "steps": [
+        {"rows": [
+            {"label": "$or", "coll": "vacancies",
+             "filter": {"$or": [{"city": "Москва"}, {"city": "Казань"}]}, "go": "cherezOr"},
+            {"label": "$in", "coll": "vacancies", "filter": {"city": {"$in": ["Москва", "Казань"]}}, "go": "cherezIn"},
+        ]},
+    ]},
+    # 5: Белова, Ковалёв, Нечаева, Лапина, Ефремов
+    "and_or": {"caption": "условие на зарплату и «или»", "steps": [
+        {"coll": "resumes", "var": True,
+         "filter": {"salary": {"$lte": 90000}, **YAR_OR_MOVE},
+         "fields": ["fio", "salary", "city", "ready_to_move"]},
+    ]},
+    # 8, 5, 4: Дроздова, Самойлов, Ефремов, Пирогова
+    "two_or": {"caption": "два условия «или» сразу", "steps": [
+        {"define": [("dostupen", YAR_OR_MOVE), ("kvalif", SKILLED)]},
+        {"rows": [
+            {"label": "доступен для Ярославля", "coll": "resumes", "filter": Ref("dostupen"), "go": "nDostupen"},
+            {"label": "есть квалификация", "coll": "resumes", "filter": Ref("kvalif"), "go": "nKvalif"},
+        ]},
+        {"coll": "resumes", "filter": {"$and": [Ref("dostupen"), Ref("kvalif")]}, "fields": ["fio"]},
+    ]},
+    # 4 и 3; у Анны Беловой нет updated
+    "not": {"caption": "отрицание условия", "steps": [
+        {"rows": [
+            {"label": "$not $gte 01.09", "coll": "resumes",
+             "filter": {"updated": {"$not": {"$gte": datetime(2026, 9, 1)}}}, "go": "neSentyabr"},
+            {"label": "$lt 01.09", "coll": "resumes",
+             "filter": {"updated": {"$lt": datetime(2026, 9, 1)}}, "go": "doSentyabrya"},
+        ]},
+        {"coll": "resumes", "filter": {"updated": {"$not": {"$gte": datetime(2026, 9, 1)}}}, "fields": ["fio", "updated"]},
+    ]},
+    # 5: Белова, Ковалёв, Самойлов, Валиев, Пирогова
+    "nor": {"caption": "ни одно из условий", "steps": [
+        {"coll": "resumes", "var": True,
+         "filter": {"$nor": [{"city": "Москва"}, {"ready_to_move": True}]},
+         "fields": ["fio", "city", "ready_to_move"]},
+    ]},
+}
+
+ERRORS["2.4"] = [
+    ({"python": '<code>{"$or": [...], "$or": [...]}</code>', "ruby": '<code>{ "$or" =&gt; [...], "$or" =&gt; [...] }</code>'},
+     {"python": "Работает только второе «или»: в словаре остаётся последняя пара",
+      "ruby": "Работает только второе «или»: в хеше остаётся последняя пара"},
+     {"python": '<code>{"$and": [{"$or": [...]}, {"$or": [...]}]}</code>',
+      "ruby": '<code>{ "$and" =&gt; [{ "$or" =&gt; [...] }, { "$or" =&gt; [...] }] }</code>'}),
+    (("f", {"city": {"$not": "Москва"}}), "Ошибка сервера: <code>$not needs a regex or a document</code>",
+     ("f", {"$ne": "Москва"})),
+    (("f", {"$or": {"city": "Москва"}}), "Ошибка сервера: <code>$or must be an array</code>",
+     ("f", {"$or": [{"city": "Москва"}]})),
+    ("Список для <code>$or</code> собран из формы и оказался пустым",
+     "Ошибка сервера: <code>$and/$or/$nor must be a nonempty array</code>",
+     "Проверить пустой список до запроса и не добавлять условие"),
+    (("f", {"$or": [{"city": "Москва"}, {"city": "Казань"}]}), "Работает, но условие на одно поле длиннее, чем нужно",
+     ("f", {"city": {"$in": ["Москва", "Казань"]}})),
+    (("f", {"updated": {"$not": {"$gte": datetime(2026, 9, 1)}}}), "Кроме более ранних дат находит документы без поля",
+     "Если нужны только ранние даты — <code>$lt</code>"),
+]
+
+CHEATS["2.4"] = [
+    ("Хотя бы одно условие", ("f", YAR_OR_MOVE)),
+    ("«И» вместе с «или»", ("f", {"salary": {"$lte": 90000}, "$or": [{"city": "Ярославль"}, {"city": "Казань"}]})),
+    ("Два «или» сразу", {"python": ['{"$and": [{"$or": [...]},', '          {"$or": [...]}]}'],
+                         "ruby": ['{ "$and" => [{ "$or" => [...] },', '              { "$or" => [...] }] }'],
+                         "go": ['bson.D{{Key: "$and", Value: bson.A{', '  bson.D{{Key: "$or", Value: ...}},', '  bson.D{{Key: "$or", Value: ...}}}}}'],
+                         "cpp": ['make_document(kvp("$and", make_array(', '  make_document(kvp("$or", ...)),', '  make_document(kvp("$or", ...)))))']}),
+    ("Отрицание условия", ("f", {"salary": {"$not": {"$gte": 100000}}})),
+    ("Ни одно из условий", ("f", {"$nor": [{"city": "Москва"}, {"ready_to_move": True}]})),
 ]
