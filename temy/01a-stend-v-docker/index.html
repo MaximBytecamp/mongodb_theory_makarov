@@ -109,7 +109,7 @@
         </nav>
 
         <h2 id="s1"><span class="sec">§1</span>Что именно не работает</h2>
-        <p>Вспомним главу 1.1: Compass — клиент. Сам он данных не хранит, он подключается к серверу по адресу <code>mongodb://localhost:27017</code>. Поэтому сообщение при создании подключения говорит о сервере, а не о Compass:</p>
+        <p>В главе 1.1 разобрано, что Compass — клиент. Сам он данных не хранит, он подключается к серверу по адресу <code>mongodb://localhost:27017</code>. Поэтому сообщение при создании подключения говорит о сервере, а не о Compass:</p>
         <figure class="code code--out">
           <figcaption><span>Compass · New Connection → Connect</span><span>сервер не запущен</span></figcaption>
 <pre>connect ECONNREFUSED 127.0.0.1:27017</pre>
@@ -531,7 +531,7 @@ Container mongodb-practice-mongo-express-1 Starting
 Container mongodb-practice-mongo-express-1 Started
 Container mongodb-practice-seed-1 Started</pre>
         </figure>
-        <p>Порядок в выводе не случайный. Сначала сервер должен ответить на проверку <code>ping</code> — это строка <b>Healthy</b>. Только после неё стартуют <code>seed</code> и <code>mongo-express</code>: загружать данные в сервер, который ещё не готов, бессмысленно. Что сделал <code>seed</code>, видно в его журнале:</p>
+        <p>Порядок в выводе задан зависимостями. Сначала сервер должен ответить на проверку <code>ping</code> — это строка <b>Healthy</b>. Только после неё стартуют <code>seed</code> и <code>mongo-express</code>: пока сервер не отвечает, загрузка не пройдёт. Что сделал <code>seed</code>, видно в его журнале:</p>
         <figure class="code">
           <figcaption><span>Терминал</span><span>журнал загрузки</span></figcaption>
 <pre>docker compose logs seed</pre>
@@ -583,11 +583,11 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
         <p>У базы <code>shop</code> внизу страницы — <b>Database Stats</b>: 3 коллекции, 161 документ, 79.3 KB данных. Это те же 79.32 kB, что Compass показал в главе 1.1, — сервер и данные одни и те же, отличается только клиент. В коллекции документы идут таблицей по 20 на страницу, поэтому 21 товар занял две страницы. Массив <code>stock</code> свёрнут в <code>⊕{2 items}</code> и раскрывается щелчком. Строка <b>Simple</b> ищет по одному полю, <b>Advanced</b> принимает фильтр-документ, как <code>find</code>. Красная полоса <b>Delete all 21 documents retrieved</b> удаляет всё, что сейчас найдено, — при пустом фильтре это вся коллекция. Поэтому упражнения в mongo-express, как и в коде, делаются только в <code>sandbox</code>.</p>
         <div class="margin-note">
           <b>На полях: а если Compass всё-таки установился</b>
-          <p>Тогда он подключается к контейнеру без всяких изменений: <b>New Connection</b>, адрес <code>mongodb://localhost:27017</code>, <b>Connect</b>. Docker пробрасывает порт сервера на компьютер, и для Compass контейнер ничем не отличается от установленного сервера. Кстати, все кадры Compass в этом справочнике сняты именно так — с сервера в контейнере.</p>
+          <p>Тогда он подключается к контейнеру без всяких изменений: <b>New Connection</b>, адрес <code>mongodb://localhost:27017</code>, <b>Connect</b>. Docker пробрасывает порт сервера на компьютер, и для Compass контейнер ничем не отличается от установленного сервера. Все кадры Compass в этом справочнике сняты с сервера в контейнере.</p>
         </div>
         <div class="margin-note margin-note--warn">
           <b>Осторожно: mongo-express — только для учебного стенда</b>
-          <p>Через этот интерфейс можно удалить любую базу. Поэтому порт 8081 открыт только для вашего компьютера (<code>127.0.0.1</code>), а вход закрыт паролем. Выставлять такой интерфейс в интернет нельзя — чем это заканчивается, разобрано в разделе <a href="../../keysy/index.html">«Кейсы»</a>.</p>
+          <p>Через этот интерфейс можно удалить любую базу. Поэтому порт 8081 открыт только для вашего компьютера (<code>127.0.0.1</code>), а вход закрыт паролем. Выставлять такой интерфейс в интернет нельзя; почему — разобрано в разделе <a href="../../keysy/index.html">«Кейсы»</a>.</p>
         </div>
 
         <h2 id="s8"><span class="sec">§8</span>Шаг 5. Подключиться из кода</h2>
@@ -661,7 +661,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
             <p>Контейнеры <code>python</code>, <code>ruby</code>, <code>go</code> и <code>cpp</code> подключены к сети сервера (<code>network_mode: service:mongo</code>), поэтому для них сервер — тоже <code>localhost</code>.</p>
           </div>
         </div>
-        <p>Поэтому примеры из глав работают без изменений где угодно: на компьютере, в Docker и в Codespaces. А в рабочем проекте сервер будет на другой машине, поэтому адрес в решениях практик и в заготовках глав берётся из переменной окружения <code>MONGO_URI</code>; если её нет, программа подключается к <code>localhost</code>:</p>
+        <p>Поэтому примеры из глав работают без изменений на всех трёх стендах: на компьютере, в Docker и в Codespaces. В рабочем проекте сервер стоит на другой машине, поэтому адрес в решениях практик и в заготовках глав берётся из переменной окружения <code>MONGO_URI</code>; если её нет, программа подключается к <code>localhost</code>:</p>
         <figure class="code" data-lang="python">
           <figcaption><span>Адрес из окружения</span><span>Python</span></figcaption>
 <pre><span class="k">import</span> os
@@ -875,7 +875,7 @@ python check.py</pre>
         </details>
         <details>
           <summary>Почему проверка практики на Go запускается в контейнере <code>python</code>?</summary>
-          <p><code>check.py</code> написан на Python и проверяет состояние базы, а не код. Решение на любом языке меняет одну и ту же базу, поэтому проверка одна.</p>
+          <p><code>check.py</code> написан на Python и проверяет состояние базы; код он не читает. Решение на любом языке меняет одну и ту же базу, поэтому проверка одна.</p>
         </details>
 
         <h2 id="s14"><span class="sec">§14</span>Шпаргалка</h2>
