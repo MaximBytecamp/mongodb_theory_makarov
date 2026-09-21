@@ -273,3 +273,102 @@ CHEATS["2.4"] = [
     ("Отрицание условия", ("f", {"salary": {"$not": {"$gte": 100000}}})),
     ("Ни одно из условий", ("f", {"$nor": [{"city": "Москва"}, {"ready_to_move": True}]})),
 ]
+
+# ── 2.5 Есть ли поле ───────────────────────────────────────────────────────
+
+EXAMPLES["2.5"] = {
+    # 2, 1, 8, 1; портфолио у Дроздовой и Ефремова
+    "exists": {"caption": "есть ли поле в документе", "steps": [
+        {"rows": [
+            {"label": "есть portfolio", "coll": "resumes", "filter": {"portfolio": {"$exists": True}}, "go": "portfolio"},
+            {"label": "есть courses", "coll": "resumes", "filter": {"courses": {"$exists": True}}, "go": "courses"},
+            {"label": "есть ready_to_move", "coll": "resumes", "filter": {"ready_to_move": {"$exists": True}}, "go": "estReady"},
+            {"label": "нет ready_to_move", "coll": "resumes", "filter": {"ready_to_move": {"$exists": False}}, "go": "netReady"},
+        ]},
+        {"coll": "resumes", "filter": {"portfolio": {"$exists": True}}, "fields": ["fio", "portfolio"]},
+    ]},
+    # 5, 4, 4
+    "with_neg": {"caption": "отрицание без документов без поля", "steps": [
+        {"rows": [
+            {"label": "ready_to_move $ne true", "coll": "resumes",
+             "filter": {"ready_to_move": {"$ne": True}}, "go": "neTrue"},
+            {"label": "то же и поле есть", "coll": "resumes",
+             "filter": {"ready_to_move": {"$ne": True, "$exists": True}}, "go": "neTrueEst"},
+            {"label": "уровень не СПО и поле есть", "coll": "resumes",
+             "filter": {"education.level": {"$nin": ["СПО"], "$exists": True}}, "go": "neSpoEst"},
+        ]},
+    ]},
+    # 591, 0, 591; 1, 0
+    "null": {"caption": "null и отсутствующее поле", "steps": [
+        {"open": ("events", "logs", "events")},
+        {"rows": [
+            {"label": "events: user_id null", "coll": "events", "filter": {"user_id": None}, "go": "ravnoNull"},
+            {"label": "events: user_id нет", "coll": "events", "filter": {"user_id": {"$exists": False}}, "go": "netPolya"},
+            {"label": "events: user_id $type null", "coll": "events", "filter": {"user_id": {"$type": "null"}}, "go": "tipNull"},
+            {"label": "resumes: ready_to_move null", "coll": "resumes", "filter": {"ready_to_move": None}, "go": "readyNull"},
+            {"label": "resumes: ready_to_move $type null", "coll": "resumes",
+             "filter": {"ready_to_move": {"$type": "null"}}, "go": "readyTipNull"},
+        ]},
+    ]},
+    # 9, 0, 8, 0
+    "type": {"caption": "тип значения поля", "steps": [
+        {"rows": [
+            {"label": "resumes: salary число", "coll": "resumes", "filter": {"salary": {"$type": "number"}}, "go": "rChislo"},
+            {"label": "resumes: salary документ", "coll": "resumes", "filter": {"salary": {"$type": "object"}}, "go": "rDokument"},
+            {"label": "vacancies: salary документ", "coll": "vacancies", "filter": {"salary": {"$type": "object"}}, "go": "vDokument"},
+            {"label": "vacancies: salary число", "coll": "vacancies", "filter": {"salary": {"$type": "number"}}, "go": "vChislo"},
+        ]},
+    ]},
+    # 8, 9, 9, 0
+    "arrays": {"caption": "$type и поле-массив", "steps": [
+        {"rows": [
+            {"label": "experience массив", "coll": "resumes", "filter": {"experience": {"$type": "array"}}, "go": "opyt"},
+            {"label": "skills массив", "coll": "resumes", "filter": {"skills": {"$type": "array"}}, "go": "navykiMassiv"},
+            {"label": "skills строка", "coll": "resumes", "filter": {"skills": {"$type": "string"}}, "go": "navykiStroka"},
+            {"label": "skills не массив", "coll": "resumes",
+             "filter": {"skills": {"$not": {"$type": "array"}}}, "go": "navykiNeMassiv"},
+        ]},
+    ]},
+    # 1 и 21; кабель с ценой-строкой
+    "bad": {"caption": "цена, записанная строкой", "steps": [
+        {"comment": "товар из веб-формы: цена пришла текстом и так и записана",
+         "insert": "box", "doc": {"_id": "p-201", "title": "Кабель USB-C 2 м", "category": "аксессуары", "price": "790"}},
+        {"rows": [
+            {"label": "цена строкой", "coll": "box", "filter": {"price": {"$type": "string"}}, "go": "stroka"},
+            {"label": "цена больше 500", "coll": "box", "filter": {"price": {"$gt": 500}}, "go": "dorozhe"},
+        ]},
+        {"coll": "box", "filter": {"price": {"$type": "string"}}, "fields": ["title", "price"], "keep_id": True},
+    ]},
+    # 0 и 22
+    "fix": {"caption": "цена исправлена", "steps": [
+        {"update": "box", "filter": {"_id": "p-201"}, "set": {"price": 790}},
+        {"rows": [
+            {"label": "цена строкой", "coll": "box", "filter": {"price": {"$type": "string"}}, "go": "stroka"},
+            {"label": "цена больше 500", "coll": "box", "filter": {"price": {"$gt": 500}}, "go": "dorozhe"},
+        ]},
+    ]},
+}
+
+ERRORS["2.5"] = [
+    (("f", {"portfolio": {"$exists": "false"}}), "Находит документы, где поле есть: непустая строка считается истиной",
+     ("f", {"$exists": False})),
+    (("f", {"salary": {"$type": "integer"}}), "Ошибка сервера: <code>Unknown type name alias: integer</code>",
+     ("f", {"$type": "int"})),
+    ("<code>$type: \"int\"</code> на поле, где встречаются дробные числа", "Документы с <code>double</code> и <code>long</code> не находятся",
+     ("f", {"$type": "number"})),
+    (("f", {"skills": {"$type": "string"}}), "Находит и массивы строк: условие проверяется на каждом элементе",
+     ("f", {"$not": {"$type": "array"}})),
+    (("f", {"user_id": None}), "Кроме <code>null</code> находит документы, где поля нет",
+     ("f", {"$type": "null"})),
+    (("f", {"ready_to_move": {"$exists": False}}), "Не находит документы, где поле есть и равно <code>null</code>",
+     "Равенство <code>null</code> — оно находит оба случая"),
+]
+
+CHEATS["2.5"] = [
+    ("Поле есть", ("f", {"portfolio": {"$exists": True}})),
+    ("Поля нет", ("f", {"portfolio": {"$exists": False}})),
+    ("Отрицание только по заполненным", ("f", {"ready_to_move": {"$ne": True, "$exists": True}})),
+    ("Только null", ("f", {"user_id": {"$type": "null"}})),
+    ("Любое число", ("f", {"salary": {"$type": "number"}})),
+    ("Значение не того типа", ("f", {"price": {"$type": "string"}})),
+]

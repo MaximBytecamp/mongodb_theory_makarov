@@ -42,6 +42,7 @@ expect('db.resumes.countDocuments({ready_to_move:{$ne:true}})', 5, 'ready_to_mov
 expect('db.vacancies.countDocuments({city:{$in:["Москва","Казань"]}})', 4, 'вакансии в Москве или Казани');
 expect('db.resumes.countDocuments({skills:{$in:["MongoDB","ClickHouse"]}})', 4, 'MongoDB или ClickHouse');
 expect('db.resumes.countDocuments({$or:[{city:"Ярославль"},{ready_to_move:true}]})', 8, 'из Ярославля или готов к переезду');
+expect('db.resumes.countDocuments({portfolio:{$exists:true}})', 2, 'резюме с портфолио');
 console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
@@ -367,5 +368,28 @@ await withCompass(async page => {
     await page.keyboard.press('Meta+ArrowLeft');
     await settle(400);
     await shot('66-hh-and-or', 900);
+  }
+  // --- 67 · глава 2.5 §7: вкладка Schema --------------------------
+  if (need('67-hh-schema')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({});
+    await collapseOptions();
+    await page.locator('[data-testid="Schema-tab-button"]').first().click({ force: true });
+    await settle(1500);
+    const analyze = page.getByRole('button', { name: /analyze/i }).first();
+    if (await analyze.count()) { await analyze.click({ force: true }); }
+    await page.waitForSelector('[data-testid="schema-field-list"], [data-testid*="schema-field"]', { timeout: 30000 }).catch(() => {});
+    await settle(3000);
+    await shot('67-hh-schema', 1000);
+    await page.locator('[data-testid="Documents-tab-button"]').first().click({ force: true });
+    await settle(800);
+  }
+  // --- 68 · 2.5 §7: $exists в фильтре -----------------------------
+  if (need('68-hh-exists')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ portfolio: { $exists: true } }' });
+    await collapseOptions();
+    await useJsonView();
+    await shot('68-hh-exists', await fitHeight(1160));
   }
 });

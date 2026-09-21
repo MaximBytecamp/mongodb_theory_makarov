@@ -354,18 +354,42 @@ def code(spec, lang: str) -> str:
     lines = []
     values = [st.get("filter") for st in steps if "filter" in st] + \
              [r["filter"] for st in steps for r in st.get("rows", [])] + \
-             [v for st in steps for _, v in st.get("define", [])]
+             [v for st in steps for _, v in st.get("define", [])] + \
+             [st["doc"] for st in steps if "doc" in st]
     dates = sorted({d for v in values for d in dates_in(v)})
     if dates:
         lines += date_lines(dates, lang) + [""]
     for i, st in enumerate(steps):
-        if i and lines and lines[-1] != "":
+        glued = i and any(key in st and key in steps[i - 1] for key in ("open", "insert", "update"))
+        if i and lines and lines[-1] != "" and not glued:
             lines.append("")
         if "comment" in st:
             mark = "#" if lang in ("python", "ruby") else "//"
             for text in st["comment"].split("\n"):
                 lines.append(c(f"{mark} {text}"))
-        if "define" in st:
+        if "open" in st:
+            var, dbname, coll = st["open"]
+            lines.append({"python": f'{var} = client[{s(q(dbname))}][{s(q(coll))}]',
+                          "ruby": f'{var} = client.{f("use")}({s(q(dbname))}).database[:{coll}]',
+                          "go": f'{var} := client.{f("Database")}({s(q(dbname))}).{f("Collection")}({s(q(coll))})',
+                          "cpp": f'{k("auto")} {var} = client[{s(q(dbname))}][{s(q(coll))}];'}[lang])
+        elif "insert" in st:
+            coll = st["insert"]
+            call = {"python": f"{coll}.insert_one(", "ruby": f"{coll}.insert_one(",
+                    "go": f"{coll}.InsertOne(ctx, ", "cpp": f"{coll}.insert_one("}[lang]
+            value = pretty(st["doc"], lang, " " * len(call))
+            lines.append({"python": f"{coll}.{f('insert_one')}({value})",
+                          "ruby": f"{coll}.{f('insert_one')}({value})",
+                          "go": f"{coll}.{f('InsertOne')}(ctx, {value})",
+                          "cpp": f"{coll}.{f('insert_one')}({value});"}[lang])
+        elif "update" in st:
+            coll = st["update"]
+            filt, change = lit(st["filter"], lang), lit({"$set": st["set"]}, lang)
+            lines.append({"python": f"{coll}.{f('update_one')}({filt}, {change})",
+                          "ruby": f"{coll}.{f('update_one')}({filt}, {change})",
+                          "go": f"{coll}.{f('UpdateOne')}(ctx, {filt}, {change})",
+                          "cpp": f"{coll}.{f('update_one')}({filt}, {change});"}[lang])
+        elif "define" in st:
             for name, value in st["define"]:
                 head = {"python": f"{name} = ", "ruby": f"{name} = ", "go": f"{name} := ",
                         "cpp": f"auto {name} = "}[lang]

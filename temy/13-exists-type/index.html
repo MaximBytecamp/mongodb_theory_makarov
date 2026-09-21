@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>2.5 Есть ли поле: · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Язык фильтров</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 2 · язык фильтров</p>
+          <p class="running__folio">2.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">2.5</span>
+          <h1>Есть ли поле:<br>$exists и $type</h1>
+          <p class="lead">Документы одной коллекции не обязаны быть одинаковыми: у одних поле есть, у других нет, в одном поле может лежать число, в другом документе под тем же именем — строка. Здесь разобраны два оператора, которые проверяют само поле: <code>$exists</code> — есть ли оно в документе, и <code>$type</code> — какого типа его значение. Отдельно — чем отсутствующее поле отличается от поля со значением <code>null</code> и как найти значения, записанные не тем типом.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Язык запросов</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Документ и BSON, операторы сравнения, отрицания <code>$ne</code> и <code>$nin</code></dd></div>
+          <div><dt>Зачем это знать</dt><dd>Находить неполные документы и значения, записанные не тем типом</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-2.5-python.zip" download><code>mongodb-glava-2.5-python.zip</code></a>, 61 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-2.5-ruby.zip" download><code>mongodb-glava-2.5-ruby.zip</code></a>, 61 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-2.5-go.zip" download><code>mongodb-glava-2.5-go.zip</code></a>, 66 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-2.5-cpp.zip" download><code>mongodb-glava-2.5-cpp.zip</code></a>, 64 КБ</span> — все примеры главы готовыми программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch2_5.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch2_5.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch2_5.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch2_5.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch2_5.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch2_5.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch2_5.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch2_5.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch2_5.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch2_5.go</code> · в Docker: <code>docker compose run --rm go lessons/ch2_5.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch2_5.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch2_5.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1"><code>$exists</code>: есть ли поле</a></li>
+            <li><a href="#s2"><code>$exists</code> вместе с отрицанием</a></li>
+            <li><a href="#s3"><code>null</code> и отсутствующее поле</a></li>
+            <li><a href="#s4"><code>$type</code>: тип значения</a></li>
+            <li><a href="#s5"><code>$type</code> и поле-массив</a></li>
+            <li><a href="#s6">Значение не того типа</a></li>
+            <li><a href="#s7">Схема коллекции в Compass</a></li>
+            <li><a href="#s8">Частые ошибки</a></li>
+            <li><a href="#s9">Проверьте себя</a></li>
+            <li><a href="#s10">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span><code>$exists</code>: есть ли поле</h2>
+        <p>Оператор <code>$exists</code> принимает логическое значение. <code>{"portfolio": {"$exists": true}}</code> отбирает документы, в которых поле <code>portfolio</code> есть, с любым значением. <code>{"portfolio": {"$exists": false}}</code> — документы, в которых этого поля нет.</p>
+        <p>В коллекции резюме поля заполнены неодинаково. Ссылку на портфолио указали двое соискателей, пройденные курсы — одна соискательница, а готовность к переезду не отметил один человек из девяти.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>есть ли поле в документе</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"есть portfolio:    "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"portfolio"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}))
+<span class="f">print</span>(<span class="s">"есть courses:      "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"courses"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}))
+<span class="f">print</span>(<span class="s">"есть ready_to_move:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"ready_to_move"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}))
+<span class="f">print</span>(<span class="s">"нет ready_to_move: "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"ready_to_move"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}))
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"portfolio"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"portfolio"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>есть ли поле в документе</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"есть portfolio:     "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"portfolio"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"есть courses:       "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"courses"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"есть ready_to_move: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"нет ready_to_move:  "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"portfolio"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"portfolio"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>)))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>есть ли поле в документе</span></figcaption>
+<pre>portfolio, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"portfolio"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+courses, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"courses"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+estReady, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+netReady, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"есть portfolio:    "</span>, portfolio)
+fmt.<span class="f">Println</span>(<span class="s">"есть courses:      "</span>, courses)
+fmt.<span class="f">Println</span>(<span class="s">"есть ready_to_move:"</span>, estReady)
+fmt.<span class="f">Println</span>(<span class="s">"нет ready_to_move: "</span>, netReady)
+
+cursor, _ := resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"portfolio"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"portfolio"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>есть ли поле в документе</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"есть portfolio:     "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"portfolio"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"есть courses:       "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"courses"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"есть ready_to_move: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"ready_to_move"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"нет ready_to_move:  "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"ready_to_move"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }).<span class="f">to_s</span>
+
+resumes.<span class="f">find</span>({ <span class="s">"portfolio"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"portfolio"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>есть portfolio:     2
+есть courses:       1
+есть ready_to_move: 8
+нет ready_to_move:  1
+{'fio': 'Алина Дроздова', 'portfolio': 'https://github.com/example/drozdova'}
+{'fio': 'Марк Ефремов', 'portfolio': 'https://github.com/example/efremov'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>есть portfolio:     2
+есть courses:       1
+есть ready_to_move: 8
+нет ready_to_move:  1
+{ "fio" : "Алина Дроздова", "portfolio" : "https://github.com/example/drozdova" }
+{ "fio" : "Марк Ефремов", "portfolio" : "https://github.com/example/efremov" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>есть portfolio:     2
+есть courses:       1
+есть ready_to_move: 8
+нет ready_to_move:  1
+{"fio":"Алина Дроздова","portfolio":"https://github.com/example/drozdova"}
+{"fio":"Марк Ефремов","portfolio":"https://github.com/example/efremov"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>есть portfolio:     2
+есть courses:       1
+есть ready_to_move: 8
+нет ready_to_move:  1
+{"fio"=&gt;"Алина Дроздова", "portfolio"=&gt;"https://github.com/example/drozdova"}
+{"fio"=&gt;"Марк Ефремов", "portfolio"=&gt;"https://github.com/example/efremov"}</pre>
+        </figure>
+        <p>Числа совпадают с тем, что было видно в предыдущих главах: поля <code>ready_to_move</code> нет в одном резюме — Анны Беловой. Для <code>$exists</code> значение поля не важно: документ с <code>"portfolio": ""</code> или <code>"portfolio": null</code> тоже попал бы в первую строку.</p>
+
+        <h2 id="s2"><span class="sec">§2</span><code>$exists</code> вместе с отрицанием</h2>
+        <p>В главах 2.2–2.4 отрицания <code>$ne</code>, <code>$nin</code>, <code>$not</code> и <code>$nor</code> каждый раз возвращали и документы без проверяемого поля. <code>$exists: true</code> в том же документе условия убирает их: оба оператора стоят на одном поле и соединяются по «и».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>отрицание без документов без поля</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"ready_to_move $ne true:    "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"ready_to_move"</span>: {<span class="s">"$ne"</span>: <span class="k">True</span>}}))
+<span class="f">print</span>(<span class="s">"то же и поле есть:         "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"ready_to_move"</span>: {<span class="s">"$ne"</span>: <span class="k">True</span>, <span class="s">"$exists"</span>: <span class="k">True</span>}}))
+<span class="f">print</span>(<span class="s">"уровень не СПО и поле есть:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"education.level"</span>: {<span class="s">"$nin"</span>: [<span class="s">"СПО"</span>], <span class="s">"$exists"</span>: <span class="k">True</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>отрицание без документов без поля</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"ready_to_move $ne true:     "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"то же и поле есть:          "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, <span class="k">true</span>), <span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"уровень не СПО и поле есть: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"education.level"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nin"</span>, <span class="f">make_array</span>(<span class="s">"СПО"</span>)), <span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>отрицание без документов без поля</span></figcaption>
+<pre>neTrue, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">true</span>}}}})
+neTrueEst, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">true</span>}, {Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+neSpoEst, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"education.level"</span>, Value: bson.D{{Key: <span class="s">"$nin"</span>, Value: bson.A{<span class="s">"СПО"</span>}}, {Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"ready_to_move $ne true:    "</span>, neTrue)
+fmt.<span class="f">Println</span>(<span class="s">"то же и поле есть:         "</span>, neTrueEst)
+fmt.<span class="f">Println</span>(<span class="s">"уровень не СПО и поле есть:"</span>, neSpoEst)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>отрицание без документов без поля</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"ready_to_move $ne true:     "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"ready_to_move"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"то же и поле есть:          "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"ready_to_move"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">true</span>, <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"уровень не СПО и поле есть: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"education.level"</span> =&gt; { <span class="s">"$nin"</span> =&gt; [<span class="s">"СПО"</span>], <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ready_to_move $ne true:     5
+то же и поле есть:          4
+уровень не СПО и поле есть: 4</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ready_to_move $ne true:     5
+то же и поле есть:          4
+уровень не СПО и поле есть: 4</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ready_to_move $ne true:     5
+то же и поле есть:          4
+уровень не СПО и поле есть: 4</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ready_to_move $ne true:     5
+то же и поле есть:          4
+уровень не СПО и поле есть: 4</pre>
+        </figure>
+        <p>Условие «не равно <code>true</code>» дало пять резюме, с требованием, чтобы поле было, — четыре. Те же четыре дало условие «уровень образования не СПО» с <code>$exists</code>: резюме без вложенного документа <code>education</code> в результат не попало. Точка в имени поля работает с <code>$exists</code> так же, как с другими операторами.</p>
+
+        <h2 id="s3"><span class="sec">§3</span><code>null</code> и отсутствующее поле</h2>
+        <p>У документа без поля и у документа, где поле равно <code>null</code>, значения нет в обоих случаях, но для сервера это разные документы. В первом поля нет совсем, во втором оно есть и хранит значение типа <code>null</code>. Равенство с <code>null</code> (глава 2.3 §6) эти случаи не различает, <code>$exists</code> и <code>$type</code> — различают.</p>
+        <p>Пример берёт коллекцию <code>events</code> из базы <code>logs</code> — журнал запросов к сервису из главы 1.6. В каждом событии есть поле <code>user_id</code>: у части событий в нём строка с идентификатором пользователя, у остальных — <code>null</code>. Коллекция открывается первой строкой примера.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>null и отсутствующее поле</span></figcaption>
+<pre>events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>]
+
+<span class="f">print</span>(<span class="s">"events: user_id null:             "</span>, events.<span class="f">count_documents</span>({<span class="s">"user_id"</span>: <span class="k">None</span>}))
+<span class="f">print</span>(<span class="s">"events: user_id нет:              "</span>, events.<span class="f">count_documents</span>({<span class="s">"user_id"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}))
+<span class="f">print</span>(<span class="s">"events: user_id $type null:       "</span>, events.<span class="f">count_documents</span>({<span class="s">"user_id"</span>: {<span class="s">"$type"</span>: <span class="s">"null"</span>}}))
+<span class="f">print</span>(<span class="s">"resumes: ready_to_move null:      "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"ready_to_move"</span>: <span class="k">None</span>}))
+<span class="f">print</span>(<span class="s">"resumes: ready_to_move $type null:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"ready_to_move"</span>: {<span class="s">"$type"</span>: <span class="s">"null"</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>null и отсутствующее поле</span></figcaption>
+<pre><span class="k">auto</span> events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>];
+
+std::cout &lt;&lt; <span class="s">"events: user_id null:              "</span> &lt;&lt; events.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, bsoncxx::types::b_null{}))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"events: user_id нет:               "</span> &lt;&lt; events.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"events: user_id $type null:        "</span> &lt;&lt; events.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"null"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"resumes: ready_to_move null:       "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, bsoncxx::types::b_null{}))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"resumes: ready_to_move $type null: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"null"</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>null и отсутствующее поле</span></figcaption>
+<pre>events := client.<span class="f">Database</span>(<span class="s">"logs"</span>).<span class="f">Collection</span>(<span class="s">"events"</span>)
+
+ravnoNull, _ := events.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"user_id"</span>, Value: <span class="k">nil</span>}})
+netPolya, _ := events.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"user_id"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}})
+tipNull, _ := events.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"user_id"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"null"</span>}}}})
+readyNull, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: <span class="k">nil</span>}})
+readyTipNull, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"null"</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"events: user_id null:             "</span>, ravnoNull)
+fmt.<span class="f">Println</span>(<span class="s">"events: user_id нет:              "</span>, netPolya)
+fmt.<span class="f">Println</span>(<span class="s">"events: user_id $type null:       "</span>, tipNull)
+fmt.<span class="f">Println</span>(<span class="s">"resumes: ready_to_move null:      "</span>, readyNull)
+fmt.<span class="f">Println</span>(<span class="s">"resumes: ready_to_move $type null:"</span>, readyTipNull)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>null и отсутствующее поле</span></figcaption>
+<pre>events = client.<span class="f">use</span>(<span class="s">"logs"</span>).database[:events]
+
+<span class="f">puts</span> <span class="s">"events: user_id null:              "</span> + events.<span class="f">count_documents</span>({ <span class="s">"user_id"</span> =&gt; <span class="k">nil</span> }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"events: user_id нет:               "</span> + events.<span class="f">count_documents</span>({ <span class="s">"user_id"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"events: user_id $type null:        "</span> + events.<span class="f">count_documents</span>({ <span class="s">"user_id"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"null"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"resumes: ready_to_move null:       "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"ready_to_move"</span> =&gt; <span class="k">nil</span> }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"resumes: ready_to_move $type null: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"ready_to_move"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"null"</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>events: user_id null:              591
+events: user_id нет:               0
+events: user_id $type null:        591
+resumes: ready_to_move null:       1
+resumes: ready_to_move $type null: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>events: user_id null:              591
+events: user_id нет:               0
+events: user_id $type null:        591
+resumes: ready_to_move null:       1
+resumes: ready_to_move $type null: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>events: user_id null:              591
+events: user_id нет:               0
+events: user_id $type null:        591
+resumes: ready_to_move null:       1
+resumes: ready_to_move $type null: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>events: user_id null:              591
+events: user_id нет:               0
+events: user_id $type null:        591
+resumes: ready_to_move null:       1
+resumes: ready_to_move $type null: 0</pre>
+        </figure>
+        <p>В журнале 591 событие с <code>user_id</code>, равным <code>null</code>, и ни одного события без этого поля. Поэтому равенство с <code>null</code> и <code>$type: "null"</code> дали одно и то же число. В резюме всё наоборот: поля <code>ready_to_move</code> нет в одном документе, а значения <code>null</code> нет ни в одном. Равенство с <code>null</code> нашло этот документ, <code>$type: "null"</code> — не нашло.</p>
+        <p>Отсюда правило: <code>{"поле": null}</code> — «значения нет, по любой причине»; <code>{"поле": {"$type": "null"}}</code> — «поле есть и записано как <code>null</code>»; <code>{"поле": {"$exists": false}}</code> — «поля нет».</p>
+
+        <h2 id="s4"><span class="sec">§4</span><code>$type</code>: тип значения</h2>
+        <p>Оператор <code>$type</code> отбирает документы, у которых значение поля имеет заданный тип BSON. Тип задаётся именем. Основные имена собраны в таблице; полный список — в документации MongoDB.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Имя</th><th>Тип BSON</th><th>Поле в учебных базах</th></tr></thead>
+            <tbody>
+              <tr><td><code>"string"</code></td><td>строка</td><td><code>resumes.city</code></td></tr>
+              <tr><td><code>"int"</code>, <code>"long"</code>, <code>"double"</code></td><td>целое 32 бита, целое 64 бита, дробное</td><td><code>resumes.salary</code> — <code>int</code></td></tr>
+              <tr><td><code>"number"</code></td><td>любое из числовых</td><td><code>resumes.salary</code></td></tr>
+              <tr><td><code>"bool"</code></td><td>логическое</td><td><code>resumes.ready_to_move</code></td></tr>
+              <tr><td><code>"date"</code></td><td>дата</td><td><code>resumes.updated</code></td></tr>
+              <tr><td><code>"object"</code></td><td>вложенный документ</td><td><code>vacancies.salary</code></td></tr>
+              <tr><td><code>"array"</code></td><td>массив</td><td><code>resumes.skills</code></td></tr>
+              <tr><td><code>"objectId"</code></td><td>ObjectId</td><td><code>resumes._id</code></td></tr>
+              <tr><td><code>"null"</code></td><td><code>null</code></td><td><code>events.user_id</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>В главе 2.1 было показано, что одно имя поля может хранить значения разных типов в разных документах. В учебной базе так устроено поле <code>salary</code>: в резюме это число, в вакансиях — вложенный документ с вилкой.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>тип значения поля</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"resumes: salary число:     "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"salary"</span>: {<span class="s">"$type"</span>: <span class="s">"number"</span>}}))
+<span class="f">print</span>(<span class="s">"resumes: salary документ:  "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"salary"</span>: {<span class="s">"$type"</span>: <span class="s">"object"</span>}}))
+<span class="f">print</span>(<span class="s">"vacancies: salary документ:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"salary"</span>: {<span class="s">"$type"</span>: <span class="s">"object"</span>}}))
+<span class="f">print</span>(<span class="s">"vacancies: salary число:   "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"salary"</span>: {<span class="s">"$type"</span>: <span class="s">"number"</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>тип значения поля</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"resumes: salary число:      "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"number"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"resumes: salary документ:   "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"object"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"vacancies: salary документ: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"object"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"vacancies: salary число:    "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"number"</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>тип значения поля</span></figcaption>
+<pre>rChislo, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"number"</span>}}}})
+rDokument, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"object"</span>}}}})
+vDokument, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"object"</span>}}}})
+vChislo, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"number"</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"resumes: salary число:     "</span>, rChislo)
+fmt.<span class="f">Println</span>(<span class="s">"resumes: salary документ:  "</span>, rDokument)
+fmt.<span class="f">Println</span>(<span class="s">"vacancies: salary документ:"</span>, vDokument)
+fmt.<span class="f">Println</span>(<span class="s">"vacancies: salary число:   "</span>, vChislo)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>тип значения поля</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"resumes: salary число:      "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"salary"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"number"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"resumes: salary документ:   "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"salary"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"object"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"vacancies: salary документ: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"salary"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"object"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"vacancies: salary число:    "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"salary"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"number"</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>resumes: salary число:      9
+resumes: salary документ:   0
+vacancies: salary документ: 8
+vacancies: salary число:    0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>resumes: salary число:      9
+resumes: salary документ:   0
+vacancies: salary документ: 8
+vacancies: salary число:    0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>resumes: salary число:      9
+resumes: salary документ:   0
+vacancies: salary документ: 8
+vacancies: salary число:    0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>resumes: salary число:      9
+resumes: salary документ:   0
+vacancies: salary документ: 8
+vacancies: salary число:    0</pre>
+        </figure>
+        <p>Все девять резюме хранят зарплату числом, все восемь вакансий — документом. Имя <code>"number"</code> используют, когда неважно, каким из числовых типов записано значение: драйверы по-разному выбирают между <code>int</code>, <code>long</code> и <code>double</code>, а <code>"number"</code> находит все три.</p>
+
+        <h2 id="s5"><span class="sec">§5</span><code>$type</code> и поле-массив</h2>
+        <p>С массивом <code>$type</code> проверяет и сам массив, и каждый его элемент. Документ подходит, если тип совпал хотя бы у одного из них.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$type и поле-массив</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"experience массив:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"experience"</span>: {<span class="s">"$type"</span>: <span class="s">"array"</span>}}))
+<span class="f">print</span>(<span class="s">"skills массив:    "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$type"</span>: <span class="s">"array"</span>}}))
+<span class="f">print</span>(<span class="s">"skills строка:    "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$type"</span>: <span class="s">"string"</span>}}))
+<span class="f">print</span>(<span class="s">"skills не массив: "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$not"</span>: {<span class="s">"$type"</span>: <span class="s">"array"</span>}}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$type и поле-массив</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"experience массив: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"array"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"skills массив:     "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"array"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"skills строка:     "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"string"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"skills не массив:  "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$not"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"array"</span>))))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$type и поле-массив</span></figcaption>
+<pre>opyt, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"experience"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"array"</span>}}}})
+navykiMassiv, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"array"</span>}}}})
+navykiStroka, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"string"</span>}}}})
+navykiNeMassiv, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$not"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"array"</span>}}}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"experience массив:"</span>, opyt)
+fmt.<span class="f">Println</span>(<span class="s">"skills массив:    "</span>, navykiMassiv)
+fmt.<span class="f">Println</span>(<span class="s">"skills строка:    "</span>, navykiStroka)
+fmt.<span class="f">Println</span>(<span class="s">"skills не массив: "</span>, navykiNeMassiv)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$type и поле-массив</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"experience массив: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"experience"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"array"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"skills массив:     "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"array"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"skills строка:     "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"string"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"skills не массив:  "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$not"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"array"</span> } } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>experience массив: 8
+skills массив:     9
+skills строка:     9
+skills не массив:  0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>experience массив: 8
+skills массив:     9
+skills строка:     9
+skills не массив:  0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>experience массив: 8
+skills массив:     9
+skills строка:     9
+skills не массив:  0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>experience массив: 8
+skills массив:     9
+skills строка:     9
+skills не массив:  0</pre>
+        </figure>
+        <p>Условие <code>$type: "array"</code> на <code>experience</code> нашло восемь резюме: у Дарьи Нечаевой массив опыта пустой, но это массив. На поле <code>skills</code> и <code>"array"</code>, и <code>"string"</code> нашли все девять резюме: сам массив подходит под первое условие, его элементы-строки — под второе. Чтобы отобрать документы, где в поле лежит одиночная строка вместо массива, условие записывают через отрицание: «поле не массив». Таких резюме в базе нет.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Значение не того типа</h2>
+        <p>В главе 2.1 разобрано, откуда в базе берутся строки вместо чисел: веб-форма присылает все поля текстом. Пример моделирует такую запись в песочнице — добавляет товар, у которого цена записана строкой, — и ищет её двумя способами.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>цена, записанная строкой</span></figcaption>
+<pre><span class="c"># товар из веб-формы: цена пришла текстом и так и записана</span>
+box.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"p-201"</span>,
+                <span class="s">"title"</span>: <span class="s">"Кабель USB-C 2 м"</span>,
+                <span class="s">"category"</span>: <span class="s">"аксессуары"</span>,
+                <span class="s">"price"</span>: <span class="s">"790"</span>})
+
+<span class="f">print</span>(<span class="s">"цена строкой:   "</span>, box.<span class="f">count_documents</span>({<span class="s">"price"</span>: {<span class="s">"$type"</span>: <span class="s">"string"</span>}}))
+<span class="f">print</span>(<span class="s">"цена больше 500:"</span>, box.<span class="f">count_documents</span>({<span class="s">"price"</span>: {<span class="s">"$gt"</span>: <span class="n">500</span>}}))
+
+<span class="k">for</span> doc <span class="k">in</span> box.<span class="f">find</span>({<span class="s">"price"</span>: {<span class="s">"$type"</span>: <span class="s">"string"</span>}}, {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>цена, записанная строкой</span></figcaption>
+<pre><span class="c">// товар из веб-формы: цена пришла текстом и так и записана</span>
+box.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-201"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель USB-C 2 м"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="s">"790"</span>)));
+
+std::cout &lt;&lt; <span class="s">"цена строкой:    "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"string"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"цена больше 500: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="n">500</span>))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : box.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"string"</span>)))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>цена, записанная строкой</span></figcaption>
+<pre><span class="c">// товар из веб-формы: цена пришла текстом и так и записана</span>
+box.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"_id"</span>, Value: <span class="s">"p-201"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Кабель USB-C 2 м"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="s">"790"</span>}})
+
+stroka, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"string"</span>}}}})
+dorozhe, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: <span class="n">500</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"цена строкой:   "</span>, stroka)
+fmt.<span class="f">Println</span>(<span class="s">"цена больше 500:"</span>, dorozhe)
+
+cursor, _ := box.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"string"</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>цена, записанная строкой</span></figcaption>
+<pre><span class="c"># товар из веб-формы: цена пришла текстом и так и записана</span>
+box.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-201"</span>,
+                 <span class="s">"title"</span> =&gt; <span class="s">"Кабель USB-C 2 м"</span>,
+                 <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>,
+                 <span class="s">"price"</span> =&gt; <span class="s">"790"</span> })
+
+<span class="f">puts</span> <span class="s">"цена строкой:    "</span> + box.<span class="f">count_documents</span>({ <span class="s">"price"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"string"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"цена больше 500: "</span> + box.<span class="f">count_documents</span>({ <span class="s">"price"</span> =&gt; { <span class="s">"$gt"</span> =&gt; <span class="n">500</span> } }).<span class="f">to_s</span>
+
+box.<span class="f">find</span>({ <span class="s">"price"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"string"</span> } }, projection: { <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+   .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    1
+цена больше 500: 21
+{'_id': 'p-201', 'title': 'Кабель USB-C 2 м', 'price': '790'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    1
+цена больше 500: 21
+{ "_id" : "p-201", "title" : "Кабель USB-C 2 м", "price" : "790" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    1
+цена больше 500: 21
+{"_id":"p-201","title":"Кабель USB-C 2 м","price":"790"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    1
+цена больше 500: 21
+{"_id"=&gt;"p-201", "title"=&gt;"Кабель USB-C 2 м", "price"=&gt;"790"}</pre>
+        </figure>
+        <p>Условие <code>$type: "string"</code> нашло кабель, а условие «дороже 500» — нет, хотя 790 больше 500. Число в фильтре сравнивается только с числами (глава 2.2 §5), и документ со строкой в выборку по цене не попадает. Ошибки при этом нет, поэтому такие записи проверяют отдельным запросом по типу.</p>
+        <p>Найденное значение исправляют обновлением из главы <a href="../07-obnovlenie/index.html">1.7</a>: цену записывают числом.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>цена исправлена</span></figcaption>
+<pre>box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-201"</span>}, {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">790</span>}})
+
+<span class="f">print</span>(<span class="s">"цена строкой:   "</span>, box.<span class="f">count_documents</span>({<span class="s">"price"</span>: {<span class="s">"$type"</span>: <span class="s">"string"</span>}}))
+<span class="f">print</span>(<span class="s">"цена больше 500:"</span>, box.<span class="f">count_documents</span>({<span class="s">"price"</span>: {<span class="s">"$gt"</span>: <span class="n">500</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>цена исправлена</span></figcaption>
+<pre>box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-201"</span>)), <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">790</span>)))));
+
+std::cout &lt;&lt; <span class="s">"цена строкой:    "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"string"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"цена больше 500: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="n">500</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>цена исправлена</span></figcaption>
+<pre>box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-201"</span>}}, bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">790</span>}}}})
+
+stroka, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"string"</span>}}}})
+dorozhe, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: <span class="n">500</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"цена строкой:   "</span>, stroka)
+fmt.<span class="f">Println</span>(<span class="s">"цена больше 500:"</span>, dorozhe)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>цена исправлена</span></figcaption>
+<pre>box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-201"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">790</span> } })
+
+<span class="f">puts</span> <span class="s">"цена строкой:    "</span> + box.<span class="f">count_documents</span>({ <span class="s">"price"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"string"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"цена больше 500: "</span> + box.<span class="f">count_documents</span>({ <span class="s">"price"</span> =&gt; { <span class="s">"$gt"</span> =&gt; <span class="n">500</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    0
+цена больше 500: 22</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    0
+цена больше 500: 22</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    0
+цена больше 500: 22</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>цена строкой:    0
+цена больше 500: 22</pre>
+        </figure>
+        <p>Строковых цен не осталось, и кабель попал в выборку по цене: товаров дороже 500 стало на один больше. Когда таких документов много, строку переводят в число одним запросом для всей коллекции — это делается конвейером агрегации в модуле 4.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Схема коллекции в Compass</h2>
+        <p>Вкладка <b>Schema</b> в Compass собирает сведения о полях коллекции: какие поля встречаются, какого они типа и у какой доли документов есть. Анализ запускается кнопкой <b>Analyze</b>.</p>
+        <figure class="shot">
+          <img src="../../shots/67-hh-schema.png" alt="Compass, коллекция hh.resumes, вкладка Schema: поля _id, city, contacts, courses, education с полосами типов">
+          <figcaption>Compass · <code>hh.resumes</code>, вкладка <b>Schema</b> — сведения о полях по всем девяти документам</figcaption>
+        </figure>
+        <p>Над списком написано <code>This report is based on a sample of 9 documents</code>: анализ прошёл по всем девяти резюме. Поля идут по алфавиту. Под именем каждого поля — полоса типов: её длина разделена между типами пропорционально числу документов. У <code>contacts</code> и <code>education</code> почти вся полоса занята типом <code>document</code>, а в конце остаётся короткий отрезок <code>undefined</code> — так Compass отмечает документы, где поля нет. У <code>courses</code> наоборот: тёмный отрезок <code>array</code> короткий, почти вся полоса — <code>undefined</code>. Справа Compass показывает распределение значений: для <code>city</code> — пять городов, для <code>_id</code> — дни и часы создания, взятые из ObjectId (глава 1.2).</p>
+        <figure class="shot">
+          <img src="../../shots/68-hh-exists.png" alt="Compass, коллекция hh.resumes: фильтр portfolio exists true, счётчик 1 – 2 of 2">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ portfolio: { $exists: true } }</code> — два резюме с портфолио</figcaption>
+        </figure>
+        <p>Во вкладке <b>Documents</b> <code>$exists</code> пишется в поле фильтра. Счётчик <code>1 – 2 of 2</code> совпадает с первой строкой вывода в §1; в обоих документах в кадре поле <code>portfolio</code> стоит последним.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"portfolio": {"$exists": "false"}}</code></td><td>Находит документы, где поле есть: непустая строка считается истиной</td><td><code>{"$exists": False}</code></td></tr>
+              <tr><td><code>{"salary": {"$type": "integer"}}</code></td><td>Ошибка сервера: <code>Unknown type name alias: integer</code></td><td><code>{"$type": "int"}</code></td></tr>
+              <tr><td><code>$type: "int"</code> на поле, где встречаются дробные числа</td><td>Документы с <code>double</code> и <code>long</code> не находятся</td><td><code>{"$type": "number"}</code></td></tr>
+              <tr><td><code>{"skills": {"$type": "string"}}</code></td><td>Находит и массивы строк: условие проверяется на каждом элементе</td><td><code>{"$not": {"$type": "array"}}</code></td></tr>
+              <tr><td><code>{"user_id": None}</code></td><td>Кроме <code>null</code> находит документы, где поля нет</td><td><code>{"$type": "null"}</code></td></tr>
+              <tr><td><code>{"ready_to_move": {"$exists": False}}</code></td><td>Не находит документы, где поле есть и равно <code>null</code></td><td>Равенство <code>null</code> — оно находит оба случая</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>make_document(kvp("portfolio", make_document(kvp("$exists", "false"))))</code></td><td>Находит документы, где поле есть: непустая строка считается истиной</td><td><code>make_document(kvp("$exists", false))</code></td></tr>
+              <tr><td><code>make_document(kvp("salary", make_document(kvp("$type", "integer"))))</code></td><td>Ошибка сервера: <code>Unknown type name alias: integer</code></td><td><code>make_document(kvp("$type", "int"))</code></td></tr>
+              <tr><td><code>$type: "int"</code> на поле, где встречаются дробные числа</td><td>Документы с <code>double</code> и <code>long</code> не находятся</td><td><code>make_document(kvp("$type", "number"))</code></td></tr>
+              <tr><td><code>make_document(kvp("skills", make_document(kvp("$type", "string"))))</code></td><td>Находит и массивы строк: условие проверяется на каждом элементе</td><td><code>make_document(kvp("$not", make_document(kvp("$type", "array"))))</code></td></tr>
+              <tr><td><code>make_document(kvp("user_id", bsoncxx::types::b_null{}))</code></td><td>Кроме <code>null</code> находит документы, где поля нет</td><td><code>make_document(kvp("$type", "null"))</code></td></tr>
+              <tr><td><code>make_document(kvp("ready_to_move", make_document(kvp("$exists", false))))</code></td><td>Не находит документы, где поле есть и равно <code>null</code></td><td>Равенство <code>null</code> — оно находит оба случая</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>bson.D{{Key: "portfolio", Value: bson.D{{Key: "$exists", Value: "false"}}}}</code></td><td>Находит документы, где поле есть: непустая строка считается истиной</td><td><code>bson.D{{Key: "$exists", Value: false}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "salary", Value: bson.D{{Key: "$type", Value: "integer"}}}}</code></td><td>Ошибка сервера: <code>Unknown type name alias: integer</code></td><td><code>bson.D{{Key: "$type", Value: "int"}}</code></td></tr>
+              <tr><td><code>$type: "int"</code> на поле, где встречаются дробные числа</td><td>Документы с <code>double</code> и <code>long</code> не находятся</td><td><code>bson.D{{Key: "$type", Value: "number"}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "skills", Value: bson.D{{Key: "$type", Value: "string"}}}}</code></td><td>Находит и массивы строк: условие проверяется на каждом элементе</td><td><code>bson.D{{Key: "$not", Value: bson.D{{Key: "$type", Value: "array"}}}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "user_id", Value: nil}}</code></td><td>Кроме <code>null</code> находит документы, где поля нет</td><td><code>bson.D{{Key: "$type", Value: "null"}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "ready_to_move", Value: bson.D{{Key: "$exists", Value: false}}}}</code></td><td>Не находит документы, где поле есть и равно <code>null</code></td><td>Равенство <code>null</code> — оно находит оба случая</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "portfolio" =&gt; { "$exists" =&gt; "false" } }</code></td><td>Находит документы, где поле есть: непустая строка считается истиной</td><td><code>{ "$exists" =&gt; false }</code></td></tr>
+              <tr><td><code>{ "salary" =&gt; { "$type" =&gt; "integer" } }</code></td><td>Ошибка сервера: <code>Unknown type name alias: integer</code></td><td><code>{ "$type" =&gt; "int" }</code></td></tr>
+              <tr><td><code>$type: "int"</code> на поле, где встречаются дробные числа</td><td>Документы с <code>double</code> и <code>long</code> не находятся</td><td><code>{ "$type" =&gt; "number" }</code></td></tr>
+              <tr><td><code>{ "skills" =&gt; { "$type" =&gt; "string" } }</code></td><td>Находит и массивы строк: условие проверяется на каждом элементе</td><td><code>{ "$not" =&gt; { "$type" =&gt; "array" } }</code></td></tr>
+              <tr><td><code>{ "user_id" =&gt; nil }</code></td><td>Кроме <code>null</code> находит документы, где поля нет</td><td><code>{ "$type" =&gt; "null" }</code></td></tr>
+              <tr><td><code>{ "ready_to_move" =&gt; { "$exists" =&gt; false } }</code></td><td>Не находит документы, где поле есть и равно <code>null</code></td><td>Равенство <code>null</code> — оно находит оба случая</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем <code>{"ready_to_move": null}</code> отличается от <code>{"ready_to_move": {"$exists": false}}</code>?</summary>
+          <p>Равенство с <code>null</code> отбирает документы, где поля нет, и документы, где поле равно <code>null</code>. <code>$exists: false</code> отбирает только документы без поля. В резюме значения <code>null</code> нет, поэтому оба фильтра находят одно резюме; в журнале событий, где <code>user_id</code> бывает <code>null</code>, результаты различаются.</p>
+        </details>
+        <details>
+          <summary>Как из <code>{"ready_to_move": {"$ne": true}}</code> убрать документы без поля?</summary>
+          <p>Добавить в тот же документ условия <code>$exists: true</code>: <code>{"ready_to_move": {"$ne": true, "$exists": true}}</code>. Два оператора на одном поле соединяются по «и».</p>
+        </details>
+        <details>
+          <summary>Почему <code>{"skills": {"$type": "string"}}</code> нашёл все резюме, хотя <code>skills</code> — массив?</summary>
+          <p>С массивом <code>$type</code> проверяет и массив, и каждый элемент. Элементы <code>skills</code> — строки, поэтому документ подходит. Одиночную строку вместо массива находят условием <code>{"skills": {"$not": {"$type": "array"}}}</code>.</p>
+        </details>
+        <details>
+          <summary>Почему товар с ценой <code>"790"</code> не нашёлся по условию <code>{"price": {"$gt": 500}}</code>?</summary>
+          <p>Число в фильтре сравнивается только с числами, а в документе цена — строка. Такие записи находят по типу, <code>{"price": {"$type": "string"}}</code>, и исправляют обновлением.</p>
+        </details>
+        <details>
+          <summary>Что покажет вкладка Schema для поля, которое есть у одного документа из девяти?</summary>
+          <p>Полосу типов, где тип значения занимает короткий отрезок, а остальное — <code>undefined</code>, то есть документы без поля. Так на вкладке выглядит поле <code>courses</code> в резюме.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Поле есть</b>
+            <code>{"portfolio": {"$exists": True}}</code>
+          </div>
+          <div>
+            <b>Поля нет</b>
+            <code>{"portfolio": {"$exists": False}}</code>
+          </div>
+          <div>
+            <b>Отрицание только по заполненным</b>
+            <code>{"ready_to_move": {"$ne": True, "$exists": True}}</code>
+          </div>
+          <div>
+            <b>Только null</b>
+            <code>{"user_id": {"$type": "null"}}</code>
+          </div>
+          <div>
+            <b>Любое число</b>
+            <code>{"salary": {"$type": "number"}}</code>
+          </div>
+          <div>
+            <b>Значение не того типа</b>
+            <code>{"price": {"$type": "string"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Поле есть</b>
+            <code>make_document(kvp("portfolio", make_document(kvp("$exists", true))))</code>
+          </div>
+          <div>
+            <b>Поля нет</b>
+            <code>make_document(kvp("portfolio", make_document(kvp("$exists", false))))</code>
+          </div>
+          <div>
+            <b>Отрицание только по заполненным</b>
+            <code>make_document(kvp("ready_to_move", make_document(kvp("$ne", true), kvp("$exists", true))))</code>
+          </div>
+          <div>
+            <b>Только null</b>
+            <code>make_document(kvp("user_id", make_document(kvp("$type", "null"))))</code>
+          </div>
+          <div>
+            <b>Любое число</b>
+            <code>make_document(kvp("salary", make_document(kvp("$type", "number"))))</code>
+          </div>
+          <div>
+            <b>Значение не того типа</b>
+            <code>make_document(kvp("price", make_document(kvp("$type", "string"))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Поле есть</b>
+            <code>bson.D{{Key: "portfolio", Value: bson.D{{Key: "$exists", Value: true}}}}</code>
+          </div>
+          <div>
+            <b>Поля нет</b>
+            <code>bson.D{{Key: "portfolio", Value: bson.D{{Key: "$exists", Value: false}}}}</code>
+          </div>
+          <div>
+            <b>Отрицание только по заполненным</b>
+            <code>bson.D{{Key: "ready_to_move", Value: bson.D{{Key: "$ne", Value: true}, {Key: "$exists", Value: true}}}}</code>
+          </div>
+          <div>
+            <b>Только null</b>
+            <code>bson.D{{Key: "user_id", Value: bson.D{{Key: "$type", Value: "null"}}}}</code>
+          </div>
+          <div>
+            <b>Любое число</b>
+            <code>bson.D{{Key: "salary", Value: bson.D{{Key: "$type", Value: "number"}}}}</code>
+          </div>
+          <div>
+            <b>Значение не того типа</b>
+            <code>bson.D{{Key: "price", Value: bson.D{{Key: "$type", Value: "string"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Поле есть</b>
+            <code>{ "portfolio" =&gt; { "$exists" =&gt; true } }</code>
+          </div>
+          <div>
+            <b>Поля нет</b>
+            <code>{ "portfolio" =&gt; { "$exists" =&gt; false } }</code>
+          </div>
+          <div>
+            <b>Отрицание только по заполненным</b>
+            <code>{ "ready_to_move" =&gt; { "$ne" =&gt; true, "$exists" =&gt; true } }</code>
+          </div>
+          <div>
+            <b>Только null</b>
+            <code>{ "user_id" =&gt; { "$type" =&gt; "null" } }</code>
+          </div>
+          <div>
+            <b>Любое число</b>
+            <code>{ "salary" =&gt; { "$type" =&gt; "number" } }</code>
+          </div>
+          <div>
+            <b>Значение не того типа</b>
+            <code>{ "price" =&gt; { "$type" =&gt; "string" } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$exists</code> проверяет, есть ли поле в документе, независимо от значения. Вместе с отрицанием в одном документе условия он убирает документы без поля. Равенство с <code>null</code> находит и поле со значением <code>null</code>, и отсутствующее поле; <code>$type: "null"</code> — только первое, <code>$exists: false</code> — только второе. <code>$type</code> проверяет тип значения по имени, <code>"number"</code> объединяет все числовые типы, а на массиве условие проверяется и для самого массива, и для каждого элемента. Значения не того типа не попадают в выборки по значению без ошибки, поэтому их ищут через <code>$type</code>. Следующая глава — об условиях на массивы: <code>$all</code>, <code>$elemMatch</code> и <code>$size</code>.</p>
+
+        <div class="pager"><a href="../12-logika/index.html">← 2.4 Логика</a><a href="../14-massivy/index.html">2.6 Массивы →</a></div>
+
+        <div class="colophon">
+          <span>Глава 2.5 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
