@@ -37,7 +37,9 @@ expect('db.resumes.countDocuments({city:"Ярославль", position:"Junior P
 expect('db.resumes.countDocuments({salary:"70000"})', 0, 'зарплата строкой');
 expect('db.resumes.countDocuments({skills:"Python"})', 6, 'Python среди навыков');
 expect('db.resumes.countDocuments({"education.level":"СПО"})', 4, 'СПО в education.level');
-console.log('стенд сверен с текстом главы 2.1');
+expect('db.companies.countDocuments({employees:{$gte:500}})', 4, 'компании от 500 сотрудников');
+expect('db.resumes.countDocuments({ready_to_move:{$ne:true}})', 5, 'ready_to_move не равно true');
+console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
   const settle = (ms = 600) => page.waitForTimeout(ms);
@@ -156,6 +158,17 @@ await withCompass(async page => {
     await page.locator(`[data-testid="collections-list-row-${collection}"]`).first().click({ force: true });
     await page.waitForSelector('[data-testid="documents-content"]', { timeout: 25000 });
     await settle(2200);
+    // Переход открывает новую вкладку: убираем вкладки других коллекций.
+    for (let guard = 0; guard < 8; guard += 1) {
+      const tabs = page.locator('[data-testid="workspace-tab-button"]');
+      if (await tabs.count() <= 1) break;
+      const texts = await tabs.allInnerTexts();
+      const other = texts.findIndex(t => t.trim() !== collection);
+      if (other < 0) break;
+      await tabs.nth(other).hover().catch(() => {});
+      await tabs.nth(other).locator('[data-testid="close-workspace-tab"]').click({ force: true }).catch(() => {});
+      await settle(600);
+    }
     const header = await page.locator('[data-testid="collection-header"]').first().innerText();
     if (!header.includes(database) || !header.includes(collection)) {
       throw new Error(`открылось не то: ждали ${database}.${collection}, видим «${header.split('\n')[0]}»`);
@@ -291,5 +304,24 @@ await withCompass(async page => {
     await setQuery({});
     await collapseOptions();
     await shot('60-hh-pustoy-filtr', 700);   // 25 документов страницы в кадр не влезают, и это видно по счётчику
+  }
+  // --- 61 · глава 2.2 §8: оператор сравнения ----------------------
+  if (need('61-hh-gte')) {
+    await openCollection('hh', 'companies');
+    await setQuery({ filter: '{ employees: { $gte: 500 } }' });
+    await collapseOptions();
+    await useJsonView();
+    await shot('61-hh-gte', await fitHeight(1160));
+  }
+
+  // --- 62 · 2.2 §8: $ne и документ без поля -----------------------
+  if (need('62-hh-ne')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ ready_to_move: { $ne: true } }' });
+    await collapseOptions();
+    await useJsonView();
+    // Раскрываем первый документ — резюме без поля ready_to_move
+    await expandAll(1);
+    await shot('62-hh-ne', 700);
   }
 });

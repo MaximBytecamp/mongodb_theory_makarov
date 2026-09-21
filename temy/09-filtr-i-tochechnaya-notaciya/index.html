@@ -668,7 +668,7 @@ fmt.<span class="f">Println</span>(<span class="s">"всего собеседо�
               <tr><td><code>kvp("salary", "70000")</code></td><td>Пусто: в базе число, а ищем строку</td><td><code>kvp("salary", 70000)</code></td></tr>
               <tr><td><code>kvp("is_open", "true")</code></td><td>Пусто: в базе логическое значение</td><td><code>kvp("is_open", true)</code></td></tr>
               <tr><td><code>kvp("salary", make_document(kvp("from", 60000)))</code></td><td>Пусто: сравнение с целым документом</td><td><code>kvp("salary.from", 60000)</code></td></tr>
-              <tr><td><code>kvp("salary", 60000L)</code></td><td>Может не найтись: в базе <code>int32</code>, а отправлен <code>int64</code></td><td>Число без суффикса: <code>kvp("salary", 60000)</code></td></tr>
+              <tr><td><code>make_document(kvp("city", "Ярославль"), kvp("city", "Москва"))</code></td><td>Пусто: оба поля уходят на сервер и соединяются по «и», а город у документа один</td><td>Нужен <code>$in</code> или <code>$or</code> — главы 2.3 и 2.4</td></tr>
               <tr><td><code>kvp("education.level", "спо")</code></td><td>Пусто: регистр не совпал</td><td><code>kvp("education.level", "СПО")</code></td></tr>
               <tr><td>Фильтр объявлен внутри <code>if</code>, а используется снаружи</td><td>Обращение к освобождённой памяти: <code>make_document</code> возвращает владеющее значение</td><td>Держать <code>auto filtr = make_document(…)</code> живым, пока идёт запрос</td></tr>
             </tbody>
@@ -838,7 +838,7 @@ fmt.<span class="f">Println</span>(<span class="s">"всего собеседо�
         <h3>Итог главы</h3>
         <p>Фильтр — документ той же формы, что и документы в коллекции: поле означает поле, значение означает «должно быть равно». Несколько пар в фильтре проверяются вместе и работают как «и», порядок пар роли не играет. Совпадение требуется точное — по типу BSON и по регистру строк. До поля внутри вложенного документа добираются через точку; сравнение с целым вложенным документом задаёт другое условие — совпадение всех его полей в том же порядке. Условие на массив проверяется на каждом элементе по отдельности. Дальше вместо точного равенства появятся операторы сравнения: больше, меньше, не равно.</p>
 
-        <div class="pager"><a href="../../testy/modul-1/index.html">← Тест модуля 1</a><a href="../../index.html">К содержанию справочника</a></div>
+        <div class="pager"><a href="../../testy/modul-1/index.html">← Тест модуля 1</a><a href="../10-sravnenie/index.html">2.2 Сравнение →</a></div>
 
         <div class="colophon">
           <span>Глава 2.1 · Справочник по MongoDB</span>
