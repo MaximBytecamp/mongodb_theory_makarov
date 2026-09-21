@@ -39,6 +39,8 @@ expect('db.resumes.countDocuments({skills:"Python"})', 6, 'Python среди н�
 expect('db.resumes.countDocuments({"education.level":"СПО"})', 4, 'СПО в education.level');
 expect('db.companies.countDocuments({employees:{$gte:500}})', 4, 'компании от 500 сотрудников');
 expect('db.resumes.countDocuments({ready_to_move:{$ne:true}})', 5, 'ready_to_move не равно true');
+expect('db.vacancies.countDocuments({city:{$in:["Москва","Казань"]}})', 4, 'вакансии в Москве или Казани');
+expect('db.resumes.countDocuments({skills:{$in:["MongoDB","ClickHouse"]}})', 4, 'MongoDB или ClickHouse');
 console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
@@ -323,5 +325,23 @@ await withCompass(async page => {
     // Раскрываем первый документ — резюме без поля ready_to_move
     await expandAll(1);
     await shot('62-hh-ne', 700);
+  }
+  // --- 63 · глава 2.3 §8: $in по полю ---------------------------
+  if (need('63-hh-in')) {
+    await openCollection('hh', 'vacancies');
+    await setQuery({ filter: '{ city: { $in: ["Москва", "Казань"] } }' });
+    await collapseOptions();
+    await useJsonView();
+    await shot('63-hh-in', await fitHeight(1160));
+  }
+
+  // --- 64 · 2.3 §8: $in по полю-массиву ---------------------------
+  if (need('64-hh-in-array')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ skills: { $in: ["MongoDB", "ClickHouse"] } }' });
+    await collapseOptions();
+    await useJsonView();
+    await expandAll(1);
+    await shot('64-hh-in-array', 760);
   }
 });

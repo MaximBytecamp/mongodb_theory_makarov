@@ -113,3 +113,75 @@ CHEATS["2.2"] = [
     ("Не равно", ("f", {"ready_to_move": {"$ne": True}})),
     ("Значение как есть", ("f", {"fio": {"$eq": "Анна Белова"}})),
 ]
+
+# ── 2.3 Списки значений ────────────────────────────────────────────────────
+
+EXAMPLES["2.3"] = {
+    # 4: v-004 Казань, v-007, v-003, v-008 Москва
+    "in": {"caption": "вакансии в Москве или Казани", "steps": [
+        {"coll": "vacancies", "filter": {"city": {"$in": ["Москва", "Казань"]}}, "fields": ["title", "city"]},
+    ]},
+    # v-001, затем v-008 — порядок коллекции, а не списка
+    "order": {"caption": "вакансии по списку ключей", "steps": [
+        {"coll": "vacancies", "filter": {"_id": {"$in": ["v-008", "v-001"]}}, "fields": ["title"], "keep_id": True},
+    ]},
+    # 4: Дроздова, Валиев, Ефремов, Пирогова
+    "array": {"caption": "хотя бы один навык из списка", "steps": [
+        {"coll": "resumes", "filter": {"skills": {"$in": ["MongoDB", "ClickHouse"]}}, "fields": ["fio", "skills"]},
+    ]},
+    # 2; Самойлов, Нечаева, Валиев
+    "nin": {"caption": "ни одного значения из списка", "steps": [
+        {"rows": [
+            {"label": "вакансии не в Москве и не в Ярославле", "coll": "vacancies",
+             "filter": {"city": {"$nin": ["Москва", "Ярославль"]}}, "go": "gorod"},
+        ]},
+        {"coll": "resumes", "filter": {"skills": {"$nin": ["Python", "SQL"]}}, "fields": ["fio", "skills"]},
+    ]},
+    # 5 и 4; у Анны Беловой нет education
+    "missing": {"caption": "$nin и отсутствующее поле", "steps": [
+        {"rows": [
+            {"label": "education.level $nin [СПО]", "coll": "resumes",
+             "filter": {"education.level": {"$nin": ["СПО"]}}, "go": "neSpo"},
+            {"label": "education.level Высшее", "coll": "resumes",
+             "filter": {"education.level": "Высшее"}, "go": "vysshee"},
+        ]},
+        {"coll": "resumes", "filter": {"education.level": {"$nin": ["СПО"]}}, "fields": ["fio", "education.level"]},
+    ]},
+    # 1 и 5
+    "null": {"caption": "null в списке значений", "steps": [
+        {"rows": [
+            {"label": "ready_to_move null", "coll": "resumes", "filter": {"ready_to_move": None}, "go": "pusto"},
+            {"label": "ready_to_move $in [false, null]", "coll": "resumes",
+             "filter": {"ready_to_move": {"$in": [False, None]}}, "go": "netIliPusto"},
+        ]},
+    ]},
+    # 0 и 8
+    "empty": {"caption": "пустой список", "steps": [
+        {"rows": [
+            {"label": "$in []", "coll": "vacancies", "filter": {"city": {"$in": []}}, "go": "vSpiske"},
+            {"label": "$nin []", "coll": "vacancies", "filter": {"city": {"$nin": []}}, "go": "neVSpiske"},
+        ]},
+    ]},
+}
+
+ERRORS["2.3"] = [
+    (("f", {"city": {"$in": "Москва"}}), "Ошибка сервера: <code>$in needs an array</code>",
+     ("f", {"$in": ["Москва"]})),
+    (("f", {"skills": ["Python", "SQL"]}), "Пусто: массив в фильтре сравнивается с полем целиком, вместе с порядком элементов",
+     ("f", {"$in": ["Python", "SQL"]})),
+    (("f", {"education.level": {"$nin": ["СПО"]}}), "Кроме «Высшее» находит документ, в котором поля нет",
+     "Равенство <code>\"Высшее\"</code>; отсутствующее поле — глава 2.5"),
+    ("Результат ожидается в порядке списка <code>$in</code>", "Документы идут в порядке коллекции",
+     "<code>sort</code> или упорядочить в программе"),
+    ("Список для <code>$in</code> собран из формы, и пользователь ничего не выбрал",
+     "<code>$in</code> с пустым списком не находит ничего, <code>$nin</code> — находит всё",
+     "Проверить пустой выбор до запроса и не добавлять условие"),
+]
+
+CHEATS["2.3"] = [
+    ("Одно из значений", ("f", {"city": {"$in": ["Москва", "Казань"]}})),
+    ("По списку ключей", ("f", {"_id": {"$in": ["v-001", "v-008"]}})),
+    ("Хотя бы один элемент массива", ("f", {"skills": {"$in": ["MongoDB", "ClickHouse"]}})),
+    ("Ни одно из значений", ("f", {"city": {"$nin": ["Москва", "Ярославль"]}})),
+    ("Значение или нет поля", ("f", {"ready_to_move": {"$in": [False, None]}})),
+]

@@ -202,6 +202,8 @@ def proj_doc(fields: list[str]) -> dict:
 def find_lines(step, lang: str) -> list[str]:
     coll, filt = step["coll"], step["filter"]
     proj = proj_doc(step["fields"]) if step.get("fields") else None
+    if proj and step.get("keep_id"):
+        proj = {name: 1 for name in step["fields"]}     # _id сервер вернёт сам
     sort = step.get("sort")                     # список пар (поле, направление)
     limit = step.get("limit")
     if lang == "python":
