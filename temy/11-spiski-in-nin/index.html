@@ -138,6 +138,11 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 {"title"=&gt;"Data-инженер", "city"=&gt;"Москва"}</pre>
         </figure>
         <p>Четыре вакансии: одна в Казани и три в Москве. То же условие можно записать через логическое «или» — оператор <code>$or</code> из главы 2.4. Когда все варианты относятся к одному полю, запись через <code>$in</code> короче: список значений стоит в одном месте.</p>
+        <figure class="shot">
+          <img src="../../shots/63-hh-in.png" alt="Compass, коллекция hh.vacancies: фильтр city in Москва, Казань, счётчик 1 – 4 of 4">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ city: { $in: ["Москва", "Казань"] } }</code> — те же четыре вакансии, что напечатала программа</figcaption>
+        </figure>
+        <p>Вкладка <b>Documents</b> подписана числом <code>8</code>, счётчик над списком — <code>1 – 4 of 4</code>. В документах видно поле <code>city</code>: у первого — Казань, у остальных — Москва. Вакансии идут в порядке коллекции, как и в выводе программы.</p>
 
         <h2 id="s2"><span class="sec">§2</span>Порядок результата</h2>
         <p>Порядок значений в списке на порядок документов в результате не влияет. Сервер проверяет документы коллекции один за другим и отдаёт подходящие в том порядке, в каком их находит. Это учитывают, когда программа достаёт документы по списку ключей — например, по списку избранных вакансий пользователя.</p>
@@ -194,6 +199,11 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 {"_id"=&gt;"v-008", "title"=&gt;"Data-инженер"}</pre>
         </figure>
         <p>В списке первой стоит <code>v-008</code>, а в результате первой пришла <code>v-001</code>: в коллекции она лежит раньше. Проекция здесь содержит только <code>title</code>, и поле <code>_id</code> сервер добавил сам — так работает включающая проекция (глава <a href="../05-proekciya/index.html">1.5</a>). Если порядок списка важен, документы переставляют в программе после получения или задают сортировку по полю.</p>
+        <figure class="shot">
+          <img src="../../shots/79-hh-in-order.png" alt="Compass, коллекция hh.vacancies: фильтр _id in v-008, v-001, счётчик 1 – 2 of 2, первой идёт v-001">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ _id: { $in: ["v-008", "v-001"] } }</code> — порядок коллекции</figcaption>
+        </figure>
+        <p>В фильтре первой стоит <code>v-008</code>, в списке Compass первой идёт <code>v-001</code> — тот же порядок, что в выводе программы. Проекция <code>{ title: 1 }</code> оставила название, а <code>_id</code> добавил сервер.</p>
 
         <h2 id="s3"><span class="sec">§3</span><code>$in</code> и поле-массив</h2>
         <p>Если поле — массив, условие проверяется на каждом элементе, как в главе 2.1 §6. Для <code>$in</code> это значит: документ подходит, если хотя бы один элемент массива совпал хотя бы с одним значением списка. Пример ищет резюме, где среди навыков есть MongoDB или ClickHouse.</p>
@@ -258,6 +268,11 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 {"fio"=&gt;"Ольга Пирогова", "skills"=&gt;["SQL", "Excel", "Python", "ClickHouse"]}</pre>
         </figure>
         <p>Четыре резюме. У Тимура Валиева и Марка Ефремова в навыках есть MongoDB, у Алины Дроздовой и Ольги Пироговой — ClickHouse. Одного совпадения достаточно; остальные навыки на результат не влияют. Условие «в резюме есть все навыки из списка» записывается другим оператором — <code>$all</code>, он разобран в главе 2.6.</p>
+        <figure class="shot">
+          <img src="../../shots/64-hh-in-array.png" alt="Compass, коллекция hh.resumes: фильтр skills in MongoDB, ClickHouse, счётчик 1 – 4 of 4, у первого резюме массив skills раскрыт">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ skills: { $in: ["MongoDB", "ClickHouse"] } }</code> — у первого резюме массив навыков раскрыт</figcaption>
+        </figure>
+        <p>У Алины Дроздовой в массиве <code>skills</code> пять строк, и из списка фильтра среди них есть только <code>"ClickHouse"</code>. Этого одного совпадения хватило, чтобы документ попал в результат. Счётчик <code>1 – 4 of 4</code> совпадает с выводом программы выше.</p>
 
         <h2 id="s4"><span class="sec">§4</span><code>$nin</code>: ни одного из значений</h2>
         <p>Оператор <code>$nin</code> — от <i>not in</i> — отбирает документы, у которых значение поля не совпадает ни с одним элементом списка. Для поля-массива условие строже: ни один элемент массива не должен совпасть ни с одним значением списка.</p>
@@ -332,6 +347,11 @@ resumes.<span class="f">find</span>({ <span class="s">"skills"</span> =&gt; { <s
 {"fio"=&gt;"Тимур Валиев", "skills"=&gt;["PostgreSQL", "MongoDB", "Bash", "Zabbix"]}</pre>
         </figure>
         <p>Вакансий не в Москве и не в Ярославле две — в Казани и Санкт-Петербурге. Резюме без Python и без SQL три: в каждом из выведенных массивов нет ни одной из этих строк. Резюме, где есть хотя бы один из двух навыков, <code>$nin</code> исключил.</p>
+        <figure class="shot">
+          <img src="../../shots/80-hh-nin.png" alt="Compass, коллекция hh.resumes: фильтр skills nin Python, SQL, счётчик 1 – 3 of 3, массивы навыков раскрыты">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ skills: { $nin: ["Python", "SQL"] } }</code> — три резюме с раскрытыми навыками</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 3 of 3</code>. Массивы <code>skills</code> раскрыты целиком: ни в одном нет ни <code>"Python"</code>, ни <code>"SQL"</code>. Проекция оставляет ФИО и навыки.</p>
 
         <h2 id="s5"><span class="sec">§5</span><code>$nin</code> и отсутствующее поле</h2>
         <p>С отсутствующим полем <code>$nin</code> ведёт себя так же, как <code>$ne</code> из главы 2.2: документ без поля не совпадает ни с одним значением списка, и сервер его возвращает. В коллекции резюме уровень образования записан в поле <code>education.level</code>, и у одного резюме вложенного документа <code>education</code> нет вовсе.</p>
@@ -423,6 +443,11 @@ education.level Высшее:     4
 {"fio"=&gt;"Ольга Пирогова", "education"=&gt;{"level"=&gt;"Высшее"}}</pre>
         </figure>
         <p>Условие «уровень не СПО» дало пять резюме, условие «уровень — высшее» — четыре. Пятое резюме — Анны Беловой: в выводе у него только ФИО, потому что поля <code>education</code> в документе нет, и проекции нечего было показать. Если задача — найти соискателей с высшим образованием, её записывают равенством; <code>$nin</code> подходит, когда документы без поля тоже нужны.</p>
+        <figure class="shot">
+          <img src="../../shots/81-hh-nin-missing.png" alt="Compass, коллекция hh.resumes: фильтр education.level nin СПО, счётчик 1 – 5 of 5, у первого резюме нет поля education">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ "education.level": { $nin: ["СПО"] } }</code> — первое резюме без поля <code>education</code></figcaption>
+        </figure>
+        <p>У четырёх документов после ФИО стоит свёрнутый <code>education</code>, у первого — Анны Беловой — только ФИО: вложенного документа нет, и <code>$nin</code> его пропустил. Счётчик <code>1 – 5 of 5</code>.</p>
 
         <h2 id="s6"><span class="sec">§6</span><code>null</code> в списке</h2>
         <p>Условие равенства с <code>null</code> — <code>{"ready_to_move": null}</code> — отбирает документы, где поле равно <code>null</code>, и документы, где поля нет. Для сервера отсутствующее поле при сравнении с <code>null</code> считается равным ему. Внутри <code>$in</code> значение <code>null</code> работает так же.</p>
@@ -472,6 +497,11 @@ ready_to_move $in [false, null]: 5</pre>
 ready_to_move $in [false, null]: 5</pre>
         </figure>
         <p>Поля <code>ready_to_move</code> нет в одном резюме, и равенство с <code>null</code> его нашло. Условие <code>$in: [false, null]</code> читается «ответ „нет“ или ответа нет» и даёт те же пять резюме, что <code>$ne: true</code> в главе 2.2. Разница в записи: здесь оба допустимых случая перечислены явно. Отличить поле со значением <code>null</code> от отсутствующего поля позволяют операторы <code>$exists</code> и <code>$type</code> из главы 2.5.</p>
+        <figure class="shot">
+          <img src="../../shots/82-hh-in-null.png" alt="Compass, коллекция hh.resumes: фильтр ready_to_move in false, null, счётчик 1 – 5 of 5">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ ready_to_move: { $in: [false, null] } }</code> — ответ «нет» или ответа нет</figcaption>
+        </figure>
+        <p>Первый документ — без поля <code>ready_to_move</code>, у остальных четырёх оно равно <code>false</code>. Счётчик <code>1 – 5 of 5</code>, как у <code>$ne: true</code> в главе 2.2.</p>
 
         <h2 id="s7"><span class="sec">§7</span>Пустой список</h2>
         <p>Список для <code>$in</code> часто собирает программа — например, из городов, которые пользователь отметил в форме поиска. Если пользователь не отметил ни одного города, список окажется пустым.</p>
@@ -521,19 +551,14 @@ $nin []: 8</pre>
 $nin []: 8</pre>
         </figure>
         <p>С пустым списком <code>$in</code> не находит ничего: нет значения, с которым поле могло бы совпасть. <code>$nin</code> с пустым списком находит все восемь вакансий: исключать нечего. Для формы поиска обычно нужно третье поведение — «город не выбран, значит, город не важен». Его получают в программе: если список пустой, условие на город в фильтр не добавляют совсем.</p>
+        <figure class="shot">
+          <img src="../../shots/83-hh-in-empty.png" alt="Compass, коллекция hh.vacancies: фильтр city in пустой список, счётчик 0 – 0 of 0, No results">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ city: { $in: [] } }</code> — пустой результат без ошибки</figcaption>
+        </figure>
+        <p>Compass выполнил запрос без предупреждения и показал <code>No results</code>, хотя вкладка <b>Documents</b> подписана числом <code>8</code>. Так же пустой список выглядит и в программе: ошибки нет, документов нет.</p>
 
         <h2 id="s8"><span class="sec">§8</span>Списки в Compass</h2>
-        <p>В поле фильтра Compass список пишется в квадратных скобках, как массив в JSON.</p>
-        <figure class="shot">
-          <img src="../../shots/63-hh-in.png" alt="Compass, коллекция hh.vacancies: фильтр city in Москва, Казань, счётчик 1 – 4 of 4">
-          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ city: { $in: ["Москва", "Казань"] } }</code> — те же четыре вакансии, что в §1</figcaption>
-        </figure>
-        <p>Вкладка <b>Documents</b> подписана числом <code>8</code>, счётчик над списком — <code>1 – 4 of 4</code>. В документах видно поле <code>city</code>: у первого — Казань, у остальных — Москва. Вакансии идут в порядке коллекции, как и в выводе программы.</p>
-        <figure class="shot">
-          <img src="../../shots/64-hh-in-array.png" alt="Compass, коллекция hh.resumes: фильтр skills in MongoDB, ClickHouse, счётчик 1 – 4 of 4, у первого резюме массив skills раскрыт">
-          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ skills: { $in: ["MongoDB", "ClickHouse"] } }</code> — у первого резюме массив навыков раскрыт</figcaption>
-        </figure>
-        <p>У Алины Дроздовой в массиве <code>skills</code> пять строк, и из списка фильтра среди них есть только <code>"ClickHouse"</code>. Этого одного совпадения хватило, чтобы документ попал в результат. Счётчик <code>1 – 4 of 4</code> совпадает с выводом программы в §3.</p>
+        <p>Кадры в разделах выше сняты в Compass на тех же запросах, что и примеры. Список значений в поле фильтра пишется в квадратных скобках, как массив в JSON: <code>{ city: { $in: ["Москва", "Казань"] } }</code>. Пустой список записывается как <code>[]</code>, значение <code>null</code> — словом <code>null</code> без кавычек.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
         <div class="table-scroll errors-table" data-lang="python">

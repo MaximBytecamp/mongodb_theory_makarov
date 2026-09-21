@@ -439,4 +439,50 @@ await withCompass(async page => {
     await expandAll(1);
     await shot('73-hh-expr', await fitHeight(1160));
   }
+  /* Кадры к разделам глав 2.2–2.8: запрос из раздела на тех же данных.
+     options: true — панель Options на кадре раскрыта (видны Project и Sort). */
+  const SECTION_SHOTS = [
+    // 2.2
+    { name: '74-hh-range', coll: 'resumes', filter: '{ salary: { $gte: 70000, $lte: 100000 } }',
+      project: '{ _id: 0, fio: 1, salary: 1 }', sort: '{ salary: 1 }', options: true },
+    { name: '75-hh-vilka', coll: 'vacancies', filter: '{ "salary.from": { $lte: 120000 }, "salary.to": { $gte: 120000 } }',
+      project: '{ _id: 0, title: 1, salary: 1 }', expand: 5 },
+    { name: '76-hh-date', coll: 'resumes', filter: '{ updated: { $gte: ISODate("2026-09-01") } }',
+      project: '{ _id: 0, fio: 1, updated: 1 }', expand: 5 },
+    { name: '77-hh-lt-a', coll: 'companies', filter: '{ name: { $lt: "А" } }', project: '{ _id: 0, name: 1 }' },
+    { name: '78-hh-eq-inject', coll: 'resumes', filter: '{ fio: { $eq: { $ne: null } } }', height: 560 },
+    // 2.3
+    { name: '79-hh-in-order', coll: 'vacancies', filter: '{ _id: { $in: ["v-008", "v-001"] } }', project: '{ title: 1 }' },
+    { name: '80-hh-nin', coll: 'resumes', filter: '{ skills: { $nin: ["Python", "SQL"] } }',
+      project: '{ _id: 0, fio: 1, skills: 1 }', expand: 3 },
+    { name: '81-hh-nin-missing', coll: 'resumes', filter: '{ "education.level": { $nin: ["СПО"] } }',
+      project: '{ _id: 0, fio: 1, education: 1 }' },
+    { name: '82-hh-in-null', coll: 'resumes', filter: '{ ready_to_move: { $in: [false, null] } }',
+      project: '{ _id: 0, fio: 1, ready_to_move: 1 }' },
+    { name: '83-hh-in-empty', coll: 'vacancies', filter: '{ city: { $in: [] } }', height: 560 },
+    // 2.4
+    { name: '84-hh-or-one-field', coll: 'vacancies', filter: '{ $or: [{ city: "Москва" }, { city: "Казань" }] }',
+      project: '{ _id: 0, title: 1, city: 1 }' },
+    { name: '85-hh-and-or-salary', coll: 'resumes',
+      filter: '{ salary: { $lte: 90000 }, $or: [{ city: "Ярославль" }, { ready_to_move: true }] }',
+      project: '{ _id: 0, fio: 1, city: 1, salary: 1, ready_to_move: 1 }' },
+    { name: '86-hh-not', coll: 'resumes', filter: '{ updated: { $not: { $gte: ISODate("2026-09-01") } } }',
+      project: '{ _id: 0, fio: 1, updated: 1 }', expand: 4 },
+    { name: '87-hh-nor', coll: 'resumes', filter: '{ $nor: [{ city: "Москва" }, { ready_to_move: true }] }',
+      project: '{ _id: 0, fio: 1, city: 1, ready_to_move: 1 }' },
+  ];
+  for (const q of SECTION_SHOTS) {
+    if (!need(q.name)) continue;
+    await openCollection(q.db || 'hh', q.coll);
+    await setQuery({ filter: q.filter, project: q.project || '', sort: q.sort || '' });
+    if (!q.options) await collapseOptions();
+    await useJsonView();
+    if (q.expand) await expandAll(q.expand);
+    if (q.filterHome) {
+      await page.locator('[data-testid="query-bar-option-filter-input"] .cm-content').first().click();
+      await page.keyboard.press('Meta+ArrowLeft');
+      await settle(400);
+    }
+    await shot(q.name, q.height || await fitHeight(1160));
+  }
 });
