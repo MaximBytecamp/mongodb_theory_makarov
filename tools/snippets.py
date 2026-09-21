@@ -367,7 +367,8 @@ def code(spec, lang: str) -> str:
     if dates:
         lines += date_lines(dates, lang) + [""]
     for i, st in enumerate(steps):
-        glued = i and any(key in st and key in steps[i - 1] for key in ("open", "insert", "update"))
+        glued = i and any(key in st for key in ("drop", "insert", "update")) and \
+            any(key in steps[i - 1] for key in ("open", "drop", "insert", "update"))
         if i and lines and lines[-1] != "" and not glued:
             lines.append("")
         if "comment" in st:
@@ -380,6 +381,10 @@ def code(spec, lang: str) -> str:
                           "ruby": f'{var} = client.{f("use")}({s(q(dbname))}).database[:{coll}]',
                           "go": f'{var} := client.{f("Database")}({s(q(dbname))}).{f("Collection")}({s(q(coll))})',
                           "cpp": f'{k("auto")} {var} = client[{s(q(dbname))}][{s(q(coll))}];'}[lang])
+        elif "drop" in st:
+            coll = st["drop"]
+            lines.append({"python": f"{coll}.{f('drop')}()", "ruby": f"{coll}.{f('drop')}",
+                          "go": f"{coll}.{f('Drop')}(ctx)", "cpp": f"{coll}.{f('drop')}();"}[lang])
         elif "insert" in st:
             coll = st["insert"]
             call = {"python": f"{coll}.insert_one(", "ruby": f"{coll}.insert_one(",

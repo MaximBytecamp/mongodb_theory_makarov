@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>2.8 Сравнение полей между собой: · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Язык фильтров</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 2 · язык фильтров</p>
+          <p class="running__folio">2.8</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">2.8</span>
+          <h1>Сравнение полей между собой:<br>$expr</h1>
+          <p class="lead">Во всех условиях модуля поле сравнивалось со значением, записанным в фильтре. Здесь разобран оператор <code>$expr</code>, который сравнивает поля одного документа между собой: нижнюю границу вилки с верхней, разность двух полей с числом. Отдельно — чем выражения внутри <code>$expr</code> отличаются от обычных условий фильтра: как в них сравниваются значения разных типов и что происходит с отсутствующим полем.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Язык запросов</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Операторы сравнения, наличие поля <code>$exists</code>, конвейер агрегации в модуле 4</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Проверять согласованность полей внутри документа</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-2.8-python.zip" download><code>mongodb-glava-2.8-python.zip</code></a>, 60 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-2.8-ruby.zip" download><code>mongodb-glava-2.8-ruby.zip</code></a>, 60 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-2.8-go.zip" download><code>mongodb-glava-2.8-go.zip</code></a>, 65 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-2.8-cpp.zip" download><code>mongodb-glava-2.8-cpp.zip</code></a>, 63 КБ</span> — все примеры главы готовыми программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch2_8.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch2_8.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch2_8.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch2_8.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch2_8.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch2_8.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch2_8.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch2_8.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch2_8.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch2_8.go</code> · в Docker: <code>docker compose run --rm go lessons/ch2_8.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch2_8.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch2_8.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Задача, которую фильтр не решает</a></li>
+            <li><a href="#s2"><code>$expr</code>: выражение вместо условия</a></li>
+            <li><a href="#s3">Проверка данных: перевёрнутая вилка</a></li>
+            <li><a href="#s4">Вычисления внутри <code>$expr</code></a></li>
+            <li><a href="#s5"><code>$expr</code> вместе с обычными условиями</a></li>
+            <li><a href="#s6">Типы и отсутствующее поле в выражении</a></li>
+            <li><a href="#s7"><code>$expr</code> и скорость запроса</a></li>
+            <li><a href="#s8"><code>$expr</code> в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Задача, которую фильтр не решает</h2>
+        <p>У вакансии вилка зарплаты записана двумя полями: <code>salary.from</code> и <code>salary.to</code>. Если при вводе границы перепутали местами, нижняя окажется больше верхней, и такая вакансия будет находиться по неверным условиям. Проверить это можно только сравнением двух полей одного документа друг с другом.</p>
+        <p>Обычным условием это не записать. В условии <code>{"salary.from": {"$lt": ...}}</code> справа от оператора стоит значение — число, строка, дата. Если записать туда <code>"$salary.to"</code>, сервер получит строку из десяти символов, и ссылкой на поле она не станет.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>имя поля вместо значения</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"всего вакансий:              "</span>, vacancies.<span class="f">count_documents</span>({}))
+<span class="f">print</span>(<span class="s">"salary.from $lt \"$salary.to\":"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"salary.from"</span>: {<span class="s">"$lt"</span>: <span class="s">"$salary.to"</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>имя поля вместо значения</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"всего вакансий:               "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"salary.from $lt \"$salary.to\": "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary.from"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="s">"$salary.to"</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>имя поля вместо значения</span></figcaption>
+<pre>vsego, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{})
+strokoy, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"salary.from"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: <span class="s">"$salary.to"</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"всего вакансий:              "</span>, vsego)
+fmt.<span class="f">Println</span>(<span class="s">"salary.from $lt \"$salary.to\":"</span>, strokoy)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>имя поля вместо значения</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"всего вакансий:               "</span> + vacancies.<span class="f">count_documents</span>({}).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"salary.from $lt \"$salary.to\": "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"salary.from"</span> =&gt; { <span class="s">"$lt"</span> =&gt; <span class="s">"$salary.to"</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего вакансий:               8
+salary.from $lt "$salary.to": 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего вакансий:               8
+salary.from $lt "$salary.to": 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего вакансий:               8
+salary.from $lt "$salary.to": 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>всего вакансий:               8
+salary.from $lt "$salary.to": 0</pre>
+        </figure>
+        <p>Вакансий восемь, а условие «нижняя граница меньше <code>"$salary.to"</code>» не нашло ни одной. Числа в <code>salary.from</code> сравнивались со строкой, а число со строкой операторы сравнения не сравнивают (глава 2.2 §5). Ошибки нет, и результат выглядит как «вилок, где нижняя граница меньше верхней, нет», хотя нижняя граница меньше верхней во всех восьми вакансиях.</p>
+
+        <h2 id="s2"><span class="sec">§2</span><code>$expr</code>: выражение вместо условия</h2>
+        <p>Оператор <code>$expr</code> стоит на месте имени поля и принимает <span class="term">выражение</span> — запись вычисления, которое сервер выполняет для каждого документа. Документ попадает в результат, если выражение дало истину. Выражения — язык конвейера агрегации из модуля 4; в фильтре используется его часть.</p>
+        <p>В выражении у операторов сравнения другая форма. Обычное условие пишется как <code>{"поле": {"$lt": значение}}</code>: поле слева, оператор со значением справа. В выражении оператор принимает массив из двух аргументов: <code>{"$lt": [первый, второй]}</code> — «первый меньше второго». Строка, начинающаяся со знака <code>$</code>, внутри выражения означает значение поля: <code>"$salary.from"</code> — нижняя граница вилки этого документа.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>два поля одного документа</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"нижняя граница меньше верхней:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"$expr"</span>: {<span class="s">"$lt"</span>: [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>]}}))
+<span class="f">print</span>(<span class="s">"нижняя граница больше верхней:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>]}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>два поля одного документа</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"нижняя граница меньше верхней: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="f">make_array</span>(<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>)))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"нижняя граница больше верхней: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>)))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>два поля одного документа</span></figcaption>
+<pre>vernye, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: bson.A{<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>}}}}})
+perevernutye, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>}}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"нижняя граница меньше верхней:"</span>, vernye)
+fmt.<span class="f">Println</span>(<span class="s">"нижняя граница больше верхней:"</span>, perevernutye)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>два поля одного документа</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"нижняя граница меньше верхней: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"$expr"</span> =&gt; { <span class="s">"$lt"</span> =&gt; [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>] } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"нижняя граница больше верхней: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>] } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>нижняя граница меньше верхней: 8
+нижняя граница больше верхней: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>нижняя граница меньше верхней: 8
+нижняя граница больше верхней: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>нижняя граница меньше верхней: 8
+нижняя граница больше верхней: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>нижняя граница меньше верхней: 8
+нижняя граница больше верхней: 0</pre>
+        </figure>
+        <p>Нижняя граница меньше верхней у всех восьми вакансий, перевёрнутых вилок нет. Второй запрос — проверка данных, и он вернул ноль.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Проверка данных: перевёрнутая вилка</h2>
+        <p>В учебной базе все вилки заданы верно, поэтому ошибку ввода пример создаёт сам — в песочнице, в отдельной коллекции черновиков вакансий. В начале примера коллекция удаляется, если она осталась от прошлого запуска, затем в неё записываются два черновика: один с верной вилкой, другой с перевёрнутой.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>проверка черновиков вакансий</span></figcaption>
+<pre><span class="c"># черновики вакансий: коллекция создаётся заново при каждом запуске</span>
+drafts = client[<span class="s">"sandbox"</span>][<span class="s">"vacancy_drafts"</span>]
+drafts.<span class="f">drop</span>()
+drafts.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"v-901"</span>,
+                   <span class="s">"title"</span>: <span class="s">"Стажёр-аналитик"</span>,
+                   <span class="s">"salary"</span>: {<span class="s">"from"</span>: <span class="n">50000</span>, <span class="s">"to"</span>: <span class="n">70000</span>}})
+drafts.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"v-902"</span>,
+                   <span class="s">"title"</span>: <span class="s">"Тестировщик"</span>,
+                   <span class="s">"salary"</span>: {<span class="s">"from"</span>: <span class="n">90000</span>, <span class="s">"to"</span>: <span class="n">60000</span>}})
+
+<span class="f">print</span>(<span class="s">"черновиков:       "</span>, drafts.<span class="f">count_documents</span>({}))
+<span class="f">print</span>(<span class="s">"вилка перевёрнута:"</span>, drafts.<span class="f">count_documents</span>({<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>]}}))
+
+<span class="k">for</span> doc <span class="k">in</span> drafts.<span class="f">find</span>({<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>]}}, {<span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>проверка черновиков вакансий</span></figcaption>
+<pre><span class="c">// черновики вакансий: коллекция создаётся заново при каждом запуске</span>
+<span class="k">auto</span> drafts = client[<span class="s">"sandbox"</span>][<span class="s">"vacancy_drafts"</span>];
+drafts.<span class="f">drop</span>();
+drafts.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"v-901"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Стажёр-аналитик"</span>),
+    <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"from"</span>, <span class="n">50000</span>), <span class="f">kvp</span>(<span class="s">"to"</span>, <span class="n">70000</span>)))));
+drafts.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"v-902"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Тестировщик"</span>),
+    <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"from"</span>, <span class="n">90000</span>), <span class="f">kvp</span>(<span class="s">"to"</span>, <span class="n">60000</span>)))));
+
+std::cout &lt;&lt; <span class="s">"черновиков:        "</span> &lt;&lt; drafts.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"вилка перевёрнута: "</span> &lt;&lt; drafts.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>)))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : drafts.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>))))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>проверка черновиков вакансий</span></figcaption>
+<pre><span class="c">// черновики вакансий: коллекция создаётся заново при каждом запуске</span>
+drafts := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"vacancy_drafts"</span>)
+drafts.<span class="f">Drop</span>(ctx)
+drafts.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"_id"</span>, Value: <span class="s">"v-901"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Стажёр-аналитик"</span>},
+    {Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"from"</span>, Value: <span class="n">50000</span>}, {Key: <span class="s">"to"</span>, Value: <span class="n">70000</span>}}}})
+drafts.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"_id"</span>, Value: <span class="s">"v-902"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Тестировщик"</span>},
+    {Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"from"</span>, Value: <span class="n">90000</span>}, {Key: <span class="s">"to"</span>, Value: <span class="n">60000</span>}}}})
+
+vsego, _ := drafts.<span class="f">CountDocuments</span>(ctx, bson.D{})
+perevernuta, _ := drafts.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>}}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"черновиков:       "</span>, vsego)
+fmt.<span class="f">Println</span>(<span class="s">"вилка перевёрнута:"</span>, perevernuta)
+
+cursor, _ := drafts.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>}}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"salary"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>проверка черновиков вакансий</span></figcaption>
+<pre><span class="c"># черновики вакансий: коллекция создаётся заново при каждом запуске</span>
+drafts = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database[:vacancy_drafts]
+drafts.<span class="f">drop</span>
+drafts.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"v-901"</span>,
+                    <span class="s">"title"</span> =&gt; <span class="s">"Стажёр-аналитик"</span>,
+                    <span class="s">"salary"</span> =&gt; { <span class="s">"from"</span> =&gt; <span class="n">50000</span>, <span class="s">"to"</span> =&gt; <span class="n">70000</span> } })
+drafts.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"v-902"</span>,
+                    <span class="s">"title"</span> =&gt; <span class="s">"Тестировщик"</span>,
+                    <span class="s">"salary"</span> =&gt; { <span class="s">"from"</span> =&gt; <span class="n">90000</span>, <span class="s">"to"</span> =&gt; <span class="n">60000</span> } })
+
+<span class="f">puts</span> <span class="s">"черновиков:        "</span> + drafts.<span class="f">count_documents</span>({}).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"вилка перевёрнута: "</span> + drafts.<span class="f">count_documents</span>({ <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>] } }).<span class="f">to_s</span>
+
+drafts.<span class="f">find</span>({ <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>] } }, projection: { <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span> })
+      .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>черновиков:        2
+вилка перевёрнута: 1
+{'_id': 'v-902', 'title': 'Тестировщик', 'salary': {'from': 90000, 'to': 60000}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>черновиков:        2
+вилка перевёрнута: 1
+{ "_id" : "v-902", "title" : "Тестировщик", "salary" : { "from" : 90000, "to" : 60000 } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>черновиков:        2
+вилка перевёрнута: 1
+{"_id":"v-902","title":"Тестировщик","salary":{"from":90000,"to":60000}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>черновиков:        2
+вилка перевёрнута: 1
+{"_id"=&gt;"v-902", "title"=&gt;"Тестировщик", "salary"=&gt;{"from"=&gt;90000, "to"=&gt;60000}}</pre>
+        </figure>
+        <p>Из двух черновиков запрос нашёл один — «Тестировщик» с вилкой от 90 000 до 60 000. Такой запрос выполняют перед публикацией или по расписанию, чтобы найти документы с несогласованными полями до того, как они попадут в выдачу.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Вычисления внутри <code>$expr</code></h2>
+        <p>Аргументом оператора сравнения может быть не только поле, но и другое выражение. Оператор <code>$subtract</code> вычитает второй аргумент из первого: <code>{"$subtract": ["$salary.to", "$salary.from"]}</code> — ширина вилки. Пример ищет вакансии, где вилка шире 50 000 включительно.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>ширина вилки от 50 000</span></figcaption>
+<pre>filtr = {<span class="s">"$expr"</span>: {<span class="s">"$gte"</span>: [{<span class="s">"$subtract"</span>: [<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>]}, <span class="n">50000</span>]}}
+
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">find</span>(filtr, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>ширина вилки от 50 000</span></figcaption>
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$subtract"</span>, <span class="f">make_array</span>(<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>))), <span class="n">50000</span>)))));
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(filtr.view(), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>ширина вилки от 50 000</span></figcaption>
+<pre>filtr := bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$subtract"</span>, Value: bson.A{<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>}}}, <span class="n">50000</span>}}}}}
+
+cursor, _ := vacancies.<span class="f">Find</span>(ctx, filtr,
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"salary"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>ширина вилки от 50 000</span></figcaption>
+<pre>filtr = { <span class="s">"$expr"</span> =&gt; { <span class="s">"$gte"</span> =&gt; [{ <span class="s">"$subtract"</span> =&gt; [<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>] }, <span class="n">50000</span>] } }
+
+vacancies.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span> })
+         .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'Backend-разработчик .NET', 'salary': {'from': 100000, 'to': 150000}}
+{'title': 'Frontend-разработчик', 'salary': {'from': 90000, 'to': 140000}}
+{'title': 'Администратор баз данных', 'salary': {'from': 110000, 'to': 160000}}
+{'title': 'Аналитик данных', 'salary': {'from': 120000, 'to': 180000}}
+{'title': 'Data-инженер', 'salary': {'from': 140000, 'to': 200000}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "Backend-разработчик .NET", "salary" : { "from" : 100000, "to" : 150000 } }
+{ "title" : "Frontend-разработчик", "salary" : { "from" : 90000, "to" : 140000 } }
+{ "title" : "Администратор баз данных", "salary" : { "from" : 110000, "to" : 160000 } }
+{ "title" : "Аналитик данных", "salary" : { "from" : 120000, "to" : 180000 } }
+{ "title" : "Data-инженер", "salary" : { "from" : 140000, "to" : 200000 } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"Backend-разработчик .NET","salary":{"from":100000,"to":150000}}
+{"title":"Frontend-разработчик","salary":{"from":90000,"to":140000}}
+{"title":"Администратор баз данных","salary":{"from":110000,"to":160000}}
+{"title":"Аналитик данных","salary":{"from":120000,"to":180000}}
+{"title":"Data-инженер","salary":{"from":140000,"to":200000}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"Backend-разработчик .NET", "salary"=&gt;{"from"=&gt;100000, "to"=&gt;150000}}
+{"title"=&gt;"Frontend-разработчик", "salary"=&gt;{"from"=&gt;90000, "to"=&gt;140000}}
+{"title"=&gt;"Администратор баз данных", "salary"=&gt;{"from"=&gt;110000, "to"=&gt;160000}}
+{"title"=&gt;"Аналитик данных", "salary"=&gt;{"from"=&gt;120000, "to"=&gt;180000}}
+{"title"=&gt;"Data-инженер", "salary"=&gt;{"from"=&gt;140000, "to"=&gt;200000}}</pre>
+        </figure>
+        <p>Пять вакансий. У трёх ширина ровно 50 000, у двух — 60 000. Не прошли вакансии с шириной 30 000, 25 000 и 40 000. Кроме <code>$subtract</code>, в выражениях есть <code>$add</code>, <code>$multiply</code>, <code>$divide</code> и множество других операторов; они разбираются вместе с конвейером агрегации в модуле 4.</p>
+
+        <h2 id="s5"><span class="sec">§5</span><code>$expr</code> вместе с обычными условиями</h2>
+        <p><code>$expr</code> — одна из пар фильтра, и с остальными парами он соединяется по «и». Обычные условия пишутся рядом с ним как всегда.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$expr вместе с обычным условием</span></figcaption>
+<pre>filtr = {<span class="s">"city"</span>: <span class="s">"Москва"</span>,
+         <span class="s">"$expr"</span>: {<span class="s">"$gte"</span>: [{<span class="s">"$subtract"</span>: [<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>]}, <span class="n">50000</span>]}}
+
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">find</span>(filtr, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"city"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$expr вместе с обычным условием</span></figcaption>
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>),
+    <span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$subtract"</span>, <span class="f">make_array</span>(<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>))), <span class="n">50000</span>)))));
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(filtr.view(), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$expr вместе с обычным условием</span></figcaption>
+<pre>filtr := bson.D{
+    {Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>},
+    {Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$subtract"</span>, Value: bson.A{<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>}}}, <span class="n">50000</span>}}}}}
+
+cursor, _ := vacancies.<span class="f">Find</span>(ctx, filtr,
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"city"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"salary"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$expr вместе с обычным условием</span></figcaption>
+<pre>filtr = { <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span>,
+          <span class="s">"$expr"</span> =&gt; { <span class="s">"$gte"</span> =&gt; [{ <span class="s">"$subtract"</span> =&gt; [<span class="s">"$salary.to"</span>, <span class="s">"$salary.from"</span>] }, <span class="n">50000</span>] } }
+
+vacancies.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span> })
+         .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'Администратор баз данных', 'city': 'Москва', 'salary': {'from': 110000, 'to': 160000}}
+{'title': 'Аналитик данных', 'city': 'Москва', 'salary': {'from': 120000, 'to': 180000}}
+{'title': 'Data-инженер', 'city': 'Москва', 'salary': {'from': 140000, 'to': 200000}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "Администратор баз данных", "city" : "Москва", "salary" : { "from" : 110000, "to" : 160000 } }
+{ "title" : "Аналитик данных", "city" : "Москва", "salary" : { "from" : 120000, "to" : 180000 } }
+{ "title" : "Data-инженер", "city" : "Москва", "salary" : { "from" : 140000, "to" : 200000 } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"Администратор баз данных","city":"Москва","salary":{"from":110000,"to":160000}}
+{"title":"Аналитик данных","city":"Москва","salary":{"from":120000,"to":180000}}
+{"title":"Data-инженер","city":"Москва","salary":{"from":140000,"to":200000}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"Администратор баз данных", "city"=&gt;"Москва", "salary"=&gt;{"from"=&gt;110000, "to"=&gt;160000}}
+{"title"=&gt;"Аналитик данных", "city"=&gt;"Москва", "salary"=&gt;{"from"=&gt;120000, "to"=&gt;180000}}
+{"title"=&gt;"Data-инженер", "city"=&gt;"Москва", "salary"=&gt;{"from"=&gt;140000, "to"=&gt;200000}}</pre>
+        </figure>
+        <p>Из пяти вакансий с широкой вилкой три — в Москве. Условие на город здесь простое равенство, условие на ширину — выражение, и оба проверяются у каждого документа. Когда задачу можно решить обычным условием, его пишут обычным условием: <code>$expr</code> нужен только для сравнения полей между собой и для вычислений.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Типы и отсутствующее поле в выражении</h2>
+        <p>Внутри выражения сравнение устроено иначе, чем в обычном условии. Обычное условие сравнивает значения только одного типа: число с числом, дату с датой (глава 2.2 §5). В выражении значения разных типов тоже сравниваются — по порядку типов BSON, тому же, что при сортировке (глава <a href="../06-sort-limit-skip/index.html">1.6</a>): <code>null</code> меньше чисел, числа меньше строк, строки меньше документов. Отсутствующее поле в выражении даёт значение <code>null</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>типы и отсутствующее поле в $expr</span></figcaption>
+<pre><span class="k">from</span> datetime <span class="k">import</span> datetime
+
+sep01 = <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">1</span>)
+
+<span class="f">print</span>(<span class="s">"vacancies: $expr salary &gt; 100000:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$salary"</span>, <span class="n">100000</span>]}}))
+<span class="f">print</span>(<span class="s">"vacancies: salary $gt 100000:    "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"salary"</span>: {<span class="s">"$gt"</span>: <span class="n">100000</span>}}))
+<span class="f">print</span>(<span class="s">"resumes: $expr updated &lt; 01.09:  "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"$expr"</span>: {<span class="s">"$lt"</span>: [<span class="s">"$updated"</span>, sep01]}}))
+<span class="f">print</span>(<span class="s">"resumes: updated $lt 01.09:      "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"updated"</span>: {<span class="s">"$lt"</span>: sep01}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>типы и отсутствующее поле в $expr</span></figcaption>
+<pre><span class="k">auto</span> sep01 = bsoncxx::types::b_date{std::chrono::milliseconds{<span class="n">1788220800000</span>}};   <span class="c">// 01.09.2026 00:00 UTC</span>
+
+std::cout &lt;&lt; <span class="s">"vacancies: $expr salary &gt; 100000: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$salary"</span>, <span class="n">100000</span>)))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"vacancies: salary $gt 100000:     "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="n">100000</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"resumes: $expr updated &lt; 01.09:   "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="f">make_array</span>(<span class="s">"$updated"</span>, sep01)))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"resumes: updated $lt 01.09:       "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"updated"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, sep01))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>типы и отсутствующее поле в $expr</span></figcaption>
+<pre>sep01 := time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">1</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+
+exprDok, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$salary"</span>, <span class="n">100000</span>}}}}})
+filtrDok, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: <span class="n">100000</span>}}}})
+exprData, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: bson.A{<span class="s">"$updated"</span>, sep01}}}}})
+filtrData, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"updated"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: sep01}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"vacancies: $expr salary &gt; 100000:"</span>, exprDok)
+fmt.<span class="f">Println</span>(<span class="s">"vacancies: salary $gt 100000:    "</span>, filtrDok)
+fmt.<span class="f">Println</span>(<span class="s">"resumes: $expr updated &lt; 01.09:  "</span>, exprData)
+fmt.<span class="f">Println</span>(<span class="s">"resumes: updated $lt 01.09:      "</span>, filtrData)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>типы и отсутствующее поле в $expr</span></figcaption>
+<pre>sep01 = Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">1</span>)
+
+<span class="f">puts</span> <span class="s">"vacancies: $expr salary &gt; 100000: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$salary"</span>, <span class="n">100000</span>] } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"vacancies: salary $gt 100000:     "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"salary"</span> =&gt; { <span class="s">"$gt"</span> =&gt; <span class="n">100000</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"resumes: $expr updated &lt; 01.09:   "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"$expr"</span> =&gt; { <span class="s">"$lt"</span> =&gt; [<span class="s">"$updated"</span>, sep01] } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"resumes: updated $lt 01.09:       "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"updated"</span> =&gt; { <span class="s">"$lt"</span> =&gt; sep01 } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>vacancies: $expr salary &gt; 100000: 8
+vacancies: salary $gt 100000:     0
+resumes: $expr updated &lt; 01.09:   4
+resumes: updated $lt 01.09:       3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>vacancies: $expr salary &gt; 100000: 8
+vacancies: salary $gt 100000:     0
+resumes: $expr updated &lt; 01.09:   4
+resumes: updated $lt 01.09:       3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>vacancies: $expr salary &gt; 100000: 8
+vacancies: salary $gt 100000:     0
+resumes: $expr updated &lt; 01.09:   4
+resumes: updated $lt 01.09:       3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>vacancies: $expr salary &gt; 100000: 8
+vacancies: salary $gt 100000:     0
+resumes: $expr updated &lt; 01.09:   4
+resumes: updated $lt 01.09:       3</pre>
+        </figure>
+        <p>Первая пара строк: поле <code>salary</code> в вакансиях — документ. Обычное условие «больше 100 000» не нашло ни одной вакансии, потому что документ с числом не сравнивается. Выражение нашло все восемь: по порядку типов документ больше любого числа. Вторая пара: у резюме Анны Беловой нет поля <code>updated</code>. Обычное условие его пропустило, а выражение получило <code>null</code>, и <code>null</code> оказался меньше даты. Поэтому в выражениях сравнивают поля известного типа, а для полей, которые есть не у всех документов, рядом ставят условие <code>$exists: true</code>.</p>
+
+        <h2 id="s7"><span class="sec">§7</span><code>$expr</code> и скорость запроса</h2>
+        <p>Выражение вычисляется для каждого документа, который дошёл до этой проверки. Обычное условие с равенством или диапазоном сервер может проверить по индексу, не читая документы; выражение, сравнивающее два поля документа, по индексу проверить нельзя, и документы приходится читать. Поэтому в запрос с <code>$expr</code> добавляют обычные условия, которые отбирают документы заранее, как условие на город в §5. Как это видно в плане запроса, разобрано в модуле 3.</p>
+
+        <h2 id="s8"><span class="sec">§8</span><code>$expr</code> в Compass</h2>
+        <p>В поле фильтра Compass <code>$expr</code> пишется так же, как в коде, с массивом аргументов и ссылками на поля со знаком <code>$</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/73-hh-expr.png" alt="Compass, коллекция hh.vacancies: фильтр $expr с $subtract и $gte, счётчик 1 – 5 of 5, у первой вакансии раскрыт документ salary">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр из §4 — вакансии с вилкой шире 50 000</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 5 of 5</code> совпадает с выводом программы в §4. У первой вакансии, «Backend-разработчик .NET», раскрыт документ <code>salary</code>: <code>from</code> — 100 000, <code>to</code> — 150 000, разность — ровно 50 000, граница входит в условие <code>$gte</code>.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"salary.from": {"$lt": "$salary.to"}}</code></td><td>Пусто: вне <code>$expr</code> строка <code>"$salary.to"</code> — обычный текст</td><td><code>{"$expr": {"$lt": ["$salary.from", "$salary.to"]}}</code></td></tr>
+              <tr><td><code>{"$expr": {"$lt": ["salary.from", "salary.to"]}}</code></td><td>Сравниваются две строки-имени, а не значения полей; результат совпадает с верным случайно</td><td>Имена полей со знаком <code>$</code>: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>{"$expr": {"$lt": "$salary.from"}}</code></td><td>Ошибка сервера: <code>Expression $lt takes exactly 2 arguments</code></td><td>Массив из двух аргументов</td></tr>
+              <tr><td><code>{"$expr": {"$gt": ["$salary", 100000]}}</code></td><td>Находит все вакансии: в выражении документ больше числа по порядку типов</td><td>Сравнивать поле нужного типа: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>$expr</code> с <code>$lt</code> по дате на поле, которого нет в части документов</td><td>Находит и документы без поля: отсутствующее поле в выражении равно <code>null</code>, а <code>null</code> меньше даты</td><td>Добавить условие <code>$exists: true</code> на это поле</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>make_document(kvp("salary.from", make_document(kvp("$lt", "$salary.to"))))</code></td><td>Пусто: вне <code>$expr</code> строка <code>"$salary.to"</code> — обычный текст</td><td><code>make_document(kvp("$expr", make_document(kvp("$lt", make_array("$salary.from", "$salary.to")))))</code></td></tr>
+              <tr><td><code>make_document(kvp("$expr", make_document(kvp("$lt", make_array("salary.from", "salary.to")))))</code></td><td>Сравниваются две строки-имени, а не значения полей; результат совпадает с верным случайно</td><td>Имена полей со знаком <code>$</code>: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>make_document(kvp("$expr", make_document(kvp("$lt", "$salary.from"))))</code></td><td>Ошибка сервера: <code>Expression $lt takes exactly 2 arguments</code></td><td>Массив из двух аргументов</td></tr>
+              <tr><td><code>make_document(kvp("$expr", make_document(kvp("$gt", make_array("$salary", 100000)))))</code></td><td>Находит все вакансии: в выражении документ больше числа по порядку типов</td><td>Сравнивать поле нужного типа: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>$expr</code> с <code>$lt</code> по дате на поле, которого нет в части документов</td><td>Находит и документы без поля: отсутствующее поле в выражении равно <code>null</code>, а <code>null</code> меньше даты</td><td>Добавить условие <code>$exists: true</code> на это поле</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>bson.D{{Key: "salary.from", Value: bson.D{{Key: "$lt", Value: "$salary.to"}}}}</code></td><td>Пусто: вне <code>$expr</code> строка <code>"$salary.to"</code> — обычный текст</td><td><code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$lt", Value: bson.A{"$salary.from", "$salary.to"}}}}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$lt", Value: bson.A{"salary.from", "salary.to"}}}}}</code></td><td>Сравниваются две строки-имени, а не значения полей; результат совпадает с верным случайно</td><td>Имена полей со знаком <code>$</code>: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$lt", Value: "$salary.from"}}}}</code></td><td>Ошибка сервера: <code>Expression $lt takes exactly 2 arguments</code></td><td>Массив из двух аргументов</td></tr>
+              <tr><td><code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$gt", Value: bson.A{"$salary", 100000}}}}}</code></td><td>Находит все вакансии: в выражении документ больше числа по порядку типов</td><td>Сравнивать поле нужного типа: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>$expr</code> с <code>$lt</code> по дате на поле, которого нет в части документов</td><td>Находит и документы без поля: отсутствующее поле в выражении равно <code>null</code>, а <code>null</code> меньше даты</td><td>Добавить условие <code>$exists: true</code> на это поле</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "salary.from" =&gt; { "$lt" =&gt; "$salary.to" } }</code></td><td>Пусто: вне <code>$expr</code> строка <code>"$salary.to"</code> — обычный текст</td><td><code>{ "$expr" =&gt; { "$lt" =&gt; ["$salary.from", "$salary.to"] } }</code></td></tr>
+              <tr><td><code>{ "$expr" =&gt; { "$lt" =&gt; ["salary.from", "salary.to"] } }</code></td><td>Сравниваются две строки-имени, а не значения полей; результат совпадает с верным случайно</td><td>Имена полей со знаком <code>$</code>: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>{ "$expr" =&gt; { "$lt" =&gt; "$salary.from" } }</code></td><td>Ошибка сервера: <code>Expression $lt takes exactly 2 arguments</code></td><td>Массив из двух аргументов</td></tr>
+              <tr><td><code>{ "$expr" =&gt; { "$gt" =&gt; ["$salary", 100000] } }</code></td><td>Находит все вакансии: в выражении документ больше числа по порядку типов</td><td>Сравнивать поле нужного типа: <code>"$salary.from"</code></td></tr>
+              <tr><td><code>$expr</code> с <code>$lt</code> по дате на поле, которого нет в части документов</td><td>Находит и документы без поля: отсутствующее поле в выражении равно <code>null</code>, а <code>null</code> меньше даты</td><td>Добавить условие <code>$exists: true</code> на это поле</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему <code>{"salary.from": {"$lt": "$salary.to"}}</code> ничего не нашёл?</summary>
+          <p>Вне <code>$expr</code> строка <code>"$salary.to"</code> — обычный текст. Числовое поле со строкой операторы сравнения не сравнивают. Сравнение двух полей записывается через <code>$expr</code>: <code>{"$expr": {"$lt": ["$salary.from", "$salary.to"]}}</code>.</p>
+        </details>
+        <details>
+          <summary>Чем форма <code>{"$lt": ["$a", "$b"]}</code> отличается от <code>{"a": {"$lt": 5}}</code>?</summary>
+          <p>Первая — выражение: оператор принимает массив из двух аргументов, и оба могут быть полями или вычислениями. Вторая — обычное условие: поле слева, значение справа. Первая форма работает только внутри <code>$expr</code>.</p>
+        </details>
+        <details>
+          <summary>Как найти вакансии, где вилка шире 50 000?</summary>
+          <p>Выражением с вычитанием: <code>{"$expr": {"$gte": [{"$subtract": ["$salary.to", "$salary.from"]}, 50000]}}</code>. В учебной базе таких вакансий пять.</p>
+        </details>
+        <details>
+          <summary>Почему <code>{"$expr": {"$lt": ["$updated", дата]}}</code> нашёл на одно резюме больше, чем <code>{"updated": {"$lt": дата}}</code>?</summary>
+          <p>В одном резюме нет поля <code>updated</code>. В выражении отсутствующее поле даёт <code>null</code>, а <code>null</code> по порядку типов меньше даты. Обычное условие такой документ пропускает. Чтобы выражение вело себя так же, рядом ставят <code>{"updated": {"$exists": true}}</code>.</p>
+        </details>
+        <details>
+          <summary>Зачем оставлять в запросе с <code>$expr</code> обычные условия?</summary>
+          <p>Обычные условия сервер может проверить по индексу и отбросить лишние документы до вычисления выражения. Выражение, сравнивающее поля документа, вычисляется для каждого документа, который до него дошёл.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Сравнить два поля</b>
+            <code>{"$expr": {"$lt": ["$salary.from", "$salary.to"]}}</code>
+          </div>
+          <div>
+            <b>Найти перевёрнутые значения</b>
+            <code>{"$expr": {"$gt": ["$salary.from", "$salary.to"]}}</code>
+          </div>
+          <div>
+            <b>Разность полей</b>
+            <code>{"$expr": {"$gte": [{"$subtract": ["$salary.to", "$salary.from"]}, 50000]}}</code>
+          </div>
+          <div>
+            <b>Вместе с обычным условием</b>
+            <code>{"city": "Москва",</code>
+            <code> "$expr": {...}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Сравнить два поля</b>
+            <code>make_document(kvp("$expr", make_document(kvp("$lt", make_array("$salary.from", "$salary.to")))))</code>
+          </div>
+          <div>
+            <b>Найти перевёрнутые значения</b>
+            <code>make_document(kvp("$expr", make_document(kvp("$gt", make_array("$salary.from", "$salary.to")))))</code>
+          </div>
+          <div>
+            <b>Разность полей</b>
+            <code>make_document(kvp("$expr", make_document(kvp("$gte", make_array(make_document(kvp("$subtract", make_array("$salary.to", "$salary.from"))), 50000)))))</code>
+          </div>
+          <div>
+            <b>Вместе с обычным условием</b>
+            <code>make_document(kvp("city", "Москва"),</code>
+            <code>              kvp("$expr", ...))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Сравнить два поля</b>
+            <code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$lt", Value: bson.A{"$salary.from", "$salary.to"}}}}}</code>
+          </div>
+          <div>
+            <b>Найти перевёрнутые значения</b>
+            <code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$gt", Value: bson.A{"$salary.from", "$salary.to"}}}}}</code>
+          </div>
+          <div>
+            <b>Разность полей</b>
+            <code>bson.D{{Key: "$expr", Value: bson.D{{Key: "$gte", Value: bson.A{bson.D{{Key: "$subtract", Value: bson.A{"$salary.to", "$salary.from"}}}, 50000}}}}}</code>
+          </div>
+          <div>
+            <b>Вместе с обычным условием</b>
+            <code>bson.D{{Key: "city", Value: "Москва"},</code>
+            <code>       {Key: "$expr", Value: ...}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Сравнить два поля</b>
+            <code>{ "$expr" =&gt; { "$lt" =&gt; ["$salary.from", "$salary.to"] } }</code>
+          </div>
+          <div>
+            <b>Найти перевёрнутые значения</b>
+            <code>{ "$expr" =&gt; { "$gt" =&gt; ["$salary.from", "$salary.to"] } }</code>
+          </div>
+          <div>
+            <b>Разность полей</b>
+            <code>{ "$expr" =&gt; { "$gte" =&gt; [{ "$subtract" =&gt; ["$salary.to", "$salary.from"] }, 50000] } }</code>
+          </div>
+          <div>
+            <b>Вместе с обычным условием</b>
+            <code>{ "city" =&gt; "Москва",</code>
+            <code>  "$expr" =&gt; {...} }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$expr</code> принимает выражение и отбирает документы, для которых оно истинно; так сравнивают поля одного документа между собой. В выражении оператор сравнения принимает массив из двух аргументов, а строка со знаком <code>$</code> означает значение поля. Аргументами могут быть вычисления, например разность полей через <code>$subtract</code>. С остальными парами фильтра <code>$expr</code> соединяется по «и». В выражении значения разных типов сравниваются по порядку типов BSON, а отсутствующее поле даёт <code>null</code>, поэтому сравнивают поля известного типа и при необходимости добавляют <code>$exists</code>. На этом разобраны все операторы языка фильтров из плана модуля 2: равенство и точечная нотация, сравнения, списки, логика, наличие и тип поля, массивы, шаблоны и выражения.</p>
+
+        <div class="pager"><a href="../15-regex/index.html">← 2.7 Текстовые шаблоны</a><a href="../../index.html">К содержанию справочника</a></div>
+
+        <div class="colophon">
+          <span>Глава 2.8 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

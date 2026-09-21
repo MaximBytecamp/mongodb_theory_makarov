@@ -47,6 +47,7 @@ expect('db.resumes.countDocuments({"experience.role":"стажёр","experience.
 expect('db.resumes.countDocuments({experience:{$elemMatch:{role:"стажёр",months:{$gte:6}}}})', 1, 'стажёр и срок в $elemMatch');
 expect('db.vacancies.countDocuments({title:/разработчик/})', 3, 'вакансии со словом разработчик');
 expect('db.resumes.countDocuments({position:/^junior/i})', 4, 'резюме Junior');
+expect('db.vacancies.countDocuments({$expr:{$gte:[{$subtract:["$salary.to","$salary.from"]},50000]}})', 5, 'вилка шире 50 000');
 console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
@@ -428,5 +429,14 @@ await withCompass(async page => {
     await setQuery({ filter: '{ position: /^junior/i }', project: '{ _id: 0, fio: 1, position: 1 }' });
     await useJsonView();
     await shot('72-hh-regex-i', await fitHeight(1160));
+  }
+  // --- 73 · глава 2.8 §8: $expr -----------------------------------
+  if (need('73-hh-expr')) {
+    await openCollection('hh', 'vacancies');
+    await setQuery({ filter: '{ $expr: { $gte: [{ $subtract: ["$salary.to", "$salary.from"] }, 50000] } }' });
+    await collapseOptions();
+    await useJsonView();
+    await expandAll(1);
+    await shot('73-hh-expr', await fitHeight(1160));
   }
 });

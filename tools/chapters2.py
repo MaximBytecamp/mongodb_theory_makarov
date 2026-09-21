@@ -520,3 +520,84 @@ CHEATS["2.7"] = [
     ("Точка как символ", ("f", {"title": {"$regex": "\\."}})),
     ("Не содержит", ("f", {"title": {"$not": {"$regex": "разработчик"}}})),
 ]
+
+# ── 2.8 Сравнение полей между собой ────────────────────────────────────────
+
+FROM_LT_TO = {"$expr": {"$lt": ["$salary.from", "$salary.to"]}}
+FROM_GT_TO = {"$expr": {"$gt": ["$salary.from", "$salary.to"]}}
+WIDE = {"$expr": {"$gte": [{"$subtract": ["$salary.to", "$salary.from"]}, 50000]}}
+
+EXAMPLES["2.8"] = {
+    # 8 и 0
+    "string_ref": {"caption": "имя поля вместо значения", "steps": [
+        {"rows": [
+            {"label": "всего вакансий", "coll": "vacancies", "filter": {}, "go": "vsego"},
+            {"label": "salary.from $lt \"$salary.to\"", "coll": "vacancies",
+             "filter": {"salary.from": {"$lt": "$salary.to"}}, "go": "strokoy"},
+        ]},
+    ]},
+    # 8 и 0
+    "expr": {"caption": "два поля одного документа", "steps": [
+        {"rows": [
+            {"label": "нижняя граница меньше верхней", "coll": "vacancies", "filter": FROM_LT_TO, "go": "vernye"},
+            {"label": "нижняя граница больше верхней", "coll": "vacancies", "filter": FROM_GT_TO, "go": "perevernutye"},
+        ]},
+    ]},
+    # 1: v-902
+    "drafts": {"caption": "проверка черновиков вакансий", "steps": [
+        {"comment": "черновики вакансий: коллекция создаётся заново при каждом запуске",
+         "open": ("drafts", "sandbox", "vacancy_drafts")},
+        {"drop": "drafts"},
+        {"insert": "drafts", "doc": {"_id": "v-901", "title": "Стажёр-аналитик", "salary": {"from": 50000, "to": 70000}}},
+        {"insert": "drafts", "doc": {"_id": "v-902", "title": "Тестировщик", "salary": {"from": 90000, "to": 60000}}},
+        {"rows": [
+            {"label": "черновиков", "coll": "drafts", "filter": {}, "go": "vsego"},
+            {"label": "вилка перевёрнута", "coll": "drafts", "filter": FROM_GT_TO, "go": "perevernuta"},
+        ]},
+        {"coll": "drafts", "filter": FROM_GT_TO, "fields": ["title", "salary"], "keep_id": True},
+    ]},
+    # 5 вакансий
+    "wide": {"caption": "ширина вилки от 50 000", "steps": [
+        {"coll": "vacancies", "var": True, "filter": WIDE, "fields": ["title", "salary"]},
+    ]},
+    # 3 московские
+    "combined": {"caption": "$expr вместе с обычным условием", "steps": [
+        {"coll": "vacancies", "var": True, "filter": {"city": "Москва", **WIDE}, "fields": ["title", "city", "salary"]},
+    ]},
+    # 8 и 0; 4 и 3
+    "traps": {"caption": "типы и отсутствующее поле в $expr", "steps": [
+        {"rows": [
+            {"label": "vacancies: $expr salary > 100000", "coll": "vacancies",
+             "filter": {"$expr": {"$gt": ["$salary", 100000]}}, "go": "exprDok"},
+            {"label": "vacancies: salary $gt 100000", "coll": "vacancies",
+             "filter": {"salary": {"$gt": 100000}}, "go": "filtrDok"},
+            {"label": "resumes: $expr updated < 01.09", "coll": "resumes",
+             "filter": {"$expr": {"$lt": ["$updated", datetime(2026, 9, 1)]}}, "go": "exprData"},
+            {"label": "resumes: updated $lt 01.09", "coll": "resumes",
+             "filter": {"updated": {"$lt": datetime(2026, 9, 1)}}, "go": "filtrData"},
+        ]},
+    ]},
+}
+
+ERRORS["2.8"] = [
+    (("f", {"salary.from": {"$lt": "$salary.to"}}), "Пусто: вне <code>$expr</code> строка <code>\"$salary.to\"</code> — обычный текст",
+     ("f", FROM_LT_TO)),
+    (("f", {"$expr": {"$lt": ["salary.from", "salary.to"]}}), "Сравниваются две строки-имени, а не значения полей; результат совпадает с верным случайно",
+     "Имена полей со знаком <code>$</code>: <code>\"$salary.from\"</code>"),
+    (("f", {"$expr": {"$lt": "$salary.from"}}), "Ошибка сервера: <code>Expression $lt takes exactly 2 arguments</code>",
+     "Массив из двух аргументов"),
+    (("f", {"$expr": {"$gt": ["$salary", 100000]}}), "Находит все вакансии: в выражении документ больше числа по порядку типов",
+     "Сравнивать поле нужного типа: <code>\"$salary.from\"</code>"),
+    ("<code>$expr</code> с <code>$lt</code> по дате на поле, которого нет в части документов",
+     "Находит и документы без поля: отсутствующее поле в выражении равно <code>null</code>, а <code>null</code> меньше даты",
+     "Добавить условие <code>$exists: true</code> на это поле"),
+]
+
+CHEATS["2.8"] = [
+    ("Сравнить два поля", ("f", FROM_LT_TO)),
+    ("Найти перевёрнутые значения", ("f", FROM_GT_TO)),
+    ("Разность полей", ("f", WIDE)),
+    ("Вместе с обычным условием", {"python": ['{"city": "Москва",', ' "$expr": {...}}'], "ruby": ['{ "city" => "Москва",', '  "$expr" => {...} }'],
+                                   "go": ['bson.D{{Key: "city", Value: "Москва"},', '       {Key: "$expr", Value: ...}}'],
+                                   "cpp": ['make_document(kvp("city", "Москва"),', '              kvp("$expr", ...))']}),
+]
