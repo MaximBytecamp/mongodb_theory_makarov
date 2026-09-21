@@ -372,3 +372,75 @@ CHEATS["2.5"] = [
     ("Любое число", ("f", {"salary": {"$type": "number"}})),
     ("Значение не того типа", ("f", {"price": {"$type": "string"}})),
 ]
+
+# ── 2.6 Массивы ────────────────────────────────────────────────────────────
+
+INTERN_NO_EM = {"experience.role": "стажёр", "experience.months": {"$gte": 6}}
+INTERN_EM = {"experience": {"$elemMatch": {"role": "стажёр", "months": {"$gte": 6}}}}
+
+EXAMPLES["2.6"] = {
+    # 6, 1, 0
+    "basics": {"caption": "элемент массива и массив целиком", "steps": [
+        {"rows": [
+            {"label": "среди навыков Python", "coll": "resumes", "filter": {"skills": "Python"}, "go": "element"},
+            {"label": "навыки ровно [Python, Git]", "coll": "resumes", "filter": {"skills": ["Python", "Git"]}, "go": "celikom"},
+            {"label": "навыки ровно [Git, Python]", "coll": "resumes", "filter": {"skills": ["Git", "Python"]}, "go": "poryadok"},
+        ]},
+    ]},
+    # 4 и 6
+    "all": {"caption": "все навыки из списка", "steps": [
+        {"rows": [
+            {"label": "$all [Python, SQL]", "coll": "resumes", "filter": {"skills": {"$all": ["Python", "SQL"]}}, "go": "vse"},
+            {"label": "$in [Python, SQL]", "coll": "resumes", "filter": {"skills": {"$in": ["Python", "SQL"]}}, "go": "lyuboy"},
+        ]},
+        {"coll": "resumes", "filter": {"skills": {"$all": ["Python", "SQL"]}}, "fields": ["fio", "skills"]},
+    ]},
+    # 2: Ковалёв и Дроздова
+    "no_em": {"caption": "два условия на массив документов", "steps": [
+        {"coll": "resumes", "var": True, "filter": INTERN_NO_EM, "fields": ["fio", "experience"]},
+    ]},
+    # 1: Ковалёв
+    "em": {"caption": "$elemMatch: оба условия в одном элементе", "steps": [
+        {"coll": "resumes", "var": True, "filter": INTERN_EM, "fields": ["fio", "experience"]},
+    ]},
+    # 6, 2, 1, 2
+    "size": {"caption": "длина массива", "steps": [
+        {"rows": [
+            {"label": "навыков ровно 4", "coll": "resumes", "filter": {"skills": {"$size": 4}}, "go": "chetyre"},
+            {"label": "навыков ровно 5", "coll": "resumes", "filter": {"skills": {"$size": 5}}, "go": "pyat"},
+            {"label": "мест работы 0", "coll": "resumes", "filter": {"experience": {"$size": 0}}, "go": "nol"},
+            {"label": "мест работы 2", "coll": "resumes", "filter": {"experience": {"$size": 2}}, "go": "dva"},
+        ]},
+    ]},
+    # 3, 8, 2
+    "position": {"caption": "элемент по номеру", "steps": [
+        {"rows": [
+            {"label": "первый навык Python", "coll": "resumes", "filter": {"skills.0": "Python"}, "go": "pervyy"},
+            {"label": "навыков не меньше 4", "coll": "resumes", "filter": {"skills.3": {"$exists": True}}, "go": "neMenshe4"},
+            {"label": "навыков не меньше 5", "coll": "resumes", "filter": {"skills.4": {"$exists": True}}, "go": "neMenshe5"},
+        ]},
+        {"coll": "resumes", "filter": {"skills.0": "Python"}, "fields": ["fio", "skills"]},
+    ]},
+}
+
+ERRORS["2.6"] = [
+    (("f", {"skills": ["Python", "SQL"]}), "Пусто: массив в фильтре сравнивается с полем целиком, вместе с порядком",
+     ("f", {"$all": ["Python", "SQL"]})),
+    (("f", INTERN_NO_EM), "Находит документы, где условия выполнены разными элементами массива",
+     ("f", {"$elemMatch": {"role": "стажёр", "months": {"$gte": 6}}})),
+    (("f", {"experience": {"$elemMatch": {"experience.role": "стажёр"}}}), "Пусто: внутри <code>$elemMatch</code> имена полей пишутся от элемента, без имени массива",
+     ("f", {"$elemMatch": {"role": "стажёр"}})),
+    (("f", {"skills": {"$size": {"$gte": 4}}}), "Ошибка сервера: <code>Failed to parse $size. Expected a number</code>",
+     ("f", {"skills.3": {"$exists": True}})),
+    (("f", {"experience": {"$size": 0}}), "Не находит документы, где поля нет совсем",
+     ("f", {"experience.0": {"$exists": False}})),
+]
+
+CHEATS["2.6"] = [
+    ("Все значения из списка", ("f", {"skills": {"$all": ["Python", "SQL"]}})),
+    ("Один элемент — все условия", ("f", INTERN_EM)),
+    ("Длина массива", ("f", {"skills": {"$size": 4}})),
+    ("Не меньше N элементов", ("f", {"skills.3": {"$exists": True}})),
+    ("Элемент по номеру", ("f", {"skills.0": "Python"})),
+    ("Пустой массив или нет поля", ("f", {"experience.0": {"$exists": False}})),
+]

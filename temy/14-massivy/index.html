@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>2.6 Массивы: · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Язык фильтров</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 2 · язык фильтров</p>
+          <p class="running__folio">2.6</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">2.6</span>
+          <h1>Массивы:<br>$all, $elemMatch, $size</h1>
+          <p class="lead">Условие на поле-массив сервер проверяет на каждом элементе — это правило из главы 2.1 работало во всех следующих главах. Здесь разобраны три оператора, которые смотрят на массив иначе: <code>$all</code> требует, чтобы в массиве были все значения из списка, <code>$elemMatch</code> — чтобы один элемент выполнил несколько условий сразу, <code>$size</code> проверяет длину массива. Отдельно — как обратиться к элементу по его номеру.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Язык запросов</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Фильтр и точечная нотация, списки значений <code>$in</code>, тип значения <code>$type</code></dd></div>
+          <div><dt>Зачем это знать</dt><dd>Отбирать документы по содержимому массивов строк и массивов документов</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-2.6-python.zip" download><code>mongodb-glava-2.6-python.zip</code></a>, 60 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-2.6-ruby.zip" download><code>mongodb-glava-2.6-ruby.zip</code></a>, 60 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-2.6-go.zip" download><code>mongodb-glava-2.6-go.zip</code></a>, 65 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-2.6-cpp.zip" download><code>mongodb-glava-2.6-cpp.zip</code></a>, 63 КБ</span> — все примеры главы готовыми программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch2_6.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch2_6.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch2_6.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch2_6.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch2_6.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch2_6.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch2_6.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch2_6.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch2_6.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch2_6.go</code> · в Docker: <code>docker compose run --rm go lessons/ch2_6.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch2_6.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch2_6.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Что уже известно о массивах</a></li>
+            <li><a href="#s2"><code>$all</code>: все значения из списка</a></li>
+            <li><a href="#s3">Два условия на массив документов</a></li>
+            <li><a href="#s4"><code>$elemMatch</code>: один элемент — все условия</a></li>
+            <li><a href="#s5"><code>$size</code>: длина массива</a></li>
+            <li><a href="#s6">Элемент по номеру</a></li>
+            <li><a href="#s7">Массивы в Compass</a></li>
+            <li><a href="#s8">Частые ошибки</a></li>
+            <li><a href="#s9">Проверьте себя</a></li>
+            <li><a href="#s10">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Что уже известно о массивах</h2>
+        <p>В коллекции резюме два массива. <code>skills</code> — массив строк, навыки соискателя. <code>experience</code> — массив документов, по одному на место работы: компания, роль, число месяцев и стек. По предыдущим главам с массивами работают три правила.</p>
+        <p>Первое: равенство с одиночным значением проверяется на каждом элементе, и достаточно одного совпадения (глава 2.1 §6). Второе: <code>$in</code> по массиву требует, чтобы хотя бы один элемент совпал хотя бы с одним значением списка (глава 2.3 §3). Третье: если в фильтре стоит массив, он сравнивается с полем целиком — те же элементы в том же порядке.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>элемент массива и массив целиком</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"среди навыков Python:      "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: <span class="s">"Python"</span>}))
+<span class="f">print</span>(<span class="s">"навыки ровно [Python, Git]:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: [<span class="s">"Python"</span>, <span class="s">"Git"</span>]}))
+<span class="f">print</span>(<span class="s">"навыки ровно [Git, Python]:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: [<span class="s">"Git"</span>, <span class="s">"Python"</span>]}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>элемент массива и массив целиком</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"среди навыков Python:       "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="s">"Python"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"навыки ровно [Python, Git]: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_array</span>(<span class="s">"Python"</span>, <span class="s">"Git"</span>)))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"навыки ровно [Git, Python]: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_array</span>(<span class="s">"Git"</span>, <span class="s">"Python"</span>)))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>элемент массива и массив целиком</span></figcaption>
+<pre>element, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: <span class="s">"Python"</span>}})
+celikom, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.A{<span class="s">"Python"</span>, <span class="s">"Git"</span>}}})
+poryadok, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.A{<span class="s">"Git"</span>, <span class="s">"Python"</span>}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"среди навыков Python:      "</span>, element)
+fmt.<span class="f">Println</span>(<span class="s">"навыки ровно [Python, Git]:"</span>, celikom)
+fmt.<span class="f">Println</span>(<span class="s">"навыки ровно [Git, Python]:"</span>, poryadok)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>элемент массива и массив целиком</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"среди навыков Python:       "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; <span class="s">"Python"</span> }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"навыки ровно [Python, Git]: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; [<span class="s">"Python"</span>, <span class="s">"Git"</span>] }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"навыки ровно [Git, Python]: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; [<span class="s">"Git"</span>, <span class="s">"Python"</span>] }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>среди навыков Python:       6
+навыки ровно [Python, Git]: 1
+навыки ровно [Git, Python]: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>среди навыков Python:       6
+навыки ровно [Python, Git]: 1
+навыки ровно [Git, Python]: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>среди навыков Python:       6
+навыки ровно [Python, Git]: 1
+навыки ровно [Git, Python]: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>среди навыков Python:       6
+навыки ровно [Python, Git]: 1
+навыки ровно [Git, Python]: 0</pre>
+        </figure>
+        <p>Python есть в шести резюме. Массив <code>["Python", "Git"]</code> совпал с навыками Анны Беловой — у неё ровно эти два навыка в этом порядке. Массив из тех же строк в обратном порядке не совпал ни с одним резюме. Сравнение массива целиком нужно редко: обычно важен состав массива, а порядок элементов роли не играет.</p>
+
+        <h2 id="s2"><span class="sec">§2</span><code>$all</code>: все значения из списка</h2>
+        <p>Оператор <code>$all</code> принимает список и отбирает документы, в массиве которых есть все значения из этого списка. Порядок значений и остальные элементы массива на результат не влияют. Это условие «у соискателя есть и Python, и SQL», в отличие от <code>$in</code> — «есть Python или SQL».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>все навыки из списка</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"$all [Python, SQL]:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$all"</span>: [<span class="s">"Python"</span>, <span class="s">"SQL"</span>]}}))
+<span class="f">print</span>(<span class="s">"$in [Python, SQL]: "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$in"</span>: [<span class="s">"Python"</span>, <span class="s">"SQL"</span>]}}))
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"skills"</span>: {<span class="s">"$all"</span>: [<span class="s">"Python"</span>, <span class="s">"SQL"</span>]}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"skills"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>все навыки из списка</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"$all [Python, SQL]: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$all"</span>, <span class="f">make_array</span>(<span class="s">"Python"</span>, <span class="s">"SQL"</span>)))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"$in [Python, SQL]:  "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"Python"</span>, <span class="s">"SQL"</span>)))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$all"</span>, <span class="f">make_array</span>(<span class="s">"Python"</span>, <span class="s">"SQL"</span>))))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>все навыки из списка</span></figcaption>
+<pre>vse, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$all"</span>, Value: bson.A{<span class="s">"Python"</span>, <span class="s">"SQL"</span>}}}}})
+lyuboy, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"Python"</span>, <span class="s">"SQL"</span>}}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"$all [Python, SQL]:"</span>, vse)
+fmt.<span class="f">Println</span>(<span class="s">"$in [Python, SQL]: "</span>, lyuboy)
+
+cursor, _ := resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$all"</span>, Value: bson.A{<span class="s">"Python"</span>, <span class="s">"SQL"</span>}}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"skills"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>все навыки из списка</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"$all [Python, SQL]: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$all"</span> =&gt; [<span class="s">"Python"</span>, <span class="s">"SQL"</span>] } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"$in [Python, SQL]:  "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"Python"</span>, <span class="s">"SQL"</span>] } }).<span class="f">to_s</span>
+
+resumes.<span class="f">find</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$all"</span> =&gt; [<span class="s">"Python"</span>, <span class="s">"SQL"</span>] } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"skills"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>$all [Python, SQL]: 4
+$in [Python, SQL]:  6
+{'fio': 'Пётр Ковалёв', 'skills': ['Python', 'SQL', 'Git', 'Docker']}
+{'fio': 'Алина Дроздова', 'skills': ['SQL', 'Python', 'ClickHouse', 'Power BI', 'Excel']}
+{'fio': 'Ксения Лапина', 'skills': ['Postman', 'SQL', 'Selenium', 'Python']}
+{'fio': 'Ольга Пирогова', 'skills': ['SQL', 'Excel', 'Python', 'ClickHouse']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>$all [Python, SQL]: 4
+$in [Python, SQL]:  6
+{ "fio" : "Пётр Ковалёв", "skills" : [ "Python", "SQL", "Git", "Docker" ] }
+{ "fio" : "Алина Дроздова", "skills" : [ "SQL", "Python", "ClickHouse", "Power BI", "Excel" ] }
+{ "fio" : "Ксения Лапина", "skills" : [ "Postman", "SQL", "Selenium", "Python" ] }
+{ "fio" : "Ольга Пирогова", "skills" : [ "SQL", "Excel", "Python", "ClickHouse" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>$all [Python, SQL]: 4
+$in [Python, SQL]:  6
+{"fio":"Пётр Ковалёв","skills":["Python","SQL","Git","Docker"]}
+{"fio":"Алина Дроздова","skills":["SQL","Python","ClickHouse","Power BI","Excel"]}
+{"fio":"Ксения Лапина","skills":["Postman","SQL","Selenium","Python"]}
+{"fio":"Ольга Пирогова","skills":["SQL","Excel","Python","ClickHouse"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>$all [Python, SQL]: 4
+$in [Python, SQL]:  6
+{"fio"=&gt;"Пётр Ковалёв", "skills"=&gt;["Python", "SQL", "Git", "Docker"]}
+{"fio"=&gt;"Алина Дроздова", "skills"=&gt;["SQL", "Python", "ClickHouse", "Power BI", "Excel"]}
+{"fio"=&gt;"Ксения Лапина", "skills"=&gt;["Postman", "SQL", "Selenium", "Python"]}
+{"fio"=&gt;"Ольга Пирогова", "skills"=&gt;["SQL", "Excel", "Python", "ClickHouse"]}</pre>
+        </figure>
+        <p>Оба навыка есть в четырёх резюме, хотя бы один — в шести. В выводе видно, что порядок в массивах разный: у Петра Ковалёва Python стоит первым, у остальных трёх — после SQL. Для <code>$all</code> это не имеет значения.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Два условия на массив документов</h2>
+        <p>Точечная нотация работает и с массивом документов: <code>"experience.role"</code> означает «поле <code>role</code> у любого элемента массива». Когда условий на массив два, каждое проверяется независимо, и выполнить их могут разные элементы.</p>
+        <p>Задача: найти соискателей, которые были стажёрами не меньше шести месяцев. Если записать её двумя условиями через точку, фильтр прочитается как «среди мест работы есть место с ролью „стажёр“, и среди мест работы есть место длиной от шести месяцев».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>два условия на массив документов</span></figcaption>
+<pre>filtr = {<span class="s">"experience.role"</span>: <span class="s">"стажёр"</span>,
+         <span class="s">"experience.months"</span>: {<span class="s">"$gte"</span>: <span class="n">6</span>}}
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>(filtr, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"experience"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>два условия на массив документов</span></figcaption>
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"experience.role"</span>, <span class="s">"стажёр"</span>),
+    <span class="f">kvp</span>(<span class="s">"experience.months"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">6</span>))));
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(filtr.view(), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>два условия на массив документов</span></figcaption>
+<pre>filtr := bson.D{
+    {Key: <span class="s">"experience.role"</span>, Value: <span class="s">"стажёр"</span>},
+    {Key: <span class="s">"experience.months"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">6</span>}}}}
+
+cursor, _ := resumes.<span class="f">Find</span>(ctx, filtr,
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"experience"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>два условия на массив документов</span></figcaption>
+<pre>filtr = { <span class="s">"experience.role"</span> =&gt; <span class="s">"стажёр"</span>,
+          <span class="s">"experience.months"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">6</span> } }
+
+resumes.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"experience"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'fio': 'Пётр Ковалёв', 'experience': [{'company': 'ИП Сорокин', 'role': 'стажёр', 'months': 6, 'stack': ['Python', 'PostgreSQL']}]}
+{'fio': 'Алина Дроздова', 'experience': [{'company': 'Ozon', 'role': 'младший аналитик', 'months': 14, 'stack': ['ClickHouse', 'Python']}, {'company': 'Retail Lab', 'role': 'стажёр', 'months': 5, 'stack': ['SQL']}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "fio" : "Пётр Ковалёв", "experience" : [ { "company" : "ИП Сорокин", "role" : "стажёр", "months" : 6, "stack" : [ "Python", "PostgreSQL" ] } ] }
+{ "fio" : "Алина Дроздова", "experience" : [ { "company" : "Ozon", "role" : "младший аналитик", "months" : 14, "stack" : [ "ClickHouse", "Python" ] }, { "company" : "Retail Lab", "role" : "стажёр", "months" : 5, "stack" : [ "SQL" ] } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"fio":"Пётр Ковалёв","experience":[{"company":"ИП Сорокин","role":"стажёр","months":6,"stack":["Python","PostgreSQL"]}]}
+{"fio":"Алина Дроздова","experience":[{"company":"Ozon","role":"младший аналитик","months":14,"stack":["ClickHouse","Python"]},{"company":"Retail Lab","role":"стажёр","months":5,"stack":["SQL"]}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"fio"=&gt;"Пётр Ковалёв", "experience"=&gt;[{"company"=&gt;"ИП Сорокин", "role"=&gt;"стажёр", "months"=&gt;6, "stack"=&gt;["Python", "PostgreSQL"]}]}
+{"fio"=&gt;"Алина Дроздова", "experience"=&gt;[{"company"=&gt;"Ozon", "role"=&gt;"младший аналитик", "months"=&gt;14, "stack"=&gt;["ClickHouse", "Python"]}, {"company"=&gt;"Retail Lab", "role"=&gt;"стажёр", "months"=&gt;5, "stack"=&gt;["SQL"]}]}</pre>
+        </figure>
+        <p>Нашлись двое. У Петра Ковалёва одно место работы: стажёр, 6 месяцев — оба условия выполнены одним элементом. У Алины Дроздовой два места: младший аналитик в Ozon на 14 месяцев и стажёр в Retail Lab на 5. Роль «стажёр» дал второй элемент, срок от шести месяцев — первый. Под задачу она не подходит: стажёром она была пять месяцев.</p>
+
+        <h2 id="s4"><span class="sec">§4</span><code>$elemMatch</code>: один элемент — все условия</h2>
+        <p>Оператор <code>$elemMatch</code> принимает документ условий и отбирает документы, в массиве которых есть хотя бы один элемент, выполняющий все эти условия сразу. Имена полей внутри <code>$elemMatch</code> пишутся от элемента массива: <code>role</code> и <code>months</code>, без <code>experience.</code> впереди.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$elemMatch: оба условия в одном элементе</span></figcaption>
+<pre>filtr = {<span class="s">"experience"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"role"</span>: <span class="s">"стажёр"</span>, <span class="s">"months"</span>: {<span class="s">"$gte"</span>: <span class="n">6</span>}}}}
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>(filtr, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"experience"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$elemMatch: оба условия в одном элементе</span></figcaption>
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$elemMatch"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"role"</span>, <span class="s">"стажёр"</span>),
+    <span class="f">kvp</span>(<span class="s">"months"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">6</span>))))))));
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(filtr.view(), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$elemMatch: оба условия в одном элементе</span></figcaption>
+<pre>filtr := bson.D{{Key: <span class="s">"experience"</span>, Value: bson.D{{Key: <span class="s">"$elemMatch"</span>, Value: bson.D{
+    {Key: <span class="s">"role"</span>, Value: <span class="s">"стажёр"</span>},
+    {Key: <span class="s">"months"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">6</span>}}}}}}}}
+
+cursor, _ := resumes.<span class="f">Find</span>(ctx, filtr,
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"experience"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$elemMatch: оба условия в одном элементе</span></figcaption>
+<pre>filtr = { <span class="s">"experience"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; { <span class="s">"role"</span> =&gt; <span class="s">"стажёр"</span>, <span class="s">"months"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">6</span> } } } }
+
+resumes.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"experience"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'fio': 'Пётр Ковалёв', 'experience': [{'company': 'ИП Сорокин', 'role': 'стажёр', 'months': 6, 'stack': ['Python', 'PostgreSQL']}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "fio" : "Пётр Ковалёв", "experience" : [ { "company" : "ИП Сорокин", "role" : "стажёр", "months" : 6, "stack" : [ "Python", "PostgreSQL" ] } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"fio":"Пётр Ковалёв","experience":[{"company":"ИП Сорокин","role":"стажёр","months":6,"stack":["Python","PostgreSQL"]}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"fio"=&gt;"Пётр Ковалёв", "experience"=&gt;[{"company"=&gt;"ИП Сорокин", "role"=&gt;"стажёр", "months"=&gt;6, "stack"=&gt;["Python", "PostgreSQL"]}]}</pre>
+        </figure>
+        <p>Остался один Пётр Ковалёв: только у него роль «стажёр» и срок от шести месяцев записаны в одном элементе. Разница между §3 и §4 — одно резюме: без <code>$elemMatch</code> условия проверяются на массиве в целом, с <code>$elemMatch</code> — на каждом элементе по отдельности.</p>
+        <p>Если условие на массив одно, <code>$elemMatch</code> не нужен: <code>{"experience.role": "стажёр"}</code> и <code>{"experience": {"$elemMatch": {"role": "стажёр"}}}</code> находят одни и те же документы. Оператор нужен, когда условий два и больше и они должны относиться к одному элементу.</p>
+
+        <h2 id="s5"><span class="sec">§5</span><code>$size</code>: длина массива</h2>
+        <p>Оператор <code>$size</code> отбирает документы, в которых массив содержит ровно заданное число элементов. Значение — только целое число: диапазон <code>$size</code> не принимает.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>длина массива</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"навыков ровно 4:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$size"</span>: <span class="n">4</span>}}))
+<span class="f">print</span>(<span class="s">"навыков ровно 5:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills"</span>: {<span class="s">"$size"</span>: <span class="n">5</span>}}))
+<span class="f">print</span>(<span class="s">"мест работы 0:  "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"experience"</span>: {<span class="s">"$size"</span>: <span class="n">0</span>}}))
+<span class="f">print</span>(<span class="s">"мест работы 2:  "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"experience"</span>: {<span class="s">"$size"</span>: <span class="n">2</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>длина массива</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"навыков ровно 4: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">4</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"навыков ровно 5: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">5</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"мест работы 0:   "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">0</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"мест работы 2:   "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">2</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>длина массива</span></figcaption>
+<pre>chetyre, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">4</span>}}}})
+pyat, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">5</span>}}}})
+nol, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"experience"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">0</span>}}}})
+dva, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"experience"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">2</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"навыков ровно 4:"</span>, chetyre)
+fmt.<span class="f">Println</span>(<span class="s">"навыков ровно 5:"</span>, pyat)
+fmt.<span class="f">Println</span>(<span class="s">"мест работы 0:  "</span>, nol)
+fmt.<span class="f">Println</span>(<span class="s">"мест работы 2:  "</span>, dva)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>длина массива</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"навыков ровно 4: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">4</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"навыков ровно 5: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">5</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"мест работы 0:   "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"experience"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">0</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"мест работы 2:   "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"experience"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">2</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>навыков ровно 4: 6
+навыков ровно 5: 2
+мест работы 0:   1
+мест работы 2:   2</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>навыков ровно 4: 6
+навыков ровно 5: 2
+мест работы 0:   1
+мест работы 2:   2</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>навыков ровно 4: 6
+навыков ровно 5: 2
+мест работы 0:   1
+мест работы 2:   2</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>навыков ровно 4: 6
+навыков ровно 5: 2
+мест работы 0:   1
+мест работы 2:   2</pre>
+        </figure>
+        <p>Четыре навыка указаны в шести резюме, пять — в двух. Пустой массив опыта — у одного резюме, Дарьи Нечаевой: <code>$size: 0</code> находит пустой массив. Резюме Анны Беловой в эту строку не попало — поля <code>experience</code> в нём нет, а у отсутствующего поля длины нет. Два места работы — у Алины Дроздовой и Тимура Валиева.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Элемент по номеру</h2>
+        <p>К элементу массива можно обратиться по номеру через точку, как к полю вложенного документа. Нумерация начинается с нуля: <code>"skills.0"</code> — первый навык, <code>"skills.3"</code> — четвёртый. Для массива документов номер ставится перед именем поля: <code>"experience.0.months"</code> — срок на первом месте работы.</p>
+        <p>Номер элемента решает и задачу, которую <code>$size</code> не решает, — «в массиве не меньше N элементов». Если в массиве есть элемент с номером 3, значит, элементов не меньше четырёх.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>элемент по номеру</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"первый навык Python:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills.0"</span>: <span class="s">"Python"</span>}))
+<span class="f">print</span>(<span class="s">"навыков не меньше 4:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills.3"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}))
+<span class="f">print</span>(<span class="s">"навыков не меньше 5:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"skills.4"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}))
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"skills.0"</span>: <span class="s">"Python"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"skills"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>элемент по номеру</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"первый навык Python: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills.0"</span>, <span class="s">"Python"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"навыков не меньше 4: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills.3"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"навыков не меньше 5: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills.4"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills.0"</span>, <span class="s">"Python"</span>)), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>элемент по номеру</span></figcaption>
+<pre>pervyy, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills.0"</span>, Value: <span class="s">"Python"</span>}})
+neMenshe4, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills.3"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+neMenshe5, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"skills.4"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"первый навык Python:"</span>, pervyy)
+fmt.<span class="f">Println</span>(<span class="s">"навыков не меньше 4:"</span>, neMenshe4)
+fmt.<span class="f">Println</span>(<span class="s">"навыков не меньше 5:"</span>, neMenshe5)
+
+cursor, _ := resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"skills.0"</span>, Value: <span class="s">"Python"</span>}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"skills"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>элемент по номеру</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"первый навык Python: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills.0"</span> =&gt; <span class="s">"Python"</span> }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"навыков не меньше 4: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills.3"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"навыков не меньше 5: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"skills.4"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }).<span class="f">to_s</span>
+
+resumes.<span class="f">find</span>({ <span class="s">"skills.0"</span> =&gt; <span class="s">"Python"</span> }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"skills"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>первый навык Python: 3
+навыков не меньше 4: 8
+навыков не меньше 5: 2
+{'fio': 'Анна Белова', 'skills': ['Python', 'Git']}
+{'fio': 'Пётр Ковалёв', 'skills': ['Python', 'SQL', 'Git', 'Docker']}
+{'fio': 'Марк Ефремов', 'skills': ['Python', 'FastAPI', 'MongoDB', 'Git']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>первый навык Python: 3
+навыков не меньше 4: 8
+навыков не меньше 5: 2
+{ "fio" : "Анна Белова", "skills" : [ "Python", "Git" ] }
+{ "fio" : "Пётр Ковалёв", "skills" : [ "Python", "SQL", "Git", "Docker" ] }
+{ "fio" : "Марк Ефремов", "skills" : [ "Python", "FastAPI", "MongoDB", "Git" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>первый навык Python: 3
+навыков не меньше 4: 8
+навыков не меньше 5: 2
+{"fio":"Анна Белова","skills":["Python","Git"]}
+{"fio":"Пётр Ковалёв","skills":["Python","SQL","Git","Docker"]}
+{"fio":"Марк Ефремов","skills":["Python","FastAPI","MongoDB","Git"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>первый навык Python: 3
+навыков не меньше 4: 8
+навыков не меньше 5: 2
+{"fio"=&gt;"Анна Белова", "skills"=&gt;["Python", "Git"]}
+{"fio"=&gt;"Пётр Ковалёв", "skills"=&gt;["Python", "SQL", "Git", "Docker"]}
+{"fio"=&gt;"Марк Ефремов", "skills"=&gt;["Python", "FastAPI", "MongoDB", "Git"]}</pre>
+        </figure>
+        <p>Python стоит первым в навыках у трёх соискателей, и вывод это подтверждает. Навыков не меньше четырёх — у восьми резюме из девяти: четырёх или пяти. Не меньше пяти — у двух, это те же два резюме, что нашёл <code>$size: 5</code> в §5.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Массивы в Compass</h2>
+        <p>Разница между §3 и §4 видна в Compass на одних и тех же данных. Ниже — оба запроса с раскрытым массивом <code>experience</code>. Чтобы массивы поместились в кадр, в поле <b>Project</b> задана проекция <code>{ _id: 0, fio: 1, experience: 1 }</code>: остаются только ФИО и опыт.</p>
+        <figure class="shot">
+          <img src="../../shots/69-hh-bez-elemmatch.png" alt="Compass, коллекция hh.resumes: фильтр experience.role стажёр и experience.months от 6, счётчик 1 – 2 of 2, у второго резюме раскрыт массив experience из двух мест работы">
+          <figcaption>Compass · два условия через точку — два резюме; у Алины Дроздовой условия выполнены разными местами работы</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 2 of 2</code>. Во втором документе раскрыт массив <code>experience</code>: в первом элементе <code>role</code> — «младший аналитик», <code>months</code> — 14, во втором <code>role</code> — «стажёр», <code>months</code> — 5. Условие на роль выполнено вторым элементом, условие на срок — первым.</p>
+        <figure class="shot">
+          <img src="../../shots/70-hh-elemmatch.png" alt="Compass, коллекция hh.resumes: фильтр с $elemMatch, счётчик 1 – 1 of 1, у резюме Петра Ковалёва раскрыт массив experience">
+          <figcaption>Compass · те же условия внутри <code>$elemMatch</code> — одно резюме</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 1 of 1</code>. У Петра Ковалёва в массиве один элемент: <code>role</code> — «стажёр», <code>months</code> — 6. Оба условия выполнены им одним.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"skills": ["Python", "SQL"]}</code></td><td>Пусто: массив в фильтре сравнивается с полем целиком, вместе с порядком</td><td><code>{"$all": ["Python", "SQL"]}</code></td></tr>
+              <tr><td><code>{"experience.role": "стажёр", "experience.months": {"$gte": 6}}</code></td><td>Находит документы, где условия выполнены разными элементами массива</td><td><code>{"$elemMatch": {"role": "стажёр", "months": {"$gte": 6}}}</code></td></tr>
+              <tr><td><code>{"experience": {"$elemMatch": {"experience.role": "стажёр"}}}</code></td><td>Пусто: внутри <code>$elemMatch</code> имена полей пишутся от элемента, без имени массива</td><td><code>{"$elemMatch": {"role": "стажёр"}}</code></td></tr>
+              <tr><td><code>{"skills": {"$size": {"$gte": 4}}}</code></td><td>Ошибка сервера: <code>Failed to parse $size. Expected a number</code></td><td><code>{"skills.3": {"$exists": True}}</code></td></tr>
+              <tr><td><code>{"experience": {"$size": 0}}</code></td><td>Не находит документы, где поля нет совсем</td><td><code>{"experience.0": {"$exists": False}}</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>make_document(kvp("skills", make_array("Python", "SQL")))</code></td><td>Пусто: массив в фильтре сравнивается с полем целиком, вместе с порядком</td><td><code>make_document(kvp("$all", make_array("Python", "SQL")))</code></td></tr>
+              <tr><td><code>make_document(kvp("experience.role", "стажёр"), kvp("experience.months", make_document(kvp("$gte", 6))))</code></td><td>Находит документы, где условия выполнены разными элементами массива</td><td><code>make_document(kvp("$elemMatch", make_document(kvp("role", "стажёр"), kvp("months", make_document(kvp("$gte", 6))))))</code></td></tr>
+              <tr><td><code>make_document(kvp("experience", make_document(kvp("$elemMatch", make_document(kvp("experience.role", "стажёр"))))))</code></td><td>Пусто: внутри <code>$elemMatch</code> имена полей пишутся от элемента, без имени массива</td><td><code>make_document(kvp("$elemMatch", make_document(kvp("role", "стажёр"))))</code></td></tr>
+              <tr><td><code>make_document(kvp("skills", make_document(kvp("$size", make_document(kvp("$gte", 4))))))</code></td><td>Ошибка сервера: <code>Failed to parse $size. Expected a number</code></td><td><code>make_document(kvp("skills.3", make_document(kvp("$exists", true))))</code></td></tr>
+              <tr><td><code>make_document(kvp("experience", make_document(kvp("$size", 0))))</code></td><td>Не находит документы, где поля нет совсем</td><td><code>make_document(kvp("experience.0", make_document(kvp("$exists", false))))</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>bson.D{{Key: "skills", Value: bson.A{"Python", "SQL"}}}</code></td><td>Пусто: массив в фильтре сравнивается с полем целиком, вместе с порядком</td><td><code>bson.D{{Key: "$all", Value: bson.A{"Python", "SQL"}}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "experience.role", Value: "стажёр"}, {Key: "experience.months", Value: bson.D{{Key: "$gte", Value: 6}}}}</code></td><td>Находит документы, где условия выполнены разными элементами массива</td><td><code>bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "role", Value: "стажёр"}, {Key: "months", Value: bson.D{{Key: "$gte", Value: 6}}}}}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "experience", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "experience.role", Value: "стажёр"}}}}}}</code></td><td>Пусто: внутри <code>$elemMatch</code> имена полей пишутся от элемента, без имени массива</td><td><code>bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "role", Value: "стажёр"}}}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "skills", Value: bson.D{{Key: "$size", Value: bson.D{{Key: "$gte", Value: 4}}}}}}</code></td><td>Ошибка сервера: <code>Failed to parse $size. Expected a number</code></td><td><code>bson.D{{Key: "skills.3", Value: bson.D{{Key: "$exists", Value: true}}}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "experience", Value: bson.D{{Key: "$size", Value: 0}}}}</code></td><td>Не находит документы, где поля нет совсем</td><td><code>bson.D{{Key: "experience.0", Value: bson.D{{Key: "$exists", Value: false}}}}</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "skills" =&gt; ["Python", "SQL"] }</code></td><td>Пусто: массив в фильтре сравнивается с полем целиком, вместе с порядком</td><td><code>{ "$all" =&gt; ["Python", "SQL"] }</code></td></tr>
+              <tr><td><code>{ "experience.role" =&gt; "стажёр", "experience.months" =&gt; { "$gte" =&gt; 6 } }</code></td><td>Находит документы, где условия выполнены разными элементами массива</td><td><code>{ "$elemMatch" =&gt; { "role" =&gt; "стажёр", "months" =&gt; { "$gte" =&gt; 6 } } }</code></td></tr>
+              <tr><td><code>{ "experience" =&gt; { "$elemMatch" =&gt; { "experience.role" =&gt; "стажёр" } } }</code></td><td>Пусто: внутри <code>$elemMatch</code> имена полей пишутся от элемента, без имени массива</td><td><code>{ "$elemMatch" =&gt; { "role" =&gt; "стажёр" } }</code></td></tr>
+              <tr><td><code>{ "skills" =&gt; { "$size" =&gt; { "$gte" =&gt; 4 } } }</code></td><td>Ошибка сервера: <code>Failed to parse $size. Expected a number</code></td><td><code>{ "skills.3" =&gt; { "$exists" =&gt; true } }</code></td></tr>
+              <tr><td><code>{ "experience" =&gt; { "$size" =&gt; 0 } }</code></td><td>Не находит документы, где поля нет совсем</td><td><code>{ "experience.0" =&gt; { "$exists" =&gt; false } }</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем <code>{"skills": {"$all": ["Python", "SQL"]}}</code> отличается от <code>{"skills": ["Python", "SQL"]}</code>?</summary>
+          <p><code>$all</code> отбирает резюме, где среди навыков есть и Python, и SQL, в любом порядке и вместе с другими навыками. Массив без оператора сравнивается с полем целиком: навыков должно быть ровно два, Python первым. В учебной базе первый фильтр находит четыре резюме, второй — ни одного.</p>
+        </details>
+        <details>
+          <summary>Почему фильтр <code>{"experience.role": "стажёр", "experience.months": {"$gte": 6}}</code> нашёл резюме, где стажировка длилась пять месяцев?</summary>
+          <p>Условия на массив проверяются независимо: роль «стажёр» дало одно место работы, срок от шести месяцев — другое. Чтобы оба условия относились к одному месту работы, их помещают в <code>$elemMatch</code>.</p>
+        </details>
+        <details>
+          <summary>Как записать внутри <code>$elemMatch</code> условие на поле <code>role</code> элементов массива <code>experience</code>?</summary>
+          <p>Именем поля элемента: <code>{"experience": {"$elemMatch": {"role": "стажёр"}}}</code>. Запись <code>"experience.role"</code> внутри <code>$elemMatch</code> ищет в элементе поле <code>experience</code>, которого там нет, и результат будет пустым.</p>
+        </details>
+        <details>
+          <summary>Как найти резюме, где навыков пять и больше?</summary>
+          <p>Через номер элемента: <code>{"skills.4": {"$exists": true}}</code>. Если в массиве есть элемент с номером 4, элементов не меньше пяти. <code>$size</code> принимает только точное число.</p>
+        </details>
+        <details>
+          <summary>Попадёт ли в результат <code>{"experience": {"$size": 0}}</code> резюме без поля <code>experience</code>?</summary>
+          <p>Нет. <code>$size</code> проверяет длину массива, а у отсутствующего поля длины нет. Пустой массив и отсутствующее поле вместе находит условие <code>{"experience.0": {"$exists": false}}</code>: первого элемента нет ни в том, ни в другом случае.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Все значения из списка</b>
+            <code>{"skills": {"$all": ["Python", "SQL"]}}</code>
+          </div>
+          <div>
+            <b>Один элемент — все условия</b>
+            <code>{"experience": {"$elemMatch": {"role": "стажёр", "months": {"$gte": 6}}}}</code>
+          </div>
+          <div>
+            <b>Длина массива</b>
+            <code>{"skills": {"$size": 4}}</code>
+          </div>
+          <div>
+            <b>Не меньше N элементов</b>
+            <code>{"skills.3": {"$exists": True}}</code>
+          </div>
+          <div>
+            <b>Элемент по номеру</b>
+            <code>{"skills.0": "Python"}</code>
+          </div>
+          <div>
+            <b>Пустой массив или нет поля</b>
+            <code>{"experience.0": {"$exists": False}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Все значения из списка</b>
+            <code>make_document(kvp("skills", make_document(kvp("$all", make_array("Python", "SQL")))))</code>
+          </div>
+          <div>
+            <b>Один элемент — все условия</b>
+            <code>make_document(kvp("experience", make_document(kvp("$elemMatch", make_document(kvp("role", "стажёр"), kvp("months", make_document(kvp("$gte", 6))))))))</code>
+          </div>
+          <div>
+            <b>Длина массива</b>
+            <code>make_document(kvp("skills", make_document(kvp("$size", 4))))</code>
+          </div>
+          <div>
+            <b>Не меньше N элементов</b>
+            <code>make_document(kvp("skills.3", make_document(kvp("$exists", true))))</code>
+          </div>
+          <div>
+            <b>Элемент по номеру</b>
+            <code>make_document(kvp("skills.0", "Python"))</code>
+          </div>
+          <div>
+            <b>Пустой массив или нет поля</b>
+            <code>make_document(kvp("experience.0", make_document(kvp("$exists", false))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Все значения из списка</b>
+            <code>bson.D{{Key: "skills", Value: bson.D{{Key: "$all", Value: bson.A{"Python", "SQL"}}}}}</code>
+          </div>
+          <div>
+            <b>Один элемент — все условия</b>
+            <code>bson.D{{Key: "experience", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "role", Value: "стажёр"}, {Key: "months", Value: bson.D{{Key: "$gte", Value: 6}}}}}}}}</code>
+          </div>
+          <div>
+            <b>Длина массива</b>
+            <code>bson.D{{Key: "skills", Value: bson.D{{Key: "$size", Value: 4}}}}</code>
+          </div>
+          <div>
+            <b>Не меньше N элементов</b>
+            <code>bson.D{{Key: "skills.3", Value: bson.D{{Key: "$exists", Value: true}}}}</code>
+          </div>
+          <div>
+            <b>Элемент по номеру</b>
+            <code>bson.D{{Key: "skills.0", Value: "Python"}}</code>
+          </div>
+          <div>
+            <b>Пустой массив или нет поля</b>
+            <code>bson.D{{Key: "experience.0", Value: bson.D{{Key: "$exists", Value: false}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Все значения из списка</b>
+            <code>{ "skills" =&gt; { "$all" =&gt; ["Python", "SQL"] } }</code>
+          </div>
+          <div>
+            <b>Один элемент — все условия</b>
+            <code>{ "experience" =&gt; { "$elemMatch" =&gt; { "role" =&gt; "стажёр", "months" =&gt; { "$gte" =&gt; 6 } } } }</code>
+          </div>
+          <div>
+            <b>Длина массива</b>
+            <code>{ "skills" =&gt; { "$size" =&gt; 4 } }</code>
+          </div>
+          <div>
+            <b>Не меньше N элементов</b>
+            <code>{ "skills.3" =&gt; { "$exists" =&gt; true } }</code>
+          </div>
+          <div>
+            <b>Элемент по номеру</b>
+            <code>{ "skills.0" =&gt; "Python" }</code>
+          </div>
+          <div>
+            <b>Пустой массив или нет поля</b>
+            <code>{ "experience.0" =&gt; { "$exists" =&gt; false } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Равенство и <code>$in</code> по массиву требуют хотя бы одного совпавшего элемента, массив в фильтре сравнивается с полем целиком. <code>$all</code> требует, чтобы в массиве были все значения из списка, в любом порядке. Несколько условий на массив документов проверяются независимо и могут выполняться разными элементами; <code>$elemMatch</code> требует, чтобы все условия выполнил один элемент, и имена полей внутри него пишутся от элемента. <code>$size</code> проверяет точную длину массива, а условие «не меньше N элементов» записывается через номер элемента: <code>"поле.N-1"</code> с <code>$exists</code>. Следующая глава — о поиске по части строки: <code>$regex</code> и <code>$options</code>.</p>
+
+        <div class="pager"><a href="../13-exists-type/index.html">← 2.5 Есть ли поле</a><a href="../15-regex/index.html">2.7 Текстовые шаблоны →</a></div>
+
+        <div class="colophon">
+          <span>Глава 2.6 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

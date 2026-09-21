@@ -224,6 +224,13 @@ def block(value, lang: str, indent: str) -> str:
                         + (",\n" + inner).join(items) + "}}}")
             return (f"{f('make_document')}({f('kvp')}({s(q(key))}, {f('make_array')}(" + "\n" + inner
                     + (",\n" + inner).join(items) + ")))")
+    if isinstance(value, dict) and len(value) == 1:
+        (key, v), = value.items()
+        if isinstance(v, dict) and visible_len(lit(value, lang)) + len(indent) > 88:
+            inside = block(v, lang, indent)
+            if lang == "go":
+                return f"bson.D{{{{Key: {s(q(key))}, Value: " + inside + "}}"
+            return f"{f('make_document')}({f('kvp')}({s(q(key))}, " + inside + "))"
     if isinstance(value, dict) and len(value) > 1:
         inner = indent + step
         parts = [pair(k_, v, lang) for k_, v in value.items()]

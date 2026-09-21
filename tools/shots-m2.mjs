@@ -43,6 +43,8 @@ expect('db.vacancies.countDocuments({city:{$in:["Москва","Казань"]}}
 expect('db.resumes.countDocuments({skills:{$in:["MongoDB","ClickHouse"]}})', 4, 'MongoDB или ClickHouse');
 expect('db.resumes.countDocuments({$or:[{city:"Ярославль"},{ready_to_move:true}]})', 8, 'из Ярославля или готов к переезду');
 expect('db.resumes.countDocuments({portfolio:{$exists:true}})', 2, 'резюме с портфолио');
+expect('db.resumes.countDocuments({"experience.role":"стажёр","experience.months":{$gte:6}})', 2, 'стажёр и срок через точку');
+expect('db.resumes.countDocuments({experience:{$elemMatch:{role:"стажёр",months:{$gte:6}}}})', 1, 'стажёр и срок в $elemMatch');
 console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
@@ -114,7 +116,8 @@ await withCompass(async page => {
     const docs = page.locator('[data-testid="document-json-item"]');
     const buttons = page.locator('[data-testid="editor-action-Expand all"]');
     const count = Math.min(await docs.count(), limit);
-    for (let i = 0; i < count; i += 1) {
+    // С конца: раскрытый документ удлиняет список и сдвигает те, что ниже
+    for (let i = count - 1; i >= 0; i -= 1) {
       await docs.nth(i).hover().catch(() => {});
       await settle(250);
       await buttons.nth(i).click({ force: true }).catch(() => {});
@@ -391,5 +394,23 @@ await withCompass(async page => {
     await collapseOptions();
     await useJsonView();
     await shot('68-hh-exists', await fitHeight(1160));
+  }
+  // --- 69, 70 · глава 2.6 §7: без $elemMatch и с ним ----------------
+  // Проекция оставляет ФИО и опыт: иначе массив experience не помещается в кадр.
+  if (need('69-hh-bez-elemmatch')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ "experience.role": "стажёр", "experience.months": { $gte: 6 } }',
+                     project: '{ _id: 0, fio: 1, experience: 1 }' });
+    await useJsonView();
+    await expandAll(2);
+    await shot('69-hh-bez-elemmatch', await fitHeight(1160));
+  }
+  if (need('70-hh-elemmatch')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ experience: { $elemMatch: { role: "стажёр", months: { $gte: 6 } } } }',
+                     project: '{ _id: 0, fio: 1, experience: 1 }' });
+    await useJsonView();
+    await expandAll(1);
+    await shot('70-hh-elemmatch', await fitHeight(1160));
   }
 });

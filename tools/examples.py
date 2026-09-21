@@ -40,6 +40,7 @@ CHAPTERS = {
     "2.3": ("11-spiski-in-nin", "Списки значений: $in и $nin", False),
     "2.4": ("12-logika", "Логика: $and $or $not $nor", False),
     "2.5": ("13-exists-type", "Есть ли поле: $exists и $type", True),
+    "2.6": ("14-massivy", "Массивы: $all, $elemMatch, $size", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
