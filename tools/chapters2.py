@@ -444,3 +444,79 @@ CHEATS["2.6"] = [
     ("Элемент по номеру", ("f", {"skills.0": "Python"})),
     ("Пустой массив или нет поля", ("f", {"experience.0": {"$exists": False}})),
 ]
+
+# ── 2.7 Текстовые шаблоны ──────────────────────────────────────────────────
+
+EXAMPLES["2.7"] = {
+    # 3 вакансии
+    "contains": {"caption": "название содержит слово", "steps": [
+        {"coll": "vacancies", "filter": {"title": {"$regex": "разработчик"}}, "fields": ["title"]},
+    ]},
+    # 1, 4, 2; четыре резюме Junior
+    "anchors": {"caption": "начало и конец строки", "steps": [
+        {"rows": [
+            {"label": "вакансии: начинается с Junior", "coll": "vacancies",
+             "filter": {"title": {"$regex": "^Junior"}}, "go": "vNachalo"},
+            {"label": "резюме: начинается с Junior", "coll": "resumes",
+             "filter": {"position": {"$regex": "^Junior"}}, "go": "rNachalo"},
+            {"label": "вакансии: кончается на разработчик", "coll": "vacancies",
+             "filter": {"title": {"$regex": "разработчик$"}}, "go": "vKonec"},
+        ]},
+        {"coll": "resumes", "filter": {"position": {"$regex": "^Junior"}}, "fields": ["fio", "position"]},
+    ]},
+    # 0, 1, 0, 1
+    "case": {"caption": "регистр букв", "steps": [
+        {"rows": [
+            {"label": "junior", "coll": "vacancies", "filter": {"title": {"$regex": "junior"}}, "go": "lat"},
+            {"label": "junior, i", "coll": "vacancies",
+             "filter": {"title": {"$regex": "junior", "$options": "i"}}, "go": "latI"},
+            {"label": "аналитик", "coll": "vacancies", "filter": {"title": {"$regex": "аналитик"}}, "go": "kir"},
+            {"label": "аналитик, i", "coll": "vacancies",
+             "filter": {"title": {"$regex": "аналитик", "$options": "i"}}, "go": "kirI"},
+        ]},
+    ]},
+    # 8 и 1
+    "dot": {"caption": "точка в шаблоне", "steps": [
+        {"rows": [
+            {"label": "шаблон .", "coll": "vacancies", "filter": {"title": {"$regex": "."}}, "go": "lyuboy"},
+            {"label": "шаблон \\.", "coll": "vacancies", "filter": {"title": {"$regex": "\\."}}, "go": "tochka"},
+        ]},
+        {"coll": "vacancies", "filter": {"title": {"$regex": "\\."}}, "fields": ["title"]},
+    ]},
+    # Самойлов и Валиев
+    "array": {"caption": "шаблон и поле-массив", "steps": [
+        {"coll": "resumes", "filter": {"skills": {"$regex": "^Postgre"}}, "fields": ["fio", "skills"]},
+    ]},
+    # 5 и 2
+    "logic": {"caption": "шаблон с $not и $or", "steps": [
+        {"rows": [
+            {"label": "не содержит разработчик", "coll": "vacancies",
+             "filter": {"title": {"$not": {"$regex": "разработчик"}}}, "go": "neSoderzhit"},
+            {"label": "Junior или Frontend в начале", "coll": "vacancies",
+             "filter": {"$or": [{"title": {"$regex": "^Junior"}}, {"title": {"$regex": "^Frontend"}}]}, "go": "ili"},
+        ]},
+    ]},
+}
+
+ERRORS["2.7"] = [
+    (("f", {"title": {"$regex": "junior"}}), "Пусто: шаблон учитывает регистр букв",
+     ("f", {"$regex": "junior", "$options": "i"})),
+    (("f", {"site": {"$regex": ".ru"}}), "Точка означает любой символ: совпадёт и <code>xru</code>, и <code>.ru</code> в середине строки",
+     ("f", {"$regex": "\\.ru$"})),
+    (("f", {"title": {"$regex": "(Junior"}}), "Ошибка сервера: <code>Regular expression is invalid: missing closing parenthesis</code>",
+     ("f", {"$regex": "\\(Junior"})),
+    (("f", {"title": {"$regex": "Тестировщик"}}), "Находит и названия, где слово стоит внутри строки",
+     "Равенство или шаблон с якорями <code>^…$</code>"),
+    ("Шаблон собран из текста, который ввёл пользователь",
+     "Символы <code>.</code>, <code>*</code>, <code>(</code> в тексте меняют смысл шаблона или ломают его",
+     {"python": "Экранировать: <code>re.escape(text)</code>", "ruby": "Экранировать: <code>Regexp.escape(text)</code>",
+      "go": "Экранировать: <code>regexp.QuoteMeta(text)</code>", "cpp": "Экранировать спецсимволы обратной косой чертой перед подстановкой"}),
+]
+
+CHEATS["2.7"] = [
+    ("Содержит", ("f", {"title": {"$regex": "разработчик"}})),
+    ("Начинается с", ("f", {"position": {"$regex": "^Junior"}})),
+    ("Без учёта регистра", ("f", {"title": {"$regex": "junior", "$options": "i"}})),
+    ("Точка как символ", ("f", {"title": {"$regex": "\\."}})),
+    ("Не содержит", ("f", {"title": {"$not": {"$regex": "разработчик"}}})),
+]

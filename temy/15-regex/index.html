@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>2.7 Текстовые шаблоны: · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Язык фильтров</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 2 · язык фильтров</p>
+          <p class="running__folio">2.7</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">2.7</span>
+          <h1>Текстовые шаблоны:<br>$regex и $options</h1>
+          <p class="lead">Условия на строки до сих пор проверяли значение целиком. Здесь разобран оператор <code>$regex</code>, который проверяет строку по шаблону — регулярному выражению: содержит ли она слово, с чего начинается, чем заканчивается. Отдельно — параметр <code>$options</code>, отключающий учёт регистра, символы шаблона, которые нужно экранировать, и то, как шаблон работает с массивами и логическими операторами.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Язык запросов</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Фильтр и точечная нотация, логика <code>$not</code> и <code>$or</code>, индексы в модуле 3</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Искать документы по части строки</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-2.7-python.zip" download><code>mongodb-glava-2.7-python.zip</code></a>, 60 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-2.7-ruby.zip" download><code>mongodb-glava-2.7-ruby.zip</code></a>, 59 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-2.7-go.zip" download><code>mongodb-glava-2.7-go.zip</code></a>, 64 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-2.7-cpp.zip" download><code>mongodb-glava-2.7-cpp.zip</code></a>, 62 КБ</span> — все примеры главы готовыми программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch2_7.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch2_7.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch2_7.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch2_7.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch2_7.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch2_7.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch2_7.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch2_7.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch2_7.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch2_7.go</code> · в Docker: <code>docker compose run --rm go lessons/ch2_7.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch2_7.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch2_7.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1"><code>$regex</code>: строка по шаблону</a></li>
+            <li><a href="#s2">Начало и конец строки</a></li>
+            <li><a href="#s3">Регистр: <code>$options</code></a></li>
+            <li><a href="#s4">Символы шаблона и экранирование</a></li>
+            <li><a href="#s5">Шаблон и поле-массив</a></li>
+            <li><a href="#s6">Шаблон вместе с <code>$not</code> и <code>$or</code></a></li>
+            <li><a href="#s7">Шаблон и скорость поиска</a></li>
+            <li><a href="#s8">Шаблоны в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span><code>$regex</code>: строка по шаблону</h2>
+        <p><span class="term">Регулярное выражение</span> — строка-шаблон, которая описывает множество подходящих строк. Большинство символов шаблона означают сами себя: шаблон <code>разработчик</code> подходит к любой строке, где эти буквы стоят подряд. Несколько символов служебные, они разобраны в §2 и §4.</p>
+        <p>Оператор <code>$regex</code> принимает шаблон строкой и отбирает документы, у которых значение поля подходит под шаблон. Без служебных символов это условие «строка содержит подстроку»: <code>{"title": {"$regex": "разработчик"}}</code> — в названии вакансии есть слово «разработчик» в любом месте.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>название содержит слово</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">find</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"разработчик"</span>}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>название содержит слово</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"разработчик"</span>)))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>название содержит слово</span></figcaption>
+<pre>cursor, _ := vacancies.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"разработчик"</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>название содержит слово</span></figcaption>
+<pre>vacancies.<span class="f">find</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"разработчик"</span> } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+         .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'Junior Python-разработчик'}
+{'title': 'Backend-разработчик .NET'}
+{'title': 'Frontend-разработчик'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "Junior Python-разработчик" }
+{ "title" : "Backend-разработчик .NET" }
+{ "title" : "Frontend-разработчик" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"Junior Python-разработчик"}
+{"title":"Backend-разработчик .NET"}
+{"title":"Frontend-разработчик"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"Junior Python-разработчик"}
+{"title"=&gt;"Backend-разработчик .NET"}
+{"title"=&gt;"Frontend-разработчик"}</pre>
+        </figure>
+        <p>Три вакансии из восьми. Слово стоит в конце названия у первой и третьей и в середине у второй — для шаблона без служебных символов положение подстроки роли не играет. Равенство <code>{"title": "разработчик"}</code> не нашло бы ни одной вакансии: оно требует, чтобы название целиком состояло из этого слова.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Начало и конец строки</h2>
+        <p>Два служебных символа привязывают шаблон к краю строки. Знак <code>^</code> в начале шаблона означает «строка начинается с», знак <code>$</code> в конце — «строка заканчивается на». Такие символы называют <span class="term">якорями</span>. Шаблон <code>^Junior</code> подходит к «Junior Python-разработчик» и не подходит к строке, где «Junior» стоит в середине.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>начало и конец строки</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"вакансии: начинается с Junior:     "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"^Junior"</span>}}))
+<span class="f">print</span>(<span class="s">"резюме: начинается с Junior:       "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"position"</span>: {<span class="s">"$regex"</span>: <span class="s">"^Junior"</span>}}))
+<span class="f">print</span>(<span class="s">"вакансии: кончается на разработчик:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"разработчик$"</span>}}))
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"position"</span>: {<span class="s">"$regex"</span>: <span class="s">"^Junior"</span>}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"position"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>начало и конец строки</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"вакансии: начинается с Junior:      "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^Junior"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"резюме: начинается с Junior:        "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"position"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^Junior"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"вакансии: кончается на разработчик: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"разработчик$"</span>))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"position"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"position"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^Junior"</span>)))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>начало и конец строки</span></figcaption>
+<pre>vNachalo, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^Junior"</span>}}}})
+rNachalo, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"position"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^Junior"</span>}}}})
+vKonec, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"разработчик$"</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"вакансии: начинается с Junior:     "</span>, vNachalo)
+fmt.<span class="f">Println</span>(<span class="s">"резюме: начинается с Junior:       "</span>, rNachalo)
+fmt.<span class="f">Println</span>(<span class="s">"вакансии: кончается на разработчик:"</span>, vKonec)
+
+cursor, _ := resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"position"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^Junior"</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"position"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>начало и конец строки</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"вакансии: начинается с Junior:      "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^Junior"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"резюме: начинается с Junior:        "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"position"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^Junior"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"вакансии: кончается на разработчик: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"разработчик$"</span> } }).<span class="f">to_s</span>
+
+resumes.<span class="f">find</span>({ <span class="s">"position"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^Junior"</span> } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"position"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>вакансии: начинается с Junior:      1
+резюме: начинается с Junior:        4
+вакансии: кончается на разработчик: 2
+{'fio': 'Анна Белова', 'position': 'Junior Python-разработчик'}
+{'fio': 'Пётр Ковалёв', 'position': 'Junior Python-разработчик'}
+{'fio': 'Дарья Нечаева', 'position': 'Junior Frontend-разработчик'}
+{'fio': 'Марк Ефремов', 'position': 'Junior Python-разработчик'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>вакансии: начинается с Junior:      1
+резюме: начинается с Junior:        4
+вакансии: кончается на разработчик: 2
+{ "fio" : "Анна Белова", "position" : "Junior Python-разработчик" }
+{ "fio" : "Пётр Ковалёв", "position" : "Junior Python-разработчик" }
+{ "fio" : "Дарья Нечаева", "position" : "Junior Frontend-разработчик" }
+{ "fio" : "Марк Ефремов", "position" : "Junior Python-разработчик" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>вакансии: начинается с Junior:      1
+резюме: начинается с Junior:        4
+вакансии: кончается на разработчик: 2
+{"fio":"Анна Белова","position":"Junior Python-разработчик"}
+{"fio":"Пётр Ковалёв","position":"Junior Python-разработчик"}
+{"fio":"Дарья Нечаева","position":"Junior Frontend-разработчик"}
+{"fio":"Марк Ефремов","position":"Junior Python-разработчик"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>вакансии: начинается с Junior:      1
+резюме: начинается с Junior:        4
+вакансии: кончается на разработчик: 2
+{"fio"=&gt;"Анна Белова", "position"=&gt;"Junior Python-разработчик"}
+{"fio"=&gt;"Пётр Ковалёв", "position"=&gt;"Junior Python-разработчик"}
+{"fio"=&gt;"Дарья Нечаева", "position"=&gt;"Junior Frontend-разработчик"}
+{"fio"=&gt;"Марк Ефремов", "position"=&gt;"Junior Python-разработчик"}</pre>
+        </figure>
+        <p>С «Junior» начинается одна вакансия и четыре резюме. Название «Backend-разработчик .NET» под шаблон <code>разработчик$</code> не подошло: после слова в нём стоит « .NET», и строка кончается не на «разработчик». Шаблон с обоими якорями, <code>^Тестировщик$</code>, подходит только к строке, которая целиком совпадает с текстом, — то же самое делает равенство.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Регистр: <code>$options</code></h2>
+        <p>Шаблон учитывает регистр букв, как и равенство из главы 2.1: «junior» и «Junior» — разные строки. Параметр <code>$options</code> задаёт режим проверки. Значение <code>"i"</code> — от <i>case-insensitive</i> — отключает учёт регистра. Параметр пишется рядом с <code>$regex</code>, в том же документе условия.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>регистр букв</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"junior:     "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"junior"</span>}}))
+<span class="f">print</span>(<span class="s">"junior, i:  "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"junior"</span>, <span class="s">"$options"</span>: <span class="s">"i"</span>}}))
+<span class="f">print</span>(<span class="s">"аналитик:   "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"аналитик"</span>}}))
+<span class="f">print</span>(<span class="s">"аналитик, i:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"аналитик"</span>, <span class="s">"$options"</span>: <span class="s">"i"</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>регистр букв</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"junior:      "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"junior"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"junior, i:   "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"junior"</span>), <span class="f">kvp</span>(<span class="s">"$options"</span>, <span class="s">"i"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"аналитик:    "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"аналитик"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"аналитик, i: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"аналитик"</span>), <span class="f">kvp</span>(<span class="s">"$options"</span>, <span class="s">"i"</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>регистр букв</span></figcaption>
+<pre>lat, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"junior"</span>}}}})
+latI, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"junior"</span>}, {Key: <span class="s">"$options"</span>, Value: <span class="s">"i"</span>}}}})
+kir, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"аналитик"</span>}}}})
+kirI, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"аналитик"</span>}, {Key: <span class="s">"$options"</span>, Value: <span class="s">"i"</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"junior:     "</span>, lat)
+fmt.<span class="f">Println</span>(<span class="s">"junior, i:  "</span>, latI)
+fmt.<span class="f">Println</span>(<span class="s">"аналитик:   "</span>, kir)
+fmt.<span class="f">Println</span>(<span class="s">"аналитик, i:"</span>, kirI)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>регистр букв</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"junior:      "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"junior"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"junior, i:   "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"junior"</span>, <span class="s">"$options"</span> =&gt; <span class="s">"i"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"аналитик:    "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"аналитик"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"аналитик, i: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"аналитик"</span>, <span class="s">"$options"</span> =&gt; <span class="s">"i"</span> } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>junior:      0
+junior, i:   1
+аналитик:    0
+аналитик, i: 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>junior:      0
+junior, i:   1
+аналитик:    0
+аналитик, i: 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>junior:      0
+junior, i:   1
+аналитик:    0
+аналитик, i: 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>junior:      0
+junior, i:   1
+аналитик:    0
+аналитик, i: 1</pre>
+        </figure>
+        <p>Шаблоны в нижнем регистре без параметра не нашли ничего: в названиях вакансий «Junior» и «Аналитик» написаны с заглавной буквы. С <code>"i"</code> нашлось по одной вакансии. Для кириллицы параметр работает так же, как для латиницы. В поиске по вводу пользователя обычно ставят <code>"i"</code>: пользователь не обязан угадывать, с какой буквы записано название в базе.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Символы шаблона и экранирование</h2>
+        <p>Кроме якорей, в регулярных выражениях есть и другие служебные символы. Точка означает «любой один символ», звёздочка — «предыдущий символ повторяется сколько угодно раз», круглые скобки объединяют часть шаблона в группу.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Символ</th><th>Значение в шаблоне</th><th>Пример</th></tr></thead>
+            <tbody>
+              <tr><td><code>^</code></td><td>начало строки</td><td><code>^Junior</code> — начинается с «Junior»</td></tr>
+              <tr><td><code>$</code></td><td>конец строки</td><td><code>разработчик$</code> — кончается на «разработчик»</td></tr>
+              <tr><td><code>.</code></td><td>любой один символ</td><td><code>C.</code> — «C#», «C+», «CS»</td></tr>
+              <tr><td><code>*</code></td><td>предыдущий символ ноль и более раз</td><td><code>Post.*SQL</code> — «PostgreSQL», «PostSQL»</td></tr>
+              <tr><td><code>( )</code></td><td>группа</td><td><code>(Junior|Middle)</code> — одно из двух слов</td></tr>
+              <tr><td><code>|</code></td><td>одна из альтернатив</td><td><code>Python|Go</code> — «Python» или «Go»</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Чтобы служебный символ означал сам себя, перед ним ставят обратную косую черту: <code>\.</code> — точка, <code>\(</code> — открывающая скобка. Это называется <span class="term">экранированием</span>. В исходном коде всех четырёх языков обратная косая черта внутри строки в двойных кавычках сама экранируется, поэтому шаблон <code>\.</code> записывается как <code>"\\."</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>точка в шаблоне</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"шаблон .: "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"."</span>}}))
+<span class="f">print</span>(<span class="s">"шаблон \\.:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"\\."</span>}}))
+
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">find</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"\\."</span>}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>точка в шаблоне</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"шаблон .:  "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"."</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"шаблон \\.: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"\\."</span>))))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : vacancies.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"\\."</span>)))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>точка в шаблоне</span></figcaption>
+<pre>lyuboy, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"."</span>}}}})
+tochka, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"\\."</span>}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"шаблон .: "</span>, lyuboy)
+fmt.<span class="f">Println</span>(<span class="s">"шаблон \\.:"</span>, tochka)
+
+cursor, _ := vacancies.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"\\."</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>точка в шаблоне</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"шаблон .:  "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"."</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"шаблон \\.: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"\\."</span> } }).<span class="f">to_s</span>
+
+vacancies.<span class="f">find</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"\\."</span> } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+         .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>шаблон .:  8
+шаблон \.: 1
+{'title': 'Backend-разработчик .NET'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>шаблон .:  8
+шаблон \.: 1
+{ "title" : "Backend-разработчик .NET" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>шаблон .:  8
+шаблон \.: 1
+{"title":"Backend-разработчик .NET"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>шаблон .:  8
+шаблон \.: 1
+{"title"=&gt;"Backend-разработчик .NET"}</pre>
+        </figure>
+        <p>Шаблон из одной точки подошёл ко всем восьми названиям: в каждом есть хотя бы один символ. Экранированная точка нашла одно название — то, где в тексте стоит точка, «Backend-разработчик .NET». Та же ошибка в поиске по адресам сайтов даёт лишние совпадения: шаблон <code>.ru</code> подходит и к <code>.ru</code>, и к <code>xru</code>.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Шаблон и поле-массив</h2>
+        <p>Для массива <code>$regex</code> работает по общему правилу главы 2.1: шаблон проверяется на каждом элементе, и достаточно одного совпадения. Пример ищет резюме, где среди навыков есть строка, начинающаяся с «Postgre».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>шаблон и поле-массив</span></figcaption>
+<pre><span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"skills"</span>: {<span class="s">"$regex"</span>: <span class="s">"^Postgre"</span>}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"skills"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>шаблон и поле-массив</span></figcaption>
+<pre>mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">const auto</span>&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^Postgre"</span>)))), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>шаблон и поле-массив</span></figcaption>
+<pre>cursor, _ := resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^Postgre"</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"fio"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"skills"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="f">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>шаблон и поле-массив</span></figcaption>
+<pre>resumes.<span class="f">find</span>({ <span class="s">"skills"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^Postgre"</span> } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"skills"</span> =&gt; <span class="n">1</span> })
+       .<span class="f">each</span> { |doc| <span class="f">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'fio': 'Игорь Самойлов', 'skills': ['C#', '.NET', 'PostgreSQL', 'RabbitMQ', 'Docker']}
+{'fio': 'Тимур Валиев', 'skills': ['PostgreSQL', 'MongoDB', 'Bash', 'Zabbix']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "fio" : "Игорь Самойлов", "skills" : [ "C#", ".NET", "PostgreSQL", "RabbitMQ", "Docker" ] }
+{ "fio" : "Тимур Валиев", "skills" : [ "PostgreSQL", "MongoDB", "Bash", "Zabbix" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"fio":"Игорь Самойлов","skills":["C#",".NET","PostgreSQL","RabbitMQ","Docker"]}
+{"fio":"Тимур Валиев","skills":["PostgreSQL","MongoDB","Bash","Zabbix"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"fio"=&gt;"Игорь Самойлов", "skills"=&gt;["C#", ".NET", "PostgreSQL", "RabbitMQ", "Docker"]}
+{"fio"=&gt;"Тимур Валиев", "skills"=&gt;["PostgreSQL", "MongoDB", "Bash", "Zabbix"]}</pre>
+        </figure>
+        <p>Два резюме: у Игоря Самойлова и Тимура Валиева среди навыков есть «PostgreSQL». Элемент не обязан совпадать с шаблоном целиком: шаблон <code>^Postgre</code> подошёл бы и к «PostgreSQL 16», и к «Postgres».</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Шаблон вместе с <code>$not</code> и <code>$or</code></h2>
+        <p>В главе 2.4 было сказано, что <code>$not</code> нужен, когда условие трудно записать наоборот. Шаблон — такое условие: «строка не содержит слово» одним <code>$regex</code> не записать. <code>$not</code> принимает документ с <code>$regex</code> так же, как документ с любым другим оператором. Несколько шаблонов на одно поле соединяются через <code>$or</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>шаблон с $not и $or</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"не содержит разработчик:     "</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$not"</span>: {<span class="s">"$regex"</span>: <span class="s">"разработчик"</span>}}}))
+<span class="f">print</span>(<span class="s">"Junior или Frontend в начале:"</span>, vacancies.<span class="f">count_documents</span>({<span class="s">"$or"</span>: [{<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"^Junior"</span>}}, {<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"^Frontend"</span>}}]}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>шаблон с $not и $or</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"не содержит разработчик:      "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$not"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"разработчик"</span>))))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"Junior или Frontend в начале: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$or"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^Junior"</span>)))), <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^Frontend"</span>)))))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>шаблон с $not и $or</span></figcaption>
+<pre>neSoderzhit, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$not"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"разработчик"</span>}}}}}})
+ili, _ := vacancies.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$or"</span>, Value: bson.A{bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^Junior"</span>}}}}, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^Frontend"</span>}}}}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"не содержит разработчик:     "</span>, neSoderzhit)
+fmt.<span class="f">Println</span>(<span class="s">"Junior или Frontend в начале:"</span>, ili)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>шаблон с $not и $or</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"не содержит разработчик:      "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$not"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"разработчик"</span> } } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"Junior или Frontend в начале: "</span> + vacancies.<span class="f">count_documents</span>({ <span class="s">"$or"</span> =&gt; [{ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^Junior"</span> } }, { <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^Frontend"</span> } }] }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>не содержит разработчик:      5
+Junior или Frontend в начале: 2</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>не содержит разработчик:      5
+Junior или Frontend в начале: 2</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>не содержит разработчик:      5
+Junior или Frontend в начале: 2</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>не содержит разработчик:      5
+Junior или Frontend в начале: 2</pre>
+        </figure>
+        <p>Вакансий без слова «разработчик» в названии пять — восемь минус три из §1. Через <code>$or</code> нашлись две вакансии: одна начинается с «Junior», другая с «Frontend». Два шаблона можно объединить и в один с альтернативой: <code>^(Junior|Frontend)</code>.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Шаблон и скорость поиска</h2>
+        <p>Чтобы проверить документ по шаблону, сервер читает значение поля и прогоняет по нему регулярное выражение. Без индекса так проверяется каждый документ коллекции. Индекс по полю хранит значения в отсортированном порядке, и для шаблона с якорем <code>^</code> в начале сервер может взять из индекса только строки с нужным началом — так же, как ищут слово в словаре по первым буквам. Для шаблона без якоря такой приём не работает: подстрока может стоять в любом месте, и сервер просматривает все значения. Параметр <code>"i"</code> тоже мешает использовать порядок индекса. Индексы и чтение планов запросов разобраны в модуле 3.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Шаблоны в Compass</h2>
+        <p>В поле фильтра Compass шаблон можно записать двумя способами: оператором <code>$regex</code>, как в коде, или литералом регулярного выражения между косыми чертами — <code>/разработчик/</code>. Параметры ставятся после второй косой черты: <code>/junior/i</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/71-hh-regex.png" alt="Compass, коллекция hh.vacancies: фильтр title равно /разработчик/, счётчик 1 – 3 of 3">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ title: /разработчик/ }</code> — те же три вакансии, что в §1</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 3 of 3</code>. В поле фильтра шаблон стоит между косыми чертами, без кавычек. В названиях трёх вакансий слово «разработчик» стоит в разных местах.</p>
+        <figure class="shot">
+          <img src="../../shots/72-hh-regex-i.png" alt="Compass, коллекция hh.resumes: фильтр position с шаблоном ^junior и параметром i, счётчик 1 – 4 of 4">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ position: /^junior/i }</code> — четыре резюме</figcaption>
+        </figure>
+        <p>Шаблон в нижнем регистре с параметром <code>i</code> нашёл те же четыре резюме, что <code>^Junior</code> в §2; проекция в поле <b>Project</b> оставляет только ФИО и должность. В коде этот литерал соответствует записи <code>{"$regex": "^junior", "$options": "i"}</code>.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"title": {"$regex": "junior"}}</code></td><td>Пусто: шаблон учитывает регистр букв</td><td><code>{"$regex": "junior", "$options": "i"}</code></td></tr>
+              <tr><td><code>{"site": {"$regex": ".ru"}}</code></td><td>Точка означает любой символ: совпадёт и <code>xru</code>, и <code>.ru</code> в середине строки</td><td><code>{"$regex": "\\.ru$"}</code></td></tr>
+              <tr><td><code>{"title": {"$regex": "(Junior"}}</code></td><td>Ошибка сервера: <code>Regular expression is invalid: missing closing parenthesis</code></td><td><code>{"$regex": "\\(Junior"}</code></td></tr>
+              <tr><td><code>{"title": {"$regex": "Тестировщик"}}</code></td><td>Находит и названия, где слово стоит внутри строки</td><td>Равенство или шаблон с якорями <code>^…$</code></td></tr>
+              <tr><td>Шаблон собран из текста, который ввёл пользователь</td><td>Символы <code>.</code>, <code>*</code>, <code>(</code> в тексте меняют смысл шаблона или ломают его</td><td>Экранировать: <code>re.escape(text)</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>make_document(kvp("title", make_document(kvp("$regex", "junior"))))</code></td><td>Пусто: шаблон учитывает регистр букв</td><td><code>make_document(kvp("$regex", "junior"), kvp("$options", "i"))</code></td></tr>
+              <tr><td><code>make_document(kvp("site", make_document(kvp("$regex", ".ru"))))</code></td><td>Точка означает любой символ: совпадёт и <code>xru</code>, и <code>.ru</code> в середине строки</td><td><code>make_document(kvp("$regex", "\\.ru$"))</code></td></tr>
+              <tr><td><code>make_document(kvp("title", make_document(kvp("$regex", "(Junior"))))</code></td><td>Ошибка сервера: <code>Regular expression is invalid: missing closing parenthesis</code></td><td><code>make_document(kvp("$regex", "\\(Junior"))</code></td></tr>
+              <tr><td><code>make_document(kvp("title", make_document(kvp("$regex", "Тестировщик"))))</code></td><td>Находит и названия, где слово стоит внутри строки</td><td>Равенство или шаблон с якорями <code>^…$</code></td></tr>
+              <tr><td>Шаблон собран из текста, который ввёл пользователь</td><td>Символы <code>.</code>, <code>*</code>, <code>(</code> в тексте меняют смысл шаблона или ломают его</td><td>Экранировать спецсимволы обратной косой чертой перед подстановкой</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "junior"}}}}</code></td><td>Пусто: шаблон учитывает регистр букв</td><td><code>bson.D{{Key: "$regex", Value: "junior"}, {Key: "$options", Value: "i"}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "site", Value: bson.D{{Key: "$regex", Value: ".ru"}}}}</code></td><td>Точка означает любой символ: совпадёт и <code>xru</code>, и <code>.ru</code> в середине строки</td><td><code>bson.D{{Key: "$regex", Value: "\\.ru$"}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "(Junior"}}}}</code></td><td>Ошибка сервера: <code>Regular expression is invalid: missing closing parenthesis</code></td><td><code>bson.D{{Key: "$regex", Value: "\\(Junior"}}</code></td></tr>
+              <tr><td><code>bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "Тестировщик"}}}}</code></td><td>Находит и названия, где слово стоит внутри строки</td><td>Равенство или шаблон с якорями <code>^…$</code></td></tr>
+              <tr><td>Шаблон собран из текста, который ввёл пользователь</td><td>Символы <code>.</code>, <code>*</code>, <code>(</code> в тексте меняют смысл шаблона или ломают его</td><td>Экранировать: <code>regexp.QuoteMeta(text)</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "title" =&gt; { "$regex" =&gt; "junior" } }</code></td><td>Пусто: шаблон учитывает регистр букв</td><td><code>{ "$regex" =&gt; "junior", "$options" =&gt; "i" }</code></td></tr>
+              <tr><td><code>{ "site" =&gt; { "$regex" =&gt; ".ru" } }</code></td><td>Точка означает любой символ: совпадёт и <code>xru</code>, и <code>.ru</code> в середине строки</td><td><code>{ "$regex" =&gt; "\\.ru$" }</code></td></tr>
+              <tr><td><code>{ "title" =&gt; { "$regex" =&gt; "(Junior" } }</code></td><td>Ошибка сервера: <code>Regular expression is invalid: missing closing parenthesis</code></td><td><code>{ "$regex" =&gt; "\\(Junior" }</code></td></tr>
+              <tr><td><code>{ "title" =&gt; { "$regex" =&gt; "Тестировщик" } }</code></td><td>Находит и названия, где слово стоит внутри строки</td><td>Равенство или шаблон с якорями <code>^…$</code></td></tr>
+              <tr><td>Шаблон собран из текста, который ввёл пользователь</td><td>Символы <code>.</code>, <code>*</code>, <code>(</code> в тексте меняют смысл шаблона или ломают его</td><td>Экранировать: <code>Regexp.escape(text)</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем <code>{"title": {"$regex": "разработчик"}}</code> отличается от <code>{"title": "разработчик"}</code>?</summary>
+          <p>Шаблон отбирает названия, в которых слово стоит в любом месте. Равенство требует, чтобы название целиком было словом «разработчик». В учебной базе первый фильтр находит три вакансии, второй — ни одной.</p>
+        </details>
+        <details>
+          <summary>Почему <code>{"title": {"$regex": "junior"}}</code> ничего не нашёл?</summary>
+          <p>Шаблон учитывает регистр, а в названии «Junior» написано с заглавной буквы. Нужен параметр <code>"$options": "i"</code> или шаблон с заглавной буквой.</p>
+        </details>
+        <details>
+          <summary>Что найдёт шаблон <code>"."</code>?</summary>
+          <p>Все документы, где в поле есть хотя бы один символ: точка в шаблоне означает любой символ. Чтобы искать саму точку, её экранируют: шаблон <code>\.</code>, в коде — <code>"\\."</code>.</p>
+        </details>
+        <details>
+          <summary>Как найти вакансии, в названии которых нет слова «разработчик»?</summary>
+          <p>Через отрицание шаблона: <code>{"title": {"$not": {"$regex": "разработчик"}}}</code>. В учебной базе таких вакансий пять.</p>
+        </details>
+        <details>
+          <summary>Какой шаблон быстрее на большой коллекции с индексом по полю: <code>^Junior</code> или <code>Junior</code>?</summary>
+          <p><code>^Junior</code>: строки в индексе отсортированы, и сервер берёт только те, что начинаются с «Junior». Шаблон без якоря требует просмотреть все значения поля.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Содержит</b>
+            <code>{"title": {"$regex": "разработчик"}}</code>
+          </div>
+          <div>
+            <b>Начинается с</b>
+            <code>{"position": {"$regex": "^Junior"}}</code>
+          </div>
+          <div>
+            <b>Без учёта регистра</b>
+            <code>{"title": {"$regex": "junior", "$options": "i"}}</code>
+          </div>
+          <div>
+            <b>Точка как символ</b>
+            <code>{"title": {"$regex": "\\."}}</code>
+          </div>
+          <div>
+            <b>Не содержит</b>
+            <code>{"title": {"$not": {"$regex": "разработчик"}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Содержит</b>
+            <code>make_document(kvp("title", make_document(kvp("$regex", "разработчик"))))</code>
+          </div>
+          <div>
+            <b>Начинается с</b>
+            <code>make_document(kvp("position", make_document(kvp("$regex", "^Junior"))))</code>
+          </div>
+          <div>
+            <b>Без учёта регистра</b>
+            <code>make_document(kvp("title", make_document(kvp("$regex", "junior"), kvp("$options", "i"))))</code>
+          </div>
+          <div>
+            <b>Точка как символ</b>
+            <code>make_document(kvp("title", make_document(kvp("$regex", "\\."))))</code>
+          </div>
+          <div>
+            <b>Не содержит</b>
+            <code>make_document(kvp("title", make_document(kvp("$not", make_document(kvp("$regex", "разработчик"))))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Содержит</b>
+            <code>bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "разработчик"}}}}</code>
+          </div>
+          <div>
+            <b>Начинается с</b>
+            <code>bson.D{{Key: "position", Value: bson.D{{Key: "$regex", Value: "^Junior"}}}}</code>
+          </div>
+          <div>
+            <b>Без учёта регистра</b>
+            <code>bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "junior"}, {Key: "$options", Value: "i"}}}}</code>
+          </div>
+          <div>
+            <b>Точка как символ</b>
+            <code>bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "\\."}}}}</code>
+          </div>
+          <div>
+            <b>Не содержит</b>
+            <code>bson.D{{Key: "title", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$regex", Value: "разработчик"}}}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Содержит</b>
+            <code>{ "title" =&gt; { "$regex" =&gt; "разработчик" } }</code>
+          </div>
+          <div>
+            <b>Начинается с</b>
+            <code>{ "position" =&gt; { "$regex" =&gt; "^Junior" } }</code>
+          </div>
+          <div>
+            <b>Без учёта регистра</b>
+            <code>{ "title" =&gt; { "$regex" =&gt; "junior", "$options" =&gt; "i" } }</code>
+          </div>
+          <div>
+            <b>Точка как символ</b>
+            <code>{ "title" =&gt; { "$regex" =&gt; "\\." } }</code>
+          </div>
+          <div>
+            <b>Не содержит</b>
+            <code>{ "title" =&gt; { "$not" =&gt; { "$regex" =&gt; "разработчик" } } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$regex</code> проверяет строку по регулярному выражению; шаблон без служебных символов означает «содержит подстроку». Якоря <code>^</code> и <code>$</code> привязывают шаблон к началу и концу строки. Шаблон учитывает регистр, и параметр <code>$options: "i"</code> это отключает. Точка, звёздочка, скобки и другие служебные символы экранируются обратной косой чертой, а в строках кода сама черта удваивается. На массиве шаблон проверяется для каждого элемента, <code>$not</code> отрицает его, <code>$or</code> объединяет несколько. Шаблон с якорем <code>^</code> может использовать индекс, шаблон без якоря требует просмотреть все значения. Следующая глава — о сравнении двух полей одного документа между собой: <code>$expr</code>.</p>
+
+        <div class="pager"><a href="../14-massivy/index.html">← 2.6 Массивы</a><a href="../16-expr/index.html">2.8 Сравнение полей →</a></div>
+
+        <div class="colophon">
+          <span>Глава 2.7 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

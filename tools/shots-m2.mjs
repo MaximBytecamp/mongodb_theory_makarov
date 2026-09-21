@@ -45,6 +45,8 @@ expect('db.resumes.countDocuments({$or:[{city:"Ярославль"},{ready_to_mo
 expect('db.resumes.countDocuments({portfolio:{$exists:true}})', 2, 'резюме с портфолио');
 expect('db.resumes.countDocuments({"experience.role":"стажёр","experience.months":{$gte:6}})', 2, 'стажёр и срок через точку');
 expect('db.resumes.countDocuments({experience:{$elemMatch:{role:"стажёр",months:{$gte:6}}}})', 1, 'стажёр и срок в $elemMatch');
+expect('db.vacancies.countDocuments({title:/разработчик/})', 3, 'вакансии со словом разработчик');
+expect('db.resumes.countDocuments({position:/^junior/i})', 4, 'резюме Junior');
 console.log('стенд сверен с текстом глав');
 
 await withCompass(async page => {
@@ -412,5 +414,19 @@ await withCompass(async page => {
     await useJsonView();
     await expandAll(1);
     await shot('70-hh-elemmatch', await fitHeight(1160));
+  }
+  // --- 71, 72 · глава 2.7 §8: литерал шаблона в Compass --------------
+  if (need('71-hh-regex')) {
+    await openCollection('hh', 'vacancies');
+    await setQuery({ filter: '{ title: /разработчик/ }' });
+    await collapseOptions();
+    await useJsonView();
+    await shot('71-hh-regex', await fitHeight(1160));
+  }
+  if (need('72-hh-regex-i')) {
+    await openCollection('hh', 'resumes');
+    await setQuery({ filter: '{ position: /^junior/i }', project: '{ _id: 0, fio: 1, position: 1 }' });
+    await useJsonView();
+    await shot('72-hh-regex-i', await fitHeight(1160));
   }
 });
