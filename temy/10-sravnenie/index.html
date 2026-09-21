@@ -61,12 +61,12 @@
           <b>В этой главе</b>
           <ol>
             <li><a href="#s1">Оператор в фильтре</a></li>
-            <li><a href="#s2"><code>$eq</code>: равенство, записанное явно</a></li>
-            <li><a href="#s3">Диапазон на одном поле</a></li>
-            <li><a href="#s4">Сравнение вложенных полей</a></li>
-            <li><a href="#s5">Даты</a></li>
-            <li><a href="#s6">Строки</a></li>
-            <li><a href="#s7"><code>$ne</code> и отсутствующее поле</a></li>
+            <li><a href="#s2">Диапазон на одном поле</a></li>
+            <li><a href="#s3">Сравнение вложенных полей</a></li>
+            <li><a href="#s4">Даты</a></li>
+            <li><a href="#s5">Строки</a></li>
+            <li><a href="#s6"><code>$ne</code> и отсутствующее поле</a></li>
+            <li><a href="#s7"><code>$eq</code>: равенство, записанное явно</a></li>
             <li><a href="#s8">Сравнение в Compass</a></li>
             <li><a href="#s9">Частые ошибки</a></li>
             <li><a href="#s10">Проверьте себя</a></li>
@@ -154,75 +154,7 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
         </figure>
         <p>Четыре компании из восьми. Документы идут в том порядке, в каком лежат в коллекции: сортировку оператор сравнения не задаёт. Если нужен порядок по числу сотрудников, к запросу добавляют <code>sort</code> из главы <a href="../06-sort-limit-skip/index.html">1.6</a>.</p>
 
-        <h2 id="s2"><span class="sec">§2</span><code>$eq</code>: равенство, записанное явно</h2>
-        <p>Оператор <code>$eq</code> проверяет то же, что пара «поле — значение»: <code>{"city": "Москва"}</code> и <code>{"city": {"$eq": "Москва"}}</code> — один и тот же запрос. Разница появляется, когда значение для фильтра приходит извне программы — например, из формы поиска на сайте.</p>
-        <p>Допустим, программа ищет резюме по ФИО и подставляет в фильтр то, что прислал браузер. Обычно это строка. Но если вместо строки прислать JSON-объект <code>{"$ne": null}</code>, фильтр <code>{"fio": значение}</code> превратится в <code>{"fio": {"$ne": null}}</code> — условие «ФИО не пустое», под которое подходят все резюме. Такая подмена называется <span class="term">внедрением операторов</span>. Оператор <code>$eq</code> от неё защищает: всё, что стоит после него, сервер сравнивает как значение, даже если это документ со знаком <code>$</code>.</p>
-        <div class="duo">
-          <figure class="code" data-lang="python">
-            <figcaption><span>Python · PyMongo</span><span>явное и неявное равенство</span></figcaption>
-<pre><span class="f">print</span>(<span class="s">"город Москва:       "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"city"</span>: <span class="s">"Москва"</span>}))
-<span class="f">print</span>(<span class="s">"город $eq Москва:   "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"city"</span>: {<span class="s">"$eq"</span>: <span class="s">"Москва"</span>}}))
-<span class="f">print</span>(<span class="s">"fio {$ne: null}:    "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"fio"</span>: {<span class="s">"$ne"</span>: <span class="k">None</span>}}))
-<span class="f">print</span>(<span class="s">"fio $eq {$ne: null}:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"fio"</span>: {<span class="s">"$eq"</span>: {<span class="s">"$ne"</span>: <span class="k">None</span>}}}))</pre>
-          </figure>
-          <figure class="code" data-lang="cpp">
-            <figcaption><span>C++ · mongocxx</span><span>явное и неявное равенство</span></figcaption>
-<pre>std::cout &lt;&lt; <span class="s">"город Москва:        "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>))) &lt;&lt; std::endl;
-std::cout &lt;&lt; <span class="s">"город $eq Москва:    "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="s">"Москва"</span>))))) &lt;&lt; std::endl;
-std::cout &lt;&lt; <span class="s">"fio {$ne: null}:     "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, bsoncxx::types::b_null{}))))) &lt;&lt; std::endl;
-std::cout &lt;&lt; <span class="s">"fio $eq {$ne: null}: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, bsoncxx::types::b_null{}))))))) &lt;&lt; std::endl;</pre>
-          </figure>
-          <figure class="code" data-lang="go">
-            <figcaption><span>Go · mongo-driver</span><span>явное и неявное равенство</span></figcaption>
-<pre>neyavno, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>}})
-yavno, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"city"</span>, Value: bson.D{{Key: <span class="s">"$eq"</span>, Value: <span class="s">"Москва"</span>}}}})
-operator, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"fio"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">nil</span>}}}})
-bukvalno, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"fio"</span>, Value: bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">nil</span>}}}}}})
-
-fmt.<span class="f">Println</span>(<span class="s">"город Москва:       "</span>, neyavno)
-fmt.<span class="f">Println</span>(<span class="s">"город $eq Москва:   "</span>, yavno)
-fmt.<span class="f">Println</span>(<span class="s">"fio {$ne: null}:    "</span>, operator)
-fmt.<span class="f">Println</span>(<span class="s">"fio $eq {$ne: null}:"</span>, bukvalno)</pre>
-          </figure>
-          <figure class="code" data-lang="ruby">
-            <figcaption><span>Ruby · mongo</span><span>явное и неявное равенство</span></figcaption>
-<pre><span class="f">puts</span> <span class="s">"город Москва:        "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span> }).<span class="f">to_s</span>
-<span class="f">puts</span> <span class="s">"город $eq Москва:    "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"city"</span> =&gt; { <span class="s">"$eq"</span> =&gt; <span class="s">"Москва"</span> } }).<span class="f">to_s</span>
-<span class="f">puts</span> <span class="s">"fio {$ne: null}:     "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"fio"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">nil</span> } }).<span class="f">to_s</span>
-<span class="f">puts</span> <span class="s">"fio $eq {$ne: null}: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"fio"</span> =&gt; { <span class="s">"$eq"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">nil</span> } } }).<span class="f">to_s</span></pre>
-          </figure>
-        </div>
-        <figure class="code code--out" data-lang="python">
-          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>город Москва:        1
-город $eq Москва:    1
-fio {$ne: null}:     9
-fio $eq {$ne: null}: 0</pre>
-        </figure>
-        <figure class="code code--out" data-lang="cpp">
-          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>город Москва:        1
-город $eq Москва:    1
-fio {$ne: null}:     9
-fio $eq {$ne: null}: 0</pre>
-        </figure>
-        <figure class="code code--out" data-lang="go">
-          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>город Москва:        1
-город $eq Москва:    1
-fio {$ne: null}:     9
-fio $eq {$ne: null}: 0</pre>
-        </figure>
-        <figure class="code code--out" data-lang="ruby">
-          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
-<pre>город Москва:        1
-город $eq Москва:    1
-fio {$ne: null}:     9
-fio $eq {$ne: null}: 0</pre>
-        </figure>
-        <p>Первые две строки совпадают: неявное и явное равенство находят одно резюме из Москвы. Третья строка — подменённый фильтр, он вернул все девять резюме. Четвёртая — та же подмена внутри <code>$eq</code>: сервер искал ФИО, равное документу <code>{"$ne": null}</code>, и не нашёл ни одного. В программе, которая подставляет в фильтр данные пользователя, равенство записывают через <code>$eq</code> или заранее проверяют, что пришла строка.</p>
-
-        <h2 id="s3"><span class="sec">§3</span>Диапазон на одном поле</h2>
+        <h2 id="s2"><span class="sec">§2</span>Диапазон на одном поле</h2>
         <p>Чтобы задать диапазон, в документ условия для одного поля ставят два оператора: <code>{"salary": {"$gte": 70000, "$lte": 100000}}</code>. Операторы внутри одного документа соединяются по «и», как пары в самом фильтре: зарплата должна быть не меньше 70 000 и не больше 100 000 одновременно.</p>
         <p>Граница входит в диапазон или нет в зависимости от оператора. <code>$gte</code> и <code>$lte</code> включают границу, <code>$gt</code> и <code>$lt</code> — исключают. Пример считает резюме в диапазоне двумя способами и затем выводит документы первого.</p>
         <div class="duo">
@@ -315,7 +247,7 @@ $gt 70000 и $lte 100000:  3
         <p>Разница — одно резюме: у Петра Ковалёва зарплата ровно 70 000, и <code>$gt</code> его не пропустил. Сортировка по <code>salary</code> здесь нужна только для того, чтобы вывод читался по возрастанию.</p>
         <p>Оба условия пишутся внутри одного документа поля. Если записать их двумя парами с одинаковым ключом, <code>{"salary": {"$gte": 70000}, "salary": {"$lte": 100000}}</code>, результат зависит от языка. Словарь Python и хеш Ruby хранят ключ один раз и оставляют последнюю пару, поэтому от диапазона остаётся «не больше 100 000». Документы Go и C++ сохраняют обе пары, и сервер применяет обе. Запись с одним документом поля работает одинаково во всех четырёх языках.</p>
 
-        <h2 id="s4"><span class="sec">§4</span>Сравнение вложенных полей</h2>
+        <h2 id="s3"><span class="sec">§3</span>Сравнение вложенных полей</h2>
         <p>Оператор ставится после любого имени поля, в том числе записанного через точку. Вилка зарплаты в вакансиях лежит во вложенном документе <code>salary</code> с полями <code>from</code> и <code>to</code>. Задача — найти вакансии, в вилку которых попадает ожидание кандидата в 120 000: нижняя граница вилки не выше 120 000, верхняя — не ниже.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -397,7 +329,7 @@ vacancies.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"
         </figure>
         <p>Пять вакансий из восьми. Фильтр вынесен в переменную <code>filtr</code>, потому что в одну строку он не помещается. Условия стоят на двух разных полях, <code>salary.from</code> и <code>salary.to</code>, и соединяются по «и», как любые пары фильтра. Вакансия «Инженер сопровождения БД» с вилкой 80 000 – 120 000 подошла: граница 120 000 входит в условие <code>$gte</code>.</p>
 
-        <h2 id="s5"><span class="sec">§5</span>Даты</h2>
+        <h2 id="s4"><span class="sec">§4</span>Даты</h2>
         <p>Даты в BSON хранятся отдельным типом — числом миллисекунд от 1 января 1970 года по UTC (глава <a href="../02-dokument-i-bson/index.html">1.2</a>). Операторы сравнения работают с датами так же, как с числами: более поздняя дата больше. Значение в фильтре должно быть датой своего языка: <code>datetime</code> в Python, <code>Time</code> в Ruby, <code>time.Time</code> в Go, <code>b_date</code> в C++. Драйвер переводит его в дату BSON.</p>
         <p>Операторы сравнения сравнивают значения только внутри одного типа: число с числом, строку со строкой, дату с датой. Документ, у которого значение поля другого типа, под условие не подходит. Пример ищет резюме, обновлённые с 1 сентября 2026 года, — один раз датой, другой раз строкой.</p>
         <div class="duo">
@@ -522,7 +454,7 @@ sep28 = Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class
         </figure>
         <p>Разница — четыре собеседования. Все они назначены на 27 сентября, с 10:00 до 16:00 по UTC, а условие <code>$lte</code> с датой <code>27.09.2026</code> пропускает события не позже 00:00 этого дня. Запись «от начала первого дня до начала следующего за последним» называется <span class="term">полуинтервалом</span>: левая граница входит, правая нет. Так периоды стыкуются друг с другом без пропусков и без двойного счёта.</p>
 
-        <h2 id="s6"><span class="sec">§6</span>Строки</h2>
+        <h2 id="s5"><span class="sec">§5</span>Строки</h2>
         <p>Строки операторы сравнения сравнивают посимвольно, по кодам символов: сначала первые символы, при равенстве — вторые, и так далее. Порядок задаёт таблица кодов, алфавит языка на него не влияет. Латинские буквы в таблице кодов идут раньше кириллических, а в пределах одного алфавита заглавные идут раньше строчных.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -576,10 +508,10 @@ options.<span class="f">projection</span>(<span class="f">make_document</span>(<
 <pre>{"name"=&gt;"Retail Lab"}
 {"name"=&gt;"Ozon Tech"}</pre>
         </figure>
-        <p>Условие «меньше кириллической буквы А» отобрало две компании, названия которых начинаются с латинской буквы: коды латиницы меньше любого кода кириллицы. В алфавитном порядке, как его понимает человек, ни одно название «раньше А» не стоит.</p>
+        <p>Условие «меньше кириллической буквы А» отобрало две компании, названия которых начинаются с латинской буквы: коды латиницы меньше любого кода кириллицы. По русскому алфавиту такое сравнение смысла не имеет: латинских букв в нём нет, и «раньше А» они стоят только в таблице кодов.</p>
         <p>По той же причине числа, записанные строками, сравниваются не как числа: <code>"100000"</code> меньше <code>"70000"</code>, потому что символ <code>1</code> меньше символа <code>7</code>. Сравнение строк по правилам конкретного языка задаётся отдельным параметром запроса — <code>collation</code>.</p>
 
-        <h2 id="s7"><span class="sec">§7</span><code>$ne</code> и отсутствующее поле</h2>
+        <h2 id="s6"><span class="sec">§6</span><code>$ne</code> и отсутствующее поле</h2>
         <p>Оператор <code>$ne</code> отбирает документы, у которых условие «равно» не выполняется. Документ, где поля нет совсем, тоже не равен заданному значению — поэтому <code>$ne</code> его возвращает. Операторы <code>$gt</code>, <code>$gte</code>, <code>$lt</code>, <code>$lte</code> ведут себя иначе: если поля нет, сравнивать не с чем, и документ не подходит.</p>
         <p>В коллекции резюме поле <code>ready_to_move</code> — готовность к переезду — есть у восьми документов из девяти. В резюме Анны Беловой его нет.</p>
         <div class="duo">
@@ -681,6 +613,74 @@ ready_to_move $lt true: 4
         <p>Условие «не равно <code>true</code>» дало пять резюме, условие «равно <code>false</code>» — четыре. Пятое — резюме Анны Беловой: в выводе у него нет поля <code>ready_to_move</code>. Условие <code>$lt: true</code> тоже дало четыре: <code>false</code> меньше <code>true</code>, а документ без поля в сравнение не попал.</p>
         <p>Какой результат верный, зависит от задачи. «Не готов к переезду» — это четыре резюме, где соискатель ответил «нет». «Не отметил готовность» — пять, включая резюме без ответа. Отделить документы без поля позволяет оператор <code>$exists</code> — он разобран в главе 2.5.</p>
 
+        <h2 id="s7"><span class="sec">§7</span><code>$eq</code>: равенство, записанное явно</h2>
+        <p>У «не равно» есть пара — оператор <code>$eq</code>, «равно». Он проверяет то же, что пара «поле — значение»: <code>{"city": "Москва"}</code> и <code>{"city": {"$eq": "Москва"}}</code> — один и тот же запрос. Разница появляется, когда значение для фильтра приходит извне программы — например, из формы поиска на сайте.</p>
+        <p>Допустим, программа ищет резюме по ФИО и подставляет в фильтр то, что прислал браузер. Обычно это строка. Но если вместо строки прислать JSON-объект <code>{"$ne": null}</code>, фильтр <code>{"fio": значение}</code> превратится в <code>{"fio": {"$ne": null}}</code> — условие «ФИО не пустое», под которое подходят все резюме. Такая подмена называется <span class="term">внедрением операторов</span>. Оператор <code>$eq</code> от неё защищает: всё, что стоит после него, сервер сравнивает как значение, даже если это документ со знаком <code>$</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>явное и неявное равенство</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"город Москва:       "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"city"</span>: <span class="s">"Москва"</span>}))
+<span class="f">print</span>(<span class="s">"город $eq Москва:   "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"city"</span>: {<span class="s">"$eq"</span>: <span class="s">"Москва"</span>}}))
+<span class="f">print</span>(<span class="s">"fio {$ne: null}:    "</span>, resumes.<span class="f">count_documents</span>({<span class="s">"fio"</span>: {<span class="s">"$ne"</span>: <span class="k">None</span>}}))
+<span class="f">print</span>(<span class="s">"fio $eq {$ne: null}:"</span>, resumes.<span class="f">count_documents</span>({<span class="s">"fio"</span>: {<span class="s">"$eq"</span>: {<span class="s">"$ne"</span>: <span class="k">None</span>}}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>явное и неявное равенство</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"город Москва:        "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"город $eq Москва:    "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="s">"Москва"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"fio {$ne: null}:     "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, bsoncxx::types::b_null{}))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"fio $eq {$ne: null}: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"fio"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, bsoncxx::types::b_null{}))))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>явное и неявное равенство</span></figcaption>
+<pre>neyavno, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>}})
+yavno, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"city"</span>, Value: bson.D{{Key: <span class="s">"$eq"</span>, Value: <span class="s">"Москва"</span>}}}})
+operator, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"fio"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">nil</span>}}}})
+bukvalno, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"fio"</span>, Value: bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">nil</span>}}}}}})
+
+fmt.<span class="f">Println</span>(<span class="s">"город Москва:       "</span>, neyavno)
+fmt.<span class="f">Println</span>(<span class="s">"город $eq Москва:   "</span>, yavno)
+fmt.<span class="f">Println</span>(<span class="s">"fio {$ne: null}:    "</span>, operator)
+fmt.<span class="f">Println</span>(<span class="s">"fio $eq {$ne: null}:"</span>, bukvalno)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>явное и неявное равенство</span></figcaption>
+<pre><span class="f">puts</span> <span class="s">"город Москва:        "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span> }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"город $eq Москва:    "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"city"</span> =&gt; { <span class="s">"$eq"</span> =&gt; <span class="s">"Москва"</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"fio {$ne: null}:     "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"fio"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">nil</span> } }).<span class="f">to_s</span>
+<span class="f">puts</span> <span class="s">"fio $eq {$ne: null}: "</span> + resumes.<span class="f">count_documents</span>({ <span class="s">"fio"</span> =&gt; { <span class="s">"$eq"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">nil</span> } } }).<span class="f">to_s</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>город Москва:        1
+город $eq Москва:    1
+fio {$ne: null}:     9
+fio $eq {$ne: null}: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>город Москва:        1
+город $eq Москва:    1
+fio {$ne: null}:     9
+fio $eq {$ne: null}: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>город Москва:        1
+город $eq Москва:    1
+fio {$ne: null}:     9
+fio $eq {$ne: null}: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>город Москва:        1
+город $eq Москва:    1
+fio {$ne: null}:     9
+fio $eq {$ne: null}: 0</pre>
+        </figure>
+        <p>Первые две строки совпадают: неявное и явное равенство находят одно резюме из Москвы. Третья строка — подменённый фильтр, он вернул все девять резюме. Четвёртая — та же подмена внутри <code>$eq</code>: сервер искал ФИО, равное документу <code>{"$ne": null}</code>, и не нашёл ни одного. В программе, которая подставляет в фильтр данные пользователя, равенство записывают через <code>$eq</code> или заранее проверяют, что пришла строка.</p>
+
         <h2 id="s8"><span class="sec">§8</span>Сравнение в Compass</h2>
         <p>В Compass оператор пишется в поле фильтра так же, как в коде. Кавычки вокруг имени поля и оператора можно не ставить: <code>{ employees: { $gte: 500 } }</code>.</p>
         <figure class="shot">
@@ -692,7 +692,7 @@ ready_to_move $lt true: 4
           <img src="../../shots/62-hh-ne.png" alt="Compass, коллекция hh.resumes: фильтр ready_to_move не равно true, счётчик 1 – 5 of 5, у первого документа поля ready_to_move нет">
           <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ ready_to_move: { $ne: true } }</code> — пять резюме, включая документ без поля</figcaption>
         </figure>
-        <p>Первый документ в списке — резюме Анны Беловой. В нём шесть полей, и <code>ready_to_move</code> среди них нет. У остальных документов это поле есть и равно <code>false</code>. Счётчик <code>1 – 5 of 5</code> совпадает с первой строкой вывода в §7.</p>
+        <p>Первый документ в списке — резюме Анны Беловой. В нём шесть полей, и <code>ready_to_move</code> среди них нет. У остальных документов это поле есть и равно <code>false</code>. Счётчик <code>1 – 5 of 5</code> совпадает с первой строкой вывода в §6.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
         <div class="table-scroll errors-table" data-lang="python">
