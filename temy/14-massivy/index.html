@@ -131,6 +131,11 @@ fmt.<span class="f">Println</span>(<span class="s">"навыки ровно [Git
 навыки ровно [Git, Python]: 0</pre>
         </figure>
         <p>Python есть в шести резюме. Массив <code>["Python", "Git"]</code> совпал с навыками Анны Беловой — у неё ровно эти два навыка в этом порядке. Массив из тех же строк в обратном порядке не совпал ни с одним резюме. Сравнение массива целиком нужно редко: обычно важен состав массива, а порядок элементов роли не играет.</p>
+        <figure class="shot">
+          <img src="../../shots/93-hh-skills-exact.png" alt="Compass, коллекция hh.resumes: фильтр skills равно массиву Python, Git, счётчик 1 – 1 of 1, резюме Анны Беловой">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ skills: ["Python", "Git"] }</code> — массив целиком</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 1 of 1</code>. Массив навыков Анны Беловой раскрыт: в нём ровно два элемента, <code>"Python"</code> и <code>"Git"</code>, в том же порядке, что в фильтре. У остальных резюме Python тоже есть, но массив длиннее, и целиком он с фильтром не совпал.</p>
 
         <h2 id="s2"><span class="sec">§2</span><code>$all</code>: все значения из списка</h2>
         <p>Оператор <code>$all</code> принимает список и отбирает документы, в массиве которых есть все значения из этого списка. Порядок значений и остальные элементы массива на результат не влияют. Это условие «у соискателя есть и Python, и SQL», в отличие от <code>$in</code> — «есть Python или SQL».</p>
@@ -218,6 +223,11 @@ $in [Python, SQL]:  6
 {"fio"=&gt;"Ольга Пирогова", "skills"=&gt;["SQL", "Excel", "Python", "ClickHouse"]}</pre>
         </figure>
         <p>Оба навыка есть в четырёх резюме, хотя бы один — в шести. В выводе видно, что порядок в массивах разный: у Петра Ковалёва Python стоит первым, у остальных трёх — после SQL. Для <code>$all</code> это не имеет значения.</p>
+        <figure class="shot">
+          <img src="../../shots/94-hh-all.png" alt="Compass, коллекция hh.resumes: фильтр skills $all Python, SQL, счётчик 1 – 4 of 4, массивы навыков раскрыты">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ skills: { $all: ["Python", "SQL"] } }</code></figcaption>
+        </figure>
+        <p>Во всех четырёх раскрытых массивах есть и <code>"Python"</code>, и <code>"SQL"</code>, но на разных местах и вместе с другими навыками. Для <code>$all</code> важен только состав.</p>
 
         <h2 id="s3"><span class="sec">§3</span>Два условия на массив документов</h2>
         <p>Точечная нотация работает и с массивом документов: <code>"experience.role"</code> означает «поле <code>role</code> у любого элемента массива». Когда условий на массив два, каждое проверяется независимо, и выполнить их могут разные элементы.</p>
@@ -289,6 +299,11 @@ resumes.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"</
 {"fio"=&gt;"Алина Дроздова", "experience"=&gt;[{"company"=&gt;"Ozon", "role"=&gt;"младший аналитик", "months"=&gt;14, "stack"=&gt;["ClickHouse", "Python"]}, {"company"=&gt;"Retail Lab", "role"=&gt;"стажёр", "months"=&gt;5, "stack"=&gt;["SQL"]}]}</pre>
         </figure>
         <p>Нашлись двое. У Петра Ковалёва одно место работы: стажёр, 6 месяцев — оба условия выполнены одним элементом. У Алины Дроздовой два места: младший аналитик в Ozon на 14 месяцев и стажёр в Retail Lab на 5. Роль «стажёр» дал второй элемент, срок от шести месяцев — первый. Под задачу она не подходит: стажёром она была пять месяцев.</p>
+        <figure class="shot">
+          <img src="../../shots/69-hh-bez-elemmatch.png" alt="Compass, коллекция hh.resumes: фильтр experience.role стажёр и experience.months от 6, счётчик 1 – 2 of 2, у второго резюме раскрыт массив experience из двух мест работы">
+          <figcaption>Compass · два условия через точку — два резюме; у Алины Дроздовой условия выполнены разными местами работы</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 2 of 2</code>. Чтобы массивы поместились в кадр, в поле <b>Project</b> задана проекция <code>{ _id: 0, fio: 1, experience: 1 }</code>. Во втором документе раскрыт массив <code>experience</code>: в первом элементе <code>role</code> — «младший аналитик», <code>months</code> — 14, во втором <code>role</code> — «стажёр», <code>months</code> — 5. Условие на роль выполнено вторым элементом, условие на срок — первым.</p>
 
         <h2 id="s4"><span class="sec">§4</span><code>$elemMatch</code>: один элемент — все условия</h2>
         <p>Оператор <code>$elemMatch</code> принимает документ условий и отбирает документы, в массиве которых есть хотя бы один элемент, выполняющий все эти условия сразу. Имена полей внутри <code>$elemMatch</code> пишутся от элемента массива: <code>role</code> и <code>months</code>, без <code>experience.</code> впереди.</p>
@@ -353,6 +368,11 @@ resumes.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"</
 <pre>{"fio"=&gt;"Пётр Ковалёв", "experience"=&gt;[{"company"=&gt;"ИП Сорокин", "role"=&gt;"стажёр", "months"=&gt;6, "stack"=&gt;["Python", "PostgreSQL"]}]}</pre>
         </figure>
         <p>Остался один Пётр Ковалёв: только у него роль «стажёр» и срок от шести месяцев записаны в одном элементе. Разница между §3 и §4 — одно резюме: без <code>$elemMatch</code> каждое условие ищет в массиве свой подходящий элемент, с <code>$elemMatch</code> все условия проверяются на одном и том же элементе.</p>
+        <figure class="shot">
+          <img src="../../shots/70-hh-elemmatch.png" alt="Compass, коллекция hh.resumes: фильтр с $elemMatch, счётчик 1 – 1 of 1, у резюме Петра Ковалёва раскрыт массив experience">
+          <figcaption>Compass · те же условия внутри <code>$elemMatch</code> — одно резюме</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 1 of 1</code>. У Петра Ковалёва в массиве один элемент: <code>role</code> — «стажёр», <code>months</code> — 6. Оба условия выполнены им одним.</p>
         <p>Если условие на массив одно, <code>$elemMatch</code> не нужен: <code>{"experience.role": "стажёр"}</code> и <code>{"experience": {"$elemMatch": {"role": "стажёр"}}}</code> находят одни и те же документы. Оператор нужен, когда условий два и больше и они должны относиться к одному элементу.</p>
 
         <h2 id="s5"><span class="sec">§5</span><code>$size</code>: длина массива</h2>
@@ -421,6 +441,11 @@ fmt.<span class="f">Println</span>(<span class="s">"мест работы 2:  "<
 мест работы 2:   2</pre>
         </figure>
         <p>Четыре навыка указаны в шести резюме, пять — в двух. Пустой массив опыта — у одного резюме, Дарьи Нечаевой: <code>$size: 0</code> находит пустой массив. Резюме Анны Беловой в эту строку не попало — поля <code>experience</code> в нём нет, а у отсутствующего поля длины нет. Два места работы — у Алины Дроздовой и Тимура Валиева.</p>
+        <figure class="shot">
+          <img src="../../shots/95-hh-size0.png" alt="Compass, коллекция hh.resumes: фильтр experience $size 0, счётчик 1 – 1 of 1, у Дарьи Нечаевой experience пустой массив">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ experience: { $size: 0 } }</code> — пустой массив опыта</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 1 of 1</code>. У Дарьи Нечаевой поле <code>experience</code> есть, и Compass показывает его как <code>[]</code> — пустой массив. Резюме без поля <code>experience</code> в выдаче нет.</p>
 
         <h2 id="s6"><span class="sec">§6</span>Элемент по номеру</h2>
         <p>К элементу массива можно обратиться по номеру через точку, как к полю вложенного документа. Нумерация начинается с нуля: <code>"skills.0"</code> — первый навык, <code>"skills.3"</code> — четвёртый. Для массива документов номер ставится перед именем поля: <code>"experience.0.months"</code> — срок на первом месте работы.</p>
@@ -514,19 +539,14 @@ resumes.<span class="f">find</span>({ <span class="s">"skills.0"</span> =&gt; <s
 {"fio"=&gt;"Марк Ефремов", "skills"=&gt;["Python", "FastAPI", "MongoDB", "Git"]}</pre>
         </figure>
         <p>Python стоит первым в навыках у трёх соискателей, и вывод это подтверждает. Навыков не меньше четырёх — у восьми резюме из девяти: четырёх или пяти. Не меньше пяти — у двух, это те же два резюме, что нашёл <code>$size: 5</code> в §5.</p>
+        <figure class="shot">
+          <img src="../../shots/96-hh-skills-0.png" alt="Compass, коллекция hh.resumes: фильтр skills.0 равно Python, счётчик 1 – 3 of 3, в каждом массиве Python первым">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ "skills.0": "Python" }</code> — Python на первом месте</figcaption>
+        </figure>
+        <p>Во всех трёх раскрытых массивах <code>"Python"</code> стоит первым элементом. Имя <code>"skills.0"</code> в поле фильтра взято в кавычки из-за точки.</p>
 
         <h2 id="s7"><span class="sec">§7</span>Массивы в Compass</h2>
-        <p>Разница между §3 и §4 видна в Compass на одних и тех же данных. Ниже — оба запроса с раскрытым массивом <code>experience</code>. Чтобы массивы поместились в кадр, в поле <b>Project</b> задана проекция <code>{ _id: 0, fio: 1, experience: 1 }</code>: остаются только ФИО и опыт.</p>
-        <figure class="shot">
-          <img src="../../shots/69-hh-bez-elemmatch.png" alt="Compass, коллекция hh.resumes: фильтр experience.role стажёр и experience.months от 6, счётчик 1 – 2 of 2, у второго резюме раскрыт массив experience из двух мест работы">
-          <figcaption>Compass · два условия через точку — два резюме; у Алины Дроздовой условия выполнены разными местами работы</figcaption>
-        </figure>
-        <p>Счётчик <code>1 – 2 of 2</code>. Во втором документе раскрыт массив <code>experience</code>: в первом элементе <code>role</code> — «младший аналитик», <code>months</code> — 14, во втором <code>role</code> — «стажёр», <code>months</code> — 5. Условие на роль выполнено вторым элементом, условие на срок — первым.</p>
-        <figure class="shot">
-          <img src="../../shots/70-hh-elemmatch.png" alt="Compass, коллекция hh.resumes: фильтр с $elemMatch, счётчик 1 – 1 of 1, у резюме Петра Ковалёва раскрыт массив experience">
-          <figcaption>Compass · те же условия внутри <code>$elemMatch</code> — одно резюме</figcaption>
-        </figure>
-        <p>Счётчик <code>1 – 1 of 1</code>. У Петра Ковалёва в массиве один элемент: <code>role</code> — «стажёр», <code>months</code> — 6. Оба условия выполнены им одним.</p>
+        <p>Кадры в разделах выше сняты в Compass на тех же запросах, что и примеры. Условия на массивы в поле фильтра пишутся так же, как в коде: <code>$all</code> и <code>$in</code> — со списком в квадратных скобках, <code>$elemMatch</code> — с документом условий. Имя с номером элемента или с точкой, <code>"skills.0"</code>, <code>"experience.role"</code>, берут в кавычки. Раскрыть массив в списке документов можно треугольником слева от имени поля.</p>
 
         <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
         <div class="table-scroll errors-table" data-lang="python">

@@ -123,6 +123,11 @@ salary.from $lt "$salary.to": 0</pre>
 salary.from $lt "$salary.to": 0</pre>
         </figure>
         <p>Вакансий восемь, а условие «нижняя граница меньше <code>"$salary.to"</code>» не нашло ни одной. Числа в <code>salary.from</code> сравнивались со строкой, а число со строкой операторы сравнения не сравнивают (глава 2.2 §4). Ошибки нет, и результат выглядит как «вилок, где нижняя граница меньше верхней, нет», хотя нижняя граница меньше верхней во всех восьми вакансиях.</p>
+        <figure class="shot">
+          <img src="../../shots/103-hh-expr-string.png" alt="Compass, коллекция hh.vacancies: фильтр salary.from $lt строка $salary.to, счётчик 0 – 0 of 0, No results">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ "salary.from": { $lt: "$salary.to" } }</code> — строка вместо ссылки на поле</figcaption>
+        </figure>
+        <p>Compass выполнил запрос и показал <code>No results</code> при восьми документах в коллекции. <code>"$salary.to"</code> в поле фильтра подсвечен цветом строк, как обычный текст.</p>
 
         <h2 id="s2"><span class="sec">§2</span><code>$expr</code>: выражение вместо условия</h2>
         <p>Оператор <code>$expr</code> стоит на месте имени поля и принимает <span class="term">выражение</span> — запись вычисления, которое сервер выполняет для каждого документа. Документ попадает в результат, если выражение дало истину. Выражения — язык конвейера агрегации из модуля 4; в фильтре используется его часть.</p>
@@ -173,6 +178,11 @@ fmt.<span class="f">Println</span>(<span class="s">"нижняя граница 
 нижняя граница больше верхней: 0</pre>
         </figure>
         <p>Нижняя граница меньше верхней у всех восьми вакансий, перевёрнутых вилок нет. Второй запрос — проверка данных, и он вернул ноль.</p>
+        <figure class="shot">
+          <img src="../../shots/104-hh-expr-lt.png" alt="Compass, коллекция hh.vacancies: фильтр $expr $lt salary.from, salary.to, счётчик 1 – 8 of 8, у первых вакансий раскрыт salary">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр <code>{ $expr: { $lt: ["$salary.from", "$salary.to"] } }</code></figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 8 of 8</code>. У трёх первых вакансий раскрыт <code>salary</code>, и в каждой <code>from</code> меньше <code>to</code>. Внутри <code>$expr</code> те же строки <code>"$salary.from"</code> и <code>"$salary.to"</code> работают как ссылки на поля.</p>
 
         <h2 id="s3"><span class="sec">§3</span>Проверка данных: перевёрнутая вилка</h2>
         <p>В учебной базе все вилки заданы верно, поэтому ошибку ввода пример создаёт сам — в песочнице, в отдельной коллекции черновиков вакансий. В начале примера коллекция удаляется, если она осталась от прошлого запуска, затем в неё записываются два черновика: один с верной вилкой, другой с перевёрнутой.</p>
@@ -292,6 +302,11 @@ drafts.<span class="f">find</span>({ <span class="s">"$expr"</span> =&gt; { <spa
 {"_id"=&gt;"v-902", "title"=&gt;"Тестировщик", "salary"=&gt;{"from"=&gt;90000, "to"=&gt;60000}}</pre>
         </figure>
         <p>Из двух черновиков запрос нашёл один — «Тестировщик» с вилкой от 90 000 до 60 000. Такой запрос выполняют перед публикацией или по расписанию, чтобы найти документы с несогласованными полями до того, как они попадут в выдачу.</p>
+        <figure class="shot">
+          <img src="../../shots/105-sandbox-drafts.png" alt="Compass, коллекция sandbox.vacancy_drafts: фильтр $expr $gt salary.from, salary.to, счётчик 1 – 1 of 1, черновик v-902">
+          <figcaption>Compass · <code>sandbox.vacancy_drafts</code>, черновик с перевёрнутой вилкой</figcaption>
+        </figure>
+        <p>Коллекция находится в базе <code>sandbox</code>, вкладка <b>Documents</b> подписана числом <code>2</code>. Счётчик <code>1 – 1 of 1</code>: у черновика <code>v-902</code> в раскрытом <code>salary</code> значение <code>from</code> — 90 000, <code>to</code> — 60 000.</p>
 
         <h2 id="s4"><span class="sec">§4</span>Вычисления внутри <code>$expr</code></h2>
         <p>Аргументом оператора сравнения может быть не только поле, но и другое выражение. Оператор <code>$subtract</code> вычитает второй аргумент из первого: <code>{"$subtract": ["$salary.to", "$salary.from"]}</code> — ширина вилки. Пример ищет вакансии, где вилка шире 50 000 включительно.</p>
@@ -368,6 +383,11 @@ vacancies.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"
 {"title"=&gt;"Data-инженер", "salary"=&gt;{"from"=&gt;140000, "to"=&gt;200000}}</pre>
         </figure>
         <p>Пять вакансий. У трёх ширина ровно 50 000, у двух — 60 000. Не прошли вакансии с шириной 30 000, 25 000 и 40 000. Кроме <code>$subtract</code>, в выражениях есть <code>$add</code>, <code>$multiply</code>, <code>$divide</code> и множество других операторов; они разбираются вместе с конвейером агрегации в модуле 4.</p>
+        <figure class="shot">
+          <img src="../../shots/73-hh-expr.png" alt="Compass, коллекция hh.vacancies: фильтр $expr с $subtract и $gte, счётчик 1 – 5 of 5, у первой вакансии раскрыт документ salary">
+          <figcaption>Compass · <code>hh.vacancies</code>, фильтр с <code>$subtract</code> — вакансии с вилкой шире 50 000</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 5 of 5</code> совпадает с выводом программы. У первой вакансии, «Backend-разработчик .NET», раскрыт документ <code>salary</code>: <code>from</code> — 100 000, <code>to</code> — 150 000, разность — ровно 50 000, граница входит в условие <code>$gte</code>.</p>
 
         <h2 id="s5"><span class="sec">§5</span><code>$expr</code> вместе с обычными условиями</h2>
         <p><code>$expr</code> — одна из пар фильтра, и с остальными парами он соединяется по «и». Обычные условия пишутся рядом с ним как всегда.</p>
@@ -442,6 +462,11 @@ vacancies.<span class="f">find</span>(filtr, projection: { <span class="s">"_id"
 {"title"=&gt;"Data-инженер", "city"=&gt;"Москва", "salary"=&gt;{"from"=&gt;140000, "to"=&gt;200000}}</pre>
         </figure>
         <p>Из пяти вакансий с широкой вилкой три — в Москве. Условие на город здесь простое равенство, условие на ширину — выражение, и оба проверяются у каждого документа. Условие, которое записывается без <code>$expr</code>, так и пишут: <code>$expr</code> нужен для сравнения полей между собой и для вычислений.</p>
+        <figure class="shot">
+          <img src="../../shots/106-hh-expr-moscow.png" alt="Compass, коллекция hh.vacancies: фильтр city Москва и $expr с $subtract, счётчик 1 – 3 of 3">
+          <figcaption>Compass · <code>hh.vacancies</code>, условие на город и <code>$expr</code> в одном фильтре</figcaption>
+        </figure>
+        <p>Все три документа — московские, и у каждого в раскрытом <code>salary</code> разница между <code>to</code> и <code>from</code> не меньше 50 000. Фильтр в поле обрезан справа; видно начало: <code>{ city: "Москва", $expr: …</code>.</p>
 
         <h2 id="s6"><span class="sec">§6</span>Типы и отсутствующее поле в выражении</h2>
         <p>Внутри выражения сравнение устроено иначе, чем в обычном условии. Обычное условие сравнивает значения только одного типа: число с числом, дату с датой (глава 2.2 §4). В выражении значения разных типов тоже сравниваются — по порядку типов BSON, тому же, что при сортировке (глава <a href="../06-sort-limit-skip/index.html">1.6</a>): <code>null</code> меньше чисел, числа меньше строк, строки меньше документов. Отсутствующее поле в выражении даёт значение <code>null</code>.</p>
@@ -519,17 +544,17 @@ resumes: $expr updated &lt; 01.09:   4
 resumes: updated $lt 01.09:       3</pre>
         </figure>
         <p>Первая пара строк: поле <code>salary</code> в вакансиях — документ. Обычное условие «больше 100 000» не нашло ни одной вакансии, потому что документ с числом не сравнивается. Выражение нашло все восемь: по порядку типов документ больше любого числа. Вторая пара: у резюме Анны Беловой нет поля <code>updated</code>. Обычное условие его пропустило, а выражение получило <code>null</code>, и <code>null</code> оказался меньше даты. Поэтому в выражениях сравнивают поля известного типа, а для полей, которые есть не у всех документов, рядом ставят условие <code>$exists: true</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/107-hh-expr-null.png" alt="Compass, коллекция hh.resumes: фильтр $expr $lt updated и ISODate, счётчик 1 – 4 of 4, у первого резюме нет поля updated">
+          <figcaption>Compass · <code>hh.resumes</code>, фильтр <code>{ $expr: { $lt: ["$updated", ISODate("2026-09-01")] } }</code></figcaption>
+        </figure>
+        <p>Первым в выдаче стоит резюме Анны Беловой, и поля <code>updated</code> в нём нет: выражение получило <code>null</code>. У остальных трёх даты в июле и августе.</p>
 
         <h2 id="s7"><span class="sec">§7</span><code>$expr</code> и скорость запроса</h2>
         <p>Выражение вычисляется для каждого документа, который дошёл до этой проверки. Обычное условие с равенством или диапазоном сервер может проверить по индексу, не читая документы; выражение, сравнивающее два поля документа, по индексу проверить нельзя, и документы приходится читать. Поэтому в запрос с <code>$expr</code> добавляют обычные условия, которые отбирают документы заранее, как условие на город в §5. Как это видно в плане запроса, разобрано в модуле 3.</p>
 
         <h2 id="s8"><span class="sec">§8</span><code>$expr</code> в Compass</h2>
-        <p>В поле фильтра Compass <code>$expr</code> пишется так же, как в коде, с массивом аргументов и ссылками на поля со знаком <code>$</code>.</p>
-        <figure class="shot">
-          <img src="../../shots/73-hh-expr.png" alt="Compass, коллекция hh.vacancies: фильтр $expr с $subtract и $gte, счётчик 1 – 5 of 5, у первой вакансии раскрыт документ salary">
-          <figcaption>Compass · <code>hh.vacancies</code>, фильтр из §4 — вакансии с вилкой шире 50 000</figcaption>
-        </figure>
-        <p>Счётчик <code>1 – 5 of 5</code> совпадает с выводом программы в §4. У первой вакансии, «Backend-разработчик .NET», раскрыт документ <code>salary</code>: <code>from</code> — 100 000, <code>to</code> — 150 000, разность — ровно 50 000, граница входит в условие <code>$gte</code>.</p>
+        <p>Кадры в разделах выше сняты в Compass на тех же запросах, что и примеры. <code>$expr</code> в поле фильтра пишется так же, как в коде: оператор сравнения с массивом из двух аргументов, ссылки на поля — строками со знаком <code>$</code>, дата — функцией <code>ISODate("…")</code>. Длинное выражение вводится одной строкой.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
         <div class="table-scroll errors-table" data-lang="python">

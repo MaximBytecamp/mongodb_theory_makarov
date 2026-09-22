@@ -24,6 +24,10 @@ const mongo = script => execFileSync('docker',
   ['exec', 'course-mongo', 'mongosh', 'hh', '--quiet', '--eval', script],
   { encoding: 'utf8' }).trim();
 
+const mongoIn = (dbName, script) => execFileSync('docker',
+  ['exec', 'course-mongo', 'mongosh', dbName, '--quiet', '--eval', script],
+  { encoding: 'utf8' }).trim();
+
 const expect = (script, want, what) => {
   const got = mongo(script);
   if (got !== String(want)) {
@@ -470,9 +474,55 @@ await withCompass(async page => {
       project: '{ _id: 0, fio: 1, updated: 1 }', expand: 4 },
     { name: '87-hh-nor', coll: 'resumes', filter: '{ $nor: [{ city: "Москва" }, { ready_to_move: true }] }',
       project: '{ _id: 0, fio: 1, city: 1, ready_to_move: 1 }' },
+    // 2.5
+    { name: '88-hh-ne-exists', coll: 'resumes', filter: '{ ready_to_move: { $ne: true, $exists: true } }',
+      project: '{ _id: 0, fio: 1, ready_to_move: 1 }' },
+    { name: '89-logs-type-null', db: 'logs', coll: 'events', filter: '{ user_id: { $type: "null" } }' },
+    { name: '90-hh-type-object', coll: 'vacancies', filter: '{ salary: { $type: "object" } }',
+      project: '{ _id: 0, title: 1, salary: 1 }', expand: 3 },
+    { name: '91-hh-type-string-array', coll: 'resumes', filter: '{ skills: { $type: "string" } }',
+      project: '{ _id: 0, fio: 1, skills: 1 }', expand: 2 },
+    { name: '92-sandbox-price-string', db: 'sandbox', coll: 'products', filter: '{ price: { $type: "string" } }',
+      prep: 'db.products.deleteOne({_id:"p-201"}); db.products.insertOne({_id:"p-201", title:"Кабель USB-C 2 м", category:"аксессуары", price:"790"}); db.products.countDocuments({price:{$type:"string"}})',
+      cleanup: 'db.products.deleteOne({_id:"p-201"})', height: 640 },
+    // 2.6
+    { name: '93-hh-skills-exact', coll: 'resumes', filter: '{ skills: ["Python", "Git"] }',
+      project: '{ _id: 0, fio: 1, skills: 1 }', expand: 1, height: 640 },
+    { name: '94-hh-all', coll: 'resumes', filter: '{ skills: { $all: ["Python", "SQL"] } }',
+      project: '{ _id: 0, fio: 1, skills: 1 }', expand: 4 },
+    { name: '95-hh-size0', coll: 'resumes', filter: '{ experience: { $size: 0 } }',
+      project: '{ _id: 0, fio: 1, experience: 1 }', height: 600 },
+    { name: '96-hh-skills-0', coll: 'resumes', filter: '{ "skills.0": "Python" }',
+      project: '{ _id: 0, fio: 1, skills: 1 }', expand: 3 },
+    // 2.7
+    { name: '97-hh-regex-contains', coll: 'vacancies', filter: '{ title: { $regex: "разработчик" } }',
+      project: '{ _id: 0, title: 1 }' },
+    { name: '98-hh-regex-anchor', coll: 'resumes', filter: '{ position: { $regex: "^Junior" } }',
+      project: '{ _id: 0, fio: 1, position: 1 }' },
+    { name: '99-hh-regex-i', coll: 'vacancies', filter: '{ title: { $regex: "аналитик", $options: "i" } }',
+      project: '{ _id: 0, title: 1 }', height: 600 },
+    { name: '100-hh-regex-dot', coll: 'vacancies', filter: '{ title: { $regex: "\\\\." } }',
+      project: '{ _id: 0, title: 1 }', height: 600 },
+    { name: '101-hh-regex-array', coll: 'resumes', filter: '{ skills: { $regex: "^Postgre" } }',
+      project: '{ _id: 0, fio: 1, skills: 1 }', expand: 2 },
+    { name: '102-hh-not-regex', coll: 'vacancies', filter: '{ title: { $not: { $regex: "разработчик" } } }',
+      project: '{ _id: 0, title: 1 }' },
+    // 2.8
+    { name: '103-hh-expr-string', coll: 'vacancies', filter: '{ "salary.from": { $lt: "$salary.to" } }', height: 560 },
+    { name: '104-hh-expr-lt', coll: 'vacancies', filter: '{ $expr: { $lt: ["$salary.from", "$salary.to"] } }',
+      project: '{ _id: 0, title: 1, salary: 1 }', expand: 3 },
+    { name: '105-sandbox-drafts', db: 'sandbox', coll: 'vacancy_drafts', filter: '{ $expr: { $gt: ["$salary.from", "$salary.to"] } }',
+      prep: 'db.vacancy_drafts.drop(); db.vacancy_drafts.insertMany([{_id:"v-901", title:"Стажёр-аналитик", salary:{from:50000, to:70000}}, {_id:"v-902", title:"Тестировщик", salary:{from:90000, to:60000}}]); db.vacancy_drafts.countDocuments()',
+      expand: 1, height: 640 },
+    { name: '106-hh-expr-moscow', coll: 'vacancies',
+      filter: '{ city: "Москва", $expr: { $gte: [{ $subtract: ["$salary.to", "$salary.from"] }, 50000] } }',
+      project: '{ _id: 0, title: 1, city: 1, salary: 1 }', expand: 3 },
+    { name: '107-hh-expr-null', coll: 'resumes', filter: '{ $expr: { $lt: ["$updated", ISODate("2026-09-01")] } }',
+      project: '{ _id: 0, fio: 1, updated: 1 }', expand: 4 },
   ];
   for (const q of SECTION_SHOTS) {
     if (!need(q.name)) continue;
+    if (q.prep) console.log('  подготовка:', mongoIn(q.db || 'hh', q.prep));
     await openCollection(q.db || 'hh', q.coll);
     await setQuery({ filter: q.filter, project: q.project || '', sort: q.sort || '' });
     if (!q.options) await collapseOptions();
@@ -484,5 +534,6 @@ await withCompass(async page => {
       await settle(400);
     }
     await shot(q.name, q.height || await fitHeight(1160));
+    if (q.cleanup) mongoIn(q.db || 'hh', q.cleanup);
   }
 });
