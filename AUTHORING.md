@@ -153,6 +153,31 @@ python3 tools/snippets.py show 2.5 bad  # посмотреть код одног
 `make_document` уходит на сервер, и условия соединяются по «и», а словарь
 Python и хеш Ruby оставляют последнюю пару.
 
+### Главы со скриптом целиком
+
+Модуль закрывается главой, где пример — не фрагмент, а готовая программа
+из `mongodb-practice/scripts` (главы 1.9 и 2.9). Такие главы перечислены
+в `WHOLE` в `tools/examples.py`: заготовка им не нужна, код запускается как
+есть, вывод подставляет тот же `apply`.
+
+Код в книге не набирается заново — он берётся из файла скрипта, чтобы
+листинг и файл студента не разошлись:
+
+```bash
+python3 tools/listing.py expand temy/17-skript-otchet/index.html
+```
+
+В теле главы стоят маркеры:
+
+```
+<!--LIST shop_report head · подключение-->   фрагмент, data-run="no"
+<!--LIST shop_report 3 4 · таблицы-->        части между «── N. …»
+<!--FULL shop_report · весь скрипт-->        листинг целиком, запускается
+```
+
+Скелет новой главы собирается из шапки готовой:
+`python3 tools/make_chapter.py 2.9 18-skript-podbor тело.html`.
+
 ### Блоки «для чтения»
 
 Фрагмент, который не должен выполняться (заведомо ошибочный код, кусок без
@@ -169,6 +194,16 @@ python3 tools/examples.py apply
 python3 tools/examples.py report          # ОТЛИЧ: 0
 python3 tools/archives.py build           # пересобрать zip с примерами
 python3 tools/archives.py verify python 2.1
+```
+
+Перед `verify` учебный стенд нужно остановить: стенд из архива поднимается
+под своим именем проекта, но публикует те же порты 27017 и 8081, и при
+запущенном `mongodb-practice` его сервер не стартует. Тогда программы идут
+к чужой базе, а `verify` показывает расхождения, которых нет:
+
+```bash
+cd ~/mongodb-practice && docker compose stop     # перед verify
+cd ~/mongodb-practice && docker compose up -d    # после
 ```
 
 `build` кладёт `temy/<глава>/primery/mongodb-glava-<N.M>-<язык>.zip` и
