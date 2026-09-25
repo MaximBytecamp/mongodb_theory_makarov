@@ -1,0 +1,2101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>1.9 Скрипт целиком: отчёт по магазину · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Язык фильтров</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 1 · подключение и первые данные</p>
+          <p class="running__folio">1.9</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">1.9</span>
+          <h1>Скрипт целиком:<br>отчёт по магазину</h1>
+          <p class="lead">В главах модуля каждый пример показывал одну операцию. Здесь собрана готовая программа: она подключается к серверу, читает данные девятью запросами, меняет документы в песочнице и печатает отчёт, который можно показать заказчику. Глава разбирает скрипт по частям и приводит его целиком вместе с выводом.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Готовая программа</dd></div>
+          <div><dt>Уровень</dt><dd>Итоговая глава модуля</dd></div>
+          <div><dt>Связанные темы</dt><dd>Все главы модуля 1, практическая работа ПР-01</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Собрать из отдельных операций работающую программу</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-1.9-python.zip" download><code>mongodb-glava-1.9-python.zip</code></a>, 58 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-1.9-ruby.zip" download><code>mongodb-glava-1.9-ruby.zip</code></a>, 58 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-1.9-go.zip" download><code>mongodb-glava-1.9-go.zip</code></a>, 61 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-1.9-cpp.zip" download><code>mongodb-glava-1.9-cpp.zip</code></a>, 60 КБ</span> — все примеры главы готовыми программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch1_9.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch1_9.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch1_9.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch1_9.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch1_9.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch1_9.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch1_9.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch1_9.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch1_9.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch1_9.go</code> · в Docker: <code>docker compose run --rm go lessons/ch1_9.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch1_9.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch1_9.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Что делает скрипт</a></li>
+            <li><a href="#s2">Подключение и разделы отчёта</a></li>
+            <li><a href="#s3">Чтение: справка, карточка, таблицы</a></li>
+            <li><a href="#s4">Страницы и вложенные поля</a></li>
+            <li><a href="#s5">Запись в песочницу</a></li>
+            <li><a href="#s6">Скрипт целиком</a></li>
+            <li><a href="#s7">Как запустить</a></li>
+            <li><a href="#s8">Частые ошибки</a></li>
+            <li><a href="#s9">Проверьте себя</a></li>
+            <li><a href="#s10">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Что делает скрипт</h2>
+        <p>Скрипт <code>shop_report.py</code> собирает отчёт по интернет-магазину: сколько в базе товаров и заказов, какие товары самые дорогие, как выглядит каталог по категориям, что лежит в одном заказе. В конце он проделывает в песочнице полный цикл записи — вставку, обновление и удаление — и печатает, сколько документов затронул каждый запрос.</p>
+        <p>Отчёт разбит на девять разделов, и каждый показывает свою операцию из модуля 1.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Раздел отчёта</th><th>Что показывает</th><th>Глава</th></tr></thead>
+            <tbody>
+              <tr><td>1. Связь и база shop</td><td>подключение, список баз и коллекций, счётчики документов</td><td>1.1</td></tr>
+              <tr><td>2. Один товар целиком</td><td><code>find_one</code> и поля документа всех типов</td><td>1.2, 1.4</td></tr>
+              <tr><td>3. Пять самых дорогих товаров</td><td>проекция, сортировка, предел</td><td>1.5, 1.6</td></tr>
+              <tr><td>4. Каталог по категориям</td><td>сортировка по двум полям</td><td>1.6</td></tr>
+              <tr><td>5. Товары по категориям</td><td><code>distinct</code> и <code>count_documents</code> с фильтром</td><td>1.4, 1.6</td></tr>
+              <tr><td>6. Заказы страницами</td><td><code>skip</code> и <code>limit</code></td><td>1.6</td></tr>
+              <tr><td>7. Заказ с доставкой и позициями</td><td>вложенные документы и массивы в выводе</td><td>1.2</td></tr>
+              <tr><td>8. Песочница</td><td><code>insert_many</code>, <code>update_one</code>, <code>update_many</code>, <code>delete_one</code></td><td>1.3, 1.7, 1.8</td></tr>
+              <tr><td>9. Итог</td><td>числа, которые попадают в отчёт</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Скрипт лежит в репозитории практик, в папке <code>scripts</code>, и запускается одной командой (§7). Главу читают вместе с открытым файлом.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Подключение и разделы отчёта</h2>
+        <p>Начало скрипта — то же, что в главе 1.1: клиент, база, коллекции. Адрес сервера берётся из переменной окружения <code>MONGO_URI</code>, а если её нет — подставляется <code>localhost</code>. Так один и тот же файл работает и на компьютере, и в контейнере.</p>
+        <p>Рядом объявлена функция <code>title</code>: она печатает заголовок раздела и подчёркивает его. Отчёт читает человек, и разделы должны быть видны с первого взгляда.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>подключение и заголовки</span></figcaption>
+<pre><span class="k">import</span> os
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+shop = client[<span class="s">"shop"</span>]
+products = shop[<span class="s">"products"</span>]
+orders = shop[<span class="s">"orders"</span>]
+box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>]
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="s">""</span><span class="s">"Заголовок раздела: отчёт читают глазами, разделы видно сразу."</span><span class="s">""</span>
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>подключение и заголовки</span></figcaption>
+<pre>#<span class="k">include</span> &lt;algorithm&gt;
+#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;ctime&gt;
+#<span class="k">include</span> &lt;iomanip&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;sstream&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/json.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/options/find.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="c">// Ширина столбца считается по символам: в кириллице на букву приходится</span>
+<span class="c">// два байта, и обычный setw сдвинул бы столбцы.</span>
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Значение любого типа BSON в строку — для карточки документа.</span>
+<span class="k">std</span>::string <span class="f">znachenie</span>(<span class="k">const</span> bsoncxx::document::element&amp; field) {
+    switch (field.<span class="f">type</span>()) {
+        case bsoncxx::type::k_string: <span class="k">return</span> <span class="k">std</span>::<span class="f">string</span>(field.<span class="f">get_string</span>().value);
+        case bsoncxx::type::k_int32: <span class="k">return</span> <span class="k">std</span>::<span class="f">to_string</span>(field.<span class="f">get_int32</span>().value);
+        case bsoncxx::type::k_int64: <span class="k">return</span> <span class="k">std</span>::<span class="f">to_string</span>(field.<span class="f">get_int64</span>().value);
+        case bsoncxx::type::k_double: {
+            <span class="k">std</span>::ostringstream out;
+            out &lt;&lt; field.<span class="f">get_double</span>().value;          <span class="c">// без лишних нулей: 4.2, а не 4.200000</span>
+            <span class="k">return</span> out.<span class="f">str</span>();
+        }
+        case bsoncxx::type::k_bool: <span class="k">return</span> field.<span class="f">get_bool</span>().value ? <span class="s">"true"</span> : <span class="s">"false"</span>;
+        case bsoncxx::type::k_date: {
+            <span class="k">std</span>::time_t sekundy = field.<span class="f">get_date</span>().<span class="f">to_int64</span>() / <span class="n">1000</span>;
+            <span class="k">std</span>::ostringstream out;
+            out &lt;&lt; <span class="k">std</span>::<span class="f">put_time</span>(<span class="k">std</span>::<span class="f">gmtime</span>(&amp;sekundy), <span class="s">"%Y-%m-%d %H:%M:%S"</span>);
+            <span class="k">return</span> out.<span class="f">str</span>();
+        }
+        case bsoncxx::type::k_document: <span class="k">return</span> bsoncxx::<span class="f">to_json</span>(field.<span class="f">get_document</span>().value);
+        case bsoncxx::type::k_array: <span class="k">return</span> bsoncxx::<span class="f">to_json</span>(field.<span class="f">get_array</span>().value);
+        default: {
+            <span class="c">// to_json берёт документ или массив, поэтому значение заворачиваем</span>
+            <span class="k">std</span>::string json = bsoncxx::<span class="f">to_json</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"v"</span>, field.<span class="f">get_value</span>())).<span class="f">view</span>());
+            <span class="k">return</span> json.<span class="f">substr</span>(json.<span class="f">find</span>(<span class="s">':'</span>) + <span class="n">2</span>, json.<span class="f">rfind</span>(<span class="s">'}'</span>) - json.<span class="f">find</span>(<span class="s">':'</span>) - <span class="n">3</span>);
+        }
+    }
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+
+    <span class="k">auto</span> shop = client[<span class="s">"shop"</span>];
+    <span class="k">auto</span> products = shop[<span class="s">"products"</span>];
+    <span class="k">auto</span> orders = shop[<span class="s">"orders"</span>];
+    <span class="k">auto</span> box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>];</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>подключение и заголовки</span></figcaption>
+<pre><span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"sort"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="c">// Product — поля товара, которые читает отчёт.</span>
+<span class="k">type</span> Product <span class="k">struct</span> {
+	ID       <span class="k">string</span> `bson:<span class="s">"_id"</span>`
+	Title    <span class="k">string</span> `bson:<span class="s">"title"</span>`
+	Category <span class="k">string</span> `bson:<span class="s">"category"</span>`
+	Price    <span class="k">int</span>    `bson:<span class="s">"price"</span>`
+}
+
+<span class="c">// Order — заказ вместе с вложенными документами и массивом позиций.</span>
+<span class="k">type</span> Order <span class="k">struct</span> {
+	Number   <span class="k">string</span> `bson:<span class="s">"number"</span>`
+	Status   <span class="k">string</span> `bson:<span class="s">"status"</span>`
+	Total    <span class="k">int</span>    `bson:<span class="s">"total"</span>`
+	Delivery <span class="k">struct</span> {
+		City <span class="k">string</span> `bson:<span class="s">"city"</span>`
+		Type <span class="k">string</span> `bson:<span class="s">"type"</span>`
+		Days <span class="k">int</span>    `bson:<span class="s">"days"</span>`
+	} `bson:<span class="s">"delivery"</span>`
+	Payment <span class="k">struct</span> {
+		Method <span class="k">string</span> `bson:<span class="s">"method"</span>`
+		Paid   <span class="k">bool</span>   `bson:<span class="s">"paid"</span>`
+	} `bson:<span class="s">"payment"</span>`
+	Items []<span class="k">struct</span> {
+		Title <span class="k">string</span> `bson:<span class="s">"title"</span>`
+		Qty   <span class="k">int</span>    `bson:<span class="s">"qty"</span>`
+		Price <span class="k">int</span>    `bson:<span class="s">"price"</span>`
+	} `bson:<span class="s">"items"</span>`
+}
+
+<span class="c">// pad дополняет строку пробелами по числу символов: в кириллице байт больше,</span>
+<span class="c">// чем букв, и обычное %-32s сдвигает столбцы.</span>
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">right</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n) + text
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	ctx := context.<span class="f">Background</span>()
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+	shop := client.<span class="f">Database</span>(<span class="s">"shop"</span>)
+	products := shop.<span class="f">Collection</span>(<span class="s">"products"</span>)
+	orders := shop.<span class="f">Collection</span>(<span class="s">"orders"</span>)
+	box := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>подключение и заголовки</span></figcaption>
+<pre><span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+shop = client.<span class="f">use</span>(<span class="s">"shop"</span>).database
+products = shop[:products]
+orders = shop[:orders]
+box = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database[:products]
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="f">pad</span>(text, width)                 <span class="c"># ljust по видимым символам, как в других языках</span>
+  text.to_s.<span class="f">ljust</span>(width)
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Коллекции открыты заранее и названы по смыслу: <code>products</code>, <code>orders</code>, <code>box</code> — песочница. Дальше в скрипте нет ни одной строки с именем базы: все запросы идут через эти переменные.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Чтение: справка, карточка, таблицы</h2>
+        <p>Первый раздел отчёта отвечает на вопрос «что вообще есть на сервере»: проверяет связь, перечисляет базы и коллекции и считает документы. Второй печатает один товар целиком — по полям, как они лежат в документе.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>справка и карточка товара</span></figcaption>
+<pre><span class="c"># ── 1. Что лежит на сервере ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>)
+
+client.admin.<span class="f">command</span>(<span class="s">"ping"</span>)                 <span class="c"># первое обращение к серверу</span>
+<span class="f">print</span>(<span class="s">"базы на сервере:"</span>, <span class="s">", "</span>.<span class="f">join</span>(<span class="f">sorted</span>(client.<span class="f">list_database_names</span>())))
+<span class="f">print</span>(<span class="s">"коллекции shop:"</span>, <span class="s">", "</span>.<span class="f">join</span>(<span class="f">sorted</span>(shop.<span class="f">list_collection_names</span>())))
+<span class="f">print</span>(f<span class="s">"товаров {products.count_documents({})}, "</span>
+      f<span class="s">"заказов {orders.count_documents({})}, "</span>
+      f<span class="s">"покупателей {shop['customers'].count_documents({})}"</span>)
+
+<span class="c"># ── 2. Карточка одного документа ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>)
+
+tovar = products.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-001"</span>})
+<span class="k">for</span> field, value <span class="k">in</span> tovar.<span class="f">items</span>():
+    <span class="f">print</span>(f<span class="s">"  {field:10} {value}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>справка и карточка товара</span></figcaption>
+<pre>    <span class="c">// ── 1. Что лежит на сервере ───────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>);
+
+    client[<span class="s">"admin"</span>].<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ping"</span>, <span class="n">1</span>)));
+    <span class="k">auto</span> bases = client.<span class="f">list_database_names</span>();
+    <span class="k">std</span>::<span class="f">sort</span>(bases.<span class="f">begin</span>(), bases.<span class="f">end</span>());
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"базы на сервере: "</span>;
+    <span class="k">for</span> (size_t i = <span class="n">0</span>; i &lt; bases.<span class="f">size</span>(); ++i) <span class="k">std</span>::cout &lt;&lt; (i ? <span class="s">", "</span> : <span class="s">""</span>) &lt;&lt; bases[i];
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> names = shop.<span class="f">list_collection_names</span>();
+    <span class="k">std</span>::<span class="f">sort</span>(names.<span class="f">begin</span>(), names.<span class="f">end</span>());
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"коллекции shop: "</span>;
+    <span class="k">for</span> (size_t i = <span class="n">0</span>; i &lt; names.<span class="f">size</span>(); ++i) <span class="k">std</span>::cout &lt;&lt; (i ? <span class="s">", "</span> : <span class="s">""</span>) &lt;&lt; names[i];
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> vsego_tovarov = products.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+    <span class="k">auto</span> vsego_zakazov = orders.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"товаров "</span> &lt;&lt; vsego_tovarov &lt;&lt; <span class="s">", заказов "</span> &lt;&lt; vsego_zakazov
+              &lt;&lt; <span class="s">", покупателей "</span> &lt;&lt; shop[<span class="s">"customers"</span>].<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 2. Карточка одного документа ──────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>);
+
+    <span class="k">auto</span> tovar = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-001"</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : tovar-&gt;<span class="f">view</span>())
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(field.<span class="f">key</span>()), <span class="n">10</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">znachenie</span>(field) &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>справка и карточка товара</span></figcaption>
+<pre>	<span class="c">// ── 1. Что лежит на сервере ───────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>)
+
+	<span class="k">if</span> err := client.<span class="f">Ping</span>(ctx, <span class="k">nil</span>); err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	bases, _ := client.<span class="f">ListDatabaseNames</span>(ctx, bson.D{})
+	sort.<span class="f">Strings</span>(bases)
+	fmt.<span class="f">Println</span>(<span class="s">"базы на сервере:"</span>, strings.<span class="f">Join</span>(bases, <span class="s">", "</span>))
+	names, _ := shop.<span class="f">ListCollectionNames</span>(ctx, bson.D{})
+	sort.<span class="f">Strings</span>(names)
+	fmt.<span class="f">Println</span>(<span class="s">"коллекции shop:"</span>, strings.<span class="f">Join</span>(names, <span class="s">", "</span>))
+	vsegoTovarov, _ := products.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	vsegoZakazov, _ := orders.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	vsegoKlientov, _ := shop.<span class="f">Collection</span>(<span class="s">"customers"</span>).<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"товаров %d, заказов %d, покупателей %d\n"</span>, vsegoTovarov, vsegoZakazov, vsegoKlientov)
+
+	<span class="c">// ── 2. Карточка одного документа ──────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>)
+
+	<span class="k">var</span> tovar bson.D
+	products.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-001"</span>}}).<span class="f">Decode</span>(&amp;tovar)
+	<span class="k">for</span> _, field := <span class="k">range</span> tovar {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %v\n"</span>, <span class="f">pad</span>(field.Key, <span class="n">10</span>), field.Value)
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>справка и карточка товара</span></figcaption>
+<pre><span class="c"># ── 1. Что лежит на сервере ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>)
+
+client.<span class="f">use</span>(<span class="s">"admin"</span>).database.<span class="f">command</span>(ping: <span class="n">1</span>)
+<span class="k">puts</span> <span class="s">"базы на сервере: "</span> + client.database_names.sort.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"коллекции shop: "</span> + shop.collection_names.sort.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"товаров #{products.count_documents({})}, "</span> \
+     <span class="s">"заказов #{orders.count_documents({})}, "</span> \
+     <span class="s">"покупателей #{shop[:customers].count_documents({})}"</span>
+
+<span class="c"># ── 2. Карточка одного документа ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>)
+
+tovar = products.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-001"</span> }).first
+tovar.<span class="k">each</span> { |field, value| <span class="k">puts</span> <span class="s">"  #{pad(field, 10)} #{value}"</span> }</pre>
+          </figure>
+        </div>
+        <p>В карточке видно всё, что разбиралось в главе 1.2: строки, число, дробное число, массив строк <code>specs</code>, массив документов <code>stock</code> и дата <code>added</code>. Драйвер отдаёт их значениями языка, поэтому печатать их можно как обычные переменные.</p>
+        <p>Третий раздел — таблица. Проекция оставляет три поля, сортировка ставит дорогие товары наверх, предел обрезает список до пяти строк. Заголовок таблицы и строки печатаются с одинаковыми ширинами столбцов, поэтому числа стоят в столбик.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>таблица и сортировка по двум полям</span></figcaption>
+<pre><span class="c"># ── 3. Таблица: пять самых дорогих товаров ────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>)
+
+<span class="f">print</span>(f<span class="s">"  {'название':32} {'категория':14} {'цена':&gt;8}"</span>)
+cursor = (products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>})
+                  .<span class="f">sort</span>(<span class="s">"price"</span>, -<span class="n">1</span>)
+                  .<span class="f">limit</span>(<span class="n">5</span>))
+<span class="k">for</span> doc <span class="k">in</span> cursor:
+    <span class="f">print</span>(f<span class="s">"  {doc['title']:32} {doc['category']:14} {doc['price']:&gt;8}"</span>)
+
+<span class="c"># ── 4. Сортировка по двум полям ───────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>)
+
+katalog = (products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>})
+                   .<span class="f">sort</span>([(<span class="s">"category"</span>, <span class="n">1</span>), (<span class="s">"price"</span>, -<span class="n">1</span>)])
+                   .<span class="f">limit</span>(<span class="n">8</span>))
+<span class="k">for</span> doc <span class="k">in</span> katalog:
+    <span class="f">print</span>(f<span class="s">"  {doc['category']:14} {doc['title']:32} {doc['price']:&gt;8}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>таблица и сортировка по двум полям</span></figcaption>
+<pre>    <span class="c">// ── 3. Таблица: пять самых дорогих товаров ────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"название"</span>, <span class="n">32</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">14</span>)
+              &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"цена"</span>, <span class="n">8</span>) &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::options::find options;
+    options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+    options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+    options.<span class="f">limit</span>(<span class="n">5</span>);
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), options)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">32</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"category"</span>].<span class="f">get_string</span>().value), <span class="n">14</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value), <span class="n">8</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 4. Сортировка по двум полям ───────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>);
+
+    mongocxx::options::find katalog_options;
+    katalog_options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+    katalog_options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+    katalog_options.<span class="f">limit</span>(<span class="n">8</span>);
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), katalog_options)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"category"</span>].<span class="f">get_string</span>().value), <span class="n">14</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">32</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value), <span class="n">8</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>таблица и сортировка по двум полям</span></figcaption>
+<pre>	<span class="c">// ── 3. Таблица: пять самых дорогих товаров ────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s\n"</span>, <span class="f">pad</span>(<span class="s">"название"</span>, <span class="n">32</span>), <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">14</span>), <span class="f">right</span>(<span class="s">"цена"</span>, <span class="n">8</span>))
+	cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
+		options.<span class="f">Find</span>().
+			<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+				{Key: <span class="s">"category"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).
+			<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}).
+			<span class="f">SetLimit</span>(<span class="n">5</span>))
+	<span class="k">var</span> dorogie []Product
+	cursor.<span class="f">All</span>(ctx, &amp;dorogie)
+	<span class="k">for</span> _, p := <span class="k">range</span> dorogie {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s\n"</span>, <span class="f">pad</span>(p.Title, <span class="n">32</span>), <span class="f">pad</span>(p.Category, <span class="n">14</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(p.Price), <span class="n">8</span>))
+	}
+
+	<span class="c">// ── 4. Сортировка по двум полям ───────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>)
+
+	cursor, _ = products.<span class="f">Find</span>(ctx, bson.D{},
+		options.<span class="f">Find</span>().
+			<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"category"</span>, Value: <span class="n">1</span>},
+				{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).
+			<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"category"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}).
+			<span class="f">SetLimit</span>(<span class="n">8</span>))
+	<span class="k">var</span> katalog []Product
+	cursor.<span class="f">All</span>(ctx, &amp;katalog)
+	<span class="k">for</span> _, p := <span class="k">range</span> katalog {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s\n"</span>, <span class="f">pad</span>(p.Category, <span class="n">14</span>), <span class="f">pad</span>(p.Title, <span class="n">32</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(p.Price), <span class="n">8</span>))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>таблица и сортировка по двум полям</span></figcaption>
+<pre><span class="c"># ── 3. Таблица: пять самых дорогих товаров ────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>)
+
+<span class="k">puts</span> <span class="s">"  #{pad('название', 32)} #{pad('категория', 14)} #{'цена'.rjust(8)}"</span>
+products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"price"</span> =&gt; -<span class="n">1</span> })
+        .<span class="f">limit</span>(<span class="n">5</span>)
+        .<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['title'], 32)} #{pad(doc['category'], 14)} #{doc['price'].to_s.rjust(8)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 4. Сортировка по двум полям ───────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>)
+
+products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; -<span class="n">1</span> })
+        .<span class="f">limit</span>(<span class="n">8</span>)
+        .<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['category'], 14)} #{pad(doc['title'], 32)} #{doc['price'].to_s.rjust(8)}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Четвёртый раздел сортирует по двум полям сразу: категории по алфавиту, внутри категории — от дорогих к дешёвым. Это тот же <code>sort</code> из главы 1.6, только с двумя ключами, и порядок ключей задаёт порядок сравнения.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Страницы и вложенные поля</h2>
+        <p>Пятый раздел считает товары по категориям: сначала <code>distinct</code> даёт список категорий, затем на каждую идёт <code>count_documents</code> с фильтром. Шестой выводит заказы страницами по пять — <code>skip</code> отсчитывает страницу, <code>limit</code> ограничивает её размер.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>счётчики и страницы</span></figcaption>
+<pre><span class="c"># ── 5. Счётчики по категориям ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>)
+
+<span class="k">for</span> category <span class="k">in</span> <span class="f">sorted</span>(products.<span class="f">distinct</span>(<span class="s">"category"</span>)):
+    <span class="f">print</span>(f<span class="s">"  {category:14} {products.count_documents({'category': category}):2} шт"</span>)
+
+<span class="c"># ── 6. Страницы заказов ───────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>)
+
+<span class="k">for</span> page <span class="k">in</span> (<span class="n">1</span>, <span class="n">2</span>):
+    <span class="f">print</span>(f<span class="s">"  страница {page}"</span>)
+    stranica = (orders.<span class="f">find</span>({<span class="s">"status"</span>: <span class="s">"доставлен"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>})
+                      .<span class="f">sort</span>(<span class="s">"number"</span>, <span class="n">1</span>)
+                      .<span class="f">skip</span>((page - <span class="n">1</span>) * <span class="n">5</span>)
+                      .<span class="f">limit</span>(<span class="n">5</span>))
+    <span class="k">for</span> doc <span class="k">in</span> stranica:
+        <span class="f">print</span>(f<span class="s">"    {doc['number']}  {doc['total']:&gt;7}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>счётчики и страницы</span></figcaption>
+<pre>    <span class="c">// ── 5. Счётчики по категориям ─────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>);
+
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; kategorii;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">distinct</span>(<span class="s">"category"</span>, <span class="f">make_document</span>()))
+        <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; value : doc[<span class="s">"values"</span>].<span class="f">get_array</span>().value)
+            kategorii.<span class="f">push_back</span>(<span class="k">std</span>::<span class="f">string</span>(value.<span class="f">get_string</span>().value));
+    <span class="k">std</span>::<span class="f">sort</span>(kategorii.<span class="f">begin</span>(), kategorii.<span class="f">end</span>());
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; category : kategorii) {
+        <span class="k">auto</span> skolko = products.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, category)));
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(category, <span class="n">14</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(skolko), <span class="n">2</span>) &lt;&lt; <span class="s">" шт"</span> &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 6. Страницы заказов ───────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>);
+
+    <span class="k">for</span> (<span class="k">int</span> page = <span class="n">1</span>; page &lt;= <span class="n">2</span>; ++page) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  страница "</span> &lt;&lt; page &lt;&lt; <span class="k">std</span>::endl;
+        mongocxx::options::find page_options;
+        page_options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>)));
+        page_options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>)));
+        page_options.<span class="f">skip</span>((page - <span class="n">1</span>) * <span class="n">5</span>);
+        page_options.<span class="f">limit</span>(<span class="n">5</span>);
+        <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)), page_options)) {
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"number"</span>].<span class="f">get_string</span>().value) &lt;&lt; <span class="s">"  "</span>
+                      &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"total"</span>].<span class="f">get_int32</span>().value), <span class="n">7</span>) &lt;&lt; <span class="k">std</span>::endl;
+        }
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>счётчики и страницы</span></figcaption>
+<pre>	<span class="c">// ── 5. Счётчики по категориям ─────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>)
+
+	<span class="k">var</span> spisok []<span class="k">string</span>
+	products.<span class="f">Distinct</span>(ctx, <span class="s">"category"</span>, bson.D{}).<span class="f">Decode</span>(&amp;spisok)
+	sort.<span class="f">Strings</span>(spisok)
+	<span class="k">for</span> _, category := <span class="k">range</span> spisok {
+		skolko, _ := products.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: category}})
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s шт\n"</span>, <span class="f">pad</span>(category, <span class="n">14</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>))
+	}
+
+	<span class="c">// ── 6. Страницы заказов ───────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>)
+
+	<span class="k">for</span> page := <span class="f">int64</span>(<span class="n">1</span>); page &lt;= <span class="n">2</span>; page++ {
+		fmt.<span class="f">Printf</span>(<span class="s">"  страница %d\n"</span>, page)
+		cursor, _ = orders.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}},
+			options.<span class="f">Find</span>().
+				<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}}).
+				<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"number"</span>, Value: <span class="n">1</span>}}).
+				<span class="f">SetSkip</span>((page - <span class="n">1</span>) * <span class="n">5</span>).
+				<span class="f">SetLimit</span>(<span class="n">5</span>))
+		<span class="k">var</span> stranica []Order
+		cursor.<span class="f">All</span>(ctx, &amp;stranica)
+		<span class="k">for</span> _, o := <span class="k">range</span> stranica {
+			fmt.<span class="f">Printf</span>(<span class="s">"    %s  %s\n"</span>, o.Number, <span class="f">right</span>(fmt.<span class="f">Sprint</span>(o.Total), <span class="n">7</span>))
+		}
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>счётчики и страницы</span></figcaption>
+<pre><span class="c"># ── 5. Счётчики по категориям ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>)
+
+products.<span class="f">distinct</span>(<span class="s">"category"</span>).sort.<span class="k">each</span> <span class="k">do</span> |category|
+  <span class="k">puts</span> <span class="s">"  #{pad(category, 14)} #{products.count_documents({ 'category' =&gt; category }).to_s.rjust(2)} шт"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 6. Страницы заказов ───────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>)
+
+[<span class="n">1</span>, <span class="n">2</span>].<span class="k">each</span> <span class="k">do</span> |page|
+  <span class="k">puts</span> <span class="s">"  страница #{page}"</span>
+  orders.<span class="f">find</span>({ <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"total"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"number"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">skip</span>((page - <span class="n">1</span>) * <span class="n">5</span>)
+        .<span class="f">limit</span>(<span class="n">5</span>)
+        .<span class="k">each</span> { |doc| <span class="k">puts</span> <span class="s">"    #{doc['number']}  #{doc['total'].to_s.rjust(7)}"</span> }
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Сортировка по номеру заказа здесь обязательна: без неё сервер вправе вернуть документы в любом порядке, и на второй странице мог бы оказаться тот же заказ, что на первой (глава 1.6).</p>
+        <p>Седьмой раздел печатает один заказ так, как его показывают в интерфейсе: номер и сумма, строка доставки из вложенного документа, способ оплаты и список позиций из массива документов.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>вложенные документы и массив позиций</span></figcaption>
+<pre><span class="c"># ── 7. Вложенные поля и массивы в выводе ──────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>)
+
+zakaz = orders.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"o-0001"</span>})
+<span class="f">print</span>(f<span class="s">"  номер {zakaz['number']}, статус {zakaz['status']}, сумма {zakaz['total']}"</span>)
+<span class="f">print</span>(f<span class="s">"  доставка: {zakaz['delivery']['city']}, {zakaz['delivery']['type']}, "</span>
+      f<span class="s">"{zakaz['delivery']['days']} дн."</span>)
+<span class="f">print</span>(f<span class="s">"  оплата: {zakaz['payment']['method']}, проведена: {zakaz['payment']['paid']}"</span>)
+<span class="k">for</span> position <span class="k">in</span> zakaz[<span class="s">"items"</span>]:
+    <span class="f">print</span>(f<span class="s">"    {position['qty']} × {position['title']:34} {position['price']:&gt;7}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>вложенные документы и массив позиций</span></figcaption>
+<pre>    <span class="c">// ── 7. Вложенные поля и массивы в выводе ──────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>);
+
+    <span class="c">// Документ сохраняем в переменную: view указывает внутрь неё, и временное</span>
+    <span class="c">// значение из find_one исчезло бы сразу после строки.</span>
+    <span class="k">auto</span> zakaz_doc = orders.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0001"</span>)));
+    <span class="k">auto</span> zakaz = zakaz_doc-&gt;<span class="f">view</span>();
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  номер "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(zakaz[<span class="s">"number"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", статус "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(zakaz[<span class="s">"status"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", сумма "</span> &lt;&lt; zakaz[<span class="s">"total"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">auto</span> dostavka = zakaz[<span class="s">"delivery"</span>].<span class="f">get_document</span>().value;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  доставка: "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(dostavka[<span class="s">"city"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(dostavka[<span class="s">"type"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", "</span> &lt;&lt; dostavka[<span class="s">"days"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">" дн."</span> &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">auto</span> oplata = zakaz[<span class="s">"payment"</span>].<span class="f">get_document</span>().value;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  оплата: "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(oplata[<span class="s">"method"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", проведена: "</span> &lt;&lt; (oplata[<span class="s">"paid"</span>].<span class="f">get_bool</span>().value ? <span class="s">"true"</span> : <span class="s">"false"</span>) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; position : zakaz[<span class="s">"items"</span>].<span class="f">get_array</span>().value) {
+        <span class="k">auto</span> item = position.<span class="f">get_document</span>().value;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; item[<span class="s">"qty"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">" × "</span>
+                  &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(item[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">34</span>) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(item[<span class="s">"price"</span>].<span class="f">get_int32</span>().value), <span class="n">7</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>вложенные документы и массив позиций</span></figcaption>
+<pre>	<span class="c">// ── 7. Вложенные поля и массивы в выводе ──────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>)
+
+	<span class="k">var</span> zakaz Order
+	orders.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0001"</span>}}).<span class="f">Decode</span>(&amp;zakaz)
+	fmt.<span class="f">Printf</span>(<span class="s">"  номер %s, статус %s, сумма %d\n"</span>, zakaz.Number, zakaz.Status, zakaz.Total)
+	fmt.<span class="f">Printf</span>(<span class="s">"  доставка: %s, %s, %d дн.\n"</span>, zakaz.Delivery.City, zakaz.Delivery.Type, zakaz.Delivery.Days)
+	fmt.<span class="f">Printf</span>(<span class="s">"  оплата: %s, проведена: %t\n"</span>, zakaz.Payment.Method, zakaz.Payment.Paid)
+	<span class="k">for</span> _, position := <span class="k">range</span> zakaz.Items {
+		fmt.<span class="f">Printf</span>(<span class="s">"    %d × %s %s\n"</span>, position.Qty, <span class="f">pad</span>(position.Title, <span class="n">34</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(position.Price), <span class="n">7</span>))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>вложенные документы и массив позиций</span></figcaption>
+<pre><span class="c"># ── 7. Вложенные поля и массивы в выводе ──────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>)
+
+zakaz = orders.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"o-0001"</span> }).first
+<span class="k">puts</span> <span class="s">"  номер #{zakaz['number']}, статус #{zakaz['status']}, сумма #{zakaz['total']}"</span>
+<span class="k">puts</span> <span class="s">"  доставка: #{zakaz['delivery']['city']}, #{zakaz['delivery']['type']}, "</span> \
+     <span class="s">"#{zakaz['delivery']['days']} дн."</span>
+<span class="k">puts</span> <span class="s">"  оплата: #{zakaz['payment']['method']}, проведена: #{zakaz['payment']['paid']}"</span>
+zakaz[<span class="s">"items"</span>].<span class="k">each</span> <span class="k">do</span> |position|
+  <span class="k">puts</span> <span class="s">"    #{position['qty']} × #{pad(position['title'], 34)} #{position['price'].to_s.rjust(7)}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>К вложенному документу обращаются как к обычному значению: <code>zakaz["delivery"]["city"]</code>. Массив <code>items</code> перебирается циклом, и каждая позиция — тоже документ со своими полями.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Запись в песочницу</h2>
+        <p>Восьмой раздел меняет данные, поэтому работает в песочнице — базе <code>sandbox</code> (глава 1.3). Учебная база <code>shop</code> остаётся нетронутой. Сначала он удаляет свои товары, если они остались от прошлого запуска: скрипт должен давать один и тот же результат при каждом запуске.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>вставка, обновление, удаление</span></figcaption>
+<pre><span class="c"># ── 8. Запись: вставка, обновление, удаление ──────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>)
+
+<span class="k">for</span> key <span class="k">in</span> (<span class="s">"p-301"</span>, <span class="s">"p-302"</span>):        <span class="c"># чтобы скрипт можно было запускать повторно</span>
+    box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: key})
+
+added = box.<span class="f">insert_many</span>([
+    {<span class="s">"_id"</span>: <span class="s">"p-301"</span>, <span class="s">"title"</span>: <span class="s">"Док-станция USB-C"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">6490</span>, <span class="s">"reviews"</span>: <span class="n">0</span>},
+    {<span class="s">"_id"</span>: <span class="s">"p-302"</span>, <span class="s">"title"</span>: <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">890</span>, <span class="s">"reviews"</span>: <span class="n">0</span>},
+])
+<span class="f">print</span>(<span class="s">"  вставлено:"</span>, <span class="f">len</span>(added.inserted_ids), <span class="s">"ключи:"</span>, <span class="s">", "</span>.<span class="f">join</span>(added.inserted_ids))
+
+changed = box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-301"</span>}, {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">5990</span>}, <span class="s">"$inc"</span>: {<span class="s">"reviews"</span>: <span class="n">1</span>}})
+<span class="f">print</span>(f<span class="s">"  обновление одного: найдено {changed.matched_count}, изменено {changed.modified_count}"</span>)
+
+many = box.<span class="f">update_many</span>({<span class="s">"category"</span>: <span class="s">"аксессуары"</span>}, {<span class="s">"$set"</span>: {<span class="s">"sale"</span>: <span class="k">True</span>}})
+<span class="f">print</span>(f<span class="s">"  пометка распродажи: найдено {many.matched_count}, изменено {many.modified_count}"</span>)
+
+after = box.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-301"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>, <span class="s">"reviews"</span>: <span class="n">1</span>, <span class="s">"sale"</span>: <span class="n">1</span>})
+<span class="f">print</span>(<span class="s">"  что стало:"</span>, after)
+
+gone = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span class="s">"p-302"</span>})
+<span class="f">print</span>(<span class="s">"  удалено:"</span>, gone.deleted_count, <span class="s">"· товаров в песочнице:"</span>, box.<span class="f">count_documents</span>({}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>вставка, обновление, удаление</span></figcaption>
+<pre>    <span class="c">// ── 8. Запись: вставка, обновление, удаление ──────────────────────</span>
+    <span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>);
+
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">std</span>::string&amp; key : {<span class="s">"p-301"</span>, <span class="s">"p-302"</span>})
+        box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, key)));
+
+    <span class="k">std</span>::vector&lt;bsoncxx::document::value&gt; novye;
+    novye.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-301"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Док-станция USB-C"</span>),
+                                  <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">6490</span>), <span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">0</span>)));
+    novye.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-302"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>),
+                                  <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">890</span>), <span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">0</span>)));
+    <span class="k">auto</span> added = box.<span class="f">insert_many</span>(novye);
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  вставлено: "</span> &lt;&lt; added-&gt;<span class="f">inserted_count</span>() &lt;&lt; <span class="s">" ключи: "</span>;
+    <span class="k">bool</span> first = <span class="k">true</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; pair : added-&gt;<span class="f">inserted_ids</span>()) {
+        <span class="k">std</span>::cout &lt;&lt; (first ? <span class="s">""</span> : <span class="s">", "</span>) &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(pair.second.<span class="f">get_string</span>().value);
+        first = <span class="k">false</span>;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> changed = box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-301"</span>)),
+                                  <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">5990</span>))),
+                                                <span class="f">kvp</span>(<span class="s">"$inc"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">1</span>)))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  обновление одного: найдено "</span> &lt;&lt; changed-&gt;<span class="f">matched_count</span>()
+              &lt;&lt; <span class="s">", изменено "</span> &lt;&lt; changed-&gt;<span class="f">modified_count</span>() &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> many = box.<span class="f">update_many</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>)),
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="k">true</span>)))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  пометка распродажи: найдено "</span> &lt;&lt; many-&gt;<span class="f">matched_count</span>()
+              &lt;&lt; <span class="s">", изменено "</span> &lt;&lt; many-&gt;<span class="f">modified_count</span>() &lt;&lt; <span class="k">std</span>::endl;
+
+    mongocxx::options::find after_options;
+    after_options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>),
+                                           <span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="n">1</span>)));
+    <span class="k">auto</span> after = box.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-301"</span>)), after_options);
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  что стало: "</span> &lt;&lt; bsoncxx::<span class="f">to_json</span>(after-&gt;<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> gone = box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-302"</span>)));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  удалено: "</span> &lt;&lt; gone-&gt;<span class="f">deleted_count</span>()
+              &lt;&lt; <span class="s">" · товаров в песочнице: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>вставка, обновление, удаление</span></figcaption>
+<pre>	<span class="c">// ── 8. Запись: вставка, обновление, удаление ──────────────────────</span>
+	<span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>)
+
+	<span class="k">for</span> _, key := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"p-301"</span>, <span class="s">"p-302"</span>} {
+		box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: key}})
+	}
+
+	added, _ := box.<span class="f">InsertMany</span>(ctx, []any{
+		bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-301"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Док-станция USB-C"</span>},
+			{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">6490</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">0</span>}},
+		bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-302"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Кабель HDMI 2 м"</span>},
+			{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">890</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">0</span>}},
+	})
+	kluchi := <span class="k">make</span>([]<span class="k">string</span>, <span class="n">0</span>, <span class="f">len</span>(added.InsertedIDs))
+	<span class="k">for</span> _, id := <span class="k">range</span> added.InsertedIDs {
+		kluchi = <span class="k">append</span>(kluchi, fmt.<span class="f">Sprint</span>(id))
+	}
+	fmt.<span class="f">Printf</span>(<span class="s">"  вставлено: %d ключи: %s\n"</span>, <span class="f">len</span>(added.InsertedIDs), strings.<span class="f">Join</span>(kluchi, <span class="s">", "</span>))
+
+	changed, _ := box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-301"</span>}},
+		bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">5990</span>}}},
+			{Key: <span class="s">"$inc"</span>, Value: bson.D{{Key: <span class="s">"reviews"</span>, Value: <span class="n">1</span>}}}})
+	fmt.<span class="f">Printf</span>(<span class="s">"  обновление одного: найдено %d, изменено %d\n"</span>, changed.MatchedCount, changed.ModifiedCount)
+
+	many, _ := box.<span class="f">UpdateMany</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}},
+		bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"sale"</span>, Value: <span class="k">true</span>}}}})
+	fmt.<span class="f">Printf</span>(<span class="s">"  пометка распродажи: найдено %d, изменено %d\n"</span>, many.MatchedCount, many.ModifiedCount)
+
+	<span class="k">var</span> after bson.D
+	box.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-301"</span>}},
+		options.<span class="f">FindOne</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+			{Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"sale"</span>, Value: <span class="n">1</span>}})).<span class="f">Decode</span>(&amp;after)
+	out, _ := bson.<span class="f">MarshalExtJSON</span>(after, <span class="k">false</span>, <span class="k">false</span>)
+	fmt.<span class="f">Println</span>(<span class="s">"  что стало:"</span>, <span class="k">string</span>(out))
+
+	gone, _ := box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-302"</span>}})
+	vPesochnice, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"  удалено: %d · товаров в песочнице: %d\n"</span>, gone.DeletedCount, vPesochnice)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>вставка, обновление, удаление</span></figcaption>
+<pre><span class="c"># ── 8. Запись: вставка, обновление, удаление ──────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>)
+
+[<span class="s">"p-301"</span>, <span class="s">"p-302"</span>].<span class="k">each</span> { |key| box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; key }) }
+
+added = box.<span class="f">insert_many</span>([
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-301"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Док-станция USB-C"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">6490</span>, <span class="s">"reviews"</span> =&gt; <span class="n">0</span> },
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-302"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">890</span>, <span class="s">"reviews"</span> =&gt; <span class="n">0</span> },
+])
+<span class="k">puts</span> <span class="s">"  вставлено: #{added.inserted_count} ключи: #{added.inserted_ids.join(', ')}"</span>
+
+changed = box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-301"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">5990</span> }, <span class="s">"$inc"</span> =&gt; { <span class="s">"reviews"</span> =&gt; <span class="n">1</span> } })
+<span class="k">puts</span> <span class="s">"  обновление одного: найдено #{changed.matched_count}, изменено #{changed.modified_count}"</span>
+
+many = box.<span class="f">update_many</span>({ <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"sale"</span> =&gt; <span class="k">true</span> } })
+<span class="k">puts</span> <span class="s">"  пометка распродажи: найдено #{many.matched_count}, изменено #{many.modified_count}"</span>
+
+after = box.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-301"</span> },
+                 projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span>, <span class="s">"reviews"</span> =&gt; <span class="n">1</span>, <span class="s">"sale"</span> =&gt; <span class="n">1</span> }).first
+<span class="k">puts</span> <span class="s">"  что стало: #{after.inspect}"</span>
+
+gone = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-302"</span> })
+<span class="k">puts</span> <span class="s">"  удалено: #{gone.deleted_count} · товаров в песочнице: #{box.count_documents({})}"</span></pre>
+          </figure>
+        </div>
+        <p>Каждая операция записи возвращает результат, и скрипт его печатает. У вставки это список выданных ключей, у обновления — два числа: сколько документов подошло под фильтр и сколько изменилось (глава 1.7). У удаления — сколько документов удалено.</p>
+        <p>Обновление пачкой ставит пометку распродажи всем аксессуарам песочницы, включая три исходных, поэтому в выводе стоит пять. <code>update_many</code> меняет все документы, подошедшие под фильтр.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Скрипт целиком</h2>
+        <p>Ниже — тот же файл без пропусков, а под ним вывод его запуска на учебном стенде. Числа в выводе совпадут с вашими, если базы перед запуском в исходном состоянии.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>scripts/shop_report</span></figcaption>
+<pre><span class="s">""</span>"Отчёт по магазину: что умеет MongoDB из модуля <span class="n">1</span>.
+
+Скрипт проходит все операции модуля <span class="n">1</span> на базе shop и в песочнице sandbox
+и печатает результат так, как его показывают в консоли: счётчики, таблицы,
+карточку документа, страницы и итоги записи.
+
+    cd scripts
+    python3 shop_report.py
+
+    docker compose run --rm python scripts/shop_report.py    <span class="c"># в контейнере</span>
+<span class="s">""</span>"
+
+<span class="k">import</span> os
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+shop = client[<span class="s">"shop"</span>]
+products = shop[<span class="s">"products"</span>]
+orders = shop[<span class="s">"orders"</span>]
+box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>]
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="s">""</span><span class="s">"Заголовок раздела: отчёт читают глазами, разделы видно сразу."</span><span class="s">""</span>
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))
+
+
+<span class="c"># ── 1. Что лежит на сервере ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>)
+
+client.admin.<span class="f">command</span>(<span class="s">"ping"</span>)                 <span class="c"># первое обращение к серверу</span>
+<span class="f">print</span>(<span class="s">"базы на сервере:"</span>, <span class="s">", "</span>.<span class="f">join</span>(<span class="f">sorted</span>(client.<span class="f">list_database_names</span>())))
+<span class="f">print</span>(<span class="s">"коллекции shop:"</span>, <span class="s">", "</span>.<span class="f">join</span>(<span class="f">sorted</span>(shop.<span class="f">list_collection_names</span>())))
+<span class="f">print</span>(f<span class="s">"товаров {products.count_documents({})}, "</span>
+      f<span class="s">"заказов {orders.count_documents({})}, "</span>
+      f<span class="s">"покупателей {shop['customers'].count_documents({})}"</span>)
+
+<span class="c"># ── 2. Карточка одного документа ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>)
+
+tovar = products.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-001"</span>})
+<span class="k">for</span> field, value <span class="k">in</span> tovar.<span class="f">items</span>():
+    <span class="f">print</span>(f<span class="s">"  {field:10} {value}"</span>)
+
+<span class="c"># ── 3. Таблица: пять самых дорогих товаров ────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>)
+
+<span class="f">print</span>(f<span class="s">"  {'название':32} {'категория':14} {'цена':&gt;8}"</span>)
+cursor = (products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>})
+                  .<span class="f">sort</span>(<span class="s">"price"</span>, -<span class="n">1</span>)
+                  .<span class="f">limit</span>(<span class="n">5</span>))
+<span class="k">for</span> doc <span class="k">in</span> cursor:
+    <span class="f">print</span>(f<span class="s">"  {doc['title']:32} {doc['category']:14} {doc['price']:&gt;8}"</span>)
+
+<span class="c"># ── 4. Сортировка по двум полям ───────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>)
+
+katalog = (products.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"category"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>})
+                   .<span class="f">sort</span>([(<span class="s">"category"</span>, <span class="n">1</span>), (<span class="s">"price"</span>, -<span class="n">1</span>)])
+                   .<span class="f">limit</span>(<span class="n">8</span>))
+<span class="k">for</span> doc <span class="k">in</span> katalog:
+    <span class="f">print</span>(f<span class="s">"  {doc['category']:14} {doc['title']:32} {doc['price']:&gt;8}"</span>)
+
+<span class="c"># ── 5. Счётчики по категориям ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>)
+
+<span class="k">for</span> category <span class="k">in</span> <span class="f">sorted</span>(products.<span class="f">distinct</span>(<span class="s">"category"</span>)):
+    <span class="f">print</span>(f<span class="s">"  {category:14} {products.count_documents({'category': category}):2} шт"</span>)
+
+<span class="c"># ── 6. Страницы заказов ───────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>)
+
+<span class="k">for</span> page <span class="k">in</span> (<span class="n">1</span>, <span class="n">2</span>):
+    <span class="f">print</span>(f<span class="s">"  страница {page}"</span>)
+    stranica = (orders.<span class="f">find</span>({<span class="s">"status"</span>: <span class="s">"доставлен"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>})
+                      .<span class="f">sort</span>(<span class="s">"number"</span>, <span class="n">1</span>)
+                      .<span class="f">skip</span>((page - <span class="n">1</span>) * <span class="n">5</span>)
+                      .<span class="f">limit</span>(<span class="n">5</span>))
+    <span class="k">for</span> doc <span class="k">in</span> stranica:
+        <span class="f">print</span>(f<span class="s">"    {doc['number']}  {doc['total']:&gt;7}"</span>)
+
+<span class="c"># ── 7. Вложенные поля и массивы в выводе ──────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>)
+
+zakaz = orders.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"o-0001"</span>})
+<span class="f">print</span>(f<span class="s">"  номер {zakaz['number']}, статус {zakaz['status']}, сумма {zakaz['total']}"</span>)
+<span class="f">print</span>(f<span class="s">"  доставка: {zakaz['delivery']['city']}, {zakaz['delivery']['type']}, "</span>
+      f<span class="s">"{zakaz['delivery']['days']} дн."</span>)
+<span class="f">print</span>(f<span class="s">"  оплата: {zakaz['payment']['method']}, проведена: {zakaz['payment']['paid']}"</span>)
+<span class="k">for</span> position <span class="k">in</span> zakaz[<span class="s">"items"</span>]:
+    <span class="f">print</span>(f<span class="s">"    {position['qty']} × {position['title']:34} {position['price']:&gt;7}"</span>)
+
+<span class="c"># ── 8. Запись: вставка, обновление, удаление ──────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>)
+
+<span class="k">for</span> key <span class="k">in</span> (<span class="s">"p-301"</span>, <span class="s">"p-302"</span>):        <span class="c"># чтобы скрипт можно было запускать повторно</span>
+    box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: key})
+
+added = box.<span class="f">insert_many</span>([
+    {<span class="s">"_id"</span>: <span class="s">"p-301"</span>, <span class="s">"title"</span>: <span class="s">"Док-станция USB-C"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">6490</span>, <span class="s">"reviews"</span>: <span class="n">0</span>},
+    {<span class="s">"_id"</span>: <span class="s">"p-302"</span>, <span class="s">"title"</span>: <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">890</span>, <span class="s">"reviews"</span>: <span class="n">0</span>},
+])
+<span class="f">print</span>(<span class="s">"  вставлено:"</span>, <span class="f">len</span>(added.inserted_ids), <span class="s">"ключи:"</span>, <span class="s">", "</span>.<span class="f">join</span>(added.inserted_ids))
+
+changed = box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-301"</span>}, {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">5990</span>}, <span class="s">"$inc"</span>: {<span class="s">"reviews"</span>: <span class="n">1</span>}})
+<span class="f">print</span>(f<span class="s">"  обновление одного: найдено {changed.matched_count}, изменено {changed.modified_count}"</span>)
+
+many = box.<span class="f">update_many</span>({<span class="s">"category"</span>: <span class="s">"аксессуары"</span>}, {<span class="s">"$set"</span>: {<span class="s">"sale"</span>: <span class="k">True</span>}})
+<span class="f">print</span>(f<span class="s">"  пометка распродажи: найдено {many.matched_count}, изменено {many.modified_count}"</span>)
+
+after = box.<span class="f">find_one</span>({<span class="s">"_id"</span>: <span class="s">"p-301"</span>}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>, <span class="s">"reviews"</span>: <span class="n">1</span>, <span class="s">"sale"</span>: <span class="n">1</span>})
+<span class="f">print</span>(<span class="s">"  что стало:"</span>, after)
+
+gone = box.<span class="f">delete_one</span>({<span class="s">"_id"</span>: <span class="s">"p-302"</span>})
+<span class="f">print</span>(<span class="s">"  удалено:"</span>, gone.deleted_count, <span class="s">"· товаров в песочнице:"</span>, box.<span class="f">count_documents</span>({}))
+
+<span class="c"># ── 9. Итог ───────────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"9. Итог"</span>)
+
+<span class="f">print</span>(f<span class="s">"  прочитано из shop: {products.count_documents({})} товаров и "</span>
+      f<span class="s">"{orders.count_documents({})} заказов"</span>)
+<span class="f">print</span>(<span class="s">"  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление"</span>)
+client.<span class="f">close</span>()
+</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>scripts/shop_report</span></figcaption>
+<pre><span class="c">// Отчёт по магазину: что умеет MongoDB из модуля 1.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт проходит все операции модуля 1 на базе shop и в песочнице sandbox</span>
+<span class="c">// и печатает результат так, как его показывают в консоли: счётчики, таблицы,</span>
+<span class="c">// карточку документа, страницы и итоги записи.</span>
+<span class="c">//</span>
+<span class="c">//     cd scripts</span>
+<span class="c">//     g++ -std=c++17 shop_report.cpp -o shop_report $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./shop_report</span>
+<span class="c">//</span>
+<span class="c">//     docker compose run --rm cpp scripts/shop_report.cpp    # в контейнере</span>
+
+#<span class="k">include</span> &lt;algorithm&gt;
+#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;ctime&gt;
+#<span class="k">include</span> &lt;iomanip&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;sstream&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/json.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/options/find.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="c">// Ширина столбца считается по символам: в кириллице на букву приходится</span>
+<span class="c">// два байта, и обычный setw сдвинул бы столбцы.</span>
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Значение любого типа BSON в строку — для карточки документа.</span>
+<span class="k">std</span>::string <span class="f">znachenie</span>(<span class="k">const</span> bsoncxx::document::element&amp; field) {
+    switch (field.<span class="f">type</span>()) {
+        case bsoncxx::type::k_string: <span class="k">return</span> <span class="k">std</span>::<span class="f">string</span>(field.<span class="f">get_string</span>().value);
+        case bsoncxx::type::k_int32: <span class="k">return</span> <span class="k">std</span>::<span class="f">to_string</span>(field.<span class="f">get_int32</span>().value);
+        case bsoncxx::type::k_int64: <span class="k">return</span> <span class="k">std</span>::<span class="f">to_string</span>(field.<span class="f">get_int64</span>().value);
+        case bsoncxx::type::k_double: {
+            <span class="k">std</span>::ostringstream out;
+            out &lt;&lt; field.<span class="f">get_double</span>().value;          <span class="c">// без лишних нулей: 4.2, а не 4.200000</span>
+            <span class="k">return</span> out.<span class="f">str</span>();
+        }
+        case bsoncxx::type::k_bool: <span class="k">return</span> field.<span class="f">get_bool</span>().value ? <span class="s">"true"</span> : <span class="s">"false"</span>;
+        case bsoncxx::type::k_date: {
+            <span class="k">std</span>::time_t sekundy = field.<span class="f">get_date</span>().<span class="f">to_int64</span>() / <span class="n">1000</span>;
+            <span class="k">std</span>::ostringstream out;
+            out &lt;&lt; <span class="k">std</span>::<span class="f">put_time</span>(<span class="k">std</span>::<span class="f">gmtime</span>(&amp;sekundy), <span class="s">"%Y-%m-%d %H:%M:%S"</span>);
+            <span class="k">return</span> out.<span class="f">str</span>();
+        }
+        case bsoncxx::type::k_document: <span class="k">return</span> bsoncxx::<span class="f">to_json</span>(field.<span class="f">get_document</span>().value);
+        case bsoncxx::type::k_array: <span class="k">return</span> bsoncxx::<span class="f">to_json</span>(field.<span class="f">get_array</span>().value);
+        default: {
+            <span class="c">// to_json берёт документ или массив, поэтому значение заворачиваем</span>
+            <span class="k">std</span>::string json = bsoncxx::<span class="f">to_json</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"v"</span>, field.<span class="f">get_value</span>())).<span class="f">view</span>());
+            <span class="k">return</span> json.<span class="f">substr</span>(json.<span class="f">find</span>(<span class="s">':'</span>) + <span class="n">2</span>, json.<span class="f">rfind</span>(<span class="s">'}'</span>) - json.<span class="f">find</span>(<span class="s">':'</span>) - <span class="n">3</span>);
+        }
+    }
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+
+    <span class="k">auto</span> shop = client[<span class="s">"shop"</span>];
+    <span class="k">auto</span> products = shop[<span class="s">"products"</span>];
+    <span class="k">auto</span> orders = shop[<span class="s">"orders"</span>];
+    <span class="k">auto</span> box = client[<span class="s">"sandbox"</span>][<span class="s">"products"</span>];
+
+    <span class="c">// ── 1. Что лежит на сервере ───────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>);
+
+    client[<span class="s">"admin"</span>].<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ping"</span>, <span class="n">1</span>)));
+    <span class="k">auto</span> bases = client.<span class="f">list_database_names</span>();
+    <span class="k">std</span>::<span class="f">sort</span>(bases.<span class="f">begin</span>(), bases.<span class="f">end</span>());
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"базы на сервере: "</span>;
+    <span class="k">for</span> (size_t i = <span class="n">0</span>; i &lt; bases.<span class="f">size</span>(); ++i) <span class="k">std</span>::cout &lt;&lt; (i ? <span class="s">", "</span> : <span class="s">""</span>) &lt;&lt; bases[i];
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> names = shop.<span class="f">list_collection_names</span>();
+    <span class="k">std</span>::<span class="f">sort</span>(names.<span class="f">begin</span>(), names.<span class="f">end</span>());
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"коллекции shop: "</span>;
+    <span class="k">for</span> (size_t i = <span class="n">0</span>; i &lt; names.<span class="f">size</span>(); ++i) <span class="k">std</span>::cout &lt;&lt; (i ? <span class="s">", "</span> : <span class="s">""</span>) &lt;&lt; names[i];
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> vsego_tovarov = products.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+    <span class="k">auto</span> vsego_zakazov = orders.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"товаров "</span> &lt;&lt; vsego_tovarov &lt;&lt; <span class="s">", заказов "</span> &lt;&lt; vsego_zakazov
+              &lt;&lt; <span class="s">", покупателей "</span> &lt;&lt; shop[<span class="s">"customers"</span>].<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 2. Карточка одного документа ──────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>);
+
+    <span class="k">auto</span> tovar = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-001"</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : tovar-&gt;<span class="f">view</span>())
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(field.<span class="f">key</span>()), <span class="n">10</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">znachenie</span>(field) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 3. Таблица: пять самых дорогих товаров ────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"название"</span>, <span class="n">32</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">14</span>)
+              &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"цена"</span>, <span class="n">8</span>) &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::options::find options;
+    options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+    options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+    options.<span class="f">limit</span>(<span class="n">5</span>);
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), options)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">32</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"category"</span>].<span class="f">get_string</span>().value), <span class="n">14</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value), <span class="n">8</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 4. Сортировка по двум полям ───────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>);
+
+    mongocxx::options::find katalog_options;
+    katalog_options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+    katalog_options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+    katalog_options.<span class="f">limit</span>(<span class="n">8</span>);
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>(), katalog_options)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"category"</span>].<span class="f">get_string</span>().value), <span class="n">14</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">32</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"price"</span>].<span class="f">get_int32</span>().value), <span class="n">8</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 5. Счётчики по категориям ─────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>);
+
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; kategorii;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">distinct</span>(<span class="s">"category"</span>, <span class="f">make_document</span>()))
+        <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; value : doc[<span class="s">"values"</span>].<span class="f">get_array</span>().value)
+            kategorii.<span class="f">push_back</span>(<span class="k">std</span>::<span class="f">string</span>(value.<span class="f">get_string</span>().value));
+    <span class="k">std</span>::<span class="f">sort</span>(kategorii.<span class="f">begin</span>(), kategorii.<span class="f">end</span>());
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; category : kategorii) {
+        <span class="k">auto</span> skolko = products.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, category)));
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(category, <span class="n">14</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(skolko), <span class="n">2</span>) &lt;&lt; <span class="s">" шт"</span> &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 6. Страницы заказов ───────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>);
+
+    <span class="k">for</span> (<span class="k">int</span> page = <span class="n">1</span>; page &lt;= <span class="n">2</span>; ++page) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  страница "</span> &lt;&lt; page &lt;&lt; <span class="k">std</span>::endl;
+        mongocxx::options::find page_options;
+        page_options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>)));
+        page_options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>)));
+        page_options.<span class="f">skip</span>((page - <span class="n">1</span>) * <span class="n">5</span>);
+        page_options.<span class="f">limit</span>(<span class="n">5</span>);
+        <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)), page_options)) {
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"number"</span>].<span class="f">get_string</span>().value) &lt;&lt; <span class="s">"  "</span>
+                      &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"total"</span>].<span class="f">get_int32</span>().value), <span class="n">7</span>) &lt;&lt; <span class="k">std</span>::endl;
+        }
+    }
+
+    <span class="c">// ── 7. Вложенные поля и массивы в выводе ──────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>);
+
+    <span class="c">// Документ сохраняем в переменную: view указывает внутрь неё, и временное</span>
+    <span class="c">// значение из find_one исчезло бы сразу после строки.</span>
+    <span class="k">auto</span> zakaz_doc = orders.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0001"</span>)));
+    <span class="k">auto</span> zakaz = zakaz_doc-&gt;<span class="f">view</span>();
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  номер "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(zakaz[<span class="s">"number"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", статус "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(zakaz[<span class="s">"status"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", сумма "</span> &lt;&lt; zakaz[<span class="s">"total"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">auto</span> dostavka = zakaz[<span class="s">"delivery"</span>].<span class="f">get_document</span>().value;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  доставка: "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(dostavka[<span class="s">"city"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(dostavka[<span class="s">"type"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", "</span> &lt;&lt; dostavka[<span class="s">"days"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">" дн."</span> &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">auto</span> oplata = zakaz[<span class="s">"payment"</span>].<span class="f">get_document</span>().value;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  оплата: "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(oplata[<span class="s">"method"</span>].<span class="f">get_string</span>().value)
+              &lt;&lt; <span class="s">", проведена: "</span> &lt;&lt; (oplata[<span class="s">"paid"</span>].<span class="f">get_bool</span>().value ? <span class="s">"true"</span> : <span class="s">"false"</span>) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; position : zakaz[<span class="s">"items"</span>].<span class="f">get_array</span>().value) {
+        <span class="k">auto</span> item = position.<span class="f">get_document</span>().value;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; item[<span class="s">"qty"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">" × "</span>
+                  &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(item[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">34</span>) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(item[<span class="s">"price"</span>].<span class="f">get_int32</span>().value), <span class="n">7</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 8. Запись: вставка, обновление, удаление ──────────────────────</span>
+    <span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>);
+
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">std</span>::string&amp; key : {<span class="s">"p-301"</span>, <span class="s">"p-302"</span>})
+        box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, key)));
+
+    <span class="k">std</span>::vector&lt;bsoncxx::document::value&gt; novye;
+    novye.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-301"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Док-станция USB-C"</span>),
+                                  <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">6490</span>), <span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">0</span>)));
+    novye.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-302"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>),
+                                  <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">890</span>), <span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">0</span>)));
+    <span class="k">auto</span> added = box.<span class="f">insert_many</span>(novye);
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  вставлено: "</span> &lt;&lt; added-&gt;<span class="f">inserted_count</span>() &lt;&lt; <span class="s">" ключи: "</span>;
+    <span class="k">bool</span> first = <span class="k">true</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; pair : added-&gt;<span class="f">inserted_ids</span>()) {
+        <span class="k">std</span>::cout &lt;&lt; (first ? <span class="s">""</span> : <span class="s">", "</span>) &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(pair.second.<span class="f">get_string</span>().value);
+        first = <span class="k">false</span>;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> changed = box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-301"</span>)),
+                                  <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">5990</span>))),
+                                                <span class="f">kvp</span>(<span class="s">"$inc"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">1</span>)))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  обновление одного: найдено "</span> &lt;&lt; changed-&gt;<span class="f">matched_count</span>()
+              &lt;&lt; <span class="s">", изменено "</span> &lt;&lt; changed-&gt;<span class="f">modified_count</span>() &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> many = box.<span class="f">update_many</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>)),
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="k">true</span>)))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  пометка распродажи: найдено "</span> &lt;&lt; many-&gt;<span class="f">matched_count</span>()
+              &lt;&lt; <span class="s">", изменено "</span> &lt;&lt; many-&gt;<span class="f">modified_count</span>() &lt;&lt; <span class="k">std</span>::endl;
+
+    mongocxx::options::find after_options;
+    after_options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>),
+                                           <span class="f">kvp</span>(<span class="s">"reviews"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="n">1</span>)));
+    <span class="k">auto</span> after = box.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-301"</span>)), after_options);
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  что стало: "</span> &lt;&lt; bsoncxx::<span class="f">to_json</span>(after-&gt;<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> gone = box.<span class="f">delete_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-302"</span>)));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  удалено: "</span> &lt;&lt; gone-&gt;<span class="f">deleted_count</span>()
+              &lt;&lt; <span class="s">" · товаров в песочнице: "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 9. Итог ───────────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"9. Итог"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  прочитано из shop: "</span> &lt;&lt; vsego_tovarov &lt;&lt; <span class="s">" товаров и "</span>
+              &lt;&lt; vsego_zakazov &lt;&lt; <span class="s">" заказов"</span> &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление"</span> &lt;&lt; <span class="k">std</span>::endl;
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>scripts/shop_report</span></figcaption>
+<pre><span class="c">// Отчёт по магазину: что умеет MongoDB из модуля 1.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт проходит все операции модуля 1 на базе shop и в песочнице sandbox</span>
+<span class="c">// и печатает результат так, как его показывают в консоли: счётчики, таблицы,</span>
+<span class="c">// карточку документа, страницы и итоги записи.</span>
+<span class="c">//</span>
+<span class="c">//	cd scripts</span>
+<span class="c">//	go run shop_report.go</span>
+<span class="c">//</span>
+<span class="c">//	docker compose run --rm go scripts/shop_report.go    # в контейнере</span>
+<span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"sort"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="c">// Product — поля товара, которые читает отчёт.</span>
+<span class="k">type</span> Product <span class="k">struct</span> {
+	ID       <span class="k">string</span> `bson:<span class="s">"_id"</span>`
+	Title    <span class="k">string</span> `bson:<span class="s">"title"</span>`
+	Category <span class="k">string</span> `bson:<span class="s">"category"</span>`
+	Price    <span class="k">int</span>    `bson:<span class="s">"price"</span>`
+}
+
+<span class="c">// Order — заказ вместе с вложенными документами и массивом позиций.</span>
+<span class="k">type</span> Order <span class="k">struct</span> {
+	Number   <span class="k">string</span> `bson:<span class="s">"number"</span>`
+	Status   <span class="k">string</span> `bson:<span class="s">"status"</span>`
+	Total    <span class="k">int</span>    `bson:<span class="s">"total"</span>`
+	Delivery <span class="k">struct</span> {
+		City <span class="k">string</span> `bson:<span class="s">"city"</span>`
+		Type <span class="k">string</span> `bson:<span class="s">"type"</span>`
+		Days <span class="k">int</span>    `bson:<span class="s">"days"</span>`
+	} `bson:<span class="s">"delivery"</span>`
+	Payment <span class="k">struct</span> {
+		Method <span class="k">string</span> `bson:<span class="s">"method"</span>`
+		Paid   <span class="k">bool</span>   `bson:<span class="s">"paid"</span>`
+	} `bson:<span class="s">"payment"</span>`
+	Items []<span class="k">struct</span> {
+		Title <span class="k">string</span> `bson:<span class="s">"title"</span>`
+		Qty   <span class="k">int</span>    `bson:<span class="s">"qty"</span>`
+		Price <span class="k">int</span>    `bson:<span class="s">"price"</span>`
+	} `bson:<span class="s">"items"</span>`
+}
+
+<span class="c">// pad дополняет строку пробелами по числу символов: в кириллице байт больше,</span>
+<span class="c">// чем букв, и обычное %-32s сдвигает столбцы.</span>
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">right</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n) + text
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	ctx := context.<span class="f">Background</span>()
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+	shop := client.<span class="f">Database</span>(<span class="s">"shop"</span>)
+	products := shop.<span class="f">Collection</span>(<span class="s">"products"</span>)
+	orders := shop.<span class="f">Collection</span>(<span class="s">"orders"</span>)
+	box := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>).<span class="f">Collection</span>(<span class="s">"products"</span>)
+
+	<span class="c">// ── 1. Что лежит на сервере ───────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>)
+
+	<span class="k">if</span> err := client.<span class="f">Ping</span>(ctx, <span class="k">nil</span>); err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	bases, _ := client.<span class="f">ListDatabaseNames</span>(ctx, bson.D{})
+	sort.<span class="f">Strings</span>(bases)
+	fmt.<span class="f">Println</span>(<span class="s">"базы на сервере:"</span>, strings.<span class="f">Join</span>(bases, <span class="s">", "</span>))
+	names, _ := shop.<span class="f">ListCollectionNames</span>(ctx, bson.D{})
+	sort.<span class="f">Strings</span>(names)
+	fmt.<span class="f">Println</span>(<span class="s">"коллекции shop:"</span>, strings.<span class="f">Join</span>(names, <span class="s">", "</span>))
+	vsegoTovarov, _ := products.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	vsegoZakazov, _ := orders.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	vsegoKlientov, _ := shop.<span class="f">Collection</span>(<span class="s">"customers"</span>).<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"товаров %d, заказов %d, покупателей %d\n"</span>, vsegoTovarov, vsegoZakazov, vsegoKlientov)
+
+	<span class="c">// ── 2. Карточка одного документа ──────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>)
+
+	<span class="k">var</span> tovar bson.D
+	products.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-001"</span>}}).<span class="f">Decode</span>(&amp;tovar)
+	<span class="k">for</span> _, field := <span class="k">range</span> tovar {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %v\n"</span>, <span class="f">pad</span>(field.Key, <span class="n">10</span>), field.Value)
+	}
+
+	<span class="c">// ── 3. Таблица: пять самых дорогих товаров ────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s\n"</span>, <span class="f">pad</span>(<span class="s">"название"</span>, <span class="n">32</span>), <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">14</span>), <span class="f">right</span>(<span class="s">"цена"</span>, <span class="n">8</span>))
+	cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{},
+		options.<span class="f">Find</span>().
+			<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+				{Key: <span class="s">"category"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).
+			<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}).
+			<span class="f">SetLimit</span>(<span class="n">5</span>))
+	<span class="k">var</span> dorogie []Product
+	cursor.<span class="f">All</span>(ctx, &amp;dorogie)
+	<span class="k">for</span> _, p := <span class="k">range</span> dorogie {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s\n"</span>, <span class="f">pad</span>(p.Title, <span class="n">32</span>), <span class="f">pad</span>(p.Category, <span class="n">14</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(p.Price), <span class="n">8</span>))
+	}
+
+	<span class="c">// ── 4. Сортировка по двум полям ───────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>)
+
+	cursor, _ = products.<span class="f">Find</span>(ctx, bson.D{},
+		options.<span class="f">Find</span>().
+			<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"category"</span>, Value: <span class="n">1</span>},
+				{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}).
+			<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"category"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}).
+			<span class="f">SetLimit</span>(<span class="n">8</span>))
+	<span class="k">var</span> katalog []Product
+	cursor.<span class="f">All</span>(ctx, &amp;katalog)
+	<span class="k">for</span> _, p := <span class="k">range</span> katalog {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s\n"</span>, <span class="f">pad</span>(p.Category, <span class="n">14</span>), <span class="f">pad</span>(p.Title, <span class="n">32</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(p.Price), <span class="n">8</span>))
+	}
+
+	<span class="c">// ── 5. Счётчики по категориям ─────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>)
+
+	<span class="k">var</span> spisok []<span class="k">string</span>
+	products.<span class="f">Distinct</span>(ctx, <span class="s">"category"</span>, bson.D{}).<span class="f">Decode</span>(&amp;spisok)
+	sort.<span class="f">Strings</span>(spisok)
+	<span class="k">for</span> _, category := <span class="k">range</span> spisok {
+		skolko, _ := products.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: category}})
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s шт\n"</span>, <span class="f">pad</span>(category, <span class="n">14</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>))
+	}
+
+	<span class="c">// ── 6. Страницы заказов ───────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>)
+
+	<span class="k">for</span> page := <span class="f">int64</span>(<span class="n">1</span>); page &lt;= <span class="n">2</span>; page++ {
+		fmt.<span class="f">Printf</span>(<span class="s">"  страница %d\n"</span>, page)
+		cursor, _ = orders.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}},
+			options.<span class="f">Find</span>().
+				<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}}).
+				<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"number"</span>, Value: <span class="n">1</span>}}).
+				<span class="f">SetSkip</span>((page - <span class="n">1</span>) * <span class="n">5</span>).
+				<span class="f">SetLimit</span>(<span class="n">5</span>))
+		<span class="k">var</span> stranica []Order
+		cursor.<span class="f">All</span>(ctx, &amp;stranica)
+		<span class="k">for</span> _, o := <span class="k">range</span> stranica {
+			fmt.<span class="f">Printf</span>(<span class="s">"    %s  %s\n"</span>, o.Number, <span class="f">right</span>(fmt.<span class="f">Sprint</span>(o.Total), <span class="n">7</span>))
+		}
+	}
+
+	<span class="c">// ── 7. Вложенные поля и массивы в выводе ──────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>)
+
+	<span class="k">var</span> zakaz Order
+	orders.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0001"</span>}}).<span class="f">Decode</span>(&amp;zakaz)
+	fmt.<span class="f">Printf</span>(<span class="s">"  номер %s, статус %s, сумма %d\n"</span>, zakaz.Number, zakaz.Status, zakaz.Total)
+	fmt.<span class="f">Printf</span>(<span class="s">"  доставка: %s, %s, %d дн.\n"</span>, zakaz.Delivery.City, zakaz.Delivery.Type, zakaz.Delivery.Days)
+	fmt.<span class="f">Printf</span>(<span class="s">"  оплата: %s, проведена: %t\n"</span>, zakaz.Payment.Method, zakaz.Payment.Paid)
+	<span class="k">for</span> _, position := <span class="k">range</span> zakaz.Items {
+		fmt.<span class="f">Printf</span>(<span class="s">"    %d × %s %s\n"</span>, position.Qty, <span class="f">pad</span>(position.Title, <span class="n">34</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(position.Price), <span class="n">7</span>))
+	}
+
+	<span class="c">// ── 8. Запись: вставка, обновление, удаление ──────────────────────</span>
+	<span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>)
+
+	<span class="k">for</span> _, key := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"p-301"</span>, <span class="s">"p-302"</span>} {
+		box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: key}})
+	}
+
+	added, _ := box.<span class="f">InsertMany</span>(ctx, []any{
+		bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-301"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Док-станция USB-C"</span>},
+			{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">6490</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">0</span>}},
+		bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-302"</span>}, {Key: <span class="s">"title"</span>, Value: <span class="s">"Кабель HDMI 2 м"</span>},
+			{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">890</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">0</span>}},
+	})
+	kluchi := <span class="k">make</span>([]<span class="k">string</span>, <span class="n">0</span>, <span class="f">len</span>(added.InsertedIDs))
+	<span class="k">for</span> _, id := <span class="k">range</span> added.InsertedIDs {
+		kluchi = <span class="k">append</span>(kluchi, fmt.<span class="f">Sprint</span>(id))
+	}
+	fmt.<span class="f">Printf</span>(<span class="s">"  вставлено: %d ключи: %s\n"</span>, <span class="f">len</span>(added.InsertedIDs), strings.<span class="f">Join</span>(kluchi, <span class="s">", "</span>))
+
+	changed, _ := box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-301"</span>}},
+		bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">5990</span>}}},
+			{Key: <span class="s">"$inc"</span>, Value: bson.D{{Key: <span class="s">"reviews"</span>, Value: <span class="n">1</span>}}}})
+	fmt.<span class="f">Printf</span>(<span class="s">"  обновление одного: найдено %d, изменено %d\n"</span>, changed.MatchedCount, changed.ModifiedCount)
+
+	many, _ := box.<span class="f">UpdateMany</span>(ctx, bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>}},
+		bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"sale"</span>, Value: <span class="k">true</span>}}}})
+	fmt.<span class="f">Printf</span>(<span class="s">"  пометка распродажи: найдено %d, изменено %d\n"</span>, many.MatchedCount, many.ModifiedCount)
+
+	<span class="k">var</span> after bson.D
+	box.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-301"</span>}},
+		options.<span class="f">FindOne</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+			{Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"reviews"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"sale"</span>, Value: <span class="n">1</span>}})).<span class="f">Decode</span>(&amp;after)
+	out, _ := bson.<span class="f">MarshalExtJSON</span>(after, <span class="k">false</span>, <span class="k">false</span>)
+	fmt.<span class="f">Println</span>(<span class="s">"  что стало:"</span>, <span class="k">string</span>(out))
+
+	gone, _ := box.<span class="f">DeleteOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-302"</span>}})
+	vPesochnice, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"  удалено: %d · товаров в песочнице: %d\n"</span>, gone.DeletedCount, vPesochnice)
+
+	<span class="c">// ── 9. Итог ───────────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"9. Итог"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  прочитано из shop: %d товаров и %d заказов\n"</span>, vsegoTovarov, vsegoZakazov)
+	fmt.<span class="f">Println</span>(<span class="s">"  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление"</span>)
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>scripts/shop_report</span></figcaption>
+<pre><span class="c"># Отчёт по магазину: что умеет MongoDB из модуля 1.</span>
+<span class="c">#</span>
+<span class="c"># Скрипт проходит все операции модуля 1 на базе shop и в песочнице sandbox</span>
+<span class="c"># и печатает результат так, как его показывают в консоли: счётчики, таблицы,</span>
+<span class="c"># карточку документа, страницы и итоги записи.</span>
+<span class="c">#</span>
+<span class="c">#     cd scripts</span>
+<span class="c">#     ruby shop_report.rb</span>
+<span class="c">#</span>
+<span class="c">#     docker compose run --rm ruby scripts/shop_report.rb    # в контейнере</span>
+
+<span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+shop = client.<span class="f">use</span>(<span class="s">"shop"</span>).database
+products = shop[:products]
+orders = shop[:orders]
+box = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database[:products]
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="f">pad</span>(text, width)                 <span class="c"># ljust по видимым символам, как в других языках</span>
+  text.to_s.<span class="f">ljust</span>(width)
+<span class="k">end</span>
+
+<span class="c"># ── 1. Что лежит на сервере ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Связь и база shop"</span>)
+
+client.<span class="f">use</span>(<span class="s">"admin"</span>).database.<span class="f">command</span>(ping: <span class="n">1</span>)
+<span class="k">puts</span> <span class="s">"базы на сервере: "</span> + client.database_names.sort.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"коллекции shop: "</span> + shop.collection_names.sort.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"товаров #{products.count_documents({})}, "</span> \
+     <span class="s">"заказов #{orders.count_documents({})}, "</span> \
+     <span class="s">"покупателей #{shop[:customers].count_documents({})}"</span>
+
+<span class="c"># ── 2. Карточка одного документа ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Один товар целиком"</span>)
+
+tovar = products.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-001"</span> }).first
+tovar.<span class="k">each</span> { |field, value| <span class="k">puts</span> <span class="s">"  #{pad(field, 10)} #{value}"</span> }
+
+<span class="c"># ── 3. Таблица: пять самых дорогих товаров ────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Пять самых дорогих товаров"</span>)
+
+<span class="k">puts</span> <span class="s">"  #{pad('название', 32)} #{pad('категория', 14)} #{'цена'.rjust(8)}"</span>
+products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"price"</span> =&gt; -<span class="n">1</span> })
+        .<span class="f">limit</span>(<span class="n">5</span>)
+        .<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['title'], 32)} #{pad(doc['category'], 14)} #{doc['price'].to_s.rjust(8)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 4. Сортировка по двум полям ───────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым"</span>)
+
+products.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"category"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; -<span class="n">1</span> })
+        .<span class="f">limit</span>(<span class="n">8</span>)
+        .<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['category'], 14)} #{pad(doc['title'], 32)} #{doc['price'].to_s.rjust(8)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 5. Счётчики по категориям ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Товары по категориям"</span>)
+
+products.<span class="f">distinct</span>(<span class="s">"category"</span>).sort.<span class="k">each</span> <span class="k">do</span> |category|
+  <span class="k">puts</span> <span class="s">"  #{pad(category, 14)} #{products.count_documents({ 'category' =&gt; category }).to_s.rjust(2)} шт"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 6. Страницы заказов ───────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Заказы страницами по 5"</span>)
+
+[<span class="n">1</span>, <span class="n">2</span>].<span class="k">each</span> <span class="k">do</span> |page|
+  <span class="k">puts</span> <span class="s">"  страница #{page}"</span>
+  orders.<span class="f">find</span>({ <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"total"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"number"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">skip</span>((page - <span class="n">1</span>) * <span class="n">5</span>)
+        .<span class="f">limit</span>(<span class="n">5</span>)
+        .<span class="k">each</span> { |doc| <span class="k">puts</span> <span class="s">"    #{doc['number']}  #{doc['total'].to_s.rjust(7)}"</span> }
+<span class="k">end</span>
+
+<span class="c"># ── 7. Вложенные поля и массивы в выводе ──────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Заказ с доставкой и позициями"</span>)
+
+zakaz = orders.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"o-0001"</span> }).first
+<span class="k">puts</span> <span class="s">"  номер #{zakaz['number']}, статус #{zakaz['status']}, сумма #{zakaz['total']}"</span>
+<span class="k">puts</span> <span class="s">"  доставка: #{zakaz['delivery']['city']}, #{zakaz['delivery']['type']}, "</span> \
+     <span class="s">"#{zakaz['delivery']['days']} дн."</span>
+<span class="k">puts</span> <span class="s">"  оплата: #{zakaz['payment']['method']}, проведена: #{zakaz['payment']['paid']}"</span>
+zakaz[<span class="s">"items"</span>].<span class="k">each</span> <span class="k">do</span> |position|
+  <span class="k">puts</span> <span class="s">"    #{position['qty']} × #{pad(position['title'], 34)} #{position['price'].to_s.rjust(7)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 8. Запись: вставка, обновление, удаление ──────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Песочница: вставка, обновление, удаление"</span>)
+
+[<span class="s">"p-301"</span>, <span class="s">"p-302"</span>].<span class="k">each</span> { |key| box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; key }) }
+
+added = box.<span class="f">insert_many</span>([
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-301"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Док-станция USB-C"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">6490</span>, <span class="s">"reviews"</span> =&gt; <span class="n">0</span> },
+  { <span class="s">"_id"</span> =&gt; <span class="s">"p-302"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">890</span>, <span class="s">"reviews"</span> =&gt; <span class="n">0</span> },
+])
+<span class="k">puts</span> <span class="s">"  вставлено: #{added.inserted_count} ключи: #{added.inserted_ids.join(', ')}"</span>
+
+changed = box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-301"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">5990</span> }, <span class="s">"$inc"</span> =&gt; { <span class="s">"reviews"</span> =&gt; <span class="n">1</span> } })
+<span class="k">puts</span> <span class="s">"  обновление одного: найдено #{changed.matched_count}, изменено #{changed.modified_count}"</span>
+
+many = box.<span class="f">update_many</span>({ <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"sale"</span> =&gt; <span class="k">true</span> } })
+<span class="k">puts</span> <span class="s">"  пометка распродажи: найдено #{many.matched_count}, изменено #{many.modified_count}"</span>
+
+after = box.<span class="f">find</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-301"</span> },
+                 projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span>, <span class="s">"reviews"</span> =&gt; <span class="n">1</span>, <span class="s">"sale"</span> =&gt; <span class="n">1</span> }).first
+<span class="k">puts</span> <span class="s">"  что стало: #{after.inspect}"</span>
+
+gone = box.<span class="f">delete_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-302"</span> })
+<span class="k">puts</span> <span class="s">"  удалено: #{gone.deleted_count} · товаров в песочнице: #{box.count_documents({})}"</span>
+
+<span class="c"># ── 9. Итог ───────────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"9. Итог"</span>)
+
+<span class="k">puts</span> <span class="s">"  прочитано из shop: #{products.count_documents({})} товаров и "</span> \
+     <span class="s">"#{orders.count_documents({})} заказов"</span>
+<span class="k">puts</span> <span class="s">"  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление"</span>
+client.close
+</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Связь и база shop
+────────────────────
+базы на сервере: admin, config, hh, local, logs, org, sandbox, shop
+коллекции shop: customers, orders, products
+товаров 21, заказов 120, покупателей 20
+
+2. Один товар целиком
+─────────────────────
+  _id        p-001
+  sku        SKU-NB-001
+  title      Ноутбук Lenovo IdeaPad 3
+  brand      Lenovo
+  category   ноутбуки
+  price      42990
+  specs      ['15.6"', '8 ГБ', 'SSD 512 ГБ']
+  stock      [{'warehouse': 'Санкт-Петербург', 'qty': 5}]
+  rating     4.2
+  reviews    57
+  added      2026-02-05 00:00:00
+
+3. Пять самых дорогих товаров
+─────────────────────────────
+  название                         категория          цена
+  Ноутбук Apple MacBook Air 13     ноутбуки         114990
+  Ноутбук Acer Nitro V15           ноутбуки          89990
+  Смартфон Apple iPhone 15         смартфоны         79990
+  Ноутбук HP Pavilion 14           ноутбуки          67900
+  Ноутбук ASUS VivoBook 15         ноутбуки          51490
+
+4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым
+────────────────────────────────────────────────────────────────
+  аксессуары     Powerbank Anker 20000 мА·ч           4290
+  аксессуары     Рюкзак для ноутбука Xiaomi           2990
+  аксессуары     Кабель USB-C 2 м                      790
+  комплектующие  Видеокарта NVIDIA RTX 4060          38990
+  комплектующие  Блок питания be quiet! 650 Вт        8490
+  комплектующие  SSD Samsung 980 1 ТБ                 7890
+  комплектующие  Оперативная память Kingston 16 ГБ     4590
+  ноутбуки       Ноутбук Apple MacBook Air 13       114990
+
+5. Товары по категориям
+───────────────────────
+  аксессуары      3 шт
+  комплектующие   4 шт
+  ноутбуки        5 шт
+  периферия       5 шт
+  смартфоны       4 шт
+
+6. Заказы страницами по 5
+─────────────────────────
+  страница 1
+    2026-0001     5980
+    2026-0003    86880
+    2026-0004   106210
+    2026-0006     2370
+    2026-0007    75790
+  страница 2
+    2026-0008   285750
+    2026-0009   320740
+    2026-0010   120340
+    2026-0011    85980
+    2026-0012   222740
+
+7. Заказ с доставкой и позициями
+────────────────────────────────
+  номер 2026-0001, статус доставлен, сумма 5980
+  доставка: Ярославль, пункт выдачи, 1 дн.
+  оплата: карта, проведена: True
+    2 × Рюкзак для ноутбука Xiaomi            2990
+
+8. Песочница: вставка, обновление, удаление
+───────────────────────────────────────────
+  вставлено: 2 ключи: p-301, p-302
+  обновление одного: найдено 1, изменено 1
+  пометка распродажи: найдено 5, изменено 5
+  что стало: {'title': 'Док-станция USB-C', 'price': 5990, 'reviews': 1, 'sale': True}
+  удалено: 1 · товаров в песочнице: 22
+
+9. Итог
+───────
+  прочитано из shop: 21 товаров и 120 заказов
+  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Связь и база shop
+────────────────────
+базы на сервере: admin, config, hh, local, logs, org, sandbox, shop
+коллекции shop: customers, orders, products
+товаров 21, заказов 120, покупателей 20
+
+2. Один товар целиком
+─────────────────────
+  _id        p-001
+  sku        SKU-NB-001
+  title      Ноутбук Lenovo IdeaPad 3
+  brand      Lenovo
+  category   ноутбуки
+  price      42990
+  specs      [ "15.6\"", "8 ГБ", "SSD 512 ГБ" ]
+  stock      [ { "warehouse" : "Санкт-Петербург", "qty" : 5 } ]
+  rating     4.2
+  reviews    57
+  added      2026-02-05 00:00:00
+
+3. Пять самых дорогих товаров
+─────────────────────────────
+  название                         категория          цена
+  Ноутбук Apple MacBook Air 13     ноутбуки         114990
+  Ноутбук Acer Nitro V15           ноутбуки          89990
+  Смартфон Apple iPhone 15         смартфоны         79990
+  Ноутбук HP Pavilion 14           ноутбуки          67900
+  Ноутбук ASUS VivoBook 15         ноутбуки          51490
+
+4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым
+────────────────────────────────────────────────────────────────
+  аксессуары     Powerbank Anker 20000 мА·ч           4290
+  аксессуары     Рюкзак для ноутбука Xiaomi           2990
+  аксессуары     Кабель USB-C 2 м                      790
+  комплектующие  Видеокарта NVIDIA RTX 4060          38990
+  комплектующие  Блок питания be quiet! 650 Вт        8490
+  комплектующие  SSD Samsung 980 1 ТБ                 7890
+  комплектующие  Оперативная память Kingston 16 ГБ     4590
+  ноутбуки       Ноутбук Apple MacBook Air 13       114990
+
+5. Товары по категориям
+───────────────────────
+  аксессуары      3 шт
+  комплектующие   4 шт
+  ноутбуки        5 шт
+  периферия       5 шт
+  смартфоны       4 шт
+
+6. Заказы страницами по 5
+─────────────────────────
+  страница 1
+    2026-0001     5980
+    2026-0003    86880
+    2026-0004   106210
+    2026-0006     2370
+    2026-0007    75790
+  страница 2
+    2026-0008   285750
+    2026-0009   320740
+    2026-0010   120340
+    2026-0011    85980
+    2026-0012   222740
+
+7. Заказ с доставкой и позициями
+────────────────────────────────
+  номер 2026-0001, статус доставлен, сумма 5980
+  доставка: Ярославль, пункт выдачи, 1 дн.
+  оплата: карта, проведена: true
+    2 × Рюкзак для ноутбука Xiaomi            2990
+
+8. Песочница: вставка, обновление, удаление
+───────────────────────────────────────────
+  вставлено: 2 ключи: p-301, p-302
+  обновление одного: найдено 1, изменено 1
+  пометка распродажи: найдено 5, изменено 5
+  что стало: { "title" : "Док-станция USB-C", "price" : 5990, "reviews" : 1, "sale" : true }
+  удалено: 1 · товаров в песочнице: 22
+
+9. Итог
+───────
+  прочитано из shop: 21 товаров и 120 заказов
+  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Связь и база shop
+────────────────────
+базы на сервере: admin, config, hh, local, logs, org, sandbox, shop
+коллекции shop: customers, orders, products
+товаров 21, заказов 120, покупателей 20
+
+2. Один товар целиком
+─────────────────────
+  _id        p-001
+  sku        SKU-NB-001
+  title      Ноутбук Lenovo IdeaPad 3
+  brand      Lenovo
+  category   ноутбуки
+  price      42990
+  specs      [15.6" 8 ГБ SSD 512 ГБ]
+  stock      [{"warehouse":"Санкт-Петербург","qty":{"$numberInt":"5"}}]
+  rating     4.2
+  reviews    57
+  added      1770249600000
+
+3. Пять самых дорогих товаров
+─────────────────────────────
+  название                         категория          цена
+  Ноутбук Apple MacBook Air 13     ноутбуки         114990
+  Ноутбук Acer Nitro V15           ноутбуки          89990
+  Смартфон Apple iPhone 15         смартфоны         79990
+  Ноутбук HP Pavilion 14           ноутбуки          67900
+  Ноутбук ASUS VivoBook 15         ноутбуки          51490
+
+4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым
+────────────────────────────────────────────────────────────────
+  аксессуары     Powerbank Anker 20000 мА·ч           4290
+  аксессуары     Рюкзак для ноутбука Xiaomi           2990
+  аксессуары     Кабель USB-C 2 м                      790
+  комплектующие  Видеокарта NVIDIA RTX 4060          38990
+  комплектующие  Блок питания be quiet! 650 Вт        8490
+  комплектующие  SSD Samsung 980 1 ТБ                 7890
+  комплектующие  Оперативная память Kingston 16 ГБ     4590
+  ноутбуки       Ноутбук Apple MacBook Air 13       114990
+
+5. Товары по категориям
+───────────────────────
+  аксессуары      3 шт
+  комплектующие   4 шт
+  ноутбуки        5 шт
+  периферия       5 шт
+  смартфоны       4 шт
+
+6. Заказы страницами по 5
+─────────────────────────
+  страница 1
+    2026-0001     5980
+    2026-0003    86880
+    2026-0004   106210
+    2026-0006     2370
+    2026-0007    75790
+  страница 2
+    2026-0008   285750
+    2026-0009   320740
+    2026-0010   120340
+    2026-0011    85980
+    2026-0012   222740
+
+7. Заказ с доставкой и позициями
+────────────────────────────────
+  номер 2026-0001, статус доставлен, сумма 5980
+  доставка: Ярославль, пункт выдачи, 1 дн.
+  оплата: карта, проведена: true
+    2 × Рюкзак для ноутбука Xiaomi            2990
+
+8. Песочница: вставка, обновление, удаление
+───────────────────────────────────────────
+  вставлено: 2 ключи: p-301, p-302
+  обновление одного: найдено 1, изменено 1
+  пометка распродажи: найдено 5, изменено 5
+  что стало: {"title":"Док-станция USB-C","price":5990,"reviews":1,"sale":true}
+  удалено: 1 · товаров в песочнице: 22
+
+9. Итог
+───────
+  прочитано из shop: 21 товаров и 120 заказов
+  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Связь и база shop
+────────────────────
+базы на сервере: admin, config, hh, local, logs, org, sandbox, shop
+коллекции shop: customers, orders, products
+товаров 21, заказов 120, покупателей 20
+
+2. Один товар целиком
+─────────────────────
+  _id        p-001
+  sku        SKU-NB-001
+  title      Ноутбук Lenovo IdeaPad 3
+  brand      Lenovo
+  category   ноутбуки
+  price      42990
+  specs      ["15.6\"", "8 ГБ", "SSD 512 ГБ"]
+  stock      [{"warehouse"=&gt;"Санкт-Петербург", "qty"=&gt;5}]
+  rating     4.2
+  reviews    57
+  added      2026-02-05 00:00:00 UTC
+
+3. Пять самых дорогих товаров
+─────────────────────────────
+  название                         категория          цена
+  Ноутбук Apple MacBook Air 13     ноутбуки         114990
+  Ноутбук Acer Nitro V15           ноутбуки          89990
+  Смартфон Apple iPhone 15         смартфоны         79990
+  Ноутбук HP Pavilion 14           ноутбуки          67900
+  Ноутбук ASUS VivoBook 15         ноутбуки          51490
+
+4. Каталог: категории по алфавиту, внутри — от дорогих к дешёвым
+────────────────────────────────────────────────────────────────
+  аксессуары     Powerbank Anker 20000 мА·ч           4290
+  аксессуары     Рюкзак для ноутбука Xiaomi           2990
+  аксессуары     Кабель USB-C 2 м                      790
+  комплектующие  Видеокарта NVIDIA RTX 4060          38990
+  комплектующие  Блок питания be quiet! 650 Вт        8490
+  комплектующие  SSD Samsung 980 1 ТБ                 7890
+  комплектующие  Оперативная память Kingston 16 ГБ     4590
+  ноутбуки       Ноутбук Apple MacBook Air 13       114990
+
+5. Товары по категориям
+───────────────────────
+  аксессуары      3 шт
+  комплектующие   4 шт
+  ноутбуки        5 шт
+  периферия       5 шт
+  смартфоны       4 шт
+
+6. Заказы страницами по 5
+─────────────────────────
+  страница 1
+    2026-0001     5980
+    2026-0003    86880
+    2026-0004   106210
+    2026-0006     2370
+    2026-0007    75790
+  страница 2
+    2026-0008   285750
+    2026-0009   320740
+    2026-0010   120340
+    2026-0011    85980
+    2026-0012   222740
+
+7. Заказ с доставкой и позициями
+────────────────────────────────
+  номер 2026-0001, статус доставлен, сумма 5980
+  доставка: Ярославль, пункт выдачи, 1 дн.
+  оплата: карта, проведена: true
+    2 × Рюкзак для ноутбука Xiaomi            2990
+
+8. Песочница: вставка, обновление, удаление
+───────────────────────────────────────────
+  вставлено: 2 ключи: p-301, p-302
+  обновление одного: найдено 1, изменено 1
+  пометка распродажи: найдено 5, изменено 5
+  что стало: {"title"=&gt;"Док-станция USB-C", "price"=&gt;5990, "reviews"=&gt;1, "sale"=&gt;true}
+  удалено: 1 · товаров в песочнице: 22
+
+9. Итог
+───────
+  прочитано из shop: 21 товаров и 120 заказов
+  изменено в песочнице: 1 вставка пачкой, 2 обновления, 1 удаление</pre>
+        </figure>
+
+        <h2 id="s7"><span class="sec">§7</span>Как запустить</h2>
+        <p>Скрипт лежит в репозитории практик, в папке <code>scripts</code>, рядом с решениями работ. Перед запуском верните базы в исходное состояние — восьмой раздел пишет в песочницу.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск на своём сервере</span></figcaption>
+<pre><span class="c"># базы в исходное состояние</span>
+docker compose run --rm reset
+
+<span class="c"># свой сервер: Python, Ruby, Go, C++</span>
+python3 scripts/shop_report.py
+ruby scripts/shop_report.rb
+go run scripts/shop_report.go
+g++ -std=c++<span class="n">17</span> scripts/shop_report.cpp -o report $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./report</pre>
+        </figure>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск в контейнере</span></figcaption>
+<pre>docker compose run --rm python scripts/shop_report.py
+docker compose run --rm ruby   scripts/shop_report.rb
+docker compose run --rm go     scripts/shop_report.go
+docker compose run --rm cpp    scripts/shop_report.cpp</pre>
+        </figure>
+        <p>Скрипт можно запускать сколько угодно раз подряд: он сам убирает за собой товары в песочнице. Пометка распродажи на исходных аксессуарах при этом останется — её снимает сброс баз.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Клиент создаётся внутри каждой функции отчёта</td><td>На каждый вызов поднимается новый пул соединений</td><td>Один <code>MongoClient</code> на программу, как в начале скрипта</td></tr>
+              <tr><td>Запись идёт в <code>shop</code></td><td>Учебные данные разъезжаются, и числа в отчёте перестают совпадать с книгой</td><td>Писать в <code>sandbox</code>; вернуть данные — <code>docker compose run --rm reset</code></td></tr>
+              <tr><td>Страницы без <code>sort</code></td><td>Порядок не гарантирован: документ может попасть на две страницы или пропасть</td><td><code>sort</code> по уникальному полю перед <code>skip</code></td></tr>
+              <tr><td><code>print(cursor)</code></td><td>Печатается объект курсора, а не документы</td><td>Перебрать курсор циклом или превратить в список</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>auto doc = col.find_one(...)-&gt;view();</code></td><td>Обращение к освобождённой памяти: временное значение исчезает после строки</td><td>Сохранить результат в переменную, потом брать <code>view()</code></td></tr>
+              <tr><td><code>std::setw</code> для столбцов с кириллицей</td><td>Столбцы разъезжаются: в UTF-8 на букву приходится два байта</td><td>Считать ширину по символам — функция <code>pad</code> в скрипте</td></tr>
+              <tr><td>Запись идёт в <code>shop</code></td><td>Учебные данные разъезжаются</td><td>Писать в <code>sandbox</code>; вернуть данные — <code>docker compose run --rm reset</code></td></tr>
+              <tr><td><code>mongocxx::instance</code> создаётся дважды</td><td>Программа падает при старте</td><td>Один экземпляр на программу, первой строкой <code>main</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>%-32s</code> для столбцов с кириллицей</td><td>Столбцы разъезжаются: ширина считается в байтах</td><td>Считать ширину по символам — функция <code>pad</code> в скрипте</td></tr>
+              <tr><td>Ошибка запроса присвоена <code>_</code></td><td>Пустой результат выглядит как «ничего не нашлось»</td><td>Проверять второе значение, которое возвращает драйвер</td></tr>
+              <tr><td>Запись идёт в <code>shop</code></td><td>Учебные данные разъезжаются</td><td>Писать в <code>sandbox</code>; вернуть данные — <code>docker compose run --rm reset</code></td></tr>
+              <tr><td><code>defer client.Disconnect(ctx)</code> забыт</td><td>Соединения остаются открытыми до конца процесса</td><td>Отложенное закрытие сразу после подключения</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Результат <code>find</code> перебран дважды</td><td>Запрос выполняется заново при каждом обходе</td><td>Сохранить в массив: <code>.to_a</code></td></tr>
+              <tr><td><code>ljust</code> по строке с кириллицей в таблице</td><td>Столбцы сходятся: Ruby считает символы, а не байты — ошибки нет</td><td>—</td></tr>
+              <tr><td>Запись идёт в <code>shop</code></td><td>Учебные данные разъезжаются</td><td>Писать в <code>sandbox</code>; вернуть данные — <code>docker compose run --rm reset</code></td></tr>
+              <tr><td>Ключи документа — символы (<code>:title</code>)</td><td>Поля не находятся: в документах имена строковые</td><td>Писать ключи строками</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему отчёт читает данные из <code>shop</code>, а пишет в <code>sandbox</code>?</summary>
+          <p>На данных <code>shop</code> построены примеры книги и ответы практик. Если скрипт изменит их, числа в отчёте перестанут совпадать с числами в главах. Песочница для того и заведена: её возвращают в исходное состояние одной командой.</p>
+        </details>
+        <details>
+          <summary>Зачем в разделе со страницами задана сортировка, если нужны любые пять заказов?</summary>
+          <p>Без сортировки порядок документов не определён. На второй странице может оказаться заказ с первой, а какой-то заказ не попадёт ни на одну страницу. Сортировка по номеру делает страницы устойчивыми.</p>
+        </details>
+        <details>
+          <summary>Обновление пачкой напечатало «найдено 5, изменено 5», хотя скрипт вставил два товара. Почему?</summary>
+          <p>Фильтр <code>{"category": "аксессуары"}</code> подошёл ко всем аксессуарам песочницы: трём исходным и двум новым. <code>update_many</code> меняет все документы, попавшие под фильтр.</p>
+        </details>
+        <details>
+          <summary>Что напечатает скрипт, если запустить его дважды подряд?</summary>
+          <p>То же самое. Перед вставкой он удаляет свои товары по ключам <code>p-301</code> и <code>p-302</code>, поэтому повторный запуск не упирается в ошибку дубликата и не добавляет лишних документов.</p>
+        </details>
+        <details>
+          <summary>Как получить тот же отчёт по другой базе, не меняя запросов?</summary>
+          <p>Поменять в начале скрипта строку с именем базы: все запросы идут через переменные <code>products</code>, <code>orders</code> и <code>box</code>. Адрес сервера меняется переменной окружения <code>MONGO_URI</code> без правки файла.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Скелет скрипта</b>
+            <code>клиент → база → коллекции</code>
+            <code>разделы отчёта по одной задаче</code>
+            <code>закрыть клиента в конце</code>
+          </div>
+          <div>
+            <b>Адрес сервера</b>
+            <code>MONGO_URI из окружения,</code>
+            <code>localhost — запасной вариант</code>
+          </div>
+          <div>
+            <b>Таблица в консоли</b>
+            <code>одинаковые ширины столбцов</code>
+            <code>заголовок и строки одним форматом</code>
+          </div>
+          <div>
+            <b>Повторный запуск</b>
+            <code>сначала убрать свои документы,</code>
+            <code>потом вставлять</code>
+          </div>
+          <div>
+            <b>Результат записи</b>
+            <code>вставка — ключи</code>
+            <code>обновление — найдено и изменено</code>
+            <code>удаление — сколько удалено</code>
+          </div>
+          <div>
+            <b>Запуск</b>
+            <code>docker compose run --rm reset</code>
+            <code>docker compose run --rm python \</code>
+            <code>  scripts/shop_report.py</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Скрипт собирает операции модуля 1 в одну программу: подключение, справку по базе, карточку документа, таблицы с проекцией и сортировкой, страницы, вложенные поля и полный цикл записи в песочнице. Каждый запрос печатает результат так, как его читает человек: счётчиком, строкой таблицы или числом изменённых документов. Данные читаются из учебной базы, а меняются только в песочнице, поэтому скрипт можно запускать сколько угодно раз. Дальше — практическая работа ПР-01, где такую же программу нужно написать самому.</p>
+
+        <div class="pager"><a href="../08-udalenie/index.html">← 1.8 Удаление</a><a href="../../praktiki/01-katalog-tovarov/index.html">ПР-01 Каталог товаров →</a></div>
+
+        <div class="colophon">
+          <span>Глава 1.9 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

@@ -35,6 +35,7 @@ CHAPTERS = {
     "1.6": ("06-sort-limit-skip", "Порядок и порции: sort, limit, skip", False),
     "1.7": ("07-obnovlenie", "Обновление: $set, $inc, $unset", True),
     "1.8": ("08-udalenie", "Удаление", True),
+    "1.9": ("17-skript-otchet", "Скрипт целиком: отчёт по магазину", True),
     "2.1": ("09-filtr-i-tochechnaya-notaciya", "Фильтр — это документ. Точечная нотация", False),
     "2.2": ("10-sravnenie", "Сравнение: $eq $ne $gt $gte $lt $lte", False),
     "2.3": ("11-spiski-in-nin", "Списки значений: $in и $nin", False),
@@ -43,6 +44,7 @@ CHAPTERS = {
     "2.6": ("14-massivy", "Массивы: $all, $elemMatch, $size", False),
     "2.7": ("15-regex", "Текстовые шаблоны: $regex и $options", False),
     "2.8": ("16-expr", "Сравнение полей между собой: $expr", True),
+    "2.9": ("18-skript-podbor", "Скрипт целиком: подбор кандидатов", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -55,6 +57,10 @@ MERGED = {("1.3", 2)}
 
 # Иллюстрации «так делают / так не делают»: только проверяем, что код собирается.
 COMPILE_ONLY = {("1.1", 4), ("1.1", 5)}
+
+# Главы, где пример — целая программа со своим подключением: заготовка не нужна,
+# код запускается как есть. Такие главы завершают модуль разбором готового скрипта.
+WHOLE = {"1.9", "2.9"}
 
 
 # ── Заготовки ─────────────────────────────────────────────────────────────
@@ -549,8 +555,8 @@ def write_starters() -> None:
     lessons = PRACTICE / "lessons"
     lessons.mkdir(exist_ok=True)
     for chapter in CHAPTERS:
-        if chapter == "1.1":
-            continue            # глава 1.1 сама учит подключаться: заготовка — это hello/
+        if chapter == "1.1" or chapter in WHOLE:
+            continue            # глава 1.1 и главы со скриптами подключаются сами
         for lang in LANGS:
             program = starter(chapter, lang, snippets(chapter, lang)).replace("@@TOP@@", "")
             check = PING[lang].replace("@@CH@@", chapter)
@@ -571,6 +577,9 @@ def programs(chapter: str, lang: str) -> list[tuple[int, str, str]]:
         if (chapter, n) in MERGED:
             continue
         parts = [codes[i - 1] for i in CONTINUES.get((chapter, n), [])] + [code]
+        if chapter in WHOLE:
+            result.append((n, "run", code if code.endswith("\n") else code + "\n"))
+            continue
         if chapter == "1.1":
             program = bare(lang, instance=not any("mongocxx::instance" in part for part in parts))
         else:

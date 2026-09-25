@@ -1,0 +1,2121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>2.9 Скрипт целиком: подбор кандидатов · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Язык фильтров</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 2 · язык фильтров</p>
+          <p class="running__folio">2.9</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">2.9</span>
+          <h1>Скрипт целиком:<br>подбор кандидатов</h1>
+          <p class="lead">Операторы модуля 2 разбирались по одному. Здесь собрана готовая программа: она подбирает кандидатов под требования вакансии, показывает, сколько резюме проходит каждое требование по отдельности, ищет подходящие вакансии, считает собеседования за неделю и проверяет данные на пропуски и неверные типы. Глава разбирает скрипт по частям и приводит его целиком вместе с выводом.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Готовая программа</dd></div>
+          <div><dt>Уровень</dt><dd>Итоговая глава модуля</dd></div>
+          <div><dt>Связанные темы</dt><dd>Все главы модуля 2, практическая работа ПР-02</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Собрать из отдельных операторов рабочий отбор</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-2.9-python.zip" download><code>mongodb-glava-2.9-python.zip</code></a>, 58 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-2.9-ruby.zip" download><code>mongodb-glava-2.9-ruby.zip</code></a>, 57 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-2.9-go.zip" download><code>mongodb-glava-2.9-go.zip</code></a>, 61 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-2.9-cpp.zip" download><code>mongodb-glava-2.9-cpp.zip</code></a>, 59 КБ</span> — все примеры главы готовыми программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch2_9.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch2_9.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch2_9.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch2_9.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch2_9.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch2_9.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch2_9.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch2_9.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch2_9.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch2_9.go</code> · в Docker: <code>docker compose run --rm go lessons/ch2_9.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch2_9.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch2_9.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Что делает скрипт</a></li>
+            <li><a href="#s2">Требования и подключение</a></li>
+            <li><a href="#s3">Каждое требование по отдельности</a></li>
+            <li><a href="#s4">Все требования сразу</a></li>
+            <li><a href="#s5">Текст и подбор вакансий</a></li>
+            <li><a href="#s6">Собеседования за неделю</a></li>
+            <li><a href="#s7">Проверка данных</a></li>
+            <li><a href="#s8">Что считает программа</a></li>
+            <li><a href="#s9">Скрипт целиком</a></li>
+            <li><a href="#s10">Как запустить</a></li>
+            <li><a href="#s11">Частые ошибки</a></li>
+            <li><a href="#s12">Проверьте себя</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Что делает скрипт</h2>
+        <p>Скрипт <code>hh_search.py</code> решает задачу рекрутера: по требованиям вакансии найти подходящие резюме, показать, на каком требовании отсеиваются кандидаты, подобрать вакансии под ожидание по зарплате, посчитать собеседования за неделю и проверить, всё ли в порядке с самими данными.</p>
+        <p>Восемь разделов отчёта — восемь групп операторов модуля 2.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Раздел отчёта</th><th>Какие операторы</th><th>Глава</th></tr></thead>
+            <tbody>
+              <tr><td>1. Требования</td><td>значения, из которых собираются фильтры</td><td>—</td></tr>
+              <tr><td>2. Каждое требование по отдельности</td><td><code>$all</code>, <code>$or</code>, <code>$lte</code>, <code>$elemMatch</code>, <code>$exists</code></td><td>2.2–2.6</td></tr>
+              <tr><td>3. Все требования сразу</td><td>те же условия в одном фильтре, сортировка</td><td>2.1, 2.4</td></tr>
+              <tr><td>4. Должности с Junior</td><td><code>$regex</code> и <code>$options</code></td><td>2.7</td></tr>
+              <tr><td>5. Вакансии под ожидание</td><td>точечная нотация и диапазон</td><td>2.1, 2.2</td></tr>
+              <tr><td>6. Собеседования за неделю</td><td>период дат полуинтервалом</td><td>2.2</td></tr>
+              <tr><td>7. Проверка данных</td><td><code>$exists</code>, <code>$type</code>, <code>$size</code>, <code>$expr</code>, <code>$ne</code></td><td>2.5, 2.6, 2.8</td></tr>
+              <tr><td>8. Кто не прошёл отбор</td><td>проверка на стороне программы</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Скрипт только читает данные: сбрасывать базы перед запуском не нужно.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Требования и подключение</h2>
+        <p>Начало скрипта — подключение и коллекции базы <code>hh</code>. Требования вакансии вынесены в отдельные переменные: список навыков, город, потолок по зарплате и минимальный срок работы. Дальше в фильтрах стоят только эти имена, поэтому поменять требования можно в одном месте, не трогая запросы.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>подключение и требования</span></figcaption>
+<pre><span class="k">import</span> os
+<span class="k">from</span> datetime <span class="k">import</span> datetime
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+hh = client[<span class="s">"hh"</span>]
+resumes = hh[<span class="s">"resumes"</span>]
+vacancies = hh[<span class="s">"vacancies"</span>]
+interviews = hh[<span class="s">"interviews"</span>]
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))
+
+<span class="c"># ── 1. Требования вакансии ────────────────────────────────────────────────</span>
+NAVYKI = [<span class="s">"Python"</span>, <span class="s">"SQL"</span>]
+GOROD = <span class="s">"Ярославль"</span>
+POTOLOK = <span class="n">100000</span>
+OPYT_MESYACEV = <span class="n">6</span>
+
+<span class="f">title</span>(<span class="s">"1. Требования"</span>)
+<span class="f">print</span>(f<span class="s">"  навыки: {' и '.join(NAVYKI)}"</span>)
+<span class="f">print</span>(f<span class="s">"  город: {GOROD} или готовность к переезду"</span>)
+<span class="f">print</span>(f<span class="s">"  зарплата: не больше {POTOLOK}"</span>)
+<span class="f">print</span>(f<span class="s">"  опыт: место работы от {OPYT_MESYACEV} месяцев"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>подключение и требования</span></figcaption>
+<pre>#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/json.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/collection.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/options/find.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_array;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Строки массива через запятую — для навыков в таблице.</span>
+<span class="k">std</span>::string <span class="f">cherez_zapyatuyu</span>(<span class="k">const</span> bsoncxx::array::view&amp; massiv) {
+    <span class="k">std</span>::string out;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; element : massiv) {
+        <span class="k">if</span> (!out.<span class="f">empty</span>()) out += <span class="s">", "</span>;
+        out += <span class="k">std</span>::<span class="f">string</span>(element.<span class="f">get_string</span>().value);
+    }
+    <span class="k">return</span> out;
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+
+    <span class="k">auto</span> hh = client[<span class="s">"hh"</span>];
+    <span class="k">auto</span> resumes = hh[<span class="s">"resumes"</span>];
+    <span class="k">auto</span> vacancies = hh[<span class="s">"vacancies"</span>];
+    <span class="k">auto</span> interviews = hh[<span class="s">"interviews"</span>];
+
+    <span class="c">// Требования вакансии.</span>
+    <span class="k">const</span> <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; navyki = {<span class="s">"Python"</span>, <span class="s">"SQL"</span>};
+    <span class="k">const</span> <span class="k">std</span>::string gorod = <span class="s">"Ярославль"</span>;
+    <span class="k">const</span> <span class="k">int</span> potolok = <span class="n">100000</span>;
+    <span class="k">const</span> <span class="k">int</span> opyt_mesyacev = <span class="n">6</span>;
+
+    <span class="c">// ── 1. Требования ─────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Требования"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  навыки: "</span> &lt;&lt; navyki[<span class="n">0</span>] &lt;&lt; <span class="s">" и "</span> &lt;&lt; navyki[<span class="n">1</span>] &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  город: "</span> &lt;&lt; gorod &lt;&lt; <span class="s">" или готовность к переезду"</span> &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  зарплата: не больше "</span> &lt;&lt; potolok &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  опыт: место работы от "</span> &lt;&lt; opyt_mesyacev &lt;&lt; <span class="s">" месяцев"</span> &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> spisok_navykov = <span class="f">make_array</span>(navyki[<span class="n">0</span>], navyki[<span class="n">1</span>]);
+    <span class="k">auto</span> gorod_ili_pereezd = <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, gorod)),
+                                        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="k">true</span>)));
+    <span class="k">auto</span> opyt = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$elemMatch"</span>,
+                    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"months"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, opyt_mesyacev))))));</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>подключение и требования</span></figcaption>
+<pre><span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"time"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="c">// Resume — поля резюме, которые читает отбор.</span>
+<span class="k">type</span> Resume <span class="k">struct</span> {
+	Fio         <span class="k">string</span>   `bson:<span class="s">"fio"</span>`
+	Position    <span class="k">string</span>   `bson:<span class="s">"position"</span>`
+	City        <span class="k">string</span>   `bson:<span class="s">"city"</span>`
+	Salary      <span class="k">int</span>      `bson:<span class="s">"salary"</span>`
+	ReadyToMove <span class="k">bool</span>     `bson:<span class="s">"ready_to_move"</span>`
+	Skills      []<span class="k">string</span> `bson:<span class="s">"skills"</span>`
+	Experience  []<span class="k">struct</span> {
+		Company <span class="k">string</span> `bson:<span class="s">"company"</span>`
+		Role    <span class="k">string</span> `bson:<span class="s">"role"</span>`
+		Months  <span class="k">int</span>    `bson:<span class="s">"months"</span>`
+	} `bson:<span class="s">"experience"</span>`
+}
+
+<span class="c">// Vacancy — вакансия с вилкой зарплаты во вложенном документе.</span>
+<span class="k">type</span> Vacancy <span class="k">struct</span> {
+	Title   <span class="k">string</span> `bson:<span class="s">"title"</span>`
+	Company <span class="k">string</span> `bson:<span class="s">"company"</span>`
+	City    <span class="k">string</span> `bson:<span class="s">"city"</span>`
+	Salary  <span class="k">struct</span> {
+		From <span class="k">int</span> `bson:<span class="s">"from"</span>`
+		To   <span class="k">int</span> `bson:<span class="s">"to"</span>`
+	} `bson:<span class="s">"salary"</span>`
+}
+
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">right</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n) + text
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="c">// Требования вакансии.</span>
+<span class="k">var</span> (
+	navyki       = []<span class="k">string</span>{<span class="s">"Python"</span>, <span class="s">"SQL"</span>}
+	gorod        = <span class="s">"Ярославль"</span>
+	potolok      = <span class="n">100000</span>
+	opytMesyacev = <span class="n">6</span>
+)
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	ctx := context.<span class="f">Background</span>()
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+	hh := client.<span class="f">Database</span>(<span class="s">"hh"</span>)
+	resumes := hh.<span class="f">Collection</span>(<span class="s">"resumes"</span>)
+	vacancies := hh.<span class="f">Collection</span>(<span class="s">"vacancies"</span>)
+	interviews := hh.<span class="f">Collection</span>(<span class="s">"interviews"</span>)
+
+	<span class="c">// ── 1. Требования ─────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Требования"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  навыки: %s\n"</span>, strings.<span class="f">Join</span>(navyki, <span class="s">" и "</span>))
+	fmt.<span class="f">Printf</span>(<span class="s">"  город: %s или готовность к переезду\n"</span>, gorod)
+	fmt.<span class="f">Printf</span>(<span class="s">"  зарплата: не больше %d\n"</span>, potolok)
+	fmt.<span class="f">Printf</span>(<span class="s">"  опыт: место работы от %d месяцев\n"</span>, opytMesyacev)
+
+	spisokNavykov := bson.A{}
+	<span class="k">for</span> _, n := <span class="k">range</span> navyki {
+		spisokNavykov = <span class="k">append</span>(spisokNavykov, n)
+	}
+	gorodIliPereezd := bson.A{
+		bson.D{{Key: <span class="s">"city"</span>, Value: gorod}},
+		bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: <span class="k">true</span>}},
+	}
+	opyt := bson.D{{Key: <span class="s">"$elemMatch"</span>, Value: bson.D{
+		{Key: <span class="s">"months"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: opytMesyacev}}}}}}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>подключение и требования</span></figcaption>
+<pre><span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+hh = client.<span class="f">use</span>(<span class="s">"hh"</span>).database
+resumes = hh[:resumes]
+vacancies = hh[:vacancies]
+interviews = hh[:interviews]
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="f">pad</span>(text, width)
+  text.to_s.<span class="f">ljust</span>(width)
+<span class="k">end</span>
+
+<span class="c"># ── 1. Требования вакансии ────────────────────────────────────────────────</span>
+NAVYKI = [<span class="s">"Python"</span>, <span class="s">"SQL"</span>].<span class="k">freeze</span>
+GOROD = <span class="s">"Ярославль"</span>
+POTOLOK = <span class="n">100_000</span>
+OPYT_MESYACEV = <span class="n">6</span>
+
+<span class="f">title</span>(<span class="s">"1. Требования"</span>)
+<span class="k">puts</span> <span class="s">"  навыки: #{NAVYKI.join(' и ')}"</span>
+<span class="k">puts</span> <span class="s">"  город: #{GOROD} или готовность к переезду"</span>
+<span class="k">puts</span> <span class="s">"  зарплата: не больше #{POTOLOK}"</span>
+<span class="k">puts</span> <span class="s">"  опыт: место работы от #{OPYT_MESYACEV} месяцев"</span></pre>
+          </figure>
+        </div>
+        <p>Так пишут отбор в рабочем коде: условия приходят из формы или настроек, а фильтр собирается из них. В главе 2.2 §7 разобрано, почему значение, пришедшее извне, безопаснее подставлять через <code>$eq</code>, если оно может оказаться документом.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Каждое требование по отдельности</h2>
+        <p>Прежде чем соединять условия, смотрят, сколько резюме проходит каждое из них. Тогда видно, какое требование отсекает больше всего кандидатов. Условия сложены в список парами «название — фильтр», и скрипт перебирает его одним циклом.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>счётчики по каждому требованию</span></figcaption>
+<pre><span class="c"># ── 2. Каждое требование по отдельности ───────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>)
+
+kriterii = [
+    (<span class="s">"навыки $all"</span>, {<span class="s">"skills"</span>: {<span class="s">"$all"</span>: NAVYKI}}),
+    (<span class="s">"город или переезд $or"</span>, {<span class="s">"$or"</span>: [{<span class="s">"city"</span>: GOROD}, {<span class="s">"ready_to_move"</span>: <span class="k">True</span>}]}),
+    (<span class="s">"зарплата $lte"</span>, {<span class="s">"salary"</span>: {<span class="s">"$lte"</span>: POTOLOK}}),
+    (<span class="s">"опыт $elemMatch"</span>, {<span class="s">"experience"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"months"</span>: {<span class="s">"$gte"</span>: OPYT_MESYACEV}}}}),
+    (<span class="s">"есть контакты $exists"</span>, {<span class="s">"contacts"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}),
+]
+<span class="k">for</span> nazvanie, filtr <span class="k">in</span> kriterii:
+    <span class="f">print</span>(f<span class="s">"  {nazvanie:24} {resumes.count_documents(filtr):2} из {resumes.count_documents({})}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>счётчики по каждому требованию</span></figcaption>
+<pre>    <span class="c">// ── 2. Каждое требование по отдельности ───────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>);
+
+    <span class="k">auto</span> vsego = resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; kriterii;
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"навыки $all"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$all"</span>, spisok_navykov)))));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"город или переезд $or"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$or"</span>, gorod_ili_pereezd)));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"зарплата $lte"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, potolok)))));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"опыт $elemMatch"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, opyt)));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"есть контакты $exists"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"contacts"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>)))));
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; kriteriy : kriterii) {
+        <span class="k">auto</span> skolko = resumes.<span class="f">count_documents</span>(kriteriy.second.<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(kriteriy.first, <span class="n">24</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(skolko), <span class="n">2</span>)
+                  &lt;&lt; <span class="s">" из "</span> &lt;&lt; vsego &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>счётчики по каждому требованию</span></figcaption>
+<pre>	<span class="c">// ── 2. Каждое требование по отдельности ───────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>)
+
+	vsego, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	kriterii := []<span class="k">struct</span> {
+		nazvanie <span class="k">string</span>
+		filtr    bson.D
+	}{
+		{<span class="s">"навыки $all"</span>, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$all"</span>, Value: spisokNavykov}}}}},
+		{<span class="s">"город или переезд $or"</span>, bson.D{{Key: <span class="s">"$or"</span>, Value: gorodIliPereezd}}},
+		{<span class="s">"зарплата $lte"</span>, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: potolok}}}}},
+		{<span class="s">"опыт $elemMatch"</span>, bson.D{{Key: <span class="s">"experience"</span>, Value: opyt}}},
+		{<span class="s">"есть контакты $exists"</span>, bson.D{{Key: <span class="s">"contacts"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}}},
+	}
+	<span class="k">for</span> _, k := <span class="k">range</span> kriterii {
+		skolko, _ := resumes.<span class="f">CountDocuments</span>(ctx, k.filtr)
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s из %d\n"</span>, <span class="f">pad</span>(k.nazvanie, <span class="n">24</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>), vsego)
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>счётчики по каждому требованию</span></figcaption>
+<pre><span class="c"># ── 2. Каждое требование по отдельности ───────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>)
+
+kriterii = [
+  [<span class="s">"навыки $all"</span>, { <span class="s">"skills"</span> =&gt; { <span class="s">"$all"</span> =&gt; NAVYKI } }],
+  [<span class="s">"город или переезд $or"</span>, { <span class="s">"$or"</span> =&gt; [{ <span class="s">"city"</span> =&gt; GOROD }, { <span class="s">"ready_to_move"</span> =&gt; <span class="k">true</span> }] }],
+  [<span class="s">"зарплата $lte"</span>, { <span class="s">"salary"</span> =&gt; { <span class="s">"$lte"</span> =&gt; POTOLOK } }],
+  [<span class="s">"опыт $elemMatch"</span>, { <span class="s">"experience"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; { <span class="s">"months"</span> =&gt; { <span class="s">"$gte"</span> =&gt; OPYT_MESYACEV } } } }],
+  [<span class="s">"есть контакты $exists"</span>, { <span class="s">"contacts"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }],
+]
+vsego = resumes.<span class="f">count_documents</span>({})
+kriterii.<span class="k">each</span> <span class="k">do</span> |nazvanie, filtr|
+  <span class="k">puts</span> <span class="s">"  #{pad(nazvanie, 24)} #{resumes.count_documents(filtr).to_s.rjust(2)} из #{vsego}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Пять фильтров подряд — пять операторов из разных глав: <code>$all</code> требует оба навыка, <code>$or</code> допускает город или переезд, <code>$lte</code> ограничивает зарплату, <code>$elemMatch</code> ищет место работы нужной длины, <code>$exists</code> проверяет, что контакты заполнены. Каждый вызов <code>count_documents</code> возвращает число, и отчёт печатает его рядом с общим количеством резюме.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Все требования сразу</h2>
+        <p>Теперь те же условия соединяются в один фильтр. Пары верхнего уровня работают как «и», а <code>$or</code> стоит среди них обычной парой и даёт выбор только между своими условиями (глава 2.4 §3).</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>один фильтр из всех требований</span></figcaption>
+<pre><span class="c"># ── 3. Все требования сразу ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>)
+
+filtr = {
+    <span class="s">"skills"</span>: {<span class="s">"$all"</span>: NAVYKI},
+    <span class="s">"salary"</span>: {<span class="s">"$lte"</span>: POTOLOK},
+    <span class="s">"experience"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"months"</span>: {<span class="s">"$gte"</span>: OPYT_MESYACEV}}},
+    <span class="s">"$or"</span>: [{<span class="s">"city"</span>: GOROD}, {<span class="s">"ready_to_move"</span>: <span class="k">True</span>}],
+}
+<span class="f">print</span>(f<span class="s">"  {'ФИО':18} {'город':16} {'зарплата':&gt;9}  навыки"</span>)
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>(filtr).<span class="f">sort</span>(<span class="s">"salary"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(f<span class="s">"  {doc['fio']:18} {doc['city']:16} {doc['salary']:&gt;9}  {', '.join(doc['skills'])}"</span>)
+<span class="f">print</span>(f<span class="s">"  подошло: {resumes.count_documents(filtr)}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>один фильтр из всех требований</span></figcaption>
+<pre>    <span class="c">// ── 3. Все требования сразу ───────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>);
+
+    <span class="k">auto</span> filtr = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$all"</span>, spisok_navykov))),
+        <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, potolok))),
+        <span class="f">kvp</span>(<span class="s">"experience"</span>, opyt),
+        <span class="f">kvp</span>(<span class="s">"$or"</span>, gorod_ili_pereezd));
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"ФИО"</span>, <span class="n">18</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>) &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; <span class="f">right</span>(<span class="s">"зарплата"</span>, <span class="n">9</span>) &lt;&lt; <span class="s">"  навыки"</span> &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::options::find options;
+    options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : resumes.<span class="f">find</span>(filtr.<span class="f">view</span>(), options)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"fio"</span>].<span class="f">get_string</span>().value), <span class="n">18</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"city"</span>].<span class="f">get_string</span>().value), <span class="n">16</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"salary"</span>].<span class="f">get_int32</span>().value), <span class="n">9</span>)
+                  &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">cherez_zapyatuyu</span>(doc[<span class="s">"skills"</span>].<span class="f">get_array</span>().value) &lt;&lt; <span class="k">std</span>::endl;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  подошло: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(filtr.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>один фильтр из всех требований</span></figcaption>
+<pre>	<span class="c">// ── 3. Все требования сразу ───────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>)
+
+	filtr := bson.D{
+		{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$all"</span>, Value: spisokNavykov}}},
+		{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: potolok}}},
+		{Key: <span class="s">"experience"</span>, Value: opyt},
+		{Key: <span class="s">"$or"</span>, Value: gorodIliPereezd},
+	}
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s  навыки\n"</span>, <span class="f">pad</span>(<span class="s">"ФИО"</span>, <span class="n">18</span>), <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>), <span class="f">right</span>(<span class="s">"зарплата"</span>, <span class="n">9</span>))
+	cursor, _ := resumes.<span class="f">Find</span>(ctx, filtr, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"salary"</span>, Value: <span class="n">1</span>}}))
+	<span class="k">var</span> podoshli []Resume
+	cursor.<span class="f">All</span>(ctx, &amp;podoshli)
+	<span class="k">for</span> _, r := <span class="k">range</span> podoshli {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s  %s\n"</span>, <span class="f">pad</span>(r.Fio, <span class="n">18</span>), <span class="f">pad</span>(r.City, <span class="n">16</span>),
+			<span class="f">right</span>(fmt.<span class="f">Sprint</span>(r.Salary), <span class="n">9</span>), strings.<span class="f">Join</span>(r.Skills, <span class="s">", "</span>))
+	}
+	fmt.<span class="f">Println</span>(<span class="s">"  подошло:"</span>, <span class="f">len</span>(podoshli))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>один фильтр из всех требований</span></figcaption>
+<pre><span class="c"># ── 3. Все требования сразу ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>)
+
+filtr = {
+  <span class="s">"skills"</span> =&gt; { <span class="s">"$all"</span> =&gt; NAVYKI },
+  <span class="s">"salary"</span> =&gt; { <span class="s">"$lte"</span> =&gt; POTOLOK },
+  <span class="s">"experience"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; { <span class="s">"months"</span> =&gt; { <span class="s">"$gte"</span> =&gt; OPYT_MESYACEV } } },
+  <span class="s">"$or"</span> =&gt; [{ <span class="s">"city"</span> =&gt; GOROD }, { <span class="s">"ready_to_move"</span> =&gt; <span class="k">true</span> }],
+}
+<span class="k">puts</span> <span class="s">"  #{pad('ФИО', 18)} #{pad('город', 16)} #{'зарплата'.rjust(9)}  навыки"</span>
+resumes.<span class="f">find</span>(filtr).<span class="f">sort</span>({ <span class="s">"salary"</span> =&gt; <span class="n">1</span> }).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['fio'], 18)} #{pad(doc['city'], 16)} #{doc['salary'].to_s.rjust(9)}  #{doc['skills'].join(', ')}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  подошло: #{resumes.count_documents(filtr)}"</span></pre>
+          </figure>
+        </div>
+        <p>Результат выводится таблицей: ФИО, город, зарплата и навыки в одну строку. Сортировка по зарплате ставит наверх тех, кто просит меньше. Под таблицей — число подошедших, его берёт тот же фильтр через <code>count_documents</code>.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Текст и подбор вакансий</h2>
+        <p>Четвёртый раздел ищет по части строки: шаблон <code>^junior</code> с параметром <code>"i"</code> находит должности, которые начинаются со слова «Junior» в любом регистре. Пятый подбирает вакансии под ожидание кандидата: нижняя граница вилки не выше ожидания, верхняя — не ниже.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>шаблон и вилка зарплаты</span></figcaption>
+<pre><span class="c"># ── 4. Поиск по части строки ──────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"position"</span>: {<span class="s">"$regex"</span>: <span class="s">"^junior"</span>, <span class="s">"$options"</span>: <span class="s">"i"</span>}},
+                        {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"position"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(f<span class="s">"  {doc['fio']:18} {doc['position']}"</span>)
+
+<span class="c"># ── 5. Подходящие вакансии ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>)
+
+OZHIDANIE = <span class="n">90000</span>
+vilka = {<span class="s">"salary.from"</span>: {<span class="s">"$lte"</span>: OZHIDANIE}, <span class="s">"salary.to"</span>: {<span class="s">"$gte"</span>: OZHIDANIE}}
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">find</span>(vilka, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"company"</span>: <span class="n">1</span>, <span class="s">"city"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>}):
+    zarplata = doc[<span class="s">"salary"</span>]
+    <span class="f">print</span>(f<span class="s">"  {doc['title']:26} {doc['company']:16} {doc['city']:16} "</span>
+          f<span class="s">"{zarplata['from']}–{zarplata['to']}"</span>)
+<span class="f">print</span>(f<span class="s">"  подходит вакансий: {vacancies.count_documents(vilka)}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>шаблон и вилка зарплаты</span></figcaption>
+<pre>    <span class="c">// ── 4. Поиск по части строки ──────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>);
+
+    <span class="k">auto</span> shablon = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"position"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^junior"</span>), <span class="f">kvp</span>(<span class="s">"$options"</span>, <span class="s">"i"</span>))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : resumes.<span class="f">find</span>(shablon.<span class="f">view</span>())) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"fio"</span>].<span class="f">get_string</span>().value), <span class="n">18</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"position"</span>].<span class="f">get_string</span>().value) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 5. Подходящие вакансии ────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>);
+
+    <span class="k">const</span> <span class="k">int</span> ozhidanie = <span class="n">90000</span>;
+    <span class="k">auto</span> vilka = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"salary.from"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, ozhidanie))),
+        <span class="f">kvp</span>(<span class="s">"salary.to"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, ozhidanie))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : vacancies.<span class="f">find</span>(vilka.<span class="f">view</span>())) {
+        <span class="k">auto</span> zarplata = doc[<span class="s">"salary"</span>].<span class="f">get_document</span>().value;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">26</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"company"</span>].<span class="f">get_string</span>().value), <span class="n">16</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"city"</span>].<span class="f">get_string</span>().value), <span class="n">16</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; zarplata[<span class="s">"from"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">"–"</span>
+                  &lt;&lt; zarplata[<span class="s">"to"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="k">std</span>::endl;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  подходит вакансий: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(vilka.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>шаблон и вилка зарплаты</span></figcaption>
+<pre>	<span class="c">// ── 4. Поиск по части строки ──────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>)
+
+	cursor, _ = resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"position"</span>, Value: bson.D{
+		{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^junior"</span>}, {Key: <span class="s">"$options"</span>, Value: <span class="s">"i"</span>}}}})
+	<span class="k">var</span> junior []Resume
+	cursor.<span class="f">All</span>(ctx, &amp;junior)
+	<span class="k">for</span> _, r := <span class="k">range</span> junior {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s\n"</span>, <span class="f">pad</span>(r.Fio, <span class="n">18</span>), r.Position)
+	}
+
+	<span class="c">// ── 5. Подходящие вакансии ────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>)
+
+	ozhidanie := <span class="n">90000</span>
+	vilka := bson.D{
+		{Key: <span class="s">"salary.from"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: ozhidanie}}},
+		{Key: <span class="s">"salary.to"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: ozhidanie}}},
+	}
+	cursor, _ = vacancies.<span class="f">Find</span>(ctx, vilka)
+	<span class="k">var</span> podhodyat []Vacancy
+	cursor.<span class="f">All</span>(ctx, &amp;podhodyat)
+	<span class="k">for</span> _, v := <span class="k">range</span> podhodyat {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s %d–%d\n"</span>, <span class="f">pad</span>(v.Title, <span class="n">26</span>), <span class="f">pad</span>(v.Company, <span class="n">16</span>), <span class="f">pad</span>(v.City, <span class="n">16</span>),
+			v.Salary.From, v.Salary.To)
+	}
+	fmt.<span class="f">Println</span>(<span class="s">"  подходит вакансий:"</span>, <span class="f">len</span>(podhodyat))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>шаблон и вилка зарплаты</span></figcaption>
+<pre><span class="c"># ── 4. Поиск по части строки ──────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>)
+
+resumes.<span class="f">find</span>({ <span class="s">"position"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^junior"</span>, <span class="s">"$options"</span> =&gt; <span class="s">"i"</span> } },
+             projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"position"</span> =&gt; <span class="n">1</span> })
+       .<span class="k">each</span> { |doc| <span class="k">puts</span> <span class="s">"  #{pad(doc['fio'], 18)} #{doc['position']}"</span> }
+
+<span class="c"># ── 5. Подходящие вакансии ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>)
+
+OZHIDANIE = <span class="n">90_000</span>
+vilka = { <span class="s">"salary.from"</span> =&gt; { <span class="s">"$lte"</span> =&gt; OZHIDANIE }, <span class="s">"salary.to"</span> =&gt; { <span class="s">"$gte"</span> =&gt; OZHIDANIE } }
+vacancies.<span class="f">find</span>(vilka, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"company"</span> =&gt; <span class="n">1</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span> })
+         .<span class="k">each</span> <span class="k">do</span> |doc|
+  zarplata = doc[<span class="s">"salary"</span>]
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['title'], 26)} #{pad(doc['company'], 16)} #{pad(doc['city'], 16)} "</span> \
+       <span class="s">"#{zarplata['from']}–#{zarplata['to']}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  подходит вакансий: #{vacancies.count_documents(vilka)}"</span></pre>
+          </figure>
+        </div>
+        <p>Вилка лежит во вложенном документе, поэтому условия стоят на именах с точкой — <code>salary.from</code> и <code>salary.to</code>. В выводе обе границы печатаются через тире: значения берутся из того же вложенного документа.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Собеседования за неделю</h2>
+        <p>Шестой раздел считает собеседования за неделю с 21 по 27 сентября. Период задан полуинтервалом: от начала 21-го числа до начала 28-го, иначе события последнего дня потерялись бы (глава 2.2 §4).</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>период дат и разбивка по этапам</span></figcaption>
+<pre><span class="c"># ── 6. Собеседования за неделю ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>)
+
+nedelya = {<span class="s">"when"</span>: {<span class="s">"$gte"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">21</span>), <span class="s">"$lt"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">28</span>)}}
+<span class="f">print</span>(f<span class="s">"  всего за неделю: {interviews.count_documents(nedelya)}"</span>)
+<span class="k">for</span> etap <span class="k">in</span> (<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>):
+    <span class="f">print</span>(f<span class="s">"    {etap:12} {interviews.count_documents({**nedelya, 'stage': etap}):2}"</span>)
+<span class="f">print</span>(f<span class="s">"  очно: {interviews.count_documents({**nedelya, 'format': 'очно'})}, "</span>
+      f<span class="s">"видеозвонком: {interviews.count_documents({**nedelya, 'format': 'видеозвонок'})}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>период дат и разбивка по этапам</span></figcaption>
+<pre>    <span class="c">// ── 6. Собеседования за неделю ────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>);
+
+    <span class="k">auto</span> sep21 = bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{<span class="n">1789948800000</span>}};  <span class="c">// 21.09.2026 00:00 UTC</span>
+    <span class="k">auto</span> sep28 = bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{<span class="n">1790553600000</span>}};  <span class="c">// 28.09.2026 00:00 UTC</span>
+    <span class="k">auto</span> nedelya = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  всего за неделю: "</span> &lt;&lt; interviews.<span class="f">count_documents</span>(nedelya.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">std</span>::string&amp; etap : {<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>}) {
+        <span class="k">auto</span> filtr_etapa = <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))),
+            <span class="f">kvp</span>(<span class="s">"stage"</span>, etap));
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; <span class="f">pad</span>(etap, <span class="n">12</span>) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(interviews.<span class="f">count_documents</span>(filtr_etapa.<span class="f">view</span>())), <span class="n">2</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+    <span class="k">auto</span> ochno = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))),
+                               <span class="f">kvp</span>(<span class="s">"format"</span>, <span class="s">"очно"</span>));
+    <span class="k">auto</span> video = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))),
+                               <span class="f">kvp</span>(<span class="s">"format"</span>, <span class="s">"видеозвонок"</span>));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  очно: "</span> &lt;&lt; interviews.<span class="f">count_documents</span>(ochno.<span class="f">view</span>())
+              &lt;&lt; <span class="s">", видеозвонком: "</span> &lt;&lt; interviews.<span class="f">count_documents</span>(video.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>период дат и разбивка по этапам</span></figcaption>
+<pre>	<span class="c">// ── 6. Собеседования за неделю ────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>)
+
+	sep21 := time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">21</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+	sep28 := time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">28</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+	nedelya := bson.D{{Key: <span class="s">"when"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: sep21}, {Key: <span class="s">"$lt"</span>, Value: sep28}}}}
+	zaNedelyu, _ := interviews.<span class="f">CountDocuments</span>(ctx, nedelya)
+	fmt.<span class="f">Println</span>(<span class="s">"  всего за неделю:"</span>, zaNedelyu)
+	<span class="c">// К общему фильтру добавляем условие копией: append по общему срезу</span>
+	<span class="c">// может перезаписать данные соседних вызовов.</span>
+	sUsloviem := <span class="k">func</span>(key, value <span class="k">string</span>) bson.D {
+		<span class="k">return</span> <span class="k">append</span>(<span class="k">append</span>(bson.D{}, nedelya...), bson.E{Key: key, Value: value})
+	}
+	<span class="k">for</span> _, etap := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>} {
+		skolko, _ := interviews.<span class="f">CountDocuments</span>(ctx, <span class="f">sUsloviem</span>(<span class="s">"stage"</span>, etap))
+		fmt.<span class="f">Printf</span>(<span class="s">"    %s %s\n"</span>, <span class="f">pad</span>(etap, <span class="n">12</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>))
+	}
+	ochno, _ := interviews.<span class="f">CountDocuments</span>(ctx, <span class="f">sUsloviem</span>(<span class="s">"format"</span>, <span class="s">"очно"</span>))
+	video, _ := interviews.<span class="f">CountDocuments</span>(ctx, <span class="f">sUsloviem</span>(<span class="s">"format"</span>, <span class="s">"видеозвонок"</span>))
+	fmt.<span class="f">Printf</span>(<span class="s">"  очно: %d, видеозвонком: %d\n"</span>, ochno, video)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>период дат и разбивка по этапам</span></figcaption>
+<pre><span class="c"># ── 6. Собеседования за неделю ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>)
+
+nedelya = { <span class="s">"when"</span> =&gt; { <span class="s">"$gte"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">21</span>), <span class="s">"$lt"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">28</span>) } }
+<span class="k">puts</span> <span class="s">"  всего за неделю: #{interviews.count_documents(nedelya)}"</span>
+[<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>].<span class="k">each</span> <span class="k">do</span> |etap|
+  <span class="k">puts</span> <span class="s">"    #{pad(etap, 12)} #{interviews.count_documents(nedelya.merge('stage' =&gt; etap)).to_s.rjust(2)}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  очно: #{interviews.count_documents(nedelya.merge('format' =&gt; 'очно'))}, "</span> \
+     <span class="s">"видеозвонком: #{interviews.count_documents(nedelya.merge('format' =&gt; 'видеозвонок'))}"</span></pre>
+          </figure>
+        </div>
+        <p>К периоду добавляются условия по этапу и формату — те же пары фильтра, соединённые по «и». Общее число и суммы по этапам считаются отдельными запросами, поэтому их можно сверить: скрининг, техническое и финальное вместе дают столько же, сколько строка «всего за неделю».</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Проверка данных</h2>
+        <p>Седьмой раздел ищет дефекты в самих данных: пропущенные поля, значения не того типа, пустые массивы и несогласованные границы вилки. Такие проверки запускают по расписанию или перед выгрузкой, чтобы ошибка не дошла до отчёта.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>проверки данных одним списком</span></figcaption>
+<pre><span class="c"># ── 7. Проверка данных ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Проверка данных"</span>)
+
+proverki = [
+    (<span class="s">"резюме без даты обновления"</span>, resumes, {<span class="s">"updated"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}),
+    (<span class="s">"зарплата записана не числом"</span>, resumes, {<span class="s">"salary"</span>: {<span class="s">"$not"</span>: {<span class="s">"$type"</span>: <span class="s">"number"</span>}}}),
+    (<span class="s">"пустой список мест работы"</span>, resumes, {<span class="s">"experience"</span>: {<span class="s">"$size"</span>: <span class="n">0</span>}}),
+    (<span class="s">"нет ни одного навыка"</span>, resumes, {<span class="s">"skills.0"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}),
+    (<span class="s">"перевёрнутая вилка"</span>, vacancies, {<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>]}}),
+    (<span class="s">"вакансия закрыта"</span>, vacancies, {<span class="s">"is_open"</span>: {<span class="s">"$ne"</span>: <span class="k">True</span>}}),
+]
+<span class="k">for</span> nazvanie, col, filtr <span class="k">in</span> proverki:
+    skolko = col.<span class="f">count_documents</span>(filtr)
+    <span class="f">print</span>(f<span class="s">"  {nazvanie:30} {skolko:2}"</span> + (<span class="s">"  ← проверить"</span> <span class="k">if</span> skolko <span class="k">else</span> <span class="s">""</span>))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>проверки данных одним списком</span></figcaption>
+<pre>    <span class="c">// ── 7. Проверка данных ────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Проверка данных"</span>);
+
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::tuple&lt;<span class="k">std</span>::string, mongocxx::collection, bsoncxx::document::value&gt;&gt; proverki;
+    proverki.<span class="f">emplace_back</span>(<span class="s">"резюме без даты обновления"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"updated"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>)))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"зарплата записана не числом"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$not"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"number"</span>)))))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"пустой список мест работы"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">0</span>)))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"нет ни одного навыка"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills.0"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>)))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"перевёрнутая вилка"</span>, vacancies,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>))))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"вакансия закрыта"</span>, vacancies,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"is_open"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, <span class="k">true</span>)))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp; proverka : proverki) {
+        <span class="k">auto</span> skolko = <span class="k">std</span>::get&lt;<span class="n">1</span>&gt;(proverka).<span class="f">count_documents</span>(<span class="k">std</span>::get&lt;<span class="n">2</span>&gt;(proverka).<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::get&lt;<span class="n">0</span>&gt;(proverka), <span class="n">30</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(skolko), <span class="n">2</span>)
+                  &lt;&lt; (skolko ? <span class="s">"  ← проверить"</span> : <span class="s">""</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>проверки данных одним списком</span></figcaption>
+<pre>	<span class="c">// ── 7. Проверка данных ────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Проверка данных"</span>)
+
+	proverki := []<span class="k">struct</span> {
+		nazvanie <span class="k">string</span>
+		col      *mongo.Collection
+		filtr    bson.D
+	}{
+		{<span class="s">"резюме без даты обновления"</span>, resumes,
+			bson.D{{Key: <span class="s">"updated"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}}},
+		{<span class="s">"зарплата записана не числом"</span>, resumes,
+			bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$not"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"number"</span>}}}}}}},
+		{<span class="s">"пустой список мест работы"</span>, resumes,
+			bson.D{{Key: <span class="s">"experience"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">0</span>}}}}},
+		{<span class="s">"нет ни одного навыка"</span>, resumes,
+			bson.D{{Key: <span class="s">"skills.0"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}}},
+		{<span class="s">"перевёрнутая вилка"</span>, vacancies,
+			bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>}}}}}},
+		{<span class="s">"вакансия закрыта"</span>, vacancies,
+			bson.D{{Key: <span class="s">"is_open"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">true</span>}}}}},
+	}
+	<span class="k">for</span> _, p := <span class="k">range</span> proverki {
+		skolko, _ := p.col.<span class="f">CountDocuments</span>(ctx, p.filtr)
+		pometka := <span class="s">""</span>
+		<span class="k">if</span> skolko &gt; <span class="n">0</span> {
+			pometka = <span class="s">"  ← проверить"</span>
+		}
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s%s\n"</span>, <span class="f">pad</span>(p.nazvanie, <span class="n">30</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>), pometka)
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>проверки данных одним списком</span></figcaption>
+<pre><span class="c"># ── 7. Проверка данных ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Проверка данных"</span>)
+
+proverki = [
+  [<span class="s">"резюме без даты обновления"</span>, resumes, { <span class="s">"updated"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }],
+  [<span class="s">"зарплата записана не числом"</span>, resumes, { <span class="s">"salary"</span> =&gt; { <span class="s">"$not"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"number"</span> } } }],
+  [<span class="s">"пустой список мест работы"</span>, resumes, { <span class="s">"experience"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">0</span> } }],
+  [<span class="s">"нет ни одного навыка"</span>, resumes, { <span class="s">"skills.0"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }],
+  [<span class="s">"перевёрнутая вилка"</span>, vacancies, { <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>] } }],
+  [<span class="s">"вакансия закрыта"</span>, vacancies, { <span class="s">"is_open"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">true</span> } }],
+]
+proverki.<span class="k">each</span> <span class="k">do</span> |nazvanie, col, filtr_proverki|
+  skolko = col.<span class="f">count_documents</span>(filtr_proverki)
+  <span class="k">puts</span> <span class="s">"  #{pad(nazvanie, 30)} #{skolko.to_s.rjust(2)}#{skolko.zero? ? '' : '  ← проверить'}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Каждая строка — отдельный оператор из модуля 2: <code>$exists</code> находит резюме без даты обновления, <code>$not</code> с <code>$type</code> — зарплату, записанную не числом, <code>$size</code> — пустой список мест работы, <code>"skills.0"</code> с <code>$exists</code> — резюме без единого навыка, <code>$expr</code> — перевёрнутую вилку. Ноль в строке означает, что такого дефекта в базе нет; ненулевое число помечается стрелкой.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Что считает программа</h2>
+        <p>Фильтр отвечает на вопрос «какие документы подходят», но не объясняет, почему документ не подошёл. Последний раздел отчёта перебирает все резюме в программе и для каждого собирает список причин отказа.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>причины отказа на стороне программы</span></figcaption>
+<pre><span class="c"># ── 8. Кто не подошёл и почему ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"skills"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>, <span class="s">"city"</span>: <span class="n">1</span>,
+                             <span class="s">"ready_to_move"</span>: <span class="n">1</span>, <span class="s">"experience"</span>: <span class="n">1</span>}):
+    prichiny = []
+    <span class="k">if</span> <span class="k">not</span> <span class="f">set</span>(NAVYKI) &lt;= <span class="f">set</span>(doc.<span class="f">get</span>(<span class="s">"skills"</span>, [])):
+        prichiny.<span class="f">append</span>(<span class="s">"нет навыков"</span>)
+    <span class="k">if</span> doc[<span class="s">"salary"</span>] &gt; POTOLOK:
+        prichiny.<span class="f">append</span>(<span class="s">"зарплата выше потолка"</span>)
+    <span class="k">if</span> doc[<span class="s">"city"</span>] != GOROD <span class="k">and</span> <span class="k">not</span> doc.<span class="f">get</span>(<span class="s">"ready_to_move"</span>):
+        prichiny.<span class="f">append</span>(<span class="s">"другой город без переезда"</span>)
+    <span class="k">if</span> <span class="k">not</span> <span class="f">any</span>(m.<span class="f">get</span>(<span class="s">"months"</span>, <span class="n">0</span>) &gt;= OPYT_MESYACEV <span class="k">for</span> m <span class="k">in</span> doc.<span class="f">get</span>(<span class="s">"experience"</span>, [])):
+        prichiny.<span class="f">append</span>(<span class="s">"мало опыта"</span>)
+    <span class="k">if</span> prichiny:
+        <span class="f">print</span>(f<span class="s">"  {doc['fio']:18} {'; '.join(prichiny)}"</span>)
+
+client.<span class="f">close</span>()</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>причины отказа на стороне программы</span></figcaption>
+<pre>    <span class="c">// ── 8. Кто не подошёл и почему ────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>);
+
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>())) {
+        <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; prichiny;
+        <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; nuzhen : navyki) {
+            <span class="k">bool</span> est = <span class="k">false</span>;
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; navyk : doc[<span class="s">"skills"</span>].<span class="f">get_array</span>().value)
+                <span class="k">if</span> (<span class="k">std</span>::<span class="f">string</span>(navyk.<span class="f">get_string</span>().value) == nuzhen) est = <span class="k">true</span>;
+            <span class="k">if</span> (!est) { prichiny.<span class="f">push_back</span>(<span class="s">"нет навыков"</span>); break; }
+        }
+        <span class="k">if</span> (doc[<span class="s">"salary"</span>].<span class="f">get_int32</span>().value &gt; potolok) prichiny.<span class="f">push_back</span>(<span class="s">"зарплата выше потолка"</span>);
+        <span class="k">bool</span> gotov = doc[<span class="s">"ready_to_move"</span>] &amp;&amp; doc[<span class="s">"ready_to_move"</span>].<span class="f">get_bool</span>().value;
+        <span class="k">if</span> (<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"city"</span>].<span class="f">get_string</span>().value) != gorod &amp;&amp; !gotov)
+            prichiny.<span class="f">push_back</span>(<span class="s">"другой город без переезда"</span>);
+        <span class="k">bool</span> hvatit_opyta = <span class="k">false</span>;
+        <span class="k">if</span> (doc[<span class="s">"experience"</span>])
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; mesto : doc[<span class="s">"experience"</span>].<span class="f">get_array</span>().value)
+                <span class="k">if</span> (mesto.<span class="f">get_document</span>().value[<span class="s">"months"</span>].<span class="f">get_int32</span>().value &gt;= opyt_mesyacev)
+                    hvatit_opyta = <span class="k">true</span>;
+        <span class="k">if</span> (!hvatit_opyta) prichiny.<span class="f">push_back</span>(<span class="s">"мало опыта"</span>);
+        <span class="k">if</span> (!prichiny.<span class="f">empty</span>()) {
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"fio"</span>].<span class="f">get_string</span>().value), <span class="n">18</span>) &lt;&lt; <span class="s">" "</span>;
+            <span class="k">for</span> (size_t i = <span class="n">0</span>; i &lt; prichiny.<span class="f">size</span>(); ++i)
+                <span class="k">std</span>::cout &lt;&lt; (i ? <span class="s">"; "</span> : <span class="s">""</span>) &lt;&lt; prichiny[i];
+            <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+        }
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>причины отказа на стороне программы</span></figcaption>
+<pre>	<span class="c">// ── 8. Кто не подошёл и почему ────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>)
+
+	cursor, _ = resumes.<span class="f">Find</span>(ctx, bson.D{})
+	<span class="k">var</span> vse []Resume
+	cursor.<span class="f">All</span>(ctx, &amp;vse)
+	<span class="k">for</span> _, r := <span class="k">range</span> vse {
+		<span class="k">var</span> prichiny []<span class="k">string</span>
+		<span class="k">for</span> _, nuzhen := <span class="k">range</span> navyki {
+			est := <span class="k">false</span>
+			<span class="k">for</span> _, navyk := <span class="k">range</span> r.Skills {
+				<span class="k">if</span> navyk == nuzhen {
+					est = <span class="k">true</span>
+				}
+			}
+			<span class="k">if</span> !est {
+				prichiny = <span class="k">append</span>(prichiny, <span class="s">"нет навыков"</span>)
+				break
+			}
+		}
+		<span class="k">if</span> r.Salary &gt; potolok {
+			prichiny = <span class="k">append</span>(prichiny, <span class="s">"зарплата выше потолка"</span>)
+		}
+		<span class="k">if</span> r.City != gorod &amp;&amp; !r.ReadyToMove {
+			prichiny = <span class="k">append</span>(prichiny, <span class="s">"другой город без переезда"</span>)
+		}
+		hvatitOpyta := <span class="k">false</span>
+		<span class="k">for</span> _, mesto := <span class="k">range</span> r.Experience {
+			<span class="k">if</span> mesto.Months &gt;= opytMesyacev {
+				hvatitOpyta = <span class="k">true</span>
+			}
+		}
+		<span class="k">if</span> !hvatitOpyta {
+			prichiny = <span class="k">append</span>(prichiny, <span class="s">"мало опыта"</span>)
+		}
+		<span class="k">if</span> <span class="f">len</span>(prichiny) &gt; <span class="n">0</span> {
+			fmt.<span class="f">Printf</span>(<span class="s">"  %s %s\n"</span>, <span class="f">pad</span>(r.Fio, <span class="n">18</span>), strings.<span class="f">Join</span>(prichiny, <span class="s">"; "</span>))
+		}
+	}
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>причины отказа на стороне программы</span></figcaption>
+<pre><span class="c"># ── 8. Кто не подошёл и почему ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>)
+
+resumes.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"skills"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span>,
+                               <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"ready_to_move"</span> =&gt; <span class="n">1</span>, <span class="s">"experience"</span> =&gt; <span class="n">1</span> }).<span class="k">each</span> <span class="k">do</span> |doc|
+  prichiny = []
+  prichiny &lt;&lt; <span class="s">"нет навыков"</span> <span class="k">unless</span> (NAVYKI - (doc[<span class="s">"skills"</span>] || [])).empty?
+  prichiny &lt;&lt; <span class="s">"зарплата выше потолка"</span> <span class="k">if</span> doc[<span class="s">"salary"</span>] &gt; POTOLOK
+  prichiny &lt;&lt; <span class="s">"другой город без переезда"</span> <span class="k">if</span> doc[<span class="s">"city"</span>] != GOROD &amp;&amp; !doc[<span class="s">"ready_to_move"</span>]
+  prichiny &lt;&lt; <span class="s">"мало опыта"</span> <span class="k">unless</span> (doc[<span class="s">"experience"</span>] || []).any? { |m| (m[<span class="s">"months"</span>] || <span class="n">0</span>) &gt;= OPYT_MESYACEV }
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['fio'], 18)} #{prichiny.join('; ')}"</span> <span class="k">unless</span> prichiny.empty?
+<span class="k">end</span>
+
+client.close</pre>
+          </figure>
+        </div>
+        <p>Здесь нет запросов с условиями: скрипт читает все девять резюме и сравнивает поля средствами языка. Так делают, когда к результату нужно объяснение — например, чтобы показать рекрутеру, какое требование смягчить. На больших коллекциях так не поступают: туда приходит слишком много документов, и отбор оставляют серверу.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Скрипт целиком</h2>
+        <p>Ниже — тот же файл без пропусков, а под ним вывод его запуска на учебном стенде.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>scripts/hh_search</span></figcaption>
+<pre><span class="s">""</span>"Подбор кандидатов: что умеет язык фильтров из модуля <span class="n">2</span>.
+
+Скрипт решает прикладную задачу на базе hh: подобрать кандидатов под
+требования вакансии, посмотреть, сколько резюме проходит каждое требование
+по отдельности, найти подходящие вакансии и проверить данные на пропуски,
+неверные типы и несогласованные поля.
+
+    cd scripts
+    python3 hh_search.py
+
+    docker compose run --rm python scripts/hh_search.py    <span class="c"># в контейнере</span>
+<span class="s">""</span>"
+
+<span class="k">import</span> os
+<span class="k">from</span> datetime <span class="k">import</span> datetime
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+hh = client[<span class="s">"hh"</span>]
+resumes = hh[<span class="s">"resumes"</span>]
+vacancies = hh[<span class="s">"vacancies"</span>]
+interviews = hh[<span class="s">"interviews"</span>]
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))
+
+
+<span class="c"># ── 1. Требования вакансии ────────────────────────────────────────────────</span>
+NAVYKI = [<span class="s">"Python"</span>, <span class="s">"SQL"</span>]
+GOROD = <span class="s">"Ярославль"</span>
+POTOLOK = <span class="n">100000</span>
+OPYT_MESYACEV = <span class="n">6</span>
+
+<span class="f">title</span>(<span class="s">"1. Требования"</span>)
+<span class="f">print</span>(f<span class="s">"  навыки: {' и '.join(NAVYKI)}"</span>)
+<span class="f">print</span>(f<span class="s">"  город: {GOROD} или готовность к переезду"</span>)
+<span class="f">print</span>(f<span class="s">"  зарплата: не больше {POTOLOK}"</span>)
+<span class="f">print</span>(f<span class="s">"  опыт: место работы от {OPYT_MESYACEV} месяцев"</span>)
+
+<span class="c"># ── 2. Каждое требование по отдельности ───────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>)
+
+kriterii = [
+    (<span class="s">"навыки $all"</span>, {<span class="s">"skills"</span>: {<span class="s">"$all"</span>: NAVYKI}}),
+    (<span class="s">"город или переезд $or"</span>, {<span class="s">"$or"</span>: [{<span class="s">"city"</span>: GOROD}, {<span class="s">"ready_to_move"</span>: <span class="k">True</span>}]}),
+    (<span class="s">"зарплата $lte"</span>, {<span class="s">"salary"</span>: {<span class="s">"$lte"</span>: POTOLOK}}),
+    (<span class="s">"опыт $elemMatch"</span>, {<span class="s">"experience"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"months"</span>: {<span class="s">"$gte"</span>: OPYT_MESYACEV}}}}),
+    (<span class="s">"есть контакты $exists"</span>, {<span class="s">"contacts"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}),
+]
+<span class="k">for</span> nazvanie, filtr <span class="k">in</span> kriterii:
+    <span class="f">print</span>(f<span class="s">"  {nazvanie:24} {resumes.count_documents(filtr):2} из {resumes.count_documents({})}"</span>)
+
+<span class="c"># ── 3. Все требования сразу ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>)
+
+filtr = {
+    <span class="s">"skills"</span>: {<span class="s">"$all"</span>: NAVYKI},
+    <span class="s">"salary"</span>: {<span class="s">"$lte"</span>: POTOLOK},
+    <span class="s">"experience"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"months"</span>: {<span class="s">"$gte"</span>: OPYT_MESYACEV}}},
+    <span class="s">"$or"</span>: [{<span class="s">"city"</span>: GOROD}, {<span class="s">"ready_to_move"</span>: <span class="k">True</span>}],
+}
+<span class="f">print</span>(f<span class="s">"  {'ФИО':18} {'город':16} {'зарплата':&gt;9}  навыки"</span>)
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>(filtr).<span class="f">sort</span>(<span class="s">"salary"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(f<span class="s">"  {doc['fio']:18} {doc['city']:16} {doc['salary']:&gt;9}  {', '.join(doc['skills'])}"</span>)
+<span class="f">print</span>(f<span class="s">"  подошло: {resumes.count_documents(filtr)}"</span>)
+
+<span class="c"># ── 4. Поиск по части строки ──────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({<span class="s">"position"</span>: {<span class="s">"$regex"</span>: <span class="s">"^junior"</span>, <span class="s">"$options"</span>: <span class="s">"i"</span>}},
+                        {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"position"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(f<span class="s">"  {doc['fio']:18} {doc['position']}"</span>)
+
+<span class="c"># ── 5. Подходящие вакансии ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>)
+
+OZHIDANIE = <span class="n">90000</span>
+vilka = {<span class="s">"salary.from"</span>: {<span class="s">"$lte"</span>: OZHIDANIE}, <span class="s">"salary.to"</span>: {<span class="s">"$gte"</span>: OZHIDANIE}}
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">find</span>(vilka, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"company"</span>: <span class="n">1</span>, <span class="s">"city"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>}):
+    zarplata = doc[<span class="s">"salary"</span>]
+    <span class="f">print</span>(f<span class="s">"  {doc['title']:26} {doc['company']:16} {doc['city']:16} "</span>
+          f<span class="s">"{zarplata['from']}–{zarplata['to']}"</span>)
+<span class="f">print</span>(f<span class="s">"  подходит вакансий: {vacancies.count_documents(vilka)}"</span>)
+
+<span class="c"># ── 6. Собеседования за неделю ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>)
+
+nedelya = {<span class="s">"when"</span>: {<span class="s">"$gte"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">21</span>), <span class="s">"$lt"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">28</span>)}}
+<span class="f">print</span>(f<span class="s">"  всего за неделю: {interviews.count_documents(nedelya)}"</span>)
+<span class="k">for</span> etap <span class="k">in</span> (<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>):
+    <span class="f">print</span>(f<span class="s">"    {etap:12} {interviews.count_documents({**nedelya, 'stage': etap}):2}"</span>)
+<span class="f">print</span>(f<span class="s">"  очно: {interviews.count_documents({**nedelya, 'format': 'очно'})}, "</span>
+      f<span class="s">"видеозвонком: {interviews.count_documents({**nedelya, 'format': 'видеозвонок'})}"</span>)
+
+<span class="c"># ── 7. Проверка данных ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Проверка данных"</span>)
+
+proverki = [
+    (<span class="s">"резюме без даты обновления"</span>, resumes, {<span class="s">"updated"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}),
+    (<span class="s">"зарплата записана не числом"</span>, resumes, {<span class="s">"salary"</span>: {<span class="s">"$not"</span>: {<span class="s">"$type"</span>: <span class="s">"number"</span>}}}),
+    (<span class="s">"пустой список мест работы"</span>, resumes, {<span class="s">"experience"</span>: {<span class="s">"$size"</span>: <span class="n">0</span>}}),
+    (<span class="s">"нет ни одного навыка"</span>, resumes, {<span class="s">"skills.0"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}),
+    (<span class="s">"перевёрнутая вилка"</span>, vacancies, {<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>]}}),
+    (<span class="s">"вакансия закрыта"</span>, vacancies, {<span class="s">"is_open"</span>: {<span class="s">"$ne"</span>: <span class="k">True</span>}}),
+]
+<span class="k">for</span> nazvanie, col, filtr <span class="k">in</span> proverki:
+    skolko = col.<span class="f">count_documents</span>(filtr)
+    <span class="f">print</span>(f<span class="s">"  {nazvanie:30} {skolko:2}"</span> + (<span class="s">"  ← проверить"</span> <span class="k">if</span> skolko <span class="k">else</span> <span class="s">""</span>))
+
+<span class="c"># ── 8. Кто не подошёл и почему ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> resumes.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"fio"</span>: <span class="n">1</span>, <span class="s">"skills"</span>: <span class="n">1</span>, <span class="s">"salary"</span>: <span class="n">1</span>, <span class="s">"city"</span>: <span class="n">1</span>,
+                             <span class="s">"ready_to_move"</span>: <span class="n">1</span>, <span class="s">"experience"</span>: <span class="n">1</span>}):
+    prichiny = []
+    <span class="k">if</span> <span class="k">not</span> <span class="f">set</span>(NAVYKI) &lt;= <span class="f">set</span>(doc.<span class="f">get</span>(<span class="s">"skills"</span>, [])):
+        prichiny.<span class="f">append</span>(<span class="s">"нет навыков"</span>)
+    <span class="k">if</span> doc[<span class="s">"salary"</span>] &gt; POTOLOK:
+        prichiny.<span class="f">append</span>(<span class="s">"зарплата выше потолка"</span>)
+    <span class="k">if</span> doc[<span class="s">"city"</span>] != GOROD <span class="k">and</span> <span class="k">not</span> doc.<span class="f">get</span>(<span class="s">"ready_to_move"</span>):
+        prichiny.<span class="f">append</span>(<span class="s">"другой город без переезда"</span>)
+    <span class="k">if</span> <span class="k">not</span> <span class="f">any</span>(m.<span class="f">get</span>(<span class="s">"months"</span>, <span class="n">0</span>) &gt;= OPYT_MESYACEV <span class="k">for</span> m <span class="k">in</span> doc.<span class="f">get</span>(<span class="s">"experience"</span>, [])):
+        prichiny.<span class="f">append</span>(<span class="s">"мало опыта"</span>)
+    <span class="k">if</span> prichiny:
+        <span class="f">print</span>(f<span class="s">"  {doc['fio']:18} {'; '.join(prichiny)}"</span>)
+
+client.<span class="f">close</span>()
+</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>scripts/hh_search</span></figcaption>
+<pre><span class="c">// Подбор кандидатов: что умеет язык фильтров из модуля 2.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт решает прикладную задачу на базе hh: подобрать кандидатов под</span>
+<span class="c">// требования вакансии, посмотреть, сколько резюме проходит каждое требование</span>
+<span class="c">// по отдельности, найти подходящие вакансии и проверить данные на пропуски,</span>
+<span class="c">// неверные типы и несогласованные поля.</span>
+<span class="c">//</span>
+<span class="c">//     cd scripts</span>
+<span class="c">//     g++ -std=c++17 hh_search.cpp -o hh_search $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./hh_search</span>
+<span class="c">//</span>
+<span class="c">//     docker compose run --rm cpp scripts/hh_search.cpp    # в контейнере</span>
+
+#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/json.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/collection.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/options/find.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_array;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Строки массива через запятую — для навыков в таблице.</span>
+<span class="k">std</span>::string <span class="f">cherez_zapyatuyu</span>(<span class="k">const</span> bsoncxx::array::view&amp; massiv) {
+    <span class="k">std</span>::string out;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; element : massiv) {
+        <span class="k">if</span> (!out.<span class="f">empty</span>()) out += <span class="s">", "</span>;
+        out += <span class="k">std</span>::<span class="f">string</span>(element.<span class="f">get_string</span>().value);
+    }
+    <span class="k">return</span> out;
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+
+    <span class="k">auto</span> hh = client[<span class="s">"hh"</span>];
+    <span class="k">auto</span> resumes = hh[<span class="s">"resumes"</span>];
+    <span class="k">auto</span> vacancies = hh[<span class="s">"vacancies"</span>];
+    <span class="k">auto</span> interviews = hh[<span class="s">"interviews"</span>];
+
+    <span class="c">// Требования вакансии.</span>
+    <span class="k">const</span> <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; navyki = {<span class="s">"Python"</span>, <span class="s">"SQL"</span>};
+    <span class="k">const</span> <span class="k">std</span>::string gorod = <span class="s">"Ярославль"</span>;
+    <span class="k">const</span> <span class="k">int</span> potolok = <span class="n">100000</span>;
+    <span class="k">const</span> <span class="k">int</span> opyt_mesyacev = <span class="n">6</span>;
+
+    <span class="c">// ── 1. Требования ─────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Требования"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  навыки: "</span> &lt;&lt; navyki[<span class="n">0</span>] &lt;&lt; <span class="s">" и "</span> &lt;&lt; navyki[<span class="n">1</span>] &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  город: "</span> &lt;&lt; gorod &lt;&lt; <span class="s">" или готовность к переезду"</span> &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  зарплата: не больше "</span> &lt;&lt; potolok &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  опыт: место работы от "</span> &lt;&lt; opyt_mesyacev &lt;&lt; <span class="s">" месяцев"</span> &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="k">auto</span> spisok_navykov = <span class="f">make_array</span>(navyki[<span class="n">0</span>], navyki[<span class="n">1</span>]);
+    <span class="k">auto</span> gorod_ili_pereezd = <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, gorod)),
+                                        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ready_to_move"</span>, <span class="k">true</span>)));
+    <span class="k">auto</span> opyt = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$elemMatch"</span>,
+                    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"months"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, opyt_mesyacev))))));
+
+    <span class="c">// ── 2. Каждое требование по отдельности ───────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>);
+
+    <span class="k">auto</span> vsego = resumes.<span class="f">count_documents</span>(<span class="f">make_document</span>());
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; kriterii;
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"навыки $all"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$all"</span>, spisok_navykov)))));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"город или переезд $or"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$or"</span>, gorod_ili_pereezd)));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"зарплата $lte"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, potolok)))));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"опыт $elemMatch"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, opyt)));
+    kriterii.<span class="f">emplace_back</span>(<span class="s">"есть контакты $exists"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"contacts"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>)))));
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; kriteriy : kriterii) {
+        <span class="k">auto</span> skolko = resumes.<span class="f">count_documents</span>(kriteriy.second.<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(kriteriy.first, <span class="n">24</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(skolko), <span class="n">2</span>)
+                  &lt;&lt; <span class="s">" из "</span> &lt;&lt; vsego &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 3. Все требования сразу ───────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>);
+
+    <span class="k">auto</span> filtr = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"skills"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$all"</span>, spisok_navykov))),
+        <span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, potolok))),
+        <span class="f">kvp</span>(<span class="s">"experience"</span>, opyt),
+        <span class="f">kvp</span>(<span class="s">"$or"</span>, gorod_ili_pereezd));
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"ФИО"</span>, <span class="n">18</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>) &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; <span class="f">right</span>(<span class="s">"зарплата"</span>, <span class="n">9</span>) &lt;&lt; <span class="s">"  навыки"</span> &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::options::find options;
+    options.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : resumes.<span class="f">find</span>(filtr.<span class="f">view</span>(), options)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"fio"</span>].<span class="f">get_string</span>().value), <span class="n">18</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"city"</span>].<span class="f">get_string</span>().value), <span class="n">16</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(doc[<span class="s">"salary"</span>].<span class="f">get_int32</span>().value), <span class="n">9</span>)
+                  &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">cherez_zapyatuyu</span>(doc[<span class="s">"skills"</span>].<span class="f">get_array</span>().value) &lt;&lt; <span class="k">std</span>::endl;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  подошло: "</span> &lt;&lt; resumes.<span class="f">count_documents</span>(filtr.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 4. Поиск по части строки ──────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>);
+
+    <span class="k">auto</span> shablon = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"position"</span>,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"^junior"</span>), <span class="f">kvp</span>(<span class="s">"$options"</span>, <span class="s">"i"</span>))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : resumes.<span class="f">find</span>(shablon.<span class="f">view</span>())) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"fio"</span>].<span class="f">get_string</span>().value), <span class="n">18</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"position"</span>].<span class="f">get_string</span>().value) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 5. Подходящие вакансии ────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>);
+
+    <span class="k">const</span> <span class="k">int</span> ozhidanie = <span class="n">90000</span>;
+    <span class="k">auto</span> vilka = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"salary.from"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, ozhidanie))),
+        <span class="f">kvp</span>(<span class="s">"salary.to"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, ozhidanie))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : vacancies.<span class="f">find</span>(vilka.<span class="f">view</span>())) {
+        <span class="k">auto</span> zarplata = doc[<span class="s">"salary"</span>].<span class="f">get_document</span>().value;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value), <span class="n">26</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"company"</span>].<span class="f">get_string</span>().value), <span class="n">16</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"city"</span>].<span class="f">get_string</span>().value), <span class="n">16</span>)
+                  &lt;&lt; <span class="s">" "</span> &lt;&lt; zarplata[<span class="s">"from"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">"–"</span>
+                  &lt;&lt; zarplata[<span class="s">"to"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="k">std</span>::endl;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  подходит вакансий: "</span> &lt;&lt; vacancies.<span class="f">count_documents</span>(vilka.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 6. Собеседования за неделю ────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>);
+
+    <span class="k">auto</span> sep21 = bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{<span class="n">1789948800000</span>}};  <span class="c">// 21.09.2026 00:00 UTC</span>
+    <span class="k">auto</span> sep28 = bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{<span class="n">1790553600000</span>}};  <span class="c">// 28.09.2026 00:00 UTC</span>
+    <span class="k">auto</span> nedelya = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  всего за неделю: "</span> &lt;&lt; interviews.<span class="f">count_documents</span>(nedelya.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">std</span>::string&amp; etap : {<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>}) {
+        <span class="k">auto</span> filtr_etapa = <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))),
+            <span class="f">kvp</span>(<span class="s">"stage"</span>, etap));
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"    "</span> &lt;&lt; <span class="f">pad</span>(etap, <span class="n">12</span>) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(interviews.<span class="f">count_documents</span>(filtr_etapa.<span class="f">view</span>())), <span class="n">2</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+    <span class="k">auto</span> ochno = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))),
+                               <span class="f">kvp</span>(<span class="s">"format"</span>, <span class="s">"очно"</span>));
+    <span class="k">auto</span> video = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"when"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, sep21), <span class="f">kvp</span>(<span class="s">"$lt"</span>, sep28))),
+                               <span class="f">kvp</span>(<span class="s">"format"</span>, <span class="s">"видеозвонок"</span>));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  очно: "</span> &lt;&lt; interviews.<span class="f">count_documents</span>(ochno.<span class="f">view</span>())
+              &lt;&lt; <span class="s">", видеозвонком: "</span> &lt;&lt; interviews.<span class="f">count_documents</span>(video.<span class="f">view</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 7. Проверка данных ────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Проверка данных"</span>);
+
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::tuple&lt;<span class="k">std</span>::string, mongocxx::collection, bsoncxx::document::value&gt;&gt; proverki;
+    proverki.<span class="f">emplace_back</span>(<span class="s">"резюме без даты обновления"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"updated"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>)))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"зарплата записана не числом"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"salary"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$not"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$type"</span>, <span class="s">"number"</span>)))))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"пустой список мест работы"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"experience"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">0</span>)))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"нет ни одного навыка"</span>, resumes,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"skills.0"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>)))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"перевёрнутая вилка"</span>, vacancies,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>))))));
+    proverki.<span class="f">emplace_back</span>(<span class="s">"вакансия закрыта"</span>, vacancies,
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"is_open"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ne"</span>, <span class="k">true</span>)))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp; proverka : proverki) {
+        <span class="k">auto</span> skolko = <span class="k">std</span>::get&lt;<span class="n">1</span>&gt;(proverka).<span class="f">count_documents</span>(<span class="k">std</span>::get&lt;<span class="n">2</span>&gt;(proverka).<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::get&lt;<span class="n">0</span>&gt;(proverka), <span class="n">30</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="k">std</span>::<span class="f">to_string</span>(skolko), <span class="n">2</span>)
+                  &lt;&lt; (skolko ? <span class="s">"  ← проверить"</span> : <span class="s">""</span>) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 8. Кто не подошёл и почему ────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>);
+
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : resumes.<span class="f">find</span>(<span class="f">make_document</span>())) {
+        <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; prichiny;
+        <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; nuzhen : navyki) {
+            <span class="k">bool</span> est = <span class="k">false</span>;
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; navyk : doc[<span class="s">"skills"</span>].<span class="f">get_array</span>().value)
+                <span class="k">if</span> (<span class="k">std</span>::<span class="f">string</span>(navyk.<span class="f">get_string</span>().value) == nuzhen) est = <span class="k">true</span>;
+            <span class="k">if</span> (!est) { prichiny.<span class="f">push_back</span>(<span class="s">"нет навыков"</span>); break; }
+        }
+        <span class="k">if</span> (doc[<span class="s">"salary"</span>].<span class="f">get_int32</span>().value &gt; potolok) prichiny.<span class="f">push_back</span>(<span class="s">"зарплата выше потолка"</span>);
+        <span class="k">bool</span> gotov = doc[<span class="s">"ready_to_move"</span>] &amp;&amp; doc[<span class="s">"ready_to_move"</span>].<span class="f">get_bool</span>().value;
+        <span class="k">if</span> (<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"city"</span>].<span class="f">get_string</span>().value) != gorod &amp;&amp; !gotov)
+            prichiny.<span class="f">push_back</span>(<span class="s">"другой город без переезда"</span>);
+        <span class="k">bool</span> hvatit_opyta = <span class="k">false</span>;
+        <span class="k">if</span> (doc[<span class="s">"experience"</span>])
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; mesto : doc[<span class="s">"experience"</span>].<span class="f">get_array</span>().value)
+                <span class="k">if</span> (mesto.<span class="f">get_document</span>().value[<span class="s">"months"</span>].<span class="f">get_int32</span>().value &gt;= opyt_mesyacev)
+                    hvatit_opyta = <span class="k">true</span>;
+        <span class="k">if</span> (!hvatit_opyta) prichiny.<span class="f">push_back</span>(<span class="s">"мало опыта"</span>);
+        <span class="k">if</span> (!prichiny.<span class="f">empty</span>()) {
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::<span class="f">string</span>(doc[<span class="s">"fio"</span>].<span class="f">get_string</span>().value), <span class="n">18</span>) &lt;&lt; <span class="s">" "</span>;
+            <span class="k">for</span> (size_t i = <span class="n">0</span>; i &lt; prichiny.<span class="f">size</span>(); ++i)
+                <span class="k">std</span>::cout &lt;&lt; (i ? <span class="s">"; "</span> : <span class="s">""</span>) &lt;&lt; prichiny[i];
+            <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+        }
+    }
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>scripts/hh_search</span></figcaption>
+<pre><span class="c">// Подбор кандидатов: что умеет язык фильтров из модуля 2.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт решает прикладную задачу на базе hh: подобрать кандидатов под</span>
+<span class="c">// требования вакансии, посмотреть, сколько резюме проходит каждое требование</span>
+<span class="c">// по отдельности, найти подходящие вакансии и проверить данные на пропуски,</span>
+<span class="c">// неверные типы и несогласованные поля.</span>
+<span class="c">//</span>
+<span class="c">//	cd scripts</span>
+<span class="c">//	go run hh_search.go</span>
+<span class="c">//</span>
+<span class="c">//	docker compose run --rm go scripts/hh_search.go    # в контейнере</span>
+<span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"time"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="c">// Resume — поля резюме, которые читает отбор.</span>
+<span class="k">type</span> Resume <span class="k">struct</span> {
+	Fio         <span class="k">string</span>   `bson:<span class="s">"fio"</span>`
+	Position    <span class="k">string</span>   `bson:<span class="s">"position"</span>`
+	City        <span class="k">string</span>   `bson:<span class="s">"city"</span>`
+	Salary      <span class="k">int</span>      `bson:<span class="s">"salary"</span>`
+	ReadyToMove <span class="k">bool</span>     `bson:<span class="s">"ready_to_move"</span>`
+	Skills      []<span class="k">string</span> `bson:<span class="s">"skills"</span>`
+	Experience  []<span class="k">struct</span> {
+		Company <span class="k">string</span> `bson:<span class="s">"company"</span>`
+		Role    <span class="k">string</span> `bson:<span class="s">"role"</span>`
+		Months  <span class="k">int</span>    `bson:<span class="s">"months"</span>`
+	} `bson:<span class="s">"experience"</span>`
+}
+
+<span class="c">// Vacancy — вакансия с вилкой зарплаты во вложенном документе.</span>
+<span class="k">type</span> Vacancy <span class="k">struct</span> {
+	Title   <span class="k">string</span> `bson:<span class="s">"title"</span>`
+	Company <span class="k">string</span> `bson:<span class="s">"company"</span>`
+	City    <span class="k">string</span> `bson:<span class="s">"city"</span>`
+	Salary  <span class="k">struct</span> {
+		From <span class="k">int</span> `bson:<span class="s">"from"</span>`
+		To   <span class="k">int</span> `bson:<span class="s">"to"</span>`
+	} `bson:<span class="s">"salary"</span>`
+}
+
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">right</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n) + text
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="c">// Требования вакансии.</span>
+<span class="k">var</span> (
+	navyki       = []<span class="k">string</span>{<span class="s">"Python"</span>, <span class="s">"SQL"</span>}
+	gorod        = <span class="s">"Ярославль"</span>
+	potolok      = <span class="n">100000</span>
+	opytMesyacev = <span class="n">6</span>
+)
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	ctx := context.<span class="f">Background</span>()
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+	hh := client.<span class="f">Database</span>(<span class="s">"hh"</span>)
+	resumes := hh.<span class="f">Collection</span>(<span class="s">"resumes"</span>)
+	vacancies := hh.<span class="f">Collection</span>(<span class="s">"vacancies"</span>)
+	interviews := hh.<span class="f">Collection</span>(<span class="s">"interviews"</span>)
+
+	<span class="c">// ── 1. Требования ─────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Требования"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  навыки: %s\n"</span>, strings.<span class="f">Join</span>(navyki, <span class="s">" и "</span>))
+	fmt.<span class="f">Printf</span>(<span class="s">"  город: %s или готовность к переезду\n"</span>, gorod)
+	fmt.<span class="f">Printf</span>(<span class="s">"  зарплата: не больше %d\n"</span>, potolok)
+	fmt.<span class="f">Printf</span>(<span class="s">"  опыт: место работы от %d месяцев\n"</span>, opytMesyacev)
+
+	spisokNavykov := bson.A{}
+	<span class="k">for</span> _, n := <span class="k">range</span> navyki {
+		spisokNavykov = <span class="k">append</span>(spisokNavykov, n)
+	}
+	gorodIliPereezd := bson.A{
+		bson.D{{Key: <span class="s">"city"</span>, Value: gorod}},
+		bson.D{{Key: <span class="s">"ready_to_move"</span>, Value: <span class="k">true</span>}},
+	}
+	opyt := bson.D{{Key: <span class="s">"$elemMatch"</span>, Value: bson.D{
+		{Key: <span class="s">"months"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: opytMesyacev}}}}}}
+
+	<span class="c">// ── 2. Каждое требование по отдельности ───────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>)
+
+	vsego, _ := resumes.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	kriterii := []<span class="k">struct</span> {
+		nazvanie <span class="k">string</span>
+		filtr    bson.D
+	}{
+		{<span class="s">"навыки $all"</span>, bson.D{{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$all"</span>, Value: spisokNavykov}}}}},
+		{<span class="s">"город или переезд $or"</span>, bson.D{{Key: <span class="s">"$or"</span>, Value: gorodIliPereezd}}},
+		{<span class="s">"зарплата $lte"</span>, bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: potolok}}}}},
+		{<span class="s">"опыт $elemMatch"</span>, bson.D{{Key: <span class="s">"experience"</span>, Value: opyt}}},
+		{<span class="s">"есть контакты $exists"</span>, bson.D{{Key: <span class="s">"contacts"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}}},
+	}
+	<span class="k">for</span> _, k := <span class="k">range</span> kriterii {
+		skolko, _ := resumes.<span class="f">CountDocuments</span>(ctx, k.filtr)
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s из %d\n"</span>, <span class="f">pad</span>(k.nazvanie, <span class="n">24</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>), vsego)
+	}
+
+	<span class="c">// ── 3. Все требования сразу ───────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>)
+
+	filtr := bson.D{
+		{Key: <span class="s">"skills"</span>, Value: bson.D{{Key: <span class="s">"$all"</span>, Value: spisokNavykov}}},
+		{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: potolok}}},
+		{Key: <span class="s">"experience"</span>, Value: opyt},
+		{Key: <span class="s">"$or"</span>, Value: gorodIliPereezd},
+	}
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s  навыки\n"</span>, <span class="f">pad</span>(<span class="s">"ФИО"</span>, <span class="n">18</span>), <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>), <span class="f">right</span>(<span class="s">"зарплата"</span>, <span class="n">9</span>))
+	cursor, _ := resumes.<span class="f">Find</span>(ctx, filtr, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"salary"</span>, Value: <span class="n">1</span>}}))
+	<span class="k">var</span> podoshli []Resume
+	cursor.<span class="f">All</span>(ctx, &amp;podoshli)
+	<span class="k">for</span> _, r := <span class="k">range</span> podoshli {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s  %s\n"</span>, <span class="f">pad</span>(r.Fio, <span class="n">18</span>), <span class="f">pad</span>(r.City, <span class="n">16</span>),
+			<span class="f">right</span>(fmt.<span class="f">Sprint</span>(r.Salary), <span class="n">9</span>), strings.<span class="f">Join</span>(r.Skills, <span class="s">", "</span>))
+	}
+	fmt.<span class="f">Println</span>(<span class="s">"  подошло:"</span>, <span class="f">len</span>(podoshli))
+
+	<span class="c">// ── 4. Поиск по части строки ──────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>)
+
+	cursor, _ = resumes.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"position"</span>, Value: bson.D{
+		{Key: <span class="s">"$regex"</span>, Value: <span class="s">"^junior"</span>}, {Key: <span class="s">"$options"</span>, Value: <span class="s">"i"</span>}}}})
+	<span class="k">var</span> junior []Resume
+	cursor.<span class="f">All</span>(ctx, &amp;junior)
+	<span class="k">for</span> _, r := <span class="k">range</span> junior {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s\n"</span>, <span class="f">pad</span>(r.Fio, <span class="n">18</span>), r.Position)
+	}
+
+	<span class="c">// ── 5. Подходящие вакансии ────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>)
+
+	ozhidanie := <span class="n">90000</span>
+	vilka := bson.D{
+		{Key: <span class="s">"salary.from"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: ozhidanie}}},
+		{Key: <span class="s">"salary.to"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: ozhidanie}}},
+	}
+	cursor, _ = vacancies.<span class="f">Find</span>(ctx, vilka)
+	<span class="k">var</span> podhodyat []Vacancy
+	cursor.<span class="f">All</span>(ctx, &amp;podhodyat)
+	<span class="k">for</span> _, v := <span class="k">range</span> podhodyat {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s %s %d–%d\n"</span>, <span class="f">pad</span>(v.Title, <span class="n">26</span>), <span class="f">pad</span>(v.Company, <span class="n">16</span>), <span class="f">pad</span>(v.City, <span class="n">16</span>),
+			v.Salary.From, v.Salary.To)
+	}
+	fmt.<span class="f">Println</span>(<span class="s">"  подходит вакансий:"</span>, <span class="f">len</span>(podhodyat))
+
+	<span class="c">// ── 6. Собеседования за неделю ────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>)
+
+	sep21 := time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">21</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+	sep28 := time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">28</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+	nedelya := bson.D{{Key: <span class="s">"when"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: sep21}, {Key: <span class="s">"$lt"</span>, Value: sep28}}}}
+	zaNedelyu, _ := interviews.<span class="f">CountDocuments</span>(ctx, nedelya)
+	fmt.<span class="f">Println</span>(<span class="s">"  всего за неделю:"</span>, zaNedelyu)
+	<span class="c">// К общему фильтру добавляем условие копией: append по общему срезу</span>
+	<span class="c">// может перезаписать данные соседних вызовов.</span>
+	sUsloviem := <span class="k">func</span>(key, value <span class="k">string</span>) bson.D {
+		<span class="k">return</span> <span class="k">append</span>(<span class="k">append</span>(bson.D{}, nedelya...), bson.E{Key: key, Value: value})
+	}
+	<span class="k">for</span> _, etap := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>} {
+		skolko, _ := interviews.<span class="f">CountDocuments</span>(ctx, <span class="f">sUsloviem</span>(<span class="s">"stage"</span>, etap))
+		fmt.<span class="f">Printf</span>(<span class="s">"    %s %s\n"</span>, <span class="f">pad</span>(etap, <span class="n">12</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>))
+	}
+	ochno, _ := interviews.<span class="f">CountDocuments</span>(ctx, <span class="f">sUsloviem</span>(<span class="s">"format"</span>, <span class="s">"очно"</span>))
+	video, _ := interviews.<span class="f">CountDocuments</span>(ctx, <span class="f">sUsloviem</span>(<span class="s">"format"</span>, <span class="s">"видеозвонок"</span>))
+	fmt.<span class="f">Printf</span>(<span class="s">"  очно: %d, видеозвонком: %d\n"</span>, ochno, video)
+
+	<span class="c">// ── 7. Проверка данных ────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Проверка данных"</span>)
+
+	proverki := []<span class="k">struct</span> {
+		nazvanie <span class="k">string</span>
+		col      *mongo.Collection
+		filtr    bson.D
+	}{
+		{<span class="s">"резюме без даты обновления"</span>, resumes,
+			bson.D{{Key: <span class="s">"updated"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}}},
+		{<span class="s">"зарплата записана не числом"</span>, resumes,
+			bson.D{{Key: <span class="s">"salary"</span>, Value: bson.D{{Key: <span class="s">"$not"</span>, Value: bson.D{{Key: <span class="s">"$type"</span>, Value: <span class="s">"number"</span>}}}}}}},
+		{<span class="s">"пустой список мест работы"</span>, resumes,
+			bson.D{{Key: <span class="s">"experience"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">0</span>}}}}},
+		{<span class="s">"нет ни одного навыка"</span>, resumes,
+			bson.D{{Key: <span class="s">"skills.0"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}}},
+		{<span class="s">"перевёрнутая вилка"</span>, vacancies,
+			bson.D{{Key: <span class="s">"$expr"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>}}}}}},
+		{<span class="s">"вакансия закрыта"</span>, vacancies,
+			bson.D{{Key: <span class="s">"is_open"</span>, Value: bson.D{{Key: <span class="s">"$ne"</span>, Value: <span class="k">true</span>}}}}},
+	}
+	<span class="k">for</span> _, p := <span class="k">range</span> proverki {
+		skolko, _ := p.col.<span class="f">CountDocuments</span>(ctx, p.filtr)
+		pometka := <span class="s">""</span>
+		<span class="k">if</span> skolko &gt; <span class="n">0</span> {
+			pometka = <span class="s">"  ← проверить"</span>
+		}
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s%s\n"</span>, <span class="f">pad</span>(p.nazvanie, <span class="n">30</span>), <span class="f">right</span>(fmt.<span class="f">Sprint</span>(skolko), <span class="n">2</span>), pometka)
+	}
+
+	<span class="c">// ── 8. Кто не подошёл и почему ────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>)
+
+	cursor, _ = resumes.<span class="f">Find</span>(ctx, bson.D{})
+	<span class="k">var</span> vse []Resume
+	cursor.<span class="f">All</span>(ctx, &amp;vse)
+	<span class="k">for</span> _, r := <span class="k">range</span> vse {
+		<span class="k">var</span> prichiny []<span class="k">string</span>
+		<span class="k">for</span> _, nuzhen := <span class="k">range</span> navyki {
+			est := <span class="k">false</span>
+			<span class="k">for</span> _, navyk := <span class="k">range</span> r.Skills {
+				<span class="k">if</span> navyk == nuzhen {
+					est = <span class="k">true</span>
+				}
+			}
+			<span class="k">if</span> !est {
+				prichiny = <span class="k">append</span>(prichiny, <span class="s">"нет навыков"</span>)
+				break
+			}
+		}
+		<span class="k">if</span> r.Salary &gt; potolok {
+			prichiny = <span class="k">append</span>(prichiny, <span class="s">"зарплата выше потолка"</span>)
+		}
+		<span class="k">if</span> r.City != gorod &amp;&amp; !r.ReadyToMove {
+			prichiny = <span class="k">append</span>(prichiny, <span class="s">"другой город без переезда"</span>)
+		}
+		hvatitOpyta := <span class="k">false</span>
+		<span class="k">for</span> _, mesto := <span class="k">range</span> r.Experience {
+			<span class="k">if</span> mesto.Months &gt;= opytMesyacev {
+				hvatitOpyta = <span class="k">true</span>
+			}
+		}
+		<span class="k">if</span> !hvatitOpyta {
+			prichiny = <span class="k">append</span>(prichiny, <span class="s">"мало опыта"</span>)
+		}
+		<span class="k">if</span> <span class="f">len</span>(prichiny) &gt; <span class="n">0</span> {
+			fmt.<span class="f">Printf</span>(<span class="s">"  %s %s\n"</span>, <span class="f">pad</span>(r.Fio, <span class="n">18</span>), strings.<span class="f">Join</span>(prichiny, <span class="s">"; "</span>))
+		}
+	}
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>scripts/hh_search</span></figcaption>
+<pre><span class="c"># Подбор кандидатов: что умеет язык фильтров из модуля 2.</span>
+<span class="c">#</span>
+<span class="c"># Скрипт решает прикладную задачу на базе hh: подобрать кандидатов под</span>
+<span class="c"># требования вакансии, посмотреть, сколько резюме проходит каждое требование</span>
+<span class="c"># по отдельности, найти подходящие вакансии и проверить данные на пропуски,</span>
+<span class="c"># неверные типы и несогласованные поля.</span>
+<span class="c">#</span>
+<span class="c">#     cd scripts</span>
+<span class="c">#     ruby hh_search.rb</span>
+<span class="c">#</span>
+<span class="c">#     docker compose run --rm ruby scripts/hh_search.rb    # в контейнере</span>
+
+<span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+hh = client.<span class="f">use</span>(<span class="s">"hh"</span>).database
+resumes = hh[:resumes]
+vacancies = hh[:vacancies]
+interviews = hh[:interviews]
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="f">pad</span>(text, width)
+  text.to_s.<span class="f">ljust</span>(width)
+<span class="k">end</span>
+
+<span class="c"># ── 1. Требования вакансии ────────────────────────────────────────────────</span>
+NAVYKI = [<span class="s">"Python"</span>, <span class="s">"SQL"</span>].<span class="k">freeze</span>
+GOROD = <span class="s">"Ярославль"</span>
+POTOLOK = <span class="n">100_000</span>
+OPYT_MESYACEV = <span class="n">6</span>
+
+<span class="f">title</span>(<span class="s">"1. Требования"</span>)
+<span class="k">puts</span> <span class="s">"  навыки: #{NAVYKI.join(' и ')}"</span>
+<span class="k">puts</span> <span class="s">"  город: #{GOROD} или готовность к переезду"</span>
+<span class="k">puts</span> <span class="s">"  зарплата: не больше #{POTOLOK}"</span>
+<span class="k">puts</span> <span class="s">"  опыт: место работы от #{OPYT_MESYACEV} месяцев"</span>
+
+<span class="c"># ── 2. Каждое требование по отдельности ───────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Сколько резюме проходит каждое требование"</span>)
+
+kriterii = [
+  [<span class="s">"навыки $all"</span>, { <span class="s">"skills"</span> =&gt; { <span class="s">"$all"</span> =&gt; NAVYKI } }],
+  [<span class="s">"город или переезд $or"</span>, { <span class="s">"$or"</span> =&gt; [{ <span class="s">"city"</span> =&gt; GOROD }, { <span class="s">"ready_to_move"</span> =&gt; <span class="k">true</span> }] }],
+  [<span class="s">"зарплата $lte"</span>, { <span class="s">"salary"</span> =&gt; { <span class="s">"$lte"</span> =&gt; POTOLOK } }],
+  [<span class="s">"опыт $elemMatch"</span>, { <span class="s">"experience"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; { <span class="s">"months"</span> =&gt; { <span class="s">"$gte"</span> =&gt; OPYT_MESYACEV } } } }],
+  [<span class="s">"есть контакты $exists"</span>, { <span class="s">"contacts"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } }],
+]
+vsego = resumes.<span class="f">count_documents</span>({})
+kriterii.<span class="k">each</span> <span class="k">do</span> |nazvanie, filtr|
+  <span class="k">puts</span> <span class="s">"  #{pad(nazvanie, 24)} #{resumes.count_documents(filtr).to_s.rjust(2)} из #{vsego}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 3. Все требования сразу ───────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Кандидаты, проходящие все требования"</span>)
+
+filtr = {
+  <span class="s">"skills"</span> =&gt; { <span class="s">"$all"</span> =&gt; NAVYKI },
+  <span class="s">"salary"</span> =&gt; { <span class="s">"$lte"</span> =&gt; POTOLOK },
+  <span class="s">"experience"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; { <span class="s">"months"</span> =&gt; { <span class="s">"$gte"</span> =&gt; OPYT_MESYACEV } } },
+  <span class="s">"$or"</span> =&gt; [{ <span class="s">"city"</span> =&gt; GOROD }, { <span class="s">"ready_to_move"</span> =&gt; <span class="k">true</span> }],
+}
+<span class="k">puts</span> <span class="s">"  #{pad('ФИО', 18)} #{pad('город', 16)} #{'зарплата'.rjust(9)}  навыки"</span>
+resumes.<span class="f">find</span>(filtr).<span class="f">sort</span>({ <span class="s">"salary"</span> =&gt; <span class="n">1</span> }).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['fio'], 18)} #{pad(doc['city'], 16)} #{doc['salary'].to_s.rjust(9)}  #{doc['skills'].join(', ')}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  подошло: #{resumes.count_documents(filtr)}"</span>
+
+<span class="c"># ── 4. Поиск по части строки ──────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Должности, начинающиеся с Junior"</span>)
+
+resumes.<span class="f">find</span>({ <span class="s">"position"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"^junior"</span>, <span class="s">"$options"</span> =&gt; <span class="s">"i"</span> } },
+             projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"position"</span> =&gt; <span class="n">1</span> })
+       .<span class="k">each</span> { |doc| <span class="k">puts</span> <span class="s">"  #{pad(doc['fio'], 18)} #{doc['position']}"</span> }
+
+<span class="c"># ── 5. Подходящие вакансии ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Вакансии под ожидание 90 000"</span>)
+
+OZHIDANIE = <span class="n">90_000</span>
+vilka = { <span class="s">"salary.from"</span> =&gt; { <span class="s">"$lte"</span> =&gt; OZHIDANIE }, <span class="s">"salary.to"</span> =&gt; { <span class="s">"$gte"</span> =&gt; OZHIDANIE } }
+vacancies.<span class="f">find</span>(vilka, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"company"</span> =&gt; <span class="n">1</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span> })
+         .<span class="k">each</span> <span class="k">do</span> |doc|
+  zarplata = doc[<span class="s">"salary"</span>]
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['title'], 26)} #{pad(doc['company'], 16)} #{pad(doc['city'], 16)} "</span> \
+       <span class="s">"#{zarplata['from']}–#{zarplata['to']}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  подходит вакансий: #{vacancies.count_documents(vilka)}"</span>
+
+<span class="c"># ── 6. Собеседования за неделю ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Собеседования с 21 по 27 сентября"</span>)
+
+nedelya = { <span class="s">"when"</span> =&gt; { <span class="s">"$gte"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">21</span>), <span class="s">"$lt"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">28</span>) } }
+<span class="k">puts</span> <span class="s">"  всего за неделю: #{interviews.count_documents(nedelya)}"</span>
+[<span class="s">"скрининг"</span>, <span class="s">"техническое"</span>, <span class="s">"финальное"</span>].<span class="k">each</span> <span class="k">do</span> |etap|
+  <span class="k">puts</span> <span class="s">"    #{pad(etap, 12)} #{interviews.count_documents(nedelya.merge('stage' =&gt; etap)).to_s.rjust(2)}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  очно: #{interviews.count_documents(nedelya.merge('format' =&gt; 'очно'))}, "</span> \
+     <span class="s">"видеозвонком: #{interviews.count_documents(nedelya.merge('format' =&gt; 'видеозвонок'))}"</span>
+
+<span class="c"># ── 7. Проверка данных ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Проверка данных"</span>)
+
+proverki = [
+  [<span class="s">"резюме без даты обновления"</span>, resumes, { <span class="s">"updated"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }],
+  [<span class="s">"зарплата записана не числом"</span>, resumes, { <span class="s">"salary"</span> =&gt; { <span class="s">"$not"</span> =&gt; { <span class="s">"$type"</span> =&gt; <span class="s">"number"</span> } } }],
+  [<span class="s">"пустой список мест работы"</span>, resumes, { <span class="s">"experience"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">0</span> } }],
+  [<span class="s">"нет ни одного навыка"</span>, resumes, { <span class="s">"skills.0"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }],
+  [<span class="s">"перевёрнутая вилка"</span>, vacancies, { <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$salary.from"</span>, <span class="s">"$salary.to"</span>] } }],
+  [<span class="s">"вакансия закрыта"</span>, vacancies, { <span class="s">"is_open"</span> =&gt; { <span class="s">"$ne"</span> =&gt; <span class="k">true</span> } }],
+]
+proverki.<span class="k">each</span> <span class="k">do</span> |nazvanie, col, filtr_proverki|
+  skolko = col.<span class="f">count_documents</span>(filtr_proverki)
+  <span class="k">puts</span> <span class="s">"  #{pad(nazvanie, 30)} #{skolko.to_s.rjust(2)}#{skolko.zero? ? '' : '  ← проверить'}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 8. Кто не подошёл и почему ────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Кто не прошёл отбор"</span>)
+
+resumes.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"fio"</span> =&gt; <span class="n">1</span>, <span class="s">"skills"</span> =&gt; <span class="n">1</span>, <span class="s">"salary"</span> =&gt; <span class="n">1</span>,
+                               <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"ready_to_move"</span> =&gt; <span class="n">1</span>, <span class="s">"experience"</span> =&gt; <span class="n">1</span> }).<span class="k">each</span> <span class="k">do</span> |doc|
+  prichiny = []
+  prichiny &lt;&lt; <span class="s">"нет навыков"</span> <span class="k">unless</span> (NAVYKI - (doc[<span class="s">"skills"</span>] || [])).empty?
+  prichiny &lt;&lt; <span class="s">"зарплата выше потолка"</span> <span class="k">if</span> doc[<span class="s">"salary"</span>] &gt; POTOLOK
+  prichiny &lt;&lt; <span class="s">"другой город без переезда"</span> <span class="k">if</span> doc[<span class="s">"city"</span>] != GOROD &amp;&amp; !doc[<span class="s">"ready_to_move"</span>]
+  prichiny &lt;&lt; <span class="s">"мало опыта"</span> <span class="k">unless</span> (doc[<span class="s">"experience"</span>] || []).any? { |m| (m[<span class="s">"months"</span>] || <span class="n">0</span>) &gt;= OPYT_MESYACEV }
+  <span class="k">puts</span> <span class="s">"  #{pad(doc['fio'], 18)} #{prichiny.join('; ')}"</span> <span class="k">unless</span> prichiny.empty?
+<span class="k">end</span>
+
+client.close
+</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Требования
+─────────────
+  навыки: Python и SQL
+  город: Ярославль или готовность к переезду
+  зарплата: не больше 100000
+  опыт: место работы от 6 месяцев
+
+2. Сколько резюме проходит каждое требование
+────────────────────────────────────────────
+  навыки $all               4 из 9
+  город или переезд $or     8 из 9
+  зарплата $lte             5 из 9
+  опыт $elemMatch           6 из 9
+  есть контакты $exists     8 из 9
+
+3. Кандидаты, проходящие все требования
+───────────────────────────────────────
+  ФИО                город             зарплата  навыки
+  Пётр Ковалёв       Ярославль            70000  Python, SQL, Git, Docker
+  подошло: 1
+
+4. Должности, начинающиеся с Junior
+───────────────────────────────────
+  Анна Белова        Junior Python-разработчик
+  Пётр Ковалёв       Junior Python-разработчик
+  Дарья Нечаева      Junior Frontend-разработчик
+  Марк Ефремов       Junior Python-разработчик
+
+5. Вакансии под ожидание 90 000
+───────────────────────────────
+  Junior Python-разработчик  Тензор           Ярославль        60000–90000
+  Тестировщик                МедСофт          Казань           70000–95000
+  Frontend-разработчик       Retail Lab       Санкт-Петербург  90000–140000
+  Инженер сопровождения БД   ЯрКом            Ярославль        80000–120000
+  подходит вакансий: 4
+
+6. Собеседования с 21 по 27 сентября
+────────────────────────────────────
+  всего за неделю: 22
+    скрининг      4
+    техническое   7
+    финальное    11
+  очно: 12, видеозвонком: 10
+
+7. Проверка данных
+──────────────────
+  резюме без даты обновления      1  ← проверить
+  зарплата записана не числом     0
+  пустой список мест работы       1  ← проверить
+  нет ни одного навыка            0
+  перевёрнутая вилка              0
+  вакансия закрыта                0
+
+8. Кто не прошёл отбор
+──────────────────────
+  Анна Белова        нет навыков; мало опыта
+  Алина Дроздова     зарплата выше потолка
+  Игорь Самойлов     нет навыков; зарплата выше потолка
+  Дарья Нечаева      нет навыков; мало опыта
+  Тимур Валиев       нет навыков; зарплата выше потолка; другой город без переезда
+  Ксения Лапина      мало опыта
+  Марк Ефремов       нет навыков
+  Ольга Пирогова     зарплата выше потолка</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Требования
+─────────────
+  навыки: Python и SQL
+  город: Ярославль или готовность к переезду
+  зарплата: не больше 100000
+  опыт: место работы от 6 месяцев
+
+2. Сколько резюме проходит каждое требование
+────────────────────────────────────────────
+  навыки $all               4 из 9
+  город или переезд $or     8 из 9
+  зарплата $lte             5 из 9
+  опыт $elemMatch           6 из 9
+  есть контакты $exists     8 из 9
+
+3. Кандидаты, проходящие все требования
+───────────────────────────────────────
+  ФИО                город             зарплата  навыки
+  Пётр Ковалёв       Ярославль            70000  Python, SQL, Git, Docker
+  подошло: 1
+
+4. Должности, начинающиеся с Junior
+───────────────────────────────────
+  Анна Белова        Junior Python-разработчик
+  Пётр Ковалёв       Junior Python-разработчик
+  Дарья Нечаева      Junior Frontend-разработчик
+  Марк Ефремов       Junior Python-разработчик
+
+5. Вакансии под ожидание 90 000
+───────────────────────────────
+  Junior Python-разработчик  Тензор           Ярославль        60000–90000
+  Тестировщик                МедСофт          Казань           70000–95000
+  Frontend-разработчик       Retail Lab       Санкт-Петербург  90000–140000
+  Инженер сопровождения БД   ЯрКом            Ярославль        80000–120000
+  подходит вакансий: 4
+
+6. Собеседования с 21 по 27 сентября
+────────────────────────────────────
+  всего за неделю: 22
+    скрининг      4
+    техническое   7
+    финальное    11
+  очно: 12, видеозвонком: 10
+
+7. Проверка данных
+──────────────────
+  резюме без даты обновления      1  ← проверить
+  зарплата записана не числом     0
+  пустой список мест работы       1  ← проверить
+  нет ни одного навыка            0
+  перевёрнутая вилка              0
+  вакансия закрыта                0
+
+8. Кто не прошёл отбор
+──────────────────────
+  Анна Белова        нет навыков; мало опыта
+  Алина Дроздова     зарплата выше потолка
+  Игорь Самойлов     нет навыков; зарплата выше потолка
+  Дарья Нечаева      нет навыков; мало опыта
+  Тимур Валиев       нет навыков; зарплата выше потолка; другой город без переезда
+  Ксения Лапина      мало опыта
+  Марк Ефремов       нет навыков
+  Ольга Пирогова     зарплата выше потолка</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Требования
+─────────────
+  навыки: Python и SQL
+  город: Ярославль или готовность к переезду
+  зарплата: не больше 100000
+  опыт: место работы от 6 месяцев
+
+2. Сколько резюме проходит каждое требование
+────────────────────────────────────────────
+  навыки $all               4 из 9
+  город или переезд $or     8 из 9
+  зарплата $lte             5 из 9
+  опыт $elemMatch           6 из 9
+  есть контакты $exists     8 из 9
+
+3. Кандидаты, проходящие все требования
+───────────────────────────────────────
+  ФИО                город             зарплата  навыки
+  Пётр Ковалёв       Ярославль            70000  Python, SQL, Git, Docker
+  подошло: 1
+
+4. Должности, начинающиеся с Junior
+───────────────────────────────────
+  Анна Белова        Junior Python-разработчик
+  Пётр Ковалёв       Junior Python-разработчик
+  Дарья Нечаева      Junior Frontend-разработчик
+  Марк Ефремов       Junior Python-разработчик
+
+5. Вакансии под ожидание 90 000
+───────────────────────────────
+  Junior Python-разработчик  Тензор           Ярославль        60000–90000
+  Тестировщик                МедСофт          Казань           70000–95000
+  Frontend-разработчик       Retail Lab       Санкт-Петербург  90000–140000
+  Инженер сопровождения БД   ЯрКом            Ярославль        80000–120000
+  подходит вакансий: 4
+
+6. Собеседования с 21 по 27 сентября
+────────────────────────────────────
+  всего за неделю: 22
+    скрининг      4
+    техническое   7
+    финальное    11
+  очно: 12, видеозвонком: 10
+
+7. Проверка данных
+──────────────────
+  резюме без даты обновления      1  ← проверить
+  зарплата записана не числом     0
+  пустой список мест работы       1  ← проверить
+  нет ни одного навыка            0
+  перевёрнутая вилка              0
+  вакансия закрыта                0
+
+8. Кто не прошёл отбор
+──────────────────────
+  Анна Белова        нет навыков; мало опыта
+  Алина Дроздова     зарплата выше потолка
+  Игорь Самойлов     нет навыков; зарплата выше потолка
+  Дарья Нечаева      нет навыков; мало опыта
+  Тимур Валиев       нет навыков; зарплата выше потолка; другой город без переезда
+  Ксения Лапина      мало опыта
+  Марк Ефремов       нет навыков
+  Ольга Пирогова     зарплата выше потолка</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Требования
+─────────────
+  навыки: Python и SQL
+  город: Ярославль или готовность к переезду
+  зарплата: не больше 100000
+  опыт: место работы от 6 месяцев
+
+2. Сколько резюме проходит каждое требование
+────────────────────────────────────────────
+  навыки $all               4 из 9
+  город или переезд $or     8 из 9
+  зарплата $lte             5 из 9
+  опыт $elemMatch           6 из 9
+  есть контакты $exists     8 из 9
+
+3. Кандидаты, проходящие все требования
+───────────────────────────────────────
+  ФИО                город             зарплата  навыки
+  Пётр Ковалёв       Ярославль            70000  Python, SQL, Git, Docker
+  подошло: 1
+
+4. Должности, начинающиеся с Junior
+───────────────────────────────────
+  Анна Белова        Junior Python-разработчик
+  Пётр Ковалёв       Junior Python-разработчик
+  Дарья Нечаева      Junior Frontend-разработчик
+  Марк Ефремов       Junior Python-разработчик
+
+5. Вакансии под ожидание 90 000
+───────────────────────────────
+  Junior Python-разработчик  Тензор           Ярославль        60000–90000
+  Тестировщик                МедСофт          Казань           70000–95000
+  Frontend-разработчик       Retail Lab       Санкт-Петербург  90000–140000
+  Инженер сопровождения БД   ЯрКом            Ярославль        80000–120000
+  подходит вакансий: 4
+
+6. Собеседования с 21 по 27 сентября
+────────────────────────────────────
+  всего за неделю: 22
+    скрининг      4
+    техническое   7
+    финальное    11
+  очно: 12, видеозвонком: 10
+
+7. Проверка данных
+──────────────────
+  резюме без даты обновления      1  ← проверить
+  зарплата записана не числом     0
+  пустой список мест работы       1  ← проверить
+  нет ни одного навыка            0
+  перевёрнутая вилка              0
+  вакансия закрыта                0
+
+8. Кто не прошёл отбор
+──────────────────────
+  Анна Белова        нет навыков; мало опыта
+  Алина Дроздова     зарплата выше потолка
+  Игорь Самойлов     нет навыков; зарплата выше потолка
+  Дарья Нечаева      нет навыков; мало опыта
+  Тимур Валиев       нет навыков; зарплата выше потолка; другой город без переезда
+  Ксения Лапина      мало опыта
+  Марк Ефремов       нет навыков
+  Ольга Пирогова     зарплата выше потолка</pre>
+        </figure>
+
+        <h2 id="s10"><span class="sec">§10</span>Как запустить</h2>
+        <p>Скрипт лежит в репозитории практик, в папке <code>scripts</code>. Данные он не меняет, поэтому запускать его можно в любой момент.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск на своём сервере</span></figcaption>
+<pre>python3 scripts/hh_search.py
+ruby scripts/hh_search.rb
+go run scripts/hh_search.go
+g++ -std=c++<span class="n">17</span> scripts/hh_search.cpp -o search $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./search</pre>
+        </figure>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск в контейнере</span></figcaption>
+<pre>docker compose run --rm python scripts/hh_search.py
+docker compose run --rm ruby   scripts/hh_search.rb
+docker compose run --rm go     scripts/hh_search.go
+docker compose run --rm cpp    scripts/hh_search.cpp</pre>
+        </figure>
+        <p>Чтобы подобрать кандидатов под другую вакансию, меняют четыре переменные в начале файла: список навыков, город, потолок зарплаты и срок работы. Остальной код остаётся прежним.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"skills": НАВЫКИ}</code> для «оба навыка»</td><td>Массив сравнивается целиком, вместе с порядком: результат пустой</td><td><code>{"skills": {"$all": НАВЫКИ}}</code></td></tr>
+              <tr><td>Два условия на массив без <code>$elemMatch</code></td><td>Условия выполняются разными элементами массива</td><td><code>$elemMatch</code>, как в разделе с опытом</td></tr>
+              <tr><td>Конец недели задан <code>$lte</code> с датой без времени</td><td>Теряются события последнего дня</td><td><code>$lt</code> с началом следующего дня</td></tr>
+              <tr><td>Значение из формы подставлено прямо в фильтр</td><td>Документ <code>{"$ne": null}</code> вместо строки превращается в условие</td><td>Проверить тип или сравнивать через <code>$eq</code></td></tr>
+              <tr><td>Все резюме вычитываются, чтобы отобрать их в программе</td><td>По сети едут все документы коллекции</td><td>Отбор — фильтром на сервере; в программе — только объяснение причин</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Фильтр собран во временном значении и передан дальше</td><td>Обращение к освобождённой памяти</td><td>Держать <code>auto filtr = make_document(…)</code> живым до запроса</td></tr>
+              <tr><td>Два условия на массив без <code>$elemMatch</code></td><td>Условия выполняются разными элементами массива</td><td><code>$elemMatch</code>, как в разделе с опытом</td></tr>
+              <tr><td><code>std::setw</code> для столбцов с кириллицей</td><td>Столбцы разъезжаются: в UTF-8 на букву приходится два байта</td><td>Считать ширину по символам — функция <code>pad</code> в скрипте</td></tr>
+              <tr><td><code>get_int32</code> на поле, которого нет</td><td>Программа падает на резюме без поля</td><td>Сначала проверить, что поле есть: <code>if (doc["experience"])</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>append(obshiy, …)</code> к общему фильтру</td><td>Добавленное условие перезаписывает данные соседнего запроса</td><td>Копия: <code>append(append(bson.D{}, obshiy…), …)</code></td></tr>
+              <tr><td>Два условия на массив без <code>$elemMatch</code></td><td>Условия выполняются разными элементами массива</td><td><code>$elemMatch</code>, как в разделе с опытом</td></tr>
+              <tr><td><code>%-18s</code> для столбцов с кириллицей</td><td>Столбцы разъезжаются: ширина считается в байтах</td><td>Считать ширину по символам — функция <code>pad</code> в скрипте</td></tr>
+              <tr><td>Ошибка запроса присвоена <code>_</code></td><td>Пустой результат выглядит как «никто не подошёл»</td><td>Проверять второе значение, которое возвращает драйвер</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "skills" =&gt; НАВЫКИ }</code> для «оба навыка»</td><td>Массив сравнивается целиком, вместе с порядком: результат пустой</td><td><code>{ "skills" =&gt; { "$all" =&gt; НАВЫКИ } }</code></td></tr>
+              <tr><td>Два условия на массив без <code>$elemMatch</code></td><td>Условия выполняются разными элементами массива</td><td><code>$elemMatch</code>, как в разделе с опытом</td></tr>
+              <tr><td>Результат <code>find</code> перебран дважды</td><td>Запрос выполняется заново при каждом обходе</td><td>Сохранить в массив: <code>.to_a</code></td></tr>
+              <tr><td>Ключи документа — символы (<code>:skills</code>)</td><td>Поля не находятся: в документах имена строковые</td><td>Писать ключи строками</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s12"><span class="sec">§12</span>Проверьте себя</h2>
+        <details>
+          <summary>Зачем считать каждое требование по отдельности, если нужен итоговый список?</summary>
+          <p>Чтобы видеть, какое требование отсекает кандидатов. В учебной базе навыкам отвечают четыре резюме, а всем требованиям сразу — одно: видно, какое требование смягчать в первую очередь.</p>
+        </details>
+        <details>
+          <summary>Почему условие по опыту записано через <code>$elemMatch</code>?</summary>
+          <p>Потому что опыт — массив документов, и без <code>$elemMatch</code> условия проверялись бы на разных местах работы: роль нашлась бы в одном, срок — в другом. <code>$elemMatch</code> требует, чтобы одно место работы отвечало всем условиям сразу.</p>
+        </details>
+        <details>
+          <summary>Что покажет раздел проверки данных, если в резюме появится зарплата строкой?</summary>
+          <p>Строка «зарплата записана не числом» получит единицу и пометку. Фильтр <code>{"salary": {"$not": {"$type": "number"}}}</code> находит любое значение, которое не относится к числовым типам.</p>
+        </details>
+        <details>
+          <summary>Почему последний раздел не использует фильтры?</summary>
+          <p>Фильтр отвечает, какие документы подходят, но не объясняет причину отказа. Чтобы назвать причину, скрипт читает резюме и сравнивает поля в программе. На больших коллекциях так не делают: отбор оставляют серверу.</p>
+        </details>
+        <details>
+          <summary>Как подобрать кандидатов под другую вакансию?</summary>
+          <p>Поменять значения четырёх переменных в начале файла: навыки, город, потолок зарплаты и срок работы. Все фильтры собраны из этих переменных, поэтому запросы менять не нужно.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div>
+            <b>Требования — в переменные</b>
+            <code>навыки, город, потолок, срок</code>
+            <code>фильтры собираются из них</code>
+          </div>
+          <div>
+            <b>Сначала по одному</b>
+            <code>счётчик на каждое требование</code>
+            <code>видно, что отсекает кандидатов</code>
+          </div>
+          <div>
+            <b>Потом всё сразу</b>
+            <code>пары фильтра — «и»</code>
+            <code>$or — одна из пар</code>
+          </div>
+          <div>
+            <b>Период дат</b>
+            <code>$gte начало, $lt следующий день</code>
+          </div>
+          <div>
+            <b>Проверка данных</b>
+            <code>$exists, $type, $size, $expr</code>
+            <code>ноль — дефектов нет</code>
+          </div>
+          <div>
+            <b>Причина отказа</b>
+            <code>её считает программа,</code>
+            <code>отбор остаётся на сервере</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Скрипт собирает операторы модуля 2 в рабочий отбор: требования лежат в переменных, из них собираются фильтры, счётчики показывают, какое требование отсекает кандидатов, один общий фильтр даёт итоговый список. Рядом — поиск по части строки, подбор вакансий по вилке, период дат полуинтервалом и проверка данных на пропуски, типы и несогласованные поля. Причина отказа считается в программе, потому что фильтр её не возвращает. На этом модуль 2 закончен: дальше практическая работа ПР-02, где такой отбор нужно написать самому.</p>
+
+        <div class="pager"><a href="../16-expr/index.html">← 2.8 Сравнение полей</a><a href="../../index.html">К содержанию справочника</a></div>
+
+        <div class="colophon">
+          <span>Глава 2.9 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
