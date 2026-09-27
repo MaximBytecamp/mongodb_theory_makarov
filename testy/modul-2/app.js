@@ -197,6 +197,9 @@ function renderQuestions() {
     const code = codeFor(q);
     const codeHtml = code ? `<figure class="q-code"><figcaption><span>${esc(code.caption)}</span></figcaption><pre>${
       code.text.split('\n').map(line => `<span class="ln">${esc(line) || ' '}</span>`).join('')}</pre></figure>` : '';
+    const docsHtml = q.docs ? `<figure class="q-docs"><figcaption><span>Документы в базе</span><span class="q-docs-tabs">${
+      q.docs.map((d, i) => `<button type="button" data-tab="${i}" class="${i ? '' : 'on'}">${esc(d.title)}</button>`).join('')}</span></figcaption>${
+      q.docs.map((d, i) => `<div class="q-docs-pane${i ? ' hidden' : ''}" data-pane="${i}"><p class="q-docs-note">${esc(d.note)}</p><pre>${esc(d.text)}</pre></div>`).join('')}</figure>` : '';
     const imgHtml = q.img ? `<figure class="q-img"><img src="${q.img.src}" alt="${esc(q.img.alt)}" draggable="false"><figcaption>${esc(q.img.caption)}</figcaption></figure>` : '';
 
     card.innerHTML = `
@@ -205,10 +208,14 @@ function renderQuestions() {
         <span class="q-topic">${esc(q.topic)}</span>
       </div>
       <p class="q-text">${q.text}</p>
-      ${imgHtml}${codeHtml}
+      ${imgHtml}${docsHtml}${codeHtml}
       ${multi ? '<p class="q-hint">Несколько верных вариантов · балл только за полностью верный набор</p>' : ''}
       <div class="opts"></div>`;
     const opts = card.querySelector('.opts');
+    card.querySelectorAll('.q-docs-tabs button').forEach(btn => btn.addEventListener('click', () => {
+      card.querySelectorAll('.q-docs-tabs button').forEach(x => x.classList.toggle('on', x === btn));
+      card.querySelectorAll('.q-docs-pane').forEach(x => x.classList.toggle('hidden', x.dataset.pane !== btn.dataset.tab));
+    }));
 
     state.optOrder[q.id].forEach(oi => {
       const label = document.createElement('label');

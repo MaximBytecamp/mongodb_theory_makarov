@@ -5,11 +5,11 @@
    перебрать их в консоли можно. Разбора ответов в публичных файлах нет. */
 
 const QUIZ = {
- "id": "mdb-test-m2",
+ "id": "mdb-test-m2-r2",
  "title": "Модуль 2 · язык фильтров",
  "minutes": 40,
  "salt": "mdb-m2-2026-sep",
- "context": "Переменные <code>resumes</code>, <code>vacancies</code>, <code>companies</code> и <code>interviews</code> — коллекции базы <code>hh</code>, <code>box</code> — песочница <code>sandbox.products</code>, как в заготовках глав модуля 2. Перед каждым фрагментом базы в исходном состоянии: 9 резюме, 8 вакансий, в песочнице 21 товар.",
+ "context": "Переменные <code>resumes</code>, <code>vacancies</code>, <code>companies</code> и <code>interviews</code> — коллекции базы <code>hh</code>, <code>box</code> — песочница <code>sandbox.products</code>, как в заготовках глав модуля 2. Перед каждым фрагментом базы в исходном состоянии. Во вкладках «Документы в базе» показаны документы, с которыми работает фрагмент, — только поля, нужные для ответа. Вывод в вариантах записан без выравнивающих пробелов.",
  "grades": [
   {
    "min": 23,
@@ -37,12 +37,12 @@ const QUIZ = {
    "id": "q01",
    "topic": "2.1 · вложенный документ",
    "type": "single",
-   "text": "У вакансии <code>v-001</code> вилка записана так: <code>salary: { from: 60000, to: 90000 }</code>. Других вакансий с такой вилкой нет. Какие числа напечатает фрагмент (по порядку строк)?",
+   "text": "Фрагмент ищет вакансию по вилке зарплаты, записанной целым документом. Два фильтра отличаются только порядком полей внутри <code>salary</code>. Что напечатает фрагмент?",
    "options": [
-    "1 и 1",
-    "1 и 0",
-    "0 и 0",
-    "0 и 1"
+    "<code>from, затем to: 1</code><br><code>to, затем from: 1</code>",
+    "<code>from, затем to: 1</code><br><code>to, затем from: 0</code>",
+    "<code>from, затем to: 0</code><br><code>to, затем from: 0</code>",
+    "<code>from, затем to: 0</code><br><code>to, затем from: 1</code>"
    ],
    "code": {
     "python": "print(\"from, затем to:\", vacancies.count_documents({\"salary\": {\"from\": 60000, \"to\": 90000}}))\nprint(\"to, затем from:\", vacancies.count_documents({\"salary\": {\"to\": 90000, \"from\": 60000}}))",
@@ -50,6 +50,13 @@ const QUIZ = {
     "go": "pryamo, _ := vacancies.CountDocuments(ctx, bson.D{{Key: \"salary\", Value: bson.D{{Key: \"from\", Value: 60000}, {Key: \"to\", Value: 90000}}}})\nnaoborot, _ := vacancies.CountDocuments(ctx, bson.D{{Key: \"salary\", Value: bson.D{{Key: \"to\", Value: 90000}, {Key: \"from\", Value: 60000}}}})\n\nfmt.Println(\"from, затем to:\", pryamo)\nfmt.Println(\"to, затем from:\", naoborot)",
     "ruby": "puts \"from, затем to: \" + vacancies.count_documents({ \"salary\" => { \"from\" => 60000, \"to\" => 90000 } }).to_s\nputs \"to, затем from: \" + vacancies.count_documents({ \"salary\" => { \"to\" => 90000, \"from\" => 60000 } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.vacancies",
+     "note": "hh.vacancies: все 8 вакансий; показаны поля title, salary, _id",
+     "text": "{ _id: 'v-001', title: 'Junior Python-разработчик', salary: { from: 60000, to: 90000 } }\n{ _id: 'v-004', title: 'Тестировщик', salary: { from: 70000, to: 95000 } }\n{ _id: 'v-005', title: 'Backend-разработчик .NET', salary: { from: 100000, to: 150000 } }\n{ _id: 'v-006', title: 'Frontend-разработчик', salary: { from: 90000, to: 140000 } }\n{ _id: 'v-002', title: 'Инженер сопровождения БД', salary: { from: 80000, to: 120000 } }\n{ _id: 'v-007', title: 'Администратор баз данных', salary: { from: 110000, to: 160000 } }\n{ _id: 'v-003', title: 'Аналитик данных', salary: { from: 120000, to: 180000 } }\n{ _id: 'v-008', title: 'Data-инженер', salary: { from: 140000, to: 200000 } }"
+    }
+   ],
    "key": {
     "python": [
      "509556e130e5afae"
@@ -69,7 +76,7 @@ const QUIZ = {
    "id": "q02",
    "topic": "2.1 · фильтр и документ",
    "type": "multi",
-   "text": "На кадре — резюме из <code>hh.resumes</code>. Отметьте <b>все</b> фильтры, которые его найдут.",
+   "text": "На кадре — одно резюме из <code>hh.resumes</code>. Отметьте <b>все</b> фильтры, под которые оно подходит.",
    "options": [
     "<code>{ \"education.level\": \"СПО\", city: \"Ярославль\" }</code>",
     "<code>{ education: { level: \"СПО\" } }</code>",
@@ -114,12 +121,12 @@ const QUIZ = {
    "id": "q03",
    "topic": "2.1 · точка и массив документов",
    "type": "single",
-   "text": "<code>skills</code> — массив навыков, <code>experience</code> — массив мест работы, у каждого места свой массив <code>stack</code>. Какие числа напечатает фрагмент?",
+   "text": "Фрагмент считает резюме, где встречается SQL: сначала в навыках <code>skills</code>, затем в стеке мест работы <code>experience.stack</code>. Что напечатает фрагмент?",
    "options": [
-    "4 и 3",
-    "4 и 0",
-    "4 и 4",
-    "0 и 3"
+    "<code>skills: 4</code><br><code>experience.stack: 3</code>",
+    "<code>skills: 4</code><br><code>experience.stack: 0</code>",
+    "<code>skills: 4</code><br><code>experience.stack: 4</code>",
+    "<code>skills: 0</code><br><code>experience.stack: 3</code>"
    ],
    "code": {
     "python": "print(\"skills:          \", resumes.count_documents({\"skills\": \"SQL\"}))\nprint(\"experience.stack:\", resumes.count_documents({\"experience.stack\": \"SQL\"}))",
@@ -127,6 +134,13 @@ const QUIZ = {
     "go": "navyki, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"skills\", Value: \"SQL\"}})\nstek, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"experience.stack\", Value: \"SQL\"}})\n\nfmt.Println(\"skills:          \", navyki)\nfmt.Println(\"experience.stack:\", stek)",
     "ruby": "puts \"skills:           \" + resumes.count_documents({ \"skills\" => \"SQL\" }).to_s\nputs \"experience.stack: \" + resumes.count_documents({ \"experience.stack\" => \"SQL\" }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, skills, experience.stack",
+     "text": "{ fio: 'Анна Белова', skills: [ 'Python', 'Git' ] }\n{\n  fio: 'Пётр Ковалёв',\n  skills: [ 'Python', 'SQL', 'Git', 'Docker' ],\n  experience: [ { stack: [ 'Python', 'PostgreSQL' ] } ]\n}\n{\n  fio: 'Алина Дроздова',\n  skills: [ 'SQL', 'Python', 'ClickHouse', 'Power BI', 'Excel' ],\n  experience: [ { stack: [ 'ClickHouse', 'Python' ] }, { stack: [ 'SQL' ] } ]\n}\n{\n  fio: 'Игорь Самойлов',\n  skills: [ 'C#', '.NET', 'PostgreSQL', 'RabbitMQ', 'Docker' ],\n  experience: [ { stack: [ 'C#', 'PostgreSQL', 'RabbitMQ' ] } ]\n}\n{ fio: 'Дарья Нечаева', skills: [ 'JavaScript', 'React', 'HTML', 'CSS' ], experience: [] }\n{\n  fio: 'Тимур Валиев',\n  skills: [ 'PostgreSQL', 'MongoDB', 'Bash', 'Zabbix' ],\n  experience: [ { stack: [ 'PostgreSQL', 'MongoDB' ] }, { stack: [ 'Bash' ] } ]\n}\n{\n  fio: 'Ксения Лапина',\n  skills: [ 'Postman', 'SQL', 'Selenium', 'Python' ],\n  experience: [ { stack: [ 'Postman', 'SQL' ] } ]\n}\n{\n  fio: 'Марк Ефремов',\n  skills: [ 'Python', 'FastAPI', 'MongoDB', 'Git' ],\n  experience: [ { stack: [ 'Python', 'MongoDB' ] } ]\n}\n{\n  fio: 'Ольга Пирогова',\n  skills: [ 'SQL', 'Excel', 'Python', 'ClickHouse' ],\n  experience: [ { stack: [ 'SQL', 'Python' ] } ]\n}"
+    }
+   ],
    "key": {
     "python": [
      "980a60d1c2254cae"
@@ -144,14 +158,14 @@ const QUIZ = {
   },
   {
    "id": "q04",
-   "topic": "2.2 · даты и полуинтервал",
+   "topic": "2.2 · даты и период",
    "type": "single",
-   "text": "На 27 сентября 2026 года назначено четыре собеседования, с 10:00 до 16:00 по UTC. Какие числа напечатает фрагмент?",
+   "text": "Фрагмент двумя способами считает собеседования за 27 сентября. Что он напечатает?",
    "options": [
-    "4 и 4",
-    "0 и 4",
-    "4 и 0",
-    "1 и 4"
+    "<code>$gte 27.09, $lte 27.09: 4</code><br><code>$gte 27.09, $lt 28.09: 4</code>",
+    "<code>$gte 27.09, $lte 27.09: 0</code><br><code>$gte 27.09, $lt 28.09: 4</code>",
+    "<code>$gte 27.09, $lte 27.09: 4</code><br><code>$gte 27.09, $lt 28.09: 0</code>",
+    "<code>$gte 27.09, $lte 27.09: 1</code><br><code>$gte 27.09, $lt 28.09: 4</code>"
    ],
    "code": {
     "python": "from datetime import datetime\n\nsep27 = datetime(2026, 9, 27)\nsep28 = datetime(2026, 9, 28)\n\nprint(\"$gte 27.09, $lte 27.09:\", interviews.count_documents({\"when\": {\"$gte\": sep27, \"$lte\": sep27}}))\nprint(\"$gte 27.09, $lt 28.09: \", interviews.count_documents({\"when\": {\"$gte\": sep27, \"$lt\": sep28}}))",
@@ -159,6 +173,13 @@ const QUIZ = {
     "go": "sep27 := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)\nsep28 := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)\n\notrezok, _ := interviews.CountDocuments(ctx, bson.D{{Key: \"when\", Value: bson.D{{Key: \"$gte\", Value: sep27}, {Key: \"$lte\", Value: sep27}}}})\npoluinterval, _ := interviews.CountDocuments(ctx, bson.D{{Key: \"when\", Value: bson.D{{Key: \"$gte\", Value: sep27}, {Key: \"$lt\", Value: sep28}}}})\n\nfmt.Println(\"$gte 27.09, $lte 27.09:\", otrezok)\nfmt.Println(\"$gte 27.09, $lt 28.09: \", poluinterval)",
     "ruby": "sep27 = Time.utc(2026, 9, 27)\nsep28 = Time.utc(2026, 9, 28)\n\nputs \"$gte 27.09, $lte 27.09: \" + interviews.count_documents({ \"when\" => { \"$gte\" => sep27, \"$lte\" => sep27 } }).to_s\nputs \"$gte 27.09, $lt 28.09:  \" + interviews.count_documents({ \"when\" => { \"$gte\" => sep27, \"$lt\" => sep28 } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.interviews",
+     "note": "hh.interviews: собеседования с 26 по 28 сентября, по времени (всего в коллекции 60); показаны поля candidate, when. Время — по UTC",
+     "text": "{ candidate: 'Елена Нечаева', when: ISODate('2026-09-26T10:00:00.000Z') }\n{ candidate: 'Софья Белова', when: ISODate('2026-09-26T12:00:00.000Z') }\n{ candidate: 'Елена Гончарова', when: ISODate('2026-09-26T12:00:00.000Z') }\n{ candidate: 'Марк Мельник', when: ISODate('2026-09-26T15:00:00.000Z') }\n{ candidate: 'Дарья Лапина', when: ISODate('2026-09-26T17:00:00.000Z') }\n{ candidate: 'Ольга Дроздова', when: ISODate('2026-09-27T10:00:00.000Z') }\n{ candidate: 'Юлия Крылова', when: ISODate('2026-09-27T12:00:00.000Z') }\n{ candidate: 'Пётр Мельник', when: ISODate('2026-09-27T14:00:00.000Z') }\n{ candidate: 'Тимур Ковалёв', when: ISODate('2026-09-27T16:00:00.000Z') }\n{ candidate: 'Никита Логинов', when: ISODate('2026-09-28T09:00:00.000Z') }\n{ candidate: 'Игорь Строев', when: ISODate('2026-09-28T09:00:00.000Z') }\n{ candidate: 'Вера Белова', when: ISODate('2026-09-28T10:00:00.000Z') }\n{ candidate: 'Ольга Пирогова', when: ISODate('2026-09-28T15:00:00.000Z') }"
+    }
+   ],
    "key": {
     "python": [
      "19a984fc539acc30"
@@ -178,12 +199,12 @@ const QUIZ = {
    "id": "q05",
    "topic": "2.2 · $eq и значение из формы",
    "type": "single",
-   "text": "Программа ищет резюме по ФИО и подставляет в фильтр то, что прислала форма поиска. Вместо строки форма прислала документ. Какие числа напечатает фрагмент?",
+   "text": "Программа ищет резюме по ФИО и подставляет в фильтр значение из формы поиска. Вместо строки с ФИО форма прислала документ <code>{ \"$gt\": \"\" }</code>. Что напечатает фрагмент?",
    "options": [
-    "9 и 0",
-    "0 и 0",
-    "9 и 9",
-    "0 и 9"
+    "<code>как есть: 9</code><br><code>через $eq: 0</code>",
+    "<code>как есть: 0</code><br><code>через $eq: 0</code>",
+    "<code>как есть: 9</code><br><code>через $eq: 9</code>",
+    "<code>как есть: 0</code><br><code>через $eq: 9</code>"
    ],
    "code": {
     "python": "# так значение пришло из формы поиска\npoisk = {\"$gt\": \"\"}\n\nprint(\"как есть: \", resumes.count_documents({\"fio\": poisk}))\nprint(\"через $eq:\", resumes.count_documents({\"fio\": {\"$eq\": poisk}}))",
@@ -191,6 +212,13 @@ const QUIZ = {
     "go": "// так значение пришло из формы поиска\npoisk := bson.D{{Key: \"$gt\", Value: \"\"}}\n\nkakEst, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"fio\", Value: poisk}})\ncherezEq, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"fio\", Value: bson.D{{Key: \"$eq\", Value: poisk}}}})\n\nfmt.Println(\"как есть: \", kakEst)\nfmt.Println(\"через $eq:\", cherezEq)",
     "ruby": "# так значение пришло из формы поиска\npoisk = { \"$gt\" => \"\" }\n\nputs \"как есть:  \" + resumes.count_documents({ \"fio\" => poisk }).to_s\nputs \"через $eq: \" + resumes.count_documents({ \"fio\" => { \"$eq\" => poisk } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio",
+     "text": "{ fio: 'Анна Белова' }\n{ fio: 'Пётр Ковалёв' }\n{ fio: 'Алина Дроздова' }\n{ fio: 'Игорь Самойлов' }\n{ fio: 'Дарья Нечаева' }\n{ fio: 'Тимур Валиев' }\n{ fio: 'Ксения Лапина' }\n{ fio: 'Марк Ефремов' }\n{ fio: 'Ольга Пирогова' }"
+    }
+   ],
    "key": {
     "python": [
      "00dff5a4aacbbcc3"
@@ -210,12 +238,12 @@ const QUIZ = {
    "id": "q06",
    "topic": "2.3 · $nin",
    "type": "single",
-   "text": "Уровень образования записан в <code>education.level</code> одним из двух значений: «СПО» или «Высшее». Какие числа напечатает фрагмент?",
+   "text": "Фрагмент считает резюме с уровнем образования «СПО» и резюме, где уровень не «Высшее». Что он напечатает?",
    "options": [
-    "4 и 4",
-    "4 и 5",
-    "5 и 4",
-    "4 и 3"
+    "<code>равно СПО: 4</code><br><code>$nin [Высшее]: 4</code>",
+    "<code>равно СПО: 4</code><br><code>$nin [Высшее]: 5</code>",
+    "<code>равно СПО: 5</code><br><code>$nin [Высшее]: 4</code>",
+    "<code>равно СПО: 4</code><br><code>$nin [Высшее]: 3</code>"
    ],
    "code": {
     "python": "print(\"равно СПО:    \", resumes.count_documents({\"education.level\": \"СПО\"}))\nprint(\"$nin [Высшее]:\", resumes.count_documents({\"education.level\": {\"$nin\": [\"Высшее\"]}}))",
@@ -223,6 +251,13 @@ const QUIZ = {
     "go": "spo, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"education.level\", Value: \"СПО\"}})\nneVysshee, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"education.level\", Value: bson.D{{Key: \"$nin\", Value: bson.A{\"Высшее\"}}}}})\n\nfmt.Println(\"равно СПО:    \", spo)\nfmt.Println(\"$nin [Высшее]:\", neVysshee)",
     "ruby": "puts \"равно СПО:     \" + resumes.count_documents({ \"education.level\" => \"СПО\" }).to_s\nputs \"$nin [Высшее]: \" + resumes.count_documents({ \"education.level\" => { \"$nin\" => [\"Высшее\"] } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, education.level",
+     "text": "{ fio: 'Анна Белова' }\n{ fio: 'Пётр Ковалёв', education: { level: 'СПО' } }\n{ fio: 'Алина Дроздова', education: { level: 'Высшее' } }\n{ fio: 'Игорь Самойлов', education: { level: 'Высшее' } }\n{ fio: 'Дарья Нечаева', education: { level: 'СПО' } }\n{ fio: 'Тимур Валиев', education: { level: 'Высшее' } }\n{ fio: 'Ксения Лапина', education: { level: 'СПО' } }\n{ fio: 'Марк Ефремов', education: { level: 'СПО' } }\n{ fio: 'Ольга Пирогова', education: { level: 'Высшее' } }"
+    }
+   ],
    "key": {
     "python": [
      "bdd7951856f14dac"
@@ -240,27 +275,40 @@ const QUIZ = {
   },
   {
    "id": "q07",
-   "topic": "2.3 · список из формы",
+   "topic": "2.3 · пустой список",
    "type": "single",
-   "text": "Поиск вакансий строит фильтр <code>{ city: { $in: goroda } }</code>, где <code>goroda</code> — города, отмеченные в форме. Задумано: если не отмечен ни один город, показать вакансии во всех городах. Что произойдёт при пустом выборе и как это исправить?",
+   "text": "Список городов для фильтра собирается из формы поиска. Пользователь не отметил ни одного города, и список оказался пустым. Что напечатает фрагмент?",
    "options": [
-    "Вернутся все восемь вакансий; менять код не нужно",
-    "Пусто; при пустом выборе не ставить условие на город",
-    "Ошибка сервера; перед запросом заменить [] на [null]",
-    "Пусто; перед запросом заменить пустой список на [null]"
+    "<code>$in пустой: 0</code><br><code>$nin пустой: 8</code>",
+    "<code>$in пустой: 8</code><br><code>$nin пустой: 8</code>",
+    "<code>$in пустой: 8</code><br><code>$nin пустой: 0</code>",
+    "<code>$in пустой: 0</code><br><code>$nin пустой: 0</code>"
+   ],
+   "code": {
+    "python": "# города, отмеченные в форме: ни одного\ngoroda = []\n\nprint(\"$in пустой: \", vacancies.count_documents({\"city\": {\"$in\": goroda}}))\nprint(\"$nin пустой:\", vacancies.count_documents({\"city\": {\"$nin\": goroda}}))",
+    "cpp": "// города, отмеченные в форме: ни одного\nauto goroda = make_array();\n\nstd::cout << \"$in пустой:  \" << vacancies.count_documents(make_document(kvp(\"city\", make_document(kvp(\"$in\", goroda.view()))))) << std::endl;\nstd::cout << \"$nin пустой: \" << vacancies.count_documents(make_document(kvp(\"city\", make_document(kvp(\"$nin\", goroda.view()))))) << std::endl;",
+    "go": "// города, отмеченные в форме: ни одного\ngoroda := bson.A{}\n\nvSpiske, _ := vacancies.CountDocuments(ctx, bson.D{{Key: \"city\", Value: bson.D{{Key: \"$in\", Value: goroda}}}})\nneVSpiske, _ := vacancies.CountDocuments(ctx, bson.D{{Key: \"city\", Value: bson.D{{Key: \"$nin\", Value: goroda}}}})\n\nfmt.Println(\"$in пустой: \", vSpiske)\nfmt.Println(\"$nin пустой:\", neVSpiske)",
+    "ruby": "# города, отмеченные в форме: ни одного\ngoroda = []\n\nputs \"$in пустой:  \" + vacancies.count_documents({ \"city\" => { \"$in\" => goroda } }).to_s\nputs \"$nin пустой: \" + vacancies.count_documents({ \"city\" => { \"$nin\" => goroda } }).to_s"
+   },
+   "docs": [
+    {
+     "title": "hh.vacancies",
+     "note": "hh.vacancies: все 8 вакансий; показаны поля title, city, _id",
+     "text": "{ _id: 'v-001', title: 'Junior Python-разработчик', city: 'Ярославль' }\n{ _id: 'v-004', title: 'Тестировщик', city: 'Казань' }\n{ _id: 'v-005', title: 'Backend-разработчик .NET', city: 'Ярославль' }\n{ _id: 'v-006', title: 'Frontend-разработчик', city: 'Санкт-Петербург' }\n{ _id: 'v-002', title: 'Инженер сопровождения БД', city: 'Ярославль' }\n{ _id: 'v-007', title: 'Администратор баз данных', city: 'Москва' }\n{ _id: 'v-003', title: 'Аналитик данных', city: 'Москва' }\n{ _id: 'v-008', title: 'Data-инженер', city: 'Москва' }"
+    }
    ],
    "key": {
     "python": [
-     "7a0b130e2730828d"
+     "7e0803dcc6c5dcd9"
     ],
     "cpp": [
-     "3e43628a54e4a6b8"
+     "89eddd659801c7fb"
     ],
     "go": [
-     "fc55579df4e8500c"
+     "e11f141bf0aba185"
     ],
     "ruby": [
-     "cdda056bab6fd4ca"
+     "726aa360cff34590"
     ]
    }
   },
@@ -268,12 +316,12 @@ const QUIZ = {
    "id": "q08",
    "topic": "1.2 + 2.3 · ключ в $in",
    "type": "single",
-   "text": "Ключи резюме — ObjectId. Что напечатает фрагмент?",
+   "text": "Фрагмент читает резюме Петра Ковалёва и ищет его по ключу дважды: самим значением <code>_id</code> и тем же ключом, превращённым в строку. Что он напечатает?",
    "options": [
-    "ключом: 1 · строкой: 1",
-    "ключом: 1 · строкой: 0",
-    "ключом: 1, затем ошибка",
-    "ключом: 0 · строкой: 0"
+    "<code>ключом: 1</code><br><code>строкой: 1</code>",
+    "<code>ключом: 1</code><br><code>строкой: 0</code>",
+    "<code>ключом: 0</code><br><code>строкой: 1</code>",
+    "<code>ключом: 0</code><br><code>строкой: 0</code>"
    ],
    "code": {
     "python": "doc = resumes.find_one({\"fio\": \"Пётр Ковалёв\"})\nprint(\"ключом:\", resumes.count_documents({\"_id\": {\"$in\": [doc[\"_id\"]]}}))\nprint(\"строкой:\", resumes.count_documents({\"_id\": {\"$in\": [str(doc[\"_id\"])]}}))",
@@ -281,6 +329,13 @@ const QUIZ = {
     "go": "var doc bson.M\nresumes.FindOne(ctx, bson.D{{Key: \"fio\", Value: \"Пётр Ковалёв\"}}).Decode(&doc)\nid := doc[\"_id\"].(bson.ObjectID)\n\nkluchom, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"_id\", Value: bson.D{{Key: \"$in\", Value: bson.A{id}}}}})\nstrokoy, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"_id\", Value: bson.D{{Key: \"$in\", Value: bson.A{id.Hex()}}}}})\nfmt.Println(\"ключом:\", kluchom)\nfmt.Println(\"строкой:\", strokoy)",
     "cpp": "auto doc = resumes.find_one(make_document(kvp(\"fio\", \"Пётр Ковалёв\")));\nauto id = doc->view()[\"_id\"].get_oid().value;\n\nstd::cout << \"ключом: \" << resumes.count_documents(make_document(kvp(\"_id\", make_document(kvp(\"$in\", make_array(id)))))) << std::endl;\nstd::cout << \"строкой: \" << resumes.count_documents(make_document(kvp(\"_id\", make_document(kvp(\"$in\", make_array(id.to_string())))))) << std::endl;"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: резюме Петра Ковалёва; показаны поля _id, fio",
+     "text": "{ _id: ObjectId('6a9e46fe2be8a88bb5e50f30'), fio: 'Пётр Ковалёв' }"
+    }
+   ],
    "key": {
     "python": [
      "a15fb0312536b7f6"
@@ -300,12 +355,12 @@ const QUIZ = {
    "id": "q09",
    "topic": "2.4 · два «или» в одном фильтре",
    "type": "single",
-   "text": "Нужны соискатели, которые из Ярославля или готовы к переезду, <b>и</b> при этом с высшим образованием или опытом от 10 месяцев. Отдельно первому «или» отвечают 8 резюме, второму — 5, обоим сразу — 4. Что напечатает фрагмент <b>на вашем языке</b>?",
+   "text": "Нужны соискатели, которые (из Ярославля <b>или</b> готовы к переезду) <b>и</b> (с высшим образованием <b>или</b> опытом на одном из мест от 10 месяцев). Фильтр записан двумя парами <code>$or</code> в одном документе. Что напечатает фрагмент <b>на вашем языке</b>?",
    "options": [
-    "подошло: 4",
-    "подошло: 5",
-    "подошло: 8",
-    "Ошибка: ключ $or повторяется"
+    "<code>подошло: 4</code>",
+    "<code>подошло: 5</code>",
+    "<code>подошло: 8</code>",
+    "<code>подошло: 9</code>"
    ],
    "code": {
     "python": "filtr = {\"$or\": [{\"city\": \"Ярославль\"}, {\"ready_to_move\": True}],\n         \"$or\": [{\"education.level\": \"Высшее\"},\n                 {\"experience.months\": {\"$gte\": 10}}]}\nprint(\"подошло:\", resumes.count_documents(filtr))",
@@ -313,6 +368,13 @@ const QUIZ = {
     "go": "filtr := bson.D{\n    {Key: \"$or\", Value: bson.A{bson.D{{Key: \"city\", Value: \"Ярославль\"}},\n        bson.D{{Key: \"ready_to_move\", Value: true}}}},\n    {Key: \"$or\", Value: bson.A{bson.D{{Key: \"education.level\", Value: \"Высшее\"}},\n        bson.D{{Key: \"experience.months\", Value: bson.D{{Key: \"$gte\", Value: 10}}}}}},\n}\nn, err := resumes.CountDocuments(ctx, filtr)\nif err != nil {\n    log.Fatal(err)\n}\nfmt.Println(\"подошло:\", n)",
     "cpp": "auto filtr = make_document(\n    kvp(\"$or\", make_array(make_document(kvp(\"city\", \"Ярославль\")),\n                          make_document(kvp(\"ready_to_move\", true)))),\n    kvp(\"$or\", make_array(make_document(kvp(\"education.level\", \"Высшее\")),\n                          make_document(kvp(\"experience.months\", make_document(kvp(\"$gte\", 10)))))));\nstd::cout << \"подошло: \" << resumes.count_documents(filtr.view()) << std::endl;"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, city, ready_to_move, education.level, experience.months",
+     "text": "{ fio: 'Анна Белова', city: 'Ярославль' }\n{\n  fio: 'Пётр Ковалёв',\n  city: 'Ярославль',\n  ready_to_move: false,\n  education: { level: 'СПО' },\n  experience: [ { months: 6 } ]\n}\n{\n  fio: 'Алина Дроздова',\n  city: 'Москва',\n  ready_to_move: true,\n  education: { level: 'Высшее' },\n  experience: [ { months: 14 }, { months: 5 } ]\n}\n{\n  fio: 'Игорь Самойлов',\n  city: 'Ярославль',\n  ready_to_move: false,\n  education: { level: 'Высшее' },\n  experience: [ { months: 38 } ]\n}\n{\n  fio: 'Дарья Нечаева',\n  city: 'Санкт-Петербург',\n  ready_to_move: true,\n  education: { level: 'СПО' },\n  experience: []\n}\n{\n  fio: 'Тимур Валиев',\n  city: 'Казань',\n  ready_to_move: false,\n  education: { level: 'Высшее' },\n  experience: [ { months: 52 }, { months: 18 } ]\n}\n{\n  fio: 'Ксения Лапина',\n  city: 'Ярославль',\n  ready_to_move: true,\n  education: { level: 'СПО' },\n  experience: [ { months: 4 } ]\n}\n{\n  fio: 'Марк Ефремов',\n  city: 'Новосибирск',\n  ready_to_move: true,\n  education: { level: 'СПО' },\n  experience: [ { months: 11 } ]\n}\n{\n  fio: 'Ольга Пирогова',\n  city: 'Ярославль',\n  ready_to_move: false,\n  education: { level: 'Высшее' },\n  experience: [ { months: 26 } ]\n}"
+    }
+   ],
    "key": {
     "python": [
      "3ec6a1b092d84d28"
@@ -332,12 +394,12 @@ const QUIZ = {
    "id": "q10",
    "topic": "2.4 · $not",
    "type": "single",
-   "text": "Поле <code>updated</code> — дата обновления резюме; оно есть не во всех резюме. Какие числа напечатает фрагмент?",
+   "text": "Фрагмент двумя способами считает резюме, обновлённые с 1 сентября: через отрицание условия «раньше 1 сентября» и прямым условием. Что он напечатает?",
    "options": [
-    "5 и 5",
-    "6 и 5",
-    "5 и 6",
-    "4 и 5"
+    "<code>$not $lt 01.09: 5</code><br><code>$gte 01.09: 5</code>",
+    "<code>$not $lt 01.09: 6</code><br><code>$gte 01.09: 5</code>",
+    "<code>$not $lt 01.09: 5</code><br><code>$gte 01.09: 6</code>",
+    "<code>$not $lt 01.09: 4</code><br><code>$gte 01.09: 5</code>"
    ],
    "code": {
     "python": "from datetime import datetime\n\nsep01 = datetime(2026, 9, 1)\n\nprint(\"$not $lt 01.09:\", resumes.count_documents({\"updated\": {\"$not\": {\"$lt\": sep01}}}))\nprint(\"$gte 01.09:    \", resumes.count_documents({\"updated\": {\"$gte\": sep01}}))",
@@ -345,6 +407,13 @@ const QUIZ = {
     "go": "sep01 := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)\n\nneRanshe, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"updated\", Value: bson.D{{Key: \"$not\", Value: bson.D{{Key: \"$lt\", Value: sep01}}}}}})\nneRanshePryamo, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"updated\", Value: bson.D{{Key: \"$gte\", Value: sep01}}}})\n\nfmt.Println(\"$not $lt 01.09:\", neRanshe)\nfmt.Println(\"$gte 01.09:    \", neRanshePryamo)",
     "ruby": "sep01 = Time.utc(2026, 9, 1)\n\nputs \"$not $lt 01.09: \" + resumes.count_documents({ \"updated\" => { \"$not\" => { \"$lt\" => sep01 } } }).to_s\nputs \"$gte 01.09:     \" + resumes.count_documents({ \"updated\" => { \"$gte\" => sep01 } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, updated",
+     "text": "{ fio: 'Анна Белова' }\n{ fio: 'Пётр Ковалёв', updated: ISODate('2026-09-01T09:12:00.000Z') }\n{ fio: 'Алина Дроздова', updated: ISODate('2026-09-03T14:40:00.000Z') }\n{ fio: 'Игорь Самойлов', updated: ISODate('2026-08-28T07:05:00.000Z') }\n{ fio: 'Дарья Нечаева', updated: ISODate('2026-09-04T18:22:00.000Z') }\n{ fio: 'Тимур Валиев', updated: ISODate('2026-07-19T11:30:00.000Z') }\n{ fio: 'Ксения Лапина', updated: ISODate('2026-09-02T08:47:00.000Z') }\n{ fio: 'Марк Ефремов', updated: ISODate('2026-08-15T16:03:00.000Z') }\n{ fio: 'Ольга Пирогова', updated: ISODate('2026-09-05T12:15:00.000Z') }"
+    }
+   ],
    "key": {
     "python": [
      "256c6a4ea927a599"
@@ -364,7 +433,7 @@ const QUIZ = {
    "id": "q11",
    "topic": "2.3–2.6 · ошибки сервера",
    "type": "multi",
-   "text": "Отметьте <b>все</b> фильтры, на которые сервер ответит ошибкой, а не пустым или обычным результатом.",
+   "text": "Каждый фильтр передают в <code>count_documents</code> по коллекции резюме. Отметьте <b>все</b> фильтры, на которые сервер ответит ошибкой. Остальные выполнятся и вернут число, пусть даже 0.",
    "options": [
     "<code>{ city: { $not: \"Москва\" } }</code>",
     "<code>{ city: { $in: [] } }</code>",
@@ -396,12 +465,12 @@ const QUIZ = {
    "id": "q12",
    "topic": "2.5 · null, $exists и $type",
    "type": "single",
-   "text": "Какие числа напечатает фрагмент (по порядку строк)?",
+   "text": "Фрагмент заводит в песочнице три контакта: у Анны телефон записан как null, у Петра поля <code>phone</code> нет, у Олега телефон указан. Что напечатает фрагмент?",
    "options": [
-    "2 · 1 · 1",
-    "1 · 1 · 1",
-    "2 · 1 · 2",
-    "1 · 2 · 1"
+    "<code>phone null: 2</code><br><code>phone $exists false: 1</code><br><code>phone $type null: 1</code>",
+    "<code>phone null: 1</code><br><code>phone $exists false: 1</code><br><code>phone $type null: 1</code>",
+    "<code>phone null: 2</code><br><code>phone $exists false: 1</code><br><code>phone $type null: 2</code>",
+    "<code>phone null: 1</code><br><code>phone $exists false: 2</code><br><code>phone $type null: 1</code>"
    ],
    "code": {
     "python": "# коллекция создаётся заново при каждом запуске\nkontakty = client[\"sandbox\"][\"contacts\"]\nkontakty.drop()\nkontakty.insert_one({\"_id\": 1, \"name\": \"Анна\", \"phone\": None})\nkontakty.insert_one({\"_id\": 2, \"name\": \"Пётр\"})\nkontakty.insert_one({\"_id\": 3, \"name\": \"Олег\", \"phone\": \"+7 900 100-20-30\"})\n\nprint(\"phone null:         \", kontakty.count_documents({\"phone\": None}))\nprint(\"phone $exists false:\", kontakty.count_documents({\"phone\": {\"$exists\": False}}))\nprint(\"phone $type null:   \", kontakty.count_documents({\"phone\": {\"$type\": \"null\"}}))",
@@ -426,45 +495,53 @@ const QUIZ = {
   },
   {
    "id": "q13",
-   "topic": "2.5 · вкладка Schema",
+   "topic": "2.5 · $exists и вложенные поля",
    "type": "single",
-   "text": "На кадре — вкладка Schema коллекции <code>hh.resumes</code>. Сколько резюме найдёт фильтр <code>{ courses: { $exists: false } }</code>?",
+   "text": "Перед рассылкой фрагмент проверяет, у кого из соискателей заполнена почта в <code>contacts.email</code>. Что он напечатает?",
    "options": [
-    "1",
-    "8",
-    "9",
-    "0"
+    "<code>есть email: 7</code><br><code>нет email: 2</code><br><code>нет contacts: 1</code>",
+    "<code>есть email: 7</code><br><code>нет email: 1</code><br><code>нет contacts: 1</code>",
+    "<code>есть email: 8</code><br><code>нет email: 1</code><br><code>нет contacts: 1</code>",
+    "<code>есть email: 7</code><br><code>нет email: 2</code><br><code>нет contacts: 0</code>"
    ],
-   "img": {
-    "src": "img/schema-resumes.png",
-    "alt": "Compass: вкладка Schema коллекции resumes",
-    "caption": "Compass · hh.resumes · Schema"
+   "code": {
+    "python": "print(\"есть email:  \", resumes.count_documents({\"contacts.email\": {\"$exists\": True}}))\nprint(\"нет email:   \", resumes.count_documents({\"contacts.email\": {\"$exists\": False}}))\nprint(\"нет contacts:\", resumes.count_documents({\"contacts\": {\"$exists\": False}}))",
+    "cpp": "std::cout << \"есть email:   \" << resumes.count_documents(make_document(kvp(\"contacts.email\", make_document(kvp(\"$exists\", true))))) << std::endl;\nstd::cout << \"нет email:    \" << resumes.count_documents(make_document(kvp(\"contacts.email\", make_document(kvp(\"$exists\", false))))) << std::endl;\nstd::cout << \"нет contacts: \" << resumes.count_documents(make_document(kvp(\"contacts\", make_document(kvp(\"$exists\", false))))) << std::endl;",
+    "go": "estEmail, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"contacts.email\", Value: bson.D{{Key: \"$exists\", Value: true}}}})\nnetEmail, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"contacts.email\", Value: bson.D{{Key: \"$exists\", Value: false}}}})\nnetKontaktov, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"contacts\", Value: bson.D{{Key: \"$exists\", Value: false}}}})\n\nfmt.Println(\"есть email:  \", estEmail)\nfmt.Println(\"нет email:   \", netEmail)\nfmt.Println(\"нет contacts:\", netKontaktov)",
+    "ruby": "puts \"есть email:   \" + resumes.count_documents({ \"contacts.email\" => { \"$exists\" => true } }).to_s\nputs \"нет email:    \" + resumes.count_documents({ \"contacts.email\" => { \"$exists\" => false } }).to_s\nputs \"нет contacts: \" + resumes.count_documents({ \"contacts\" => { \"$exists\" => false } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, contacts",
+     "text": "{ fio: 'Анна Белова' }\n{ fio: 'Пётр Ковалёв', contacts: { email: 'kovalev.p@example.ru', tg: '@kovalev_p' } }\n{ fio: 'Алина Дроздова', contacts: { email: 'a.drozdova@example.ru', tg: '@drozdova' } }\n{ fio: 'Игорь Самойлов', contacts: { email: 'samoylov@example.ru' } }\n{ fio: 'Дарья Нечаева', contacts: { email: 'nechaeva.d@example.ru', tg: '@nech_dar' } }\n{ fio: 'Тимур Валиев', contacts: { email: 'valiev.t@example.ru', tg: '@valiev_db' } }\n{ fio: 'Ксения Лапина', contacts: { email: 'lapina.k@example.ru', tg: '@lapina_qa' } }\n{ fio: 'Марк Ефремов', contacts: { tg: '@efremov_dev' } }\n{ fio: 'Ольга Пирогова', contacts: { email: 'pirogova.o@example.ru', tg: '@pirogova' } }"
+    }
+   ],
    "key": {
     "python": [
-     "6d9312b26260accf"
+     "31b2bcd0428d453e"
     ],
     "cpp": [
-     "61ae099cdf0c4383"
+     "ea0ffa45cd640614"
     ],
     "go": [
-     "7e9f772fb4fe770d"
+     "2f122dd87883f4d7"
     ],
     "ruby": [
-     "46270c0c918d04b2"
+     "759552cada0cdde7"
     ]
    }
   },
   {
    "id": "q14",
-   "topic": "2.5 · $exists",
+   "topic": "2.5 · значение для $exists",
    "type": "single",
-   "text": "Портфолио указали двое соискателей из девяти. Значение для <code>$exists</code> пришло из настроек отчёта строкой. Что напечатает фрагмент?",
+   "text": "Отчёт должен посчитать резюме без портфолио. Значение для <code>$exists</code> пришло из файла настроек строкой <code>\"false\"</code>. Что напечатает фрагмент?",
    "options": [
-    "без портфолио: 7",
-    "без портфолио: 2",
-    "без портфолио: 9",
-    "без портфолио: 0"
+    "<code>без портфолио: 7</code>",
+    "<code>без портфолио: 2</code>",
+    "<code>без портфолио: 9</code>",
+    "<code>без портфолио: 0</code>"
    ],
    "code": {
     "python": "print(\"без портфолио:\", resumes.count_documents({\"portfolio\": {\"$exists\": \"false\"}}))",
@@ -472,6 +549,13 @@ const QUIZ = {
     "go": "bezPortfolio, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"portfolio\", Value: bson.D{{Key: \"$exists\", Value: \"false\"}}}})\n\nfmt.Println(\"без портфолио:\", bezPortfolio)",
     "ruby": "puts \"без портфолио: \" + resumes.count_documents({ \"portfolio\" => { \"$exists\" => \"false\" } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, portfolio",
+     "text": "{ fio: 'Анна Белова' }\n{ fio: 'Пётр Ковалёв' }\n{ fio: 'Алина Дроздова', portfolio: 'https://github.com/example/drozdova' }\n{ fio: 'Игорь Самойлов' }\n{ fio: 'Дарья Нечаева' }\n{ fio: 'Тимур Валиев' }\n{ fio: 'Ксения Лапина' }\n{ fio: 'Марк Ефремов', portfolio: 'https://github.com/example/efremov' }\n{ fio: 'Ольга Пирогова' }"
+    }
+   ],
    "key": {
     "python": [
      "d902429900668fa6"
@@ -491,12 +575,12 @@ const QUIZ = {
    "id": "q15",
    "topic": "2.6 · $elemMatch",
    "type": "single",
-   "text": "Нужны соискатели, которые <b>на одном месте работы</b> использовали SQL не меньше 12 месяцев. Какие числа напечатает фрагмент?",
+   "text": "Нужны соискатели, которые <b>на одном и том же месте работы</b> использовали SQL не меньше 12 месяцев. Фрагмент записывает условие двумя способами. Что он напечатает?",
    "options": [
-    "2 и 2",
-    "2 и 1",
-    "1 и 1",
-    "1 и 2"
+    "<code>через точку: 2</code><br><code>$elemMatch: 2</code>",
+    "<code>через точку: 2</code><br><code>$elemMatch: 1</code>",
+    "<code>через точку: 1</code><br><code>$elemMatch: 1</code>",
+    "<code>через точку: 1</code><br><code>$elemMatch: 2</code>"
    ],
    "code": {
     "python": "print(\"через точку:\", resumes.count_documents({\"experience.stack\": \"SQL\", \"experience.months\": {\"$gte\": 12}}))\nprint(\"$elemMatch: \", resumes.count_documents({\"experience\": {\"$elemMatch\": {\"stack\": \"SQL\", \"months\": {\"$gte\": 12}}}}))",
@@ -504,6 +588,13 @@ const QUIZ = {
     "go": "tochka, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"experience.stack\", Value: \"SQL\"}, {Key: \"experience.months\", Value: bson.D{{Key: \"$gte\", Value: 12}}}})\nodinElement, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"experience\", Value: bson.D{{Key: \"$elemMatch\", Value: bson.D{{Key: \"stack\", Value: \"SQL\"}, {Key: \"months\", Value: bson.D{{Key: \"$gte\", Value: 12}}}}}}}})\n\nfmt.Println(\"через точку:\", tochka)\nfmt.Println(\"$elemMatch: \", odinElement)",
     "ruby": "puts \"через точку: \" + resumes.count_documents({ \"experience.stack\" => \"SQL\", \"experience.months\" => { \"$gte\" => 12 } }).to_s\nputs \"$elemMatch:  \" + resumes.count_documents({ \"experience\" => { \"$elemMatch\" => { \"stack\" => \"SQL\", \"months\" => { \"$gte\" => 12 } } } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, experience",
+     "text": "{ fio: 'Анна Белова' }\n{\n  fio: 'Пётр Ковалёв',\n  experience: [\n    { company: 'ИП Сорокин', role: 'стажёр', months: 6, stack: [ 'Python', 'PostgreSQL' ] }\n  ]\n}\n{\n  fio: 'Алина Дроздова',\n  experience: [\n    {\n      company: 'Ozon',\n      role: 'младший аналитик',\n      months: 14,\n      stack: [ 'ClickHouse', 'Python' ]\n    },\n    { company: 'Retail Lab', role: 'стажёр', months: 5, stack: [ 'SQL' ] }\n  ]\n}\n{\n  fio: 'Игорь Самойлов',\n  experience: [\n    {\n      company: 'Тензор',\n      role: 'разработчик',\n      months: 38,\n      stack: [ 'C#', 'PostgreSQL', 'RabbitMQ' ]\n    }\n  ]\n}\n{ fio: 'Дарья Нечаева', experience: [] }\n{\n  fio: 'Тимур Валиев',\n  experience: [\n    { company: 'Ак Барс Банк', role: 'DBA', months: 52, stack: [ 'PostgreSQL', 'MongoDB' ] },\n    { company: 'БарсТех', role: 'инженер сопровождения', months: 18, stack: [ 'Bash' ] }\n  ]\n}\n{\n  fio: 'Ксения Лапина',\n  experience: [\n    {\n      company: 'Первый Бит',\n      role: 'стажёр-тестировщик',\n      months: 4,\n      stack: [ 'Postman', 'SQL' ]\n    }\n  ]\n}\n{\n  fio: 'Марк Ефремов',\n  experience: [\n    {\n      company: 'Фриланс',\n      role: 'разработчик ботов',\n      months: 11,\n      stack: [ 'Python', 'MongoDB' ]\n    }\n  ]\n}\n{\n  fio: 'Ольга Пирогова',\n  experience: [ { company: 'Р-Фарм', role: 'аналитик', months: 26, stack: [ 'SQL', 'Python' ] } ]\n}"
+    }
+   ],
    "key": {
     "python": [
      "edd8a1212dd130fd"
@@ -523,12 +614,25 @@ const QUIZ = {
    "id": "q16",
    "topic": "2.6 · длина массива",
    "type": "single",
-   "text": "Нужны резюме, где навыков <b>пять и больше</b>. Какой фильтр это делает?",
+   "text": "Фрагмент считает резюме по числу навыков: через элемент массива по номеру и через <code>$size</code>. Что он напечатает?",
    "options": [
-    "<code>{ \"skills.4\": { $exists: true } }</code>",
-    "<code>{ skills: { $size: { $gte: 5 } } }</code>",
-    "<code>{ \"skills.5\": { $exists: true } }</code>",
-    "<code>{ skills: { $size: 5 } }</code>"
+    "<code>skills.3 есть: 8</code><br><code>$size 4: 6</code><br><code>skills.4 есть: 2</code>",
+    "<code>skills.3 есть: 6</code><br><code>$size 4: 6</code><br><code>skills.4 есть: 2</code>",
+    "<code>skills.3 есть: 8</code><br><code>$size 4: 6</code><br><code>skills.4 есть: 0</code>",
+    "<code>skills.3 есть: 6</code><br><code>$size 4: 8</code><br><code>skills.4 есть: 2</code>"
+   ],
+   "code": {
+    "python": "print(\"skills.3 есть:\", resumes.count_documents({\"skills.3\": {\"$exists\": True}}))\nprint(\"$size 4:      \", resumes.count_documents({\"skills\": {\"$size\": 4}}))\nprint(\"skills.4 есть:\", resumes.count_documents({\"skills.4\": {\"$exists\": True}}))",
+    "cpp": "std::cout << \"skills.3 есть: \" << resumes.count_documents(make_document(kvp(\"skills.3\", make_document(kvp(\"$exists\", true))))) << std::endl;\nstd::cout << \"$size 4:       \" << resumes.count_documents(make_document(kvp(\"skills\", make_document(kvp(\"$size\", 4))))) << std::endl;\nstd::cout << \"skills.4 есть: \" << resumes.count_documents(make_document(kvp(\"skills.4\", make_document(kvp(\"$exists\", true))))) << std::endl;",
+    "go": "neMenshe4, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"skills.3\", Value: bson.D{{Key: \"$exists\", Value: true}}}})\nrovno4, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"skills\", Value: bson.D{{Key: \"$size\", Value: 4}}}})\nneMenshe5, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"skills.4\", Value: bson.D{{Key: \"$exists\", Value: true}}}})\n\nfmt.Println(\"skills.3 есть:\", neMenshe4)\nfmt.Println(\"$size 4:      \", rovno4)\nfmt.Println(\"skills.4 есть:\", neMenshe5)",
+    "ruby": "puts \"skills.3 есть: \" + resumes.count_documents({ \"skills.3\" => { \"$exists\" => true } }).to_s\nputs \"$size 4:       \" + resumes.count_documents({ \"skills\" => { \"$size\" => 4 } }).to_s\nputs \"skills.4 есть: \" + resumes.count_documents({ \"skills.4\" => { \"$exists\" => true } }).to_s"
+   },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, skills",
+     "text": "{ fio: 'Анна Белова', skills: [ 'Python', 'Git' ] }\n{ fio: 'Пётр Ковалёв', skills: [ 'Python', 'SQL', 'Git', 'Docker' ] }\n{ fio: 'Алина Дроздова', skills: [ 'SQL', 'Python', 'ClickHouse', 'Power BI', 'Excel' ] }\n{ fio: 'Игорь Самойлов', skills: [ 'C#', '.NET', 'PostgreSQL', 'RabbitMQ', 'Docker' ] }\n{ fio: 'Дарья Нечаева', skills: [ 'JavaScript', 'React', 'HTML', 'CSS' ] }\n{ fio: 'Тимур Валиев', skills: [ 'PostgreSQL', 'MongoDB', 'Bash', 'Zabbix' ] }\n{ fio: 'Ксения Лапина', skills: [ 'Postman', 'SQL', 'Selenium', 'Python' ] }\n{ fio: 'Марк Ефремов', skills: [ 'Python', 'FastAPI', 'MongoDB', 'Git' ] }\n{ fio: 'Ольга Пирогова', skills: [ 'SQL', 'Excel', 'Python', 'ClickHouse' ] }"
+    }
    ],
    "key": {
     "python": [
@@ -549,12 +653,12 @@ const QUIZ = {
    "id": "q17",
    "topic": "2.6 · пустой массив",
    "type": "single",
-   "text": "У одного резюме массив мест работы пустой, у другого поля <code>experience</code> нет совсем. Какие числа напечатает фрагмент?",
+   "text": "Фрагмент ищет резюме без опыта работы двумя условиями. Что он напечатает?",
    "options": [
-    "1 и 1",
-    "2 и 2",
-    "1 и 2",
-    "2 и 1"
+    "<code>$size 0: 1</code><br><code>experience.0 нет: 1</code>",
+    "<code>$size 0: 2</code><br><code>experience.0 нет: 2</code>",
+    "<code>$size 0: 1</code><br><code>experience.0 нет: 2</code>",
+    "<code>$size 0: 2</code><br><code>experience.0 нет: 1</code>"
    ],
    "code": {
     "python": "print(\"$size 0:         \", resumes.count_documents({\"experience\": {\"$size\": 0}}))\nprint(\"experience.0 нет:\", resumes.count_documents({\"experience.0\": {\"$exists\": False}}))",
@@ -562,6 +666,13 @@ const QUIZ = {
     "go": "pustoy, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"experience\", Value: bson.D{{Key: \"$size\", Value: 0}}}})\nnetPervogo, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"experience.0\", Value: bson.D{{Key: \"$exists\", Value: false}}}})\n\nfmt.Println(\"$size 0:         \", pustoy)\nfmt.Println(\"experience.0 нет:\", netPervogo)",
     "ruby": "puts \"$size 0:          \" + resumes.count_documents({ \"experience\" => { \"$size\" => 0 } }).to_s\nputs \"experience.0 нет: \" + resumes.count_documents({ \"experience.0\" => { \"$exists\" => false } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, experience",
+     "text": "{ fio: 'Анна Белова' }\n{\n  fio: 'Пётр Ковалёв',\n  experience: [\n    { company: 'ИП Сорокин', role: 'стажёр', months: 6, stack: [ 'Python', 'PostgreSQL' ] }\n  ]\n}\n{\n  fio: 'Алина Дроздова',\n  experience: [\n    {\n      company: 'Ozon',\n      role: 'младший аналитик',\n      months: 14,\n      stack: [ 'ClickHouse', 'Python' ]\n    },\n    { company: 'Retail Lab', role: 'стажёр', months: 5, stack: [ 'SQL' ] }\n  ]\n}\n{\n  fio: 'Игорь Самойлов',\n  experience: [\n    {\n      company: 'Тензор',\n      role: 'разработчик',\n      months: 38,\n      stack: [ 'C#', 'PostgreSQL', 'RabbitMQ' ]\n    }\n  ]\n}\n{ fio: 'Дарья Нечаева', experience: [] }\n{\n  fio: 'Тимур Валиев',\n  experience: [\n    { company: 'Ак Барс Банк', role: 'DBA', months: 52, stack: [ 'PostgreSQL', 'MongoDB' ] },\n    { company: 'БарсТех', role: 'инженер сопровождения', months: 18, stack: [ 'Bash' ] }\n  ]\n}\n{\n  fio: 'Ксения Лапина',\n  experience: [\n    {\n      company: 'Первый Бит',\n      role: 'стажёр-тестировщик',\n      months: 4,\n      stack: [ 'Postman', 'SQL' ]\n    }\n  ]\n}\n{\n  fio: 'Марк Ефремов',\n  experience: [\n    {\n      company: 'Фриланс',\n      role: 'разработчик ботов',\n      months: 11,\n      stack: [ 'Python', 'MongoDB' ]\n    }\n  ]\n}\n{\n  fio: 'Ольга Пирогова',\n  experience: [ { company: 'Р-Фарм', role: 'аналитик', months: 26, stack: [ 'SQL', 'Python' ] } ]\n}"
+    }
+   ],
    "key": {
     "python": [
      "44605f3966e7a360"
@@ -579,14 +690,14 @@ const QUIZ = {
   },
   {
    "id": "q18",
-   "topic": "2.7 · служебные символы",
+   "topic": "2.7 · точка в шаблоне",
    "type": "single",
-   "text": "Нужны резюме со знанием C#. Навыки хранятся массивом строк: «C#», «CSS», «ClickHouse» и другие; C# указан в одном резюме, CSS — в одном, ClickHouse — в двух. Какие числа напечатает фрагмент?",
+   "text": "Нужны резюме со знанием C#. Фрагмент ищет навык двумя шаблонами. Что он напечатает?",
    "options": [
-    "1 и 1",
-    "4 и 1",
-    "2 и 1",
-    "4 и 0"
+    "<code>шаблон ^C.: 1</code><br><code>шаблон ^C#$: 1</code>",
+    "<code>шаблон ^C.: 4</code><br><code>шаблон ^C#$: 1</code>",
+    "<code>шаблон ^C.: 2</code><br><code>шаблон ^C#$: 1</code>",
+    "<code>шаблон ^C.: 4</code><br><code>шаблон ^C#$: 0</code>"
    ],
    "code": {
     "python": "print(\"шаблон ^C.: \", resumes.count_documents({\"skills\": {\"$regex\": \"^C.\"}}))\nprint(\"шаблон ^C#$:\", resumes.count_documents({\"skills\": {\"$regex\": \"^C#$\"}}))",
@@ -594,6 +705,13 @@ const QUIZ = {
     "go": "cTochka, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"skills\", Value: bson.D{{Key: \"$regex\", Value: \"^C.\"}}}})\ncSharp, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"skills\", Value: bson.D{{Key: \"$regex\", Value: \"^C#$\"}}}})\n\nfmt.Println(\"шаблон ^C.: \", cTochka)\nfmt.Println(\"шаблон ^C#$:\", cSharp)",
     "ruby": "puts \"шаблон ^C.:  \" + resumes.count_documents({ \"skills\" => { \"$regex\" => \"^C.\" } }).to_s\nputs 'шаблон ^C#$: ' + resumes.count_documents({ \"skills\" => { \"$regex\" => '^C#$' } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, skills",
+     "text": "{ fio: 'Анна Белова', skills: [ 'Python', 'Git' ] }\n{ fio: 'Пётр Ковалёв', skills: [ 'Python', 'SQL', 'Git', 'Docker' ] }\n{ fio: 'Алина Дроздова', skills: [ 'SQL', 'Python', 'ClickHouse', 'Power BI', 'Excel' ] }\n{ fio: 'Игорь Самойлов', skills: [ 'C#', '.NET', 'PostgreSQL', 'RabbitMQ', 'Docker' ] }\n{ fio: 'Дарья Нечаева', skills: [ 'JavaScript', 'React', 'HTML', 'CSS' ] }\n{ fio: 'Тимур Валиев', skills: [ 'PostgreSQL', 'MongoDB', 'Bash', 'Zabbix' ] }\n{ fio: 'Ксения Лапина', skills: [ 'Postman', 'SQL', 'Selenium', 'Python' ] }\n{ fio: 'Марк Ефремов', skills: [ 'Python', 'FastAPI', 'MongoDB', 'Git' ] }\n{ fio: 'Ольга Пирогова', skills: [ 'SQL', 'Excel', 'Python', 'ClickHouse' ] }"
+    }
+   ],
    "key": {
     "python": [
      "e872fa59b00ecb41"
@@ -611,36 +729,40 @@ const QUIZ = {
   },
   {
    "id": "q19",
-   "topic": "2.7 · $regex и $options",
-   "type": "multi",
-   "text": "Должность в резюме — «Junior Python-разработчик». Отметьте <b>все</b> условия на поле <code>position</code>, под которые она подойдёт.",
+   "topic": "2.7 · якоря и регистр",
+   "type": "single",
+   "text": "Фрагмент ищет должности по трём шаблонам. Что он напечатает?",
    "options": [
-    "<code>{ $regex: \"^junior\", $options: \"i\" }</code>",
-    "<code>{ $regex: \"^Python\" }</code>",
-    "<code>{ $regex: \"Python\" }</code>",
-    "<code>{ $regex: \"разработчик$\" }</code>",
-    "<code>{ $regex: \"junior\" }</code>"
+    "<code>^junior, i: 4</code><br><code>разработчик$: 4</code><br><code>^Python: 0</code>",
+    "<code>^junior, i: 4</code><br><code>разработчик$: 5</code><br><code>^Python: 0</code>",
+    "<code>^junior, i: 0</code><br><code>разработчик$: 4</code><br><code>^Python: 3</code>",
+    "<code>^junior, i: 4</code><br><code>разработчик$: 4</code><br><code>^Python: 3</code>"
+   ],
+   "code": {
+    "python": "print(\"^junior, i:  \", resumes.count_documents({\"position\": {\"$regex\": \"^junior\", \"$options\": \"i\"}}))\nprint(\"разработчик$:\", resumes.count_documents({\"position\": {\"$regex\": \"разработчик$\"}}))\nprint(\"^Python:     \", resumes.count_documents({\"position\": {\"$regex\": \"^Python\"}}))",
+    "cpp": "std::cout << \"^junior, i:   \" << resumes.count_documents(make_document(kvp(\"position\", make_document(kvp(\"$regex\", \"^junior\"), kvp(\"$options\", \"i\"))))) << std::endl;\nstd::cout << \"разработчик$: \" << resumes.count_documents(make_document(kvp(\"position\", make_document(kvp(\"$regex\", \"разработчик$\"))))) << std::endl;\nstd::cout << \"^Python:      \" << resumes.count_documents(make_document(kvp(\"position\", make_document(kvp(\"$regex\", \"^Python\"))))) << std::endl;",
+    "go": "junior, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"position\", Value: bson.D{{Key: \"$regex\", Value: \"^junior\"}, {Key: \"$options\", Value: \"i\"}}}})\nrazrabotchik, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"position\", Value: bson.D{{Key: \"$regex\", Value: \"разработчик$\"}}}})\npython, _ := resumes.CountDocuments(ctx, bson.D{{Key: \"position\", Value: bson.D{{Key: \"$regex\", Value: \"^Python\"}}}})\n\nfmt.Println(\"^junior, i:  \", junior)\nfmt.Println(\"разработчик$:\", razrabotchik)\nfmt.Println(\"^Python:     \", python)",
+    "ruby": "puts \"^junior, i:   \" + resumes.count_documents({ \"position\" => { \"$regex\" => \"^junior\", \"$options\" => \"i\" } }).to_s\nputs \"разработчик$: \" + resumes.count_documents({ \"position\" => { \"$regex\" => \"разработчик$\" } }).to_s\nputs \"^Python:      \" + resumes.count_documents({ \"position\" => { \"$regex\" => \"^Python\" } }).to_s"
+   },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, position",
+     "text": "{ fio: 'Анна Белова', position: 'Junior Python-разработчик' }\n{ fio: 'Пётр Ковалёв', position: 'Junior Python-разработчик' }\n{ fio: 'Алина Дроздова', position: 'Аналитик данных' }\n{ fio: 'Игорь Самойлов', position: 'Backend-разработчик C#' }\n{ fio: 'Дарья Нечаева', position: 'Junior Frontend-разработчик' }\n{ fio: 'Тимур Валиев', position: 'Администратор баз данных' }\n{ fio: 'Ксения Лапина', position: 'Тестировщик' }\n{ fio: 'Марк Ефремов', position: 'Junior Python-разработчик' }\n{ fio: 'Ольга Пирогова', position: 'Аналитик данных' }"
+    }
    ],
    "key": {
     "python": [
-     "af8529c8f144df6a",
-     "e18b81ad78831085",
      "fa19f0bf62c44921"
     ],
     "cpp": [
-     "37220f3a2dba95c4",
-     "89f2767630b6325a",
-     "b112a4ab2a15b58d"
+     "37220f3a2dba95c4"
     ],
     "go": [
-     "25b7e892009e4808",
-     "709fdfbef154890c",
      "d839ab849e777bfc"
     ],
     "ruby": [
-     "348ac326535dfb7e",
-     "5352a82c9a5e5f27",
-     "c6216ea4d13bde0d"
+     "348ac326535dfb7e"
     ]
    }
   },
@@ -648,7 +770,7 @@ const QUIZ = {
    "id": "q20",
    "topic": "2.7 · шаблон и индекс",
    "type": "single",
-   "text": "В коллекции миллион вакансий, по полю <code>title</code> есть индекс. Для какого условия сервер может взять из индекса только часть строк, а не просматривать все значения?",
+   "text": "В коллекции миллион вакансий, по полю <code>title</code> построен индекс. Для какого условия сервер может взять из индекса только часть строк, а не просматривать все значения?",
    "options": [
     "<code>{ title: { $regex: \"^Junior\" } }</code>",
     "<code>{ title: { $regex: \"Junior\" } }</code>",
@@ -674,12 +796,12 @@ const QUIZ = {
    "id": "q21",
    "topic": "2.8 · ссылка на поле",
    "type": "single",
-   "text": "Фрагмент заводит два черновика вакансий, у второго вилка перевёрнута. Что напечатает проверка?",
+   "text": "Фрагмент заводит два черновика вакансий, у второго нижняя граница вилки больше верхней. Проверка ищет такие черновики двумя фильтрами. Что она напечатает?",
    "options": [
-    "1 и 1",
-    "1 и 0",
-    "0 и 0",
-    "1, затем ошибка сервера"
+    "<code>со знаком $: 1</code><br><code>без знака $: 1</code>",
+    "<code>со знаком $: 1</code><br><code>без знака $: 0</code>",
+    "<code>со знаком $: 0</code><br><code>без знака $: 0</code>",
+    "<code>со знаком $: 0</code><br><code>без знака $: 1</code>"
    ],
    "code": {
     "python": "# черновики: коллекция создаётся заново при каждом запуске\ndrafts = client[\"sandbox\"][\"vacancy_drafts\"]\ndrafts.drop()\ndrafts.insert_one({\"_id\": \"v-901\",\n                   \"title\": \"Стажёр-аналитик\",\n                   \"salary\": {\"from\": 50000, \"to\": 70000}})\ndrafts.insert_one({\"_id\": \"v-902\",\n                   \"title\": \"Тестировщик\",\n                   \"salary\": {\"from\": 90000, \"to\": 60000}})\n\nprint(\"со знаком $:\", drafts.count_documents({\"$expr\": {\"$gt\": [\"$salary.from\", \"$salary.to\"]}}))\nprint(\"без знака $:\", drafts.count_documents({\"$expr\": {\"$gt\": [\"salary.from\", \"salary.to\"]}}))",
@@ -706,12 +828,12 @@ const QUIZ = {
    "id": "q22",
    "topic": "2.8 · вычисление в $expr",
    "type": "single",
-   "text": "Ширина вилки восьми вакансий: 30 000, 25 000, 50 000, 50 000, 40 000, 50 000, 60 000, 60 000. Что напечатает фрагмент?",
+   "text": "Фрагмент считает вакансии, где разница между верхней и нижней границей вилки не больше 40 000. Что он напечатает?",
    "options": [
-    "вилка не шире 40 000: 3",
-    "вилка не шире 40 000: 2",
-    "вилка не шире 40 000: 5",
-    "вилка не шире 40 000: 0"
+    "<code>вилка не шире 40 000: 3</code>",
+    "<code>вилка не шире 40 000: 2</code>",
+    "<code>вилка не шире 40 000: 5</code>",
+    "<code>вилка не шире 40 000: 0</code>"
    ],
    "code": {
     "python": "print(\"вилка не шире 40 000:\", vacancies.count_documents({\"$expr\": {\"$lte\": [{\"$subtract\": [\"$salary.to\", \"$salary.from\"]}, 40000]}}))",
@@ -719,6 +841,13 @@ const QUIZ = {
     "go": "uzkie, _ := vacancies.CountDocuments(ctx, bson.D{{Key: \"$expr\", Value: bson.D{{Key: \"$lte\", Value: bson.A{bson.D{{Key: \"$subtract\", Value: bson.A{\"$salary.to\", \"$salary.from\"}}}, 40000}}}}})\n\nfmt.Println(\"вилка не шире 40 000:\", uzkie)",
     "ruby": "puts \"вилка не шире 40 000: \" + vacancies.count_documents({ \"$expr\" => { \"$lte\" => [{ \"$subtract\" => [\"$salary.to\", \"$salary.from\"] }, 40000] } }).to_s"
    },
+   "docs": [
+    {
+     "title": "hh.vacancies",
+     "note": "hh.vacancies: все 8 вакансий; показаны поля title, salary, _id",
+     "text": "{ _id: 'v-001', title: 'Junior Python-разработчик', salary: { from: 60000, to: 90000 } }\n{ _id: 'v-004', title: 'Тестировщик', salary: { from: 70000, to: 95000 } }\n{ _id: 'v-005', title: 'Backend-разработчик .NET', salary: { from: 100000, to: 150000 } }\n{ _id: 'v-006', title: 'Frontend-разработчик', salary: { from: 90000, to: 140000 } }\n{ _id: 'v-002', title: 'Инженер сопровождения БД', salary: { from: 80000, to: 120000 } }\n{ _id: 'v-007', title: 'Администратор баз данных', salary: { from: 110000, to: 160000 } }\n{ _id: 'v-003', title: 'Аналитик данных', salary: { from: 120000, to: 180000 } }\n{ _id: 'v-008', title: 'Data-инженер', salary: { from: 140000, to: 200000 } }"
+    }
+   ],
    "key": {
     "python": [
      "f3868dc3b9ae9f81"
@@ -738,12 +867,12 @@ const QUIZ = {
    "id": "q23",
    "topic": "1.6 + 2.3 · порядок и порции",
    "type": "single",
-   "text": "Зарплаты соискателей из Ярославля: 65 000, 70 000, 150 000, 90 000, 110 000; из Казани — 140 000. Что напечатает фрагмент?",
+   "text": "Фрагмент выбирает соискателей из Ярославля и Казани, сортирует по зарплате от большей к меньшей, пропускает первого и берёт двоих. Кого он напечатает?",
    "options": [
-    "140 000 и 110 000",
-    "150 000 и 140 000",
-    "110 000 и 90 000",
-    "140 000 и 90 000"
+    "Тимур Валиев, затем Ольга Пирогова",
+    "Игорь Самойлов, затем Тимур Валиев",
+    "Ольга Пирогова, затем Ксения Лапина",
+    "Тимур Валиев, затем Ксения Лапина"
    ],
    "code": {
     "python": "for doc in resumes.find({\"city\": {\"$in\": [\"Ярославль\", \"Казань\"]}}, {\"_id\": 0, \"fio\": 1, \"salary\": 1}) \\\n                 .sort(\"salary\", -1).skip(1).limit(2):\n    print(doc)",
@@ -751,6 +880,13 @@ const QUIZ = {
     "go": "cursor, _ := resumes.Find(ctx, bson.D{{Key: \"city\", Value: bson.D{{Key: \"$in\", Value: bson.A{\"Ярославль\", \"Казань\"}}}}},\n    options.Find().\n        SetProjection(bson.D{{Key: \"_id\", Value: 0}, {Key: \"fio\", Value: 1}, {Key: \"salary\", Value: 1}}).\n        SetSort(bson.D{{Key: \"salary\", Value: -1}}).\n        SetSkip(1).\n        SetLimit(2))\nfor cursor.Next(ctx) {\n    var doc bson.D\n    cursor.Decode(&doc)\n    out, _ := bson.MarshalExtJSON(doc, false, false)\n    fmt.Println(string(out))\n}",
     "cpp": "mongocxx::options::find options;\noptions.projection(make_document(kvp(\"_id\", 0), kvp(\"fio\", 1), kvp(\"salary\", 1)));\noptions.sort(make_document(kvp(\"salary\", -1)));\noptions.skip(1);\noptions.limit(2);\n\nauto filtr = make_document(kvp(\"city\", make_document(kvp(\"$in\", make_array(\"Ярославль\", \"Казань\")))));\nfor (const auto& doc : resumes.find(filtr.view(), options)) {\n    std::cout << bsoncxx::to_json(doc, bsoncxx::ExtendedJsonMode::k_relaxed) << std::endl;\n}"
    },
+   "docs": [
+    {
+     "title": "hh.resumes",
+     "note": "hh.resumes: все 9 резюме; показаны поля fio, city, salary",
+     "text": "{ fio: 'Анна Белова', city: 'Ярославль', salary: 65000 }\n{ fio: 'Пётр Ковалёв', city: 'Ярославль', salary: 70000 }\n{ fio: 'Алина Дроздова', city: 'Москва', salary: 120000 }\n{ fio: 'Игорь Самойлов', city: 'Ярославль', salary: 150000 }\n{ fio: 'Дарья Нечаева', city: 'Санкт-Петербург', salary: 80000 }\n{ fio: 'Тимур Валиев', city: 'Казань', salary: 140000 }\n{ fio: 'Ксения Лапина', city: 'Ярославль', salary: 90000 }\n{ fio: 'Марк Ефремов', city: 'Новосибирск', salary: 75000 }\n{ fio: 'Ольга Пирогова', city: 'Ярославль', salary: 110000 }"
+    }
+   ],
    "key": {
     "python": [
      "f7e1da11fb1b7118"
@@ -770,12 +906,12 @@ const QUIZ = {
    "id": "q24",
    "topic": "1.7 + 2.5 · исправление типа",
    "type": "single",
-   "text": "В песочнице 21 товар, у всех цена — число больше 500. Фрагмент добавляет два товара из веб-формы и исправляет цену. Что он напечатает?",
+   "text": "В песочнице 21 товар, у всех цена — число больше 500. Фрагмент добавляет два товара, у которых цена пришла из веб-формы строкой, и исправляет цену одним вызовом <code>update_one</code>. Что он напечатает?",
    "options": [
-    "цена строкой: 1 · дороже 500: 22",
-    "цена строкой: 0 · дороже 500: 23",
-    "цена строкой: 1 · дороже 500: 23",
-    "цена строкой: 0 · дороже 500: 22"
+    "<code>цена строкой: 1</code><br><code>дороже 500: 22</code>",
+    "<code>цена строкой: 0</code><br><code>дороже 500: 23</code>",
+    "<code>цена строкой: 1</code><br><code>дороже 500: 23</code>",
+    "<code>цена строкой: 0</code><br><code>дороже 500: 22</code>"
    ],
    "code": {
     "python": "# два товара из веб-формы: цена пришла текстом\nbox.insert_one({\"_id\": \"p-201\",\n                \"title\": \"Кабель USB-C 2 м\",\n                \"category\": \"аксессуары\",\n                \"price\": \"790\"})\nbox.insert_one({\"_id\": \"p-202\",\n                \"title\": \"Адаптер HDMI\",\n                \"category\": \"аксессуары\",\n                \"price\": \"1290\"})\nbox.update_one({\"price\": {\"$type\": \"string\"}}, {\"$set\": {\"price\": 790}})\n\nprint(\"цена строкой:\", box.count_documents({\"price\": {\"$type\": \"string\"}}))\nprint(\"дороже 500:  \", box.count_documents({\"price\": {\"$gt\": 500}}))",
@@ -802,12 +938,12 @@ const QUIZ = {
    "id": "q25",
    "topic": "1.8 + 2.5 · фильтр удаления",
    "type": "single",
-   "text": "У всех 21 товара песочницы поле <code>brand</code> заполнено строкой. Фрагмент добавляет два черновика и удаляет товар, у которого бренд записан как null. Что он напечатает?",
+   "text": "У всех 21 товара песочницы бренд заполнен строкой. Фрагмент добавляет два черновика: у первого бренд записан как null, у второго поля <code>brand</code> нет. Затем удаляет товары с условием <code>brand</code> равно null. Что он напечатает?",
    "options": [
-    "осталось товаров: 22",
-    "осталось товаров: 21",
-    "осталось товаров: 23",
-    "осталось товаров: 0"
+    "<code>осталось товаров: 22</code>",
+    "<code>осталось товаров: 21</code>",
+    "<code>осталось товаров: 23</code>",
+    "<code>осталось товаров: 0</code>"
    ],
    "code": {
     "python": "# черновики карточек\nbox.insert_one({\"_id\": \"p-201\",\n                \"title\": \"Кабель USB-C 2 м\",\n                \"brand\": None,\n                \"price\": 790})\nbox.insert_one({\"_id\": \"p-202\", \"title\": \"Адаптер HDMI\", \"price\": 1290})\n\nbox.delete_many({\"brand\": None})\n\nprint(\"осталось товаров:\", box.count_documents({}))",
