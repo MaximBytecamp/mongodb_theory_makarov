@@ -155,7 +155,7 @@ function updateLeaves() {
 }
 
 /* кадр Compass — во весь экран по щелчку, закрывается щелчком или Esc */
-$('questions').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const img = e.target.closest('.q-img img');
   if (!img) return;
   const layer = document.createElement('div');
@@ -175,11 +175,35 @@ $('questions').addEventListener('click', e => {
 
 /* ---------- вопросы ---------- */
 
-function codeFor(q) {
+function codeFor(q, lang) {
   if (!q.code) return null;
   if (q.code.shell) return { caption: 'mongosh · оболочка', text: q.code.shell };
-  return { caption: LANG_NAMES[state.lang], text: q.code[state.lang] };
+  return { caption: LANG_NAMES[lang], text: q.code[lang] };
 }
+
+function codeBlock(code) {
+  return code ? `<figure class="q-code"><figcaption><span>${esc(code.caption)}</span></figcaption><pre>${
+    code.text.split('\n').map(line => `<span class="ln">${esc(line) || ' '}</span>`).join('')}</pre></figure>` : '';
+}
+
+function imgBlock(q) {
+  return q.img ? `<figure class="q-img"><img src="${q.img.src}" alt="${esc(q.img.alt)}" draggable="false"><figcaption>${esc(q.img.caption)}</figcaption></figure>` : '';
+}
+
+/* вкладки «Документы в базе»: по кнопке на коллекцию */
+function docsBlock(q) {
+  return q.docs ? `<figure class="q-docs"><figcaption><span>Документы в базе</span><span class="q-docs-tabs">${
+    q.docs.map((d, i) => `<button type="button" data-tab="${i}" class="${i ? '' : 'on'}">${esc(d.title)}</button>`).join('')}</span></figcaption>${
+    q.docs.map((d, i) => `<div class="q-docs-pane${i ? ' hidden' : ''}" data-pane="${i}"><p class="q-docs-note">${esc(d.note)}</p><pre>${esc(d.text)}</pre></div>`).join('')}</figure>` : '';
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.q-docs-tabs button');
+  if (!btn) return;
+  const fig = btn.closest('.q-docs');
+  fig.querySelectorAll('.q-docs-tabs button').forEach(x => x.classList.toggle('on', x === btn));
+  fig.querySelectorAll('.q-docs-pane').forEach(x => x.classList.toggle('hidden', x.dataset.pane !== btn.dataset.tab));
+});
 
 function renderQuestions() {
   const host = $('questions');
@@ -194,10 +218,6 @@ function renderQuestions() {
     card.className = 'q';
     card.id = 'card-' + q.id;
 
-    const code = codeFor(q);
-    const codeHtml = code ? `<figure class="q-code"><figcaption><span>${esc(code.caption)}</span></figcaption><pre>${
-      code.text.split('\n').map(line => `<span class="ln">${esc(line) || ' '}</span>`).join('')}</pre></figure>` : '';
-    const imgHtml = q.img ? `<figure class="q-img"><img src="${q.img.src}" alt="${esc(q.img.alt)}" draggable="false"><figcaption>${esc(q.img.caption)}</figcaption></figure>` : '';
 
     card.innerHTML = `
       <div class="q-head">
@@ -205,7 +225,7 @@ function renderQuestions() {
         <span class="q-topic">${esc(q.topic)}</span>
       </div>
       <p class="q-text">${q.text}</p>
-      ${imgHtml}${codeHtml}
+      ${imgBlock(q)}${docsBlock(q)}${codeBlock(codeFor(q, state.lang))}
       ${multi ? '<p class="q-hint">Несколько верных вариантов · балл только за полностью верный набор</p>' : ''}
       <div class="opts"></div>`;
     const opts = card.querySelector('.opts');
@@ -286,6 +306,7 @@ async function finish(byTimeout) {
     byTimeout: !!byTimeout,
     leaves: state.leaves || 0,
     order: state.order,
+    raw: { ...state.answers },
     details
   };
   result.code = await makeCode(result);
@@ -315,7 +336,7 @@ async function makeCode(r) {
 
 /* ---------- экран результата ---------- */
 
-function renderResult(r, returning) {
+async function renderResult(r, returning) {
   show('result');
   $('result-title').textContent = returning ? 'Тест уже пройден' : (r.byTimeout ? 'Время вышло — работа отправлена' : 'Работа завершена');
 
@@ -332,18 +353,98 @@ function renderResult(r, returning) {
   if (returning && !document.querySelector('.notice.again')) {
     const note = document.createElement('div');
     note.className = 'notice again';
-    note.innerHTML = '<b>Повторное прохождение не предусмотрено.</b> Оценка зафиксирована при первой попытке и не меняется. Если тест нужно пересдать, обратитесь к преподавателю.';
+    note.innerHTML = '<b>Повторное прохождение не предусмотрено.</b> Оценка зафиксирована при первой попытке и не меняется, но разбор ниже остаётся доступным — его можно перечитать. Если тест нужно пересдать, обратитесь к преподавателю.';
     screens.result.insertBefore(note, screens.result.children[2]);
   }
 
-  // номера — в том порядке, в каком студент видел вопросы
+  const secret = await secretData();
   const order = r.order || QUIZ.questions.map((_, i) => i);
+  const raw = r.raw || fromAnswerString(r.answers);
+  const lang = r.lang;
+
+  // номера — в том порядке, в каком студент видел вопросы
+  $('review-map').innerHTML = order.map((qi, pos) => {
+    const q = QUIZ.questions[qi];
+    const d = r.details.find(x => x.id === q.id) || { ok: false };
+    return `<a href="#rv-${q.id}" class="${d.ok ? 'ok' : 'bad'}" title="${d.ok ? 'верно' : 'неверно'} · ${esc(q.topic)}">${pos + 1}</a>`;
+  }).join('');
+
   $('review').innerHTML = order.map((qi, pos) => {
     const q = QUIZ.questions[qi];
     const d = r.details.find(x => x.id === q.id) || { ok: false };
-    return `<div class="rq ${d.ok ? 'ok' : 'bad'}"><b>${pos + 1} · ${d.ok ? 'верно' : 'неверно'}</b><span>${esc(q.topic)}</span></div>`;
-  }).join('');
+    const s = secret[q.id];
+    const correct = s.correct[lang] || s.correct['*'];
+    const run = s.run && (s.run[lang] || s.run['*']);
+    return `<article class="q rv ${d.ok ? 'ok' : 'bad'}" id="rv-${q.id}">
+      <div class="q-head">
+        <span class="q-num">ВОПРОС ${pos + 1} ИЗ ${QUIZ.questions.length}</span>
+        <span class="verdict ${d.ok ? 'ok' : 'bad'}">${d.ok ? '✓ верно' : '✗ неверно'}</span>
+        <span class="q-topic">${esc(q.topic)}</span>
+      </div>
+      <p class="q-text">${q.text}</p>
+      ${imgBlock(q)}${docsBlock(q)}${codeBlock(codeFor(q, lang))}
+      ${reviewOptions(q, raw[q.id] || [], correct, s.notes)}
+      ${run ? `<figure class="q-code rv-run"><figcaption><span>Вывод в терминал</span><span>запуск на учебном стенде</span></figcaption><pre>${
+        run.split('\n').map(line => `<span class="ln">${esc(line) || ' '}</span>`).join('')}</pre></figure>` : ''}
+      <div class="why"><b>Разбор</b>${s.why}</div>
+    </article>`;
+  }).join('') + repeatBlock(r);
 }
+
+/* Итог разбора: главы справочника, по которым были ошибки, со ссылками. */
+function repeatBlock(r) {
+  if (!QUIZ.chapters) return '';
+  const misses = {};
+  QUIZ.questions.forEach(q => {
+    const d = r.details.find(x => x.id === q.id);
+    if (d && d.ok) return;
+    (q.chapters || []).forEach(ch => { misses[ch] = (misses[ch] || 0) + 1; });
+  });
+  const list = Object.keys(QUIZ.chapters).filter(ch => misses[ch]);
+  const body = list.length
+    ? `<p>Ошибки распределились по главам справочника так. Перечитайте главы из списка, особенно разделы «Частые ошибки» и «Проверьте себя», затем ещё раз просмотрите разбор вопросов с красной рамкой.</p>
+       <ul class="repeat">${list.map(ch => `<li><a href="${QUIZ.chapters[ch].url}" target="_blank" rel="noreferrer"><b>${ch}</b> ${esc(QUIZ.chapters[ch].title)}</a><span>${misses[ch]} ${plural(misses[ch])}</span></li>`).join('')}</ul>`
+    : '<p>Ошибок нет. На все вопросы даны верные ответы.</p>';
+  return `<div class="panel repeat-panel"><h2>Что повторить</h2>${body}</div>`;
+}
+
+function plural(n) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'вопрос с ошибкой';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'вопроса с ошибкой';
+  return 'вопросов с ошибкой';
+}
+
+/* Ответы из кода результата — запасной путь для попыток, записанных до того,
+   как разбор появился: там сохранены только строки вида "03-1-24". */
+function fromAnswerString(answers) {
+  const parts = String(answers || '').split('-');
+  const out = {};
+  QUIZ.questions.forEach((q, i) => {
+    const picked = (parts[i] || '').split('').filter(Boolean).map(Number);
+    if (picked.length) out[q.id] = picked;
+  });
+  return out;
+}
+
+function reviewOptions(q, mine, correct, notes) {
+  const rows = q.options.map((o, i) => {
+    const right = correct.includes(i), my = mine.includes(i);
+    const cls = right ? 'right' : (my ? 'wrong' : '');
+    const tag = right && my ? 'ваш выбор · верно' : right ? 'верный ответ' : my ? 'ваш выбор · неверно' : '';
+    return `<div class="cmp-opt ${cls}"><span class="mk">${right ? '✓' : my ? '✗' : ''}</span><span>${o}${notes && notes[i] ? `<small class="note">${notes[i]}</small>` : ''}</span>${
+      tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
+  }).join('');
+  return `<div class="cmp">${rows}</div>${mine.length ? '' : '<p class="muted">Вы не ответили на этот вопрос.</p>'}`;
+}
+
+/* ---------- фильтр разбора ---------- */
+
+document.querySelectorAll('.filter .chipbtn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.filter .chipbtn').forEach(b => b.classList.toggle('on', b === btn));
+  const onlyBad = btn.dataset.filter === 'bad';
+  document.querySelectorAll('#review .rv').forEach(el => el.classList.toggle('hidden', onlyBad && el.classList.contains('ok')));
+}));
 
 $('btn-copy').addEventListener('click', async () => {
   const ta = $('code');
