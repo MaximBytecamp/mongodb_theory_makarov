@@ -491,3 +491,6 @@ figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); 
 .shot-todo b { display: block; margin-bottom: 6px; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-soft); }
 .shot-todo p { margin: 0 0 6px; font-size: 14.5px; line-height: 1.5; }
 .shot-todo p:last-child { margin-bottom: 0; }
+
+/* Плашка-ссылка не шире листа: длинная подпись переносится на узком экране. */
+.repo { max-width: 100%; }

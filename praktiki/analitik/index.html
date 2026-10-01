@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>Практикум · Аналитик данных: первая неделя · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    .stages { display: grid; gap: 14px; margin: 22px 0; }
+    .stage { display: grid; grid-template-columns: 54px minmax(0, 1fr); border: 3px solid var(--ink); background: var(--page); box-shadow: 6px 6px 0 var(--leaf); }
+    .stage__n { display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 22px/1 var(--mono); }
+    .stage__body { padding: 13px 16px; }
+    .stage__body b { display: block; font-family: var(--display); font-size: 18px; margin-bottom: 4px; }
+    .stage__body p { margin: 0; font-size: 15.5px; line-height: 1.5; }
+    .stage__body p + p { margin-top: 6px; }
+    .open-desk { display: inline-flex; align-items: center; gap: 10px; margin: 8px 0 4px; padding: 13px 20px; border: 3px solid var(--ink); background: var(--ink); color: var(--leaf-bright); box-shadow: 6px 6px 0 var(--leaf); text-decoration: none; font: 700 13px/1.3 var(--mono); letter-spacing: .6px; text-transform: uppercase; }
+    .open-desk:hover { background: var(--leaf); color: #fff; box-shadow: 6px 6px 0 var(--ink); }
+    .crit td:last-child { white-space: nowrap; font-family: var(--mono); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 2 · Практикум</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 2 · практикум</p>
+          <p class="running__folio">ПРАКТИКУМ</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">ПРАКТИКУМ</span>
+          <h1>Аналитик данных:<br>первая неделя</h1>
+          <p class="lead">Практикум по языку фильтров на базе hh. Студент работает младшим аналитиком в кадровом агентстве: проверяет запросы коллег, собирает запросы по заявкам заказчиков из готовых блоков, предсказывает результат фильтра и пишет запросы сам. Каждый запрос выполняется прямо на странице на копии базы hh.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Темы</dt><dd>Главы 2.1–2.8: точечная нотация, сравнение, списки, логика, $exists и $type, массивы, $regex, $expr</dd></div>
+          <div><dt>Время</dt><dd>2 пары</dd></div>
+          <div><dt>База</dt><dd>hh: resumes, vacancies, companies, interviews</dd></div>
+          <div><dt>Что сдать</dt><dd>Отчёт <code>.md</code> со вкладки «Отчёт»</dd></div>
+        </dl>
+
+        <nav class="contents">
+          <b>На этой странице</b>
+          <ol>
+            <li><a href="#s1">Четыре письма</a></li>
+            <li><a href="#s2">Где выполняются запросы</a></li>
+            <li><a href="#s3">Как работать с блоками и карточками</a></li>
+            <li><a href="#s4">Сдача и оценка</a></li>
+          </ol>
+        </nav>
+
+        <p><a class="open-desk" href="stol.html">Открыть рабочий стол →</a></p>
+
+        <h2 id="s1"><span class="sec">§1</span>Четыре письма</h2>
+        <p>Задания приходят письмами от руководителя отдела данных вымышленного кадрового агентства «Точка найма». Следующее письмо открывается, когда выполнено предыдущее.</p>
+        <div class="stages">
+          <div class="stage"><span class="stage__n">1</span><div class="stage__body"><b>Ревью запросов коллег</b><p>Восемь запросов: задача заказчика, сам запрос и что коллега написал о результате. Для каждого запроса нужно решить, верен ли он, а если нет — указать вид ошибки, написать комментарий и по желанию исправленный запрос. Запрос коллеги и исправление можно выполнить и посмотреть результат.</p><p>Письмо 2 открывается, когда верно оценены не меньше шести запросов.</p></div></div>
+          <div class="stage"><span class="stage__n">2</span><div class="stage__body"><b>Сборка запросов из блоков</b><p>Пять заявок от заказчиков. Запрос собирается из готовых условий, среди которых есть ошибочные. Есть составные блоки: <code>$or</code> с ветками и <code>$elemMatch</code> для элемента массива. После запуска видно, какие документы лишние, а каких не хватает.</p><p>Письмо 3 открывается, когда решены четыре заявки из пяти.</p></div></div>
+          <div class="stage"><span class="stage__n">3</span><div class="stage__body"><b>Сито: результат до запуска</b><p>Пять фильтров и девять резюме. Каждое резюме нужно отнести к одной из двух колонок: попадёт в результат или нет. Фильтры подобраны на тонкие места: поле-массив, <code>$ne</code> и отсутствующее поле, сравнение с <code>null</code>, условия на массив документов.</p><p>Письмо 4 открывается, когда не меньше 80 % карточек разложены верно.</p></div></div>
+          <div class="stage"><span class="stage__n">4</span><div class="stage__body"><b>Свой запрос</b><p>Пять задач, запрос к которым пишется вручную в синтаксисе mongosh. Результат сравнивается с нужным; при ошибке разбора показывается, что и в какой строке не так.</p></div></div>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Где выполняются запросы</h2>
+        <p>Рабочий стол содержит копию базы hh со стенда курса и выполняет фильтры сам, в браузере. Сервер MongoDB для практикума не нужен. Поддерживаются операторы модуля 2; каждый запрос практикума и набор каверзных случаев сверены с сервером MongoDB 7: результат на странице совпадает с результатом в mongosh и Compass, вплоть до порядка документов.</p>
+        <p>Собранный или написанный запрос можно скопировать и выполнить на своём стенде: результат будет тот же.</p>
+        <figure class="code">
+          <figcaption><span>Так выглядит запрос в задании и в mongosh</span></figcaption>
+          <pre>db.resumes.find({ skills: { $all: ["SQL", "Python"] } })</pre>
+        </figure>
+        <p>В поле ввода можно писать только фильтр — <code>{ skills: … }</code> — или вызов целиком: <code>db.resumes.find({ … })</code>. Ключи пишутся без кавычек или в кавычках, строки — в одинарных или двойных кавычках, даты — <code>ISODate("2026-09-01")</code>, шаблоны — <code>/python/i</code>.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Как работать с блоками и карточками</h2>
+        <ul>
+          <li><b>Блок или карточку можно перетащить</b> мышью на нужное место.</li>
+          <li><b>То же можно сделать нажатиями</b>: нажать на блок, затем на место в фильтре. Так удобнее на ноутбуке с тачпадом и на планшете.</li>
+          <li><b>Крестик</b> возвращает блок в набор. Блок <code>$or</code> возвращается вместе с условиями внутри.</li>
+          <li><b>Блок с пунктирной рамкой</b> — условие для элемента массива. Имя поля в нём записано без пути: <code>months</code>, а не <code>experience.months</code>. Такой блок кладут внутрь <code>$elemMatch</code>.</li>
+          <li><b>Порядок блоков</b> сохраняется в тексте запроса, который показан под фильтром. Этот текст и выполняется.</li>
+        </ul>
+
+        <h2 id="s4"><span class="sec">§4</span>Сдача и оценка</h2>
+        <p>На вкладке «Отчёт» укажите фамилию, имя и группу и скачайте файл <code>analitik_&lt;фамилия&gt;.md</code>. В отчёт попадают решения по всем письмам, комментарии к ревью, тексты собранных и написанных запросов и число попыток. Для ревью и сборки записывается и результат первой попытки.</p>
+        <div class="table-scroll crit">
+          <table>
+            <thead><tr><th>Критерий</th><th>Баллы</th></tr></thead>
+            <tbody>
+              <tr><td>Письмо 1: верно оценены не меньше 7 запросов с первой попытки</td><td>2</td></tr>
+              <tr><td>Письмо 1: в комментариях к ошибочным запросам сказано, что исправить</td><td>2</td></tr>
+              <tr><td>Письмо 2: решены все пять заявок</td><td>2</td></tr>
+              <tr><td>Письмо 3: не меньше 40 из 45 карточек разложены верно</td><td>2</td></tr>
+              <tr><td>Письмо 4: решены не меньше четырёх запросов</td><td>2</td></tr>
+              <tr><td><b>Итого</b></td><td>10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Перевод в оценку: 9–10 баллов — «отлично», 7–8 — «хорошо», 5–6 — «удовлетворительно».</p>
+
+        <p><a class="open-desk" href="stol.html">Открыть рабочий стол →</a></p>
+
+        <div class="pager">
+          <a href="../../temy/18-skript-podbor/index.html">← 2.9 Скрипт целиком: подбор кандидатов</a>
+          <a href="../../index.html">Содержание →</a>
+        </div>
+        <div class="colophon">
+          <span>Справочник по MongoDB · учебное издание</span>
+          <span class="author-line">© Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
