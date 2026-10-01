@@ -467,8 +467,26 @@
     + `<div class="field"><label for="st-name">Фамилия и имя</label><input id="st-name" data-student="name" value="${esc(student.name)}"></div>`
     + `<div class="field"><label for="st-group">Группа</label><input id="st-group" data-student="group" value="${esc(student.group)}"></div>`
     + '<div class="row"><button type="button" class="btn" data-act="download">Скачать отчёт .md</button></div>'
-    + '<p class="note">Работа хранится только в этом браузере. Перед сменой компьютера скачайте отчёт.</p>'
-    + '<div class="row"><button type="button" class="btn btn--danger" data-act="reset">Начать заново</button></div>';
+    + '<p class="note">Работа хранится только в этом браузере. Перед сменой компьютера скачайте отчёт.</p>';
+
+  /* Сброс работы — только преподавателем. В коде хранится только хеш пароля. */
+  const RESET_HASH = 'd8e6d5a33bc8e95ed9a2505ccb9c0087102dc21bb8f02f87ef12e32fef4d9ba9';
+  const sha256 = async text => {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+  };
+  const resetByTeacher = async () => {
+    const pw = prompt('Сброс стирает все ответы и рецензию в этом браузере.\nПароль преподавателя:');
+    if (pw === null) return;
+    let ok = false;
+    try { ok = (await sha256('mongodb-analitik:' + pw.trim().toLowerCase())) === RESET_HASH; }
+    catch (_) { alert('Браузер не поддерживает проверку пароля. Откройте страницу по адресу https://…'); return; }
+    if (!ok) { alert('Пароль неверный. Работа не сброшена.'); return; }
+    state = blank();
+    save();
+    go(1);
+    alert('Работа сброшена.');
+  };
 
   const download = () => {
     const who = (student.name || 'student').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '');
@@ -643,10 +661,8 @@
       const a = e.target.closest('[data-act]');
       if (!a) return;
       if (a.dataset.act === 'download') download();
-      if (a.dataset.act === 'reset' && confirm('Стереть все ответы и рецензию в этом браузере и начать практикум заново? Отменить будет нельзя.')) {
-        state = blank(); save(); go(1);
-      }
     });
+    $('#reset').addEventListener('click', resetByTeacher);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && picked) { picked = null; draw(); } });
   };
 

@@ -10,6 +10,8 @@ body.desk { display: flex; flex-direction: column; height: 100vh; }
 .desk__title { font-family: var(--display); font-size: 19px; font-weight: 700; color: #fff; }
 .desk__role { font: 600 11px/1.4 var(--pixel); letter-spacing: 1.2px; text-transform: uppercase; color: var(--leaf-bright); }
 .desk__top .spacer { flex: 1 1 auto; }
+.desk__reset { padding: 5px 10px 4px; border: 2px solid rgba(200, 238, 218, .35); background: transparent; color: rgba(200, 238, 218, .75); cursor: pointer; font: 700 10.5px/1.3 var(--mono); letter-spacing: .5px; text-transform: uppercase; }
+.desk__reset:hover { border-color: #F0A882; color: #F0A882; }
 .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .steps li { margin: 0; padding: 5px 10px 4px; border: 2px solid rgba(200, 238, 218, .35); font: 700 10.5px/1.3 var(--mono); letter-spacing: .6px; text-transform: uppercase; color: rgba(200, 238, 218, .6); }
 .steps li.is-open { border-color: var(--leaf-bright); color: var(--leaf-pale); }

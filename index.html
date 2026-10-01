@@ -53,6 +53,8 @@
     .toc--work a, .toc--work s { padding: 7px 10px; margin-top: 6px; border: 2px solid var(--ink); font-size: 14px; }
     .toc--work .work-kind { font: 600 10px/1 var(--pixel); letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
     .toc--work s .work-kind { color: var(--ink-faint); }
+    /* Подпись вида работы — колонка постоянной ширины: название не наезжает на неё и не съезжает к середине. */
+    .toc--work .work-kind { flex: 0 0 92px; white-space: nowrap; }
     /* Карточка соседнего справочника System design: заметнее обычной ссылки. */
     .sd-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 22px; align-items: center; margin: 22px 0 10px; padding: 20px 22px; border: 3px solid var(--ink); background: var(--ink); color: #fff; text-decoration: none; box-shadow: 8px 8px 0 #0B6E8A; transition: transform .15s ease, box-shadow .15s ease; }
     .sd-card:hover { color: #fff; transform: translate(-2px, -2px); box-shadow: 10px 10px 0 var(--leaf-bright); }
