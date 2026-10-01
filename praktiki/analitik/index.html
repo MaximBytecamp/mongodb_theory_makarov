@@ -10,16 +10,60 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../styles.css">
   <style>
-    .stages { display: grid; gap: 14px; margin: 22px 0; }
-    .stage { display: grid; grid-template-columns: 54px minmax(0, 1fr); border: 3px solid var(--ink); background: var(--page); box-shadow: 6px 6px 0 var(--leaf); }
-    .stage__n { display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 22px/1 var(--mono); }
-    .stage__body { padding: 13px 16px; }
-    .stage__body b { display: block; font-family: var(--display); font-size: 18px; margin-bottom: 4px; }
-    .stage__body p { margin: 0; font-size: 15.5px; line-height: 1.5; }
-    .stage__body p + p { margin-top: 6px; }
-    .open-desk { display: inline-flex; align-items: center; gap: 10px; margin: 8px 0 4px; padding: 13px 20px; border: 3px solid var(--ink); background: var(--ink); color: var(--leaf-bright); box-shadow: 6px 6px 0 var(--leaf); text-decoration: none; font: 700 13px/1.3 var(--mono); letter-spacing: .6px; text-transform: uppercase; }
-    .open-desk:hover { background: var(--leaf); color: #fff; box-shadow: 6px 6px 0 var(--ink); }
+    /* ── Первый экран ── */
+    .hero h1 { margin: 12px 0 12px; font-family: var(--display); font-size: clamp(36px, 5.4vw, 66px); line-height: 1.03; letter-spacing: -.5px; }
+    .hero .lead { max-width: 780px; }
+    .hero__meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; }
+    .hero__meta span { padding: 7px 11px; border: 2px solid var(--ink); background: #fff; font: 700 11.5px/1 var(--mono); letter-spacing: .3px; }
+    .cta { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border: 3px solid var(--ink); background: var(--ink); color: var(--leaf-bright); box-shadow: 6px 6px 0 var(--leaf); text-decoration: none; font: 700 13px/1.3 var(--mono); letter-spacing: .6px; text-transform: uppercase; }
+    .cta:hover { background: var(--leaf); color: #fff; box-shadow: 6px 6px 0 var(--ink); }
+    .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 4px 0 30px; }
+    .cta-row .note { font-size: 14px; color: var(--ink-soft); }
+
+    /* Окно браузера вокруг кадра рабочего стола. */
+    .window { margin: 8px 0 12px; border: 3px solid var(--ink); background: var(--ink); box-shadow: 10px 10px 0 var(--leaf); }
+    .window__bar { display: flex; align-items: center; gap: 7px; padding: 8px 12px; }
+    .window__bar i { width: 11px; height: 11px; border-radius: 50%; background: #3E5A4E; }
+    .window__bar span { margin-left: 10px; font: 500 12px/1 var(--mono); color: var(--leaf-pale); opacity: .8; }
+    .window img { display: block; width: 100%; height: auto; background: #fff; cursor: zoom-in; }
+    .window figcaption { padding: 9px 14px; background: var(--page); border-top: 2px solid var(--ink); font: 600 11px/1.5 var(--mono); color: var(--ink-soft); }
+
+    /* ── Легенда: действующие лица ── */
+    .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; margin: 20px 0 10px; }
+    .person { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; align-items: start; padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--ink); }
+    .person--you { box-shadow: 5px 5px 0 var(--leaf); border-color: var(--leaf); }
+    .person__ava { display: grid; place-items: center; width: 46px; height: 46px; background: var(--ink); color: var(--leaf-bright); font: 700 16px/1 var(--mono); }
+    .person--you .person__ava { background: var(--leaf); color: #fff; }
+    .person b { display: block; font-size: 15.5px; line-height: 1.3; }
+    .person em { display: block; margin: 2px 0 6px; font: 600 10.5px/1.4 var(--pixel); font-style: normal; letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
+    .person p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+
+    /* ── Суть формата ── */
+    .skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; margin: 20px 0; }
+    .skill { padding: 14px 16px; border: 3px solid var(--ink); background: var(--page); }
+    .skill b { display: block; margin-bottom: 4px; font-family: var(--display); font-size: 18px; }
+    .skill span { display: block; margin-bottom: 8px; font: 700 11px/1.4 var(--mono); text-transform: uppercase; color: var(--leaf); }
+    .skill p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+
+    /* ── Неделя по письмам ── */
+    .week { margin: 24px 0; }
+    .day { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 22px 30px; align-items: start; padding: 24px 0; border-top: 2px dashed var(--rule); }
+    .day:first-child { border-top: 0; padding-top: 6px; }
+    .day:nth-child(even) .day__text { order: 2; }
+    .day__tag { display: inline-flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 5px 10px; background: var(--ink); color: var(--leaf-bright); font: 700 11.5px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .4px; }
+    .day h3 { margin: 4px 0 10px; font-size: 24px; line-height: 1.2; }
+    .day p { font-size: 15.5px; line-height: 1.55; }
+    .day ul { font-size: 15px; line-height: 1.5; }
+    .day .shot { margin: 0; }
+
     .crit td:last-child { white-space: nowrap; font-family: var(--mono); font-weight: 700; }
+    .faq details { margin-bottom: 8px; }
+    .faq summary { font-size: 15.5px; }
+
+    @media (max-width: 900px) {
+      .day { grid-template-columns: minmax(0, 1fr); }
+      .day:nth-child(even) .day__text { order: 0; }
+    }
   </style>
 </head>
 <body>
@@ -33,77 +77,176 @@
           <p class="running__folio">ПРАКТИКУМ</p>
         </div>
 
-        <header class="chapter-head">
-          <span class="chapter-num">ПРАКТИКУМ</span>
+        <section class="hero">
+          <span class="chapter-num">ПРАКТИКУМ · МОДУЛЬ 2</span>
           <h1>Аналитик данных:<br>первая неделя</h1>
-          <p class="lead">Практикум по языку фильтров на базе hh. Студент работает младшим аналитиком в кадровом агентстве: проверяет запросы коллег, собирает запросы по заявкам заказчиков из готовых блоков, предсказывает результат фильтра и пишет запросы сам. Каждый запрос выполняется прямо на странице на копии базы hh.</p>
-        </header>
-
-        <dl class="passport">
-          <div><dt>Темы</dt><dd>Главы 2.1–2.8: точечная нотация, сравнение, списки, логика, $exists и $type, массивы, $regex, $expr</dd></div>
-          <div><dt>Время</dt><dd>2 пары</dd></div>
-          <div><dt>База</dt><dd>hh: resumes, vacancies, companies, interviews</dd></div>
-          <div><dt>Что сдать</dt><dd>Отчёт <code>.md</code> со вкладки «Отчёт»</dd></div>
-        </dl>
+          <p class="lead">Ролевой практикум по языку фильтров MongoDB. Студент неделю работает младшим аналитиком в кадровом агентстве: проверяет запросы коллег, собирает запросы по заявкам заказчиков, предсказывает результат фильтра и пишет запросы сам. В пятницу руководитель присылает рецензию на всю работу.</p>
+          <div class="hero__meta">
+            <span>2 пары</span><span>база hh</span><span>4 письма + рецензия</span><span>главы 2.1–2.8</span><span>работает в браузере</span>
+          </div>
+          <div class="cta-row">
+            <a class="cta" href="stol.html">Открыть рабочий стол →</a>
+            <span class="note">Установка не нужна. Работа сохраняется в этом браузере.</span>
+          </div>
+          <figure class="window">
+            <div class="window__bar"><i></i><i></i><i></i><span>Аналитик данных: первая неделя · письмо 1</span></div>
+            <img src="img/obzor.webp" width="2880" height="1720" alt="Рабочий стол практикума: слева письмо руководителя, справа запрос коллеги на ревью и найденные им документы">
+            <figcaption>Рабочий стол: слева письмо руководителя, справа задание. Запрос коллеги выполнен на базе hh, ниже — его результат.</figcaption>
+          </figure>
+        </section>
 
         <nav class="contents">
           <b>На этой странице</b>
           <ol>
-            <li><a href="#s1">Четыре письма</a></li>
-            <li><a href="#s2">Где выполняются запросы</a></li>
-            <li><a href="#s3">Как работать с блоками и карточками</a></li>
-            <li><a href="#s4">Сдача и оценка</a></li>
+            <li><a href="#s1">Легенда</a></li>
+            <li><a href="#s2">Зачем практикум в форме рабочей недели</a></li>
+            <li><a href="#s3">Неделя по письмам</a></li>
+            <li><a href="#s4">Как работать на рабочем столе</a></li>
+            <li><a href="#s5">Где выполняются запросы</a></li>
+            <li><a href="#s6">Рецензия и оценка</a></li>
+            <li><a href="#s7">Вопросы</a></li>
           </ol>
         </nav>
 
-        <p><a class="open-desk" href="stol.html">Открыть рабочий стол →</a></p>
+        <h2 id="s1"><span class="sec">§1</span>Легенда</h2>
+        <p>Кадровое агентство «Точка найма» подбирает IT-специалистов для компаний Москвы, Ярославля, Казани и Санкт-Петербурга. Данные агентства лежат в MongoDB, в базе hh: резюме кандидатов, вакансии, компании-заказчики и собеседования. Это та же база, на которой построены главы 2.1–2.9 справочника, поэтому документы уже знакомы.</p>
+        <p>В отделе данных агентства запрос для заказчика пишет один аналитик, а проверяет второй. Новый сотрудник в первую неделю делает и то и другое: сначала проверяет чужие запросы, затем собирает и пишет свои. Задания приходят письмами от руководителя отдела.</p>
+        <p>Агентство, его сотрудники и кандидаты вымышлены. Компании-заказчики в базе hh названы как настоящие: так устроена учебная база курса.</p>
 
-        <h2 id="s1"><span class="sec">§1</span>Четыре письма</h2>
-        <p>Задания приходят письмами от руководителя отдела данных вымышленного кадрового агентства «Точка найма». Следующее письмо открывается кнопкой «Дальше» внизу текущего — без проверки и без порогов: работа идёт до конца, даже если в предыдущем письме ответы неверные. Вернуться к открытому письму и поменять ответ можно в любой момент до сдачи.</p>
-        <p>По ходу работы оценок нет. Запросы выполняются и показывают найденные документы, но не сравниваются с нужным результатом: решать, подходит ли результат под задачу, нужно самому. После кнопки «Сдать работу» ответы закрываются и открывается рецензия.</p>
-        <div class="stages">
-          <div class="stage"><span class="stage__n">1</span><div class="stage__body"><b>Ревью запросов коллег</b><p>Восемь запросов: задача заказчика, сам запрос и что коллега написал о результате. Для каждого запроса нужно решить, верен ли он, а если нет — указать вид ошибки, написать комментарий и по желанию исправленный запрос. Запрос коллеги и исправление можно выполнить и посмотреть результат.</p></div></div>
-          <div class="stage"><span class="stage__n">2</span><div class="stage__body"><b>Сборка запросов из блоков</b><p>Пять заявок от заказчиков. Запрос собирается из готовых условий, среди которых есть ошибочные. Есть составные блоки: <code>$or</code> с ветками и <code>$elemMatch</code> для элемента массива. После запуска видно, какие документы нашёл собранный запрос.</p></div></div>
-          <div class="stage"><span class="stage__n">3</span><div class="stage__body"><b>Сито: результат до запуска</b><p>Пять фильтров и девять резюме. Каждое резюме нужно отнести к одной из двух колонок: попадёт в результат или нет. Фильтры построены на правилах из глав 2.1–2.6: поле-массив, <code>$ne</code> и отсутствующее поле, сравнение с <code>null</code>, условия на массив документов.</p></div></div>
-          <div class="stage"><span class="stage__n">4</span><div class="stage__body"><b>Свой запрос</b><p>Пять задач, запрос к которым пишется вручную в синтаксисе mongosh. При ошибке разбора показывается, что и в какой строке не так. В конце письма — кнопка «Сдать работу».</p></div></div>
-          <div class="stage"><span class="stage__n">✓</span><div class="stage__body"><b>Рецензия</b><p>Открывается после сдачи. В ней баллы по каждому письму и итоговая оценка, список тем для повторения и разбор каждого задания: ваш ответ, верный ответ и объяснение. Для собранных и написанных запросов показано, какие документы лишние, а каких не хватает.</p></div></div>
+        <div class="cast">
+          <div class="person person--you"><span class="person__ava">ВЫ</span><div><b>Младший аналитик данных</b><em>роль студента</em><p>Первая неделя в агентстве. Проверяет запросы коллег, выполняет заявки заказчиков, пишет запросы сам.</p></div></div>
+          <div class="person"><span class="person__ava">ВС</span><div><b>Вера Соболева</b><em>руководитель отдела данных</em><p>Присылает четыре письма с заданиями и в конце недели — рецензию с баллами.</p></div></div>
+          <div class="person"><span class="person__ava">ДПГ</span><div><b>Денис, Полина, Глеб</b><em>стажёр и аналитики</em><p>Авторы восьми запросов на ревью. В каждой карточке — задача, запрос и что коллега написал заказчику.</p></div></div>
+          <div class="person"><span class="person__ava">ЗК</span><div><b>Заказчики</b><em>пять заявок</em><p>Кандидат Пётр Ковалёв, компании Retail Lab и Р‑Фарм, отдел подбора Яндекса и отдел качества данных агентства.</p></div></div>
         </div>
 
-        <h2 id="s2"><span class="sec">§2</span>Где выполняются запросы</h2>
-        <p>Фильтры выполняются в браузере на копии базы hh со стенда курса. Сервер MongoDB для практикума не нужен. Поддерживаются операторы модуля 2; каждый запрос практикума и набор каверзных случаев сверены с сервером MongoDB 7: результат на странице совпадает с результатом в mongosh и Compass, вплоть до порядка документов.</p>
-        <p>Собранный или написанный запрос можно скопировать и выполнить на своём стенде: результат будет тот же.</p>
-        <figure class="code">
-          <figcaption><span>Так выглядит запрос в задании и в mongosh</span></figcaption>
-          <pre>db.resumes.find({ skills: { $all: ["SQL", "Python"] } })</pre>
-        </figure>
-        <p>В поле ввода можно писать только фильтр — <code>{ skills: … }</code> — или вызов целиком: <code>db.resumes.find({ … })</code>. Ключи пишутся без кавычек или в кавычках, строки — в одинарных или двойных кавычках, даты — <code>ISODate("2026-09-01")</code>, шаблоны — <code>/python/i</code>.</p>
+        <h2 id="s2"><span class="sec">§2</span>Зачем практикум в форме рабочей недели</h2>
+        <p>В обычной практической работе задача сформулирована так, что из неё прямо следует оператор: «найдите документы, где навыки содержат и SQL, и Python» подсказывает <code>$all</code>. В работе аналитика задача приходит словами заказчика, и оператор нужно выбрать самому. Кроме того, значительная часть работы — чтение и проверка чужих запросов.</p>
+        <p>Поэтому практикум построен как рабочая неделя. Задания идут в том порядке, в каком их получает новый сотрудник, и каждое письмо тренирует отдельное умение:</p>
+        <div class="skills">
+          <div class="skill"><span>письмо 1 · ревью</span><b>Читать чужой запрос</b><p>Найти ошибку в готовом запросе и сказать, как её исправить. Результат запроса виден; соответствует ли он задаче, решает студент.</p></div>
+          <div class="skill"><span>письмо 2 · сборка</span><b>Выбирать из похожих вариантов</b><p>Собрать запрос из блоков, среди которых есть почти верные: <code>$lt</code> рядом с <code>$lte</code>, <code>$in</code> рядом с <code>$all</code>.</p></div>
+          <div class="skill"><span>письмо 3 · сито</span><b>Предсказывать результат</b><p>Решить без запуска, какие документы вернёт фильтр. Так проверяется понимание правил сопоставления.</p></div>
+          <div class="skill"><span>письмо 4 · свой запрос</span><b>Писать без опоры</b><p>Перевести задачу заказчика в фильтр самостоятельно, без готовых блоков.</p></div>
+        </div>
+        <p>По ходу недели оценок нет. Запросы выполняются и показывают найденные документы, но с нужным результатом не сравниваются. Оценка и разбор приходят в конце одной рецензией. Студент проверяет себя по данным, как это делается на работе, и не подбирает ответ по отметкам «верно» и «неверно».</p>
+        <p>Тот же формат — легенда, письма, рецензия — у практикума <a href="https://maximbytecamp.github.io/system_design_makarov/praktikum/index.html">«Архитектор по заявке»</a> в справочнике System design. Там вместо запросов собирается схема системы, а данные компании раскладываются по базам.</p>
 
-        <h2 id="s3"><span class="sec">§3</span>Как работать с блоками и карточками</h2>
-        <ul>
-          <li><b>Блок или карточку можно перетащить</b> мышью на нужное место.</li>
-          <li><b>То же можно сделать нажатиями</b>: нажать на блок, затем на место в фильтре. Этот способ работает и на планшете, где перетаскивание недоступно.</li>
-          <li><b>Крестик</b> возвращает блок в набор. Блок <code>$or</code> возвращается вместе с условиями внутри.</li>
-          <li><b>Блок с пунктирной рамкой</b> — условие для элемента массива. Имя поля в нём записано без пути, например <code>months</code> вместо <code>experience.months</code>. Такой блок кладут внутрь <code>$elemMatch</code>.</li>
-          <li><b>Порядок блоков</b> сохраняется в тексте запроса, который показан под фильтром. Этот текст и выполняется.</li>
-        </ul>
+        <h2 id="s3"><span class="sec">§3</span>Неделя по письмам</h2>
+        <p>Следующее письмо открывается кнопкой «Дальше» внизу текущего. Условий для перехода нет: работа идёт до конца, даже если в предыдущем письме ответы неверные. До сдачи к любому открытому письму можно вернуться и поменять ответ.</p>
 
-        <h2 id="s4"><span class="sec">§4</span>Сдача и оценка</h2>
-        <p>После сдачи на вкладке «Рецензия» укажите фамилию, имя и группу и скачайте файл <code>analitik_&lt;фамилия&gt;.md</code>. В отчёт попадают рецензия с баллами, решения по всем письмам, комментарии к ревью и тексты запросов. Баллы рецензия считает сама по шкале ниже; комментарии к ревью преподаватель читает отдельно.</p>
+        <div class="week">
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">Понедельник · письмо 1</span>
+              <h3>Ревью запросов коллег</h3>
+              <p>Восемь запросов от Дениса, Полины и Глеба. В карточке — задача заказчика, сам запрос и что коллега написал по результату. Кнопка «Выполнить запрос коллеги» показывает, какие документы запрос вернул.</p>
+              <ul>
+                <li>решение: «Запрос верный» или «Есть ошибка»;</li>
+                <li>для ошибки — вид из списка девяти вариантов;</li>
+                <li>комментарий: что не так и как исправить;</li>
+                <li>по желанию — исправленный запрос, его тоже можно выполнить.</li>
+              </ul>
+            </div>
+            <figure class="shot"><img src="img/revyu.webp" width="1972" height="1688" alt="Карточка ревью: запрос коллеги, его результат, выбор решения и поле комментария"><figcaption>Карточка ревью: результат запроса коллеги и поля для решения.</figcaption></figure>
+          </div>
+
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">Вторник · письмо 2</span>
+              <h3>Сборка запросов из блоков</h3>
+              <p>Пять заявок от заказчиков. Условия для запросов написали стажёры, часть из них содержит ошибки. Блоки переносятся из набора в фильтр перетаскиванием или нажатиями. Под фильтром показан текст запроса, который выполняется, и найденные документы.</p>
+              <p>Есть два составных блока: <code>$or</code> с ветками, условия которых соединяются через «или», и <code>$elemMatch</code>, который собирает условия для одного элемента массива.</p>
+            </div>
+            <figure class="shot"><img src="img/sborka.webp" width="2074" height="1476" alt="Сборка запроса: набор блоков, фильтр с одним условием, текст запроса и найденные вакансии"><figcaption>Заявка 1: в фильтре одно условие, запрос выполнен.</figcaption></figure>
+          </div>
+
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">Вторник · письмо 2</span>
+              <h3>Блок <code>$or</code> с ветками</h3>
+              <p>Блок <code>$or</code> кладётся в фильтр целиком, затем в его ветки переносятся условия. Кнопка «+ ветка» добавляет ветку. Крестик возвращает блок в набор вместе с условиями внутри.</p>
+            </div>
+            <figure class="shot"><img src="img/sborka-or.webp" width="1976" height="1146" alt="Блок $or в фильтре с двумя пустыми ветками"><figcaption>Блок $or в фильтре: две пустые ветки.</figcaption></figure>
+          </div>
+
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">Среда · письмо 3</span>
+              <h3>Сито: результат до запуска</h3>
+              <p>Пять фильтров по коллекции resumes и девять резюме. В каждом раунде резюме раскладываются по двум колонкам: «Попадёт в результат» и «Не попадёт». На карточке показаны поля, которые проверяет фильтр; кнопка «весь документ» открывает резюме целиком.</p>
+              <p>Фильтры построены на правилах из глав 2.1–2.6: поле-массив, <code>$ne</code> и отсутствующее поле, сравнение с <code>null</code>, условия на массив документов.</p>
+            </div>
+            <figure class="shot"><img src="img/sito.webp" width="2074" height="1476" alt="Сито: фильтр раунда 1 и девять карточек резюме с кнопками «попадёт» и «не попадёт»"><figcaption>Раунд 1: карточки ещё не разложены.</figcaption></figure>
+          </div>
+
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">Четверг · письмо 4</span>
+              <h3>Свой запрос</h3>
+              <p>Пять задач, фильтр к которым пишется вручную в синтаксисе mongosh. При ошибке разбора показывается, что не так и в какой строке. У каждой задачи есть подсказка, она открывается кнопкой. В конце письма — кнопка «Сдать работу».</p>
+            </div>
+            <figure class="shot"><img src="img/zapros.webp" width="1972" height="710" alt="Задача письма 4: в фильтре пропущена запятая, под ним сообщение об ошибке разбора"><figcaption>В фильтре пропущена запятая: под ним указано место ошибки.</figcaption></figure>
+          </div>
+
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">Пятница · рецензия</span>
+              <h3>Рецензия за неделю</h3>
+              <p>После сдачи ответы закрываются и открывается рецензия: баллы по каждому письму, итоговая оценка и список тем для повторения. Ниже — разбор каждого задания: ответ студента, верный ответ и объяснение. Для собранных и написанных запросов отмечено, какие документы лишние, а каких не хватает.</p>
+            </div>
+            <figure class="shot"><img src="img/recenziya.webp" width="1972" height="1058" alt="Итоговая карточка рецензии: баллы по четырём письмам, итог 9 из 10 и темы для повторения"><figcaption>Итоговая карточка рецензии. Под ней — разбор каждого задания.</figcaption></figure>
+          </div>
+        </div>
+
+        <div class="cta-row"><a class="cta" href="stol.html">Открыть рабочий стол →</a></div>
+
+        <h2 id="s4"><span class="sec">§4</span>Как работать на рабочем столе</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Действие</th><th>Как сделать</th></tr></thead>
+            <tbody>
+              <tr><td>Перенести блок или карточку</td><td>Перетащить мышью. Или нажать на блок, затем на место в фильтре — этот способ работает и на планшете.</td></tr>
+              <tr><td>Вернуть блок в набор</td><td>Крестик справа на блоке.</td></tr>
+              <tr><td>Условие для элемента массива</td><td>Блок с пунктирной рамкой. Имя поля в нём записано без пути, например <code>months</code> вместо <code>experience.months</code>. Такой блок кладут внутрь <code>$elemMatch</code>.</td></tr>
+              <tr><td>Перейти к другой заявке или раунду</td><td>Кнопки с номерами над заданием.</td></tr>
+              <tr><td>Перейти к следующему письму</td><td>Кнопка «Дальше» внизу письма. Вкладки открытых писем остаются доступны.</td></tr>
+              <tr><td>Сдать работу</td><td>Кнопка внизу письма 4. Пропущенные ответы засчитываются как неверные.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s5"><span class="sec">§5</span>Где выполняются запросы</h2>
+        <p>Фильтры выполняются в браузере на копии базы hh со стенда курса, поэтому сервер MongoDB для практикума не нужен. Поддерживаются операторы модуля 2. Каждый запрос практикума и набор каверзных случаев сверены с сервером MongoDB 7: результат на странице совпадает с результатом в mongosh и Compass, включая порядок документов.</p>
+        <p>В поле ввода можно писать только фильтр — <code>{ skills: … }</code> — или вызов целиком: <code>db.resumes.find({ … })</code>. Ключи пишутся без кавычек или в кавычках, строки — в одинарных или двойных кавычках, даты — <code>ISODate("2026-09-01")</code>, шаблоны — <code>/python/i</code>. Собранный или написанный запрос можно скопировать и выполнить на своём стенде: результат будет тот же.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Рецензия и оценка</h2>
+        <p>Баллы рецензия считает по шкале ниже. Комментарии к ревью преподаватель читает отдельно: автоматически оценивается только решение по запросу и вид ошибки.</p>
         <div class="table-scroll crit">
           <table>
-            <thead><tr><th>Критерий</th><th>Баллы</th></tr></thead>
+            <thead><tr><th>Письмо</th><th>Что считается</th><th>Баллы</th></tr></thead>
             <tbody>
-              <tr><td>Письмо 1: верно оценены запросы (вердикт и вид ошибки): 7–8 — 3 балла, 5–6 — 2, 3–4 — 1</td><td>3</td></tr>
-              <tr><td>Письмо 2: решены заявки: 5 — 3 балла, 4 — 2, 2–3 — 1</td><td>3</td></tr>
-              <tr><td>Письмо 3: верно разложены карточки: 40–45 — 2 балла, 32–39 — 1</td><td>2</td></tr>
-              <tr><td>Письмо 4: решены запросы: 5 — 2 балла, 3–4 — 1</td><td>2</td></tr>
-              <tr><td><b>Итого</b></td><td>10</td></tr>
+              <tr><td>1 · ревью</td><td>Верно оценены запросы (решение и вид ошибки): 7–8 — 3 балла, 5–6 — 2, 3–4 — 1</td><td>3</td></tr>
+              <tr><td>2 · сборка</td><td>Решены заявки: 5 — 3 балла, 4 — 2, 2–3 — 1</td><td>3</td></tr>
+              <tr><td>3 · сито</td><td>Верно разложены карточки: 40–45 — 2 балла, 32–39 — 1</td><td>2</td></tr>
+              <tr><td>4 · свой запрос</td><td>Решены запросы: 5 — 2 балла, 3–4 — 1</td><td>2</td></tr>
+              <tr><td colspan="2"><b>Итого</b></td><td>10</td></tr>
             </tbody>
           </table>
         </div>
         <p>Перевод в оценку: 9–10 баллов — «отлично», 7–8 — «хорошо», 5–6 — «удовлетворительно».</p>
+        <p>Что сдать: на вкладке «Рецензия» укажите фамилию, имя и группу и скачайте файл <code>analitik_&lt;фамилия&gt;.md</code>. В нём рецензия с баллами, решения по всем письмам, комментарии к ревью и тексты запросов.</p>
 
-        <p><a class="open-desk" href="stol.html">Открыть рабочий стол →</a></p>
+        <h2 id="s7"><span class="sec">§7</span>Вопросы</h2>
+        <div class="faq">
+          <details><summary>Можно ли пройти практикум дома?</summary><p>Да. Рабочий стол открывается в любом браузере, сервер не нужен. Работа хранится в том браузере, где её начали: на другом компьютере она не появится. Перед сменой компьютера сдайте работу и скачайте отчёт.</p></details>
+          <details><summary>Что будет, если закрыть вкладку?</summary><p>Ответы сохраняются при каждом изменении и подтягиваются при следующем открытии рабочего стола в том же браузере.</p></details>
+          <details><summary>Можно ли переделать работу после сдачи?</summary><p>Нет, после сдачи ответы закрыты. Сбросить работу может только преподаватель — кнопкой «Сбросить работу» с паролем.</p></details>
+          <details><summary>Почему по ходу работы не видно, верно ли решено?</summary><p>Чтобы результат оценивался по данным, а не по отметкам рабочего стола. Кнопка «Выполнить» показывает найденные документы, по ним их можно сверить с задачей.</p></details>
+          <details><summary>Какие главы повторить перед практикумом?</summary><p>Главы <a href="../../temy/09-filtr-i-tochechnaya-notaciya/index.html">2.1</a>–<a href="../../temy/16-expr/index.html">2.8</a>: точечная нотация, сравнение, <code>$in</code> и <code>$nin</code>, логика, <code>$exists</code> и <code>$type</code>, массивы, <code>$regex</code>, <code>$expr</code>.</p></details>
+        </div>
+
+        <div class="cta-row" style="margin-top:26px"><a class="cta" href="stol.html">Открыть рабочий стол →</a></div>
 
         <div class="pager">
           <a href="../../temy/18-skript-podbor/index.html">← 2.9 Скрипт целиком: подбор кандидатов</a>
@@ -117,5 +260,16 @@
     </div>
   </div>
   <script src="../../book.js"></script>
+  <script>
+    /* Кадр в окне браузера открывается во весь экран так же, как кадры ниже (окно создаёт book.js). */
+    document.querySelectorAll('.window img').forEach(img => img.addEventListener('click', () => {
+      const box = document.querySelector('.lightbox');
+      if (!box) return;
+      box.querySelector('img').src = img.currentSrc || img.src;
+      box.querySelector('figcaption').textContent = img.closest('figure').querySelector('figcaption').textContent.trim();
+      box.classList.add('is-open');
+      box.setAttribute('aria-hidden', 'false');
+    }));
+  </script>
 </body>
 </html>

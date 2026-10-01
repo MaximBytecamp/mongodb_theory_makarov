@@ -346,18 +346,19 @@
   /* Короткий вывод по письму: что получилось и что повторить. */
   const advice = () => {
     const out = [];
-    const wrongKinds = REVIEW.filter(r => !reviewRight(r));
-    if (wrongKinds.length) {
-      const low = t => t[0].toLowerCase() + t.slice(1);
-      const topics = [...new Set(wrongKinds.map(r => (r.error ? low(ERRORS.find(e => e[0] === r.error)[1]) : 'как отличить верный запрос: проверьте его результат на данных')))];
-      out.push(`Ревью: повторите — ${topics.join('; ')}.`);
-    } else out.push('Ревью: все запросы оценены верно.');
+    const wrong = REVIEW.filter(r => !reviewRight(r));
+    const low = t => t[0].toLowerCase() + t.slice(1);
+    const topics = [...new Set(wrong.filter(r => r.error).map(r => low(ERRORS.find(e => e[0] === r.error)[1])))];
+    if (topics.length) out.push(`Ревью: повторите темы — ${topics.join('; ')}.`);
+    if (wrong.some(r => !r.error)) out.push('Ревью: верный запрос оценён как ошибочный. Перед вердиктом выполняйте запрос и сравнивайте результат с задачей.');
+    if (!wrong.length) out.push('Ревью: все запросы оценены верно.');
     const bad = BUILD.filter(b => !buildSolved(b));
-    out.push(bad.length ? `Сборка: не решены заявки ${bad.map(b => BUILD.indexOf(b) + 1).join(', ')} — сравните свой запрос с разбором ниже.` : 'Сборка: все заявки решены.');
+    const nums = list => list.join(', ');
+    out.push(bad.length ? `Сборка: ${bad.length === 1 ? 'не решена заявка' : 'не решены заявки'} ${nums(bad.map(b => BUILD.indexOf(b) + 1))} — сравните свой запрос с разбором ниже.` : 'Сборка: все заявки решены.');
     const weak = SIEVE.filter(s => sieveRight(s) < DB.resumes.length);
-    out.push(weak.length ? `Сито: ошибки в раундах ${weak.map(s => SIEVE.indexOf(s) + 1).join(', ')}.` : 'Сито: все карточки разложены верно.');
+    out.push(weak.length ? `Сито: ошибки ${weak.length === 1 ? 'в раунде' : 'в раундах'} ${nums(weak.map(s => SIEVE.indexOf(s) + 1))}.` : 'Сито: все карточки разложены верно.');
     const wbad = WRITE.filter(w => !writeSolved(w));
-    out.push(wbad.length ? `Свой запрос: не решены задачи ${wbad.map(w => WRITE.indexOf(w) + 1).join(', ')}.` : 'Свой запрос: все задачи решены.');
+    out.push(wbad.length ? `Свой запрос: ${wbad.length === 1 ? 'не решена задача' : 'не решены задачи'} ${nums(wbad.map(w => WRITE.indexOf(w) + 1))}.` : 'Свой запрос: все задачи решены.');
     return out;
   };
 
