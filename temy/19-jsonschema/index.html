@@ -23,6 +23,15 @@
       document.documentElement.dataset.os = os;
     })();
   </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .doc__body .ok { color: var(--leaf); }
+    .doc__body .bad { color: var(--clay); font-weight: 600; }
+    .sieve > span.drop.is-shown { opacity: 1; transform: none; border-color: var(--clay); box-shadow: 4px 4px 0 var(--clay); }
+  </style>
 </head>
 <body>
   <div class="book">
@@ -67,10 +76,12 @@
             <li><a href="#s5">Ключевые слова правила</a></li>
             <li><a href="#s6">Правило для коллекции с данными: <code>collMod</code></a></li>
             <li><a href="#s7"><code>validationAction</code>: предупреждение вместо отказа</a></li>
-            <li><a href="#s8">Правило в Compass</a></li>
-            <li><a href="#s9">Частые ошибки</a></li>
-            <li><a href="#s10">Проверьте себя</a></li>
-            <li><a href="#s11">Шпаргалка</a></li>
+            <li><a href="#s8">Порядок ввода правила на рабочей коллекции</a></li>
+            <li><a href="#s9">Правило в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
           </ol>
         </nav>
 
@@ -259,6 +270,29 @@ schema = {
           <li><code>required</code> — массив имён обязательных полей. Документ, в котором нет хотя бы одного из них, правилу не соответствует.</li>
           <li><code>properties</code> — правила для отдельных полей. Ключ — имя поля, значение — правило для значения этого поля. <code>{"bsonType": "string"}</code> требует строку. Имена типов те же, что у оператора <code>$type</code> (глава 2.5, §4): для цены указан <code>"number"</code>, он принимает любой числовой тип — <code>int</code>, <code>long</code>, <code>double</code> и <code>decimal</code>. Ключ <code>"minimum": 1</code> требует число не меньше единицы.</li>
         </ul>
+        <p>Как сервер прикладывает правило к документу, видно на товаре без названия из §1. Слева — правило, справа — документ; у каждого поля документа отмечено, какое условие правила к нему относится и выполнено ли оно.</p>
+        <div class="duo">
+          <div class="doc">
+            <div class="doc__bar"><span>Правило</span><span>schema</span></div>
+            <div class="doc__body">
+              <div><span class="fld">required</span>: sku, title, category, price</div>
+              <div><span class="fld">sku</span>: строка</div>
+              <div><span class="fld">title</span>: строка</div>
+              <div><span class="fld">category</span>: строка</div>
+              <div><span class="fld">price</span>: число, не меньше 1</div>
+            </div>
+          </div>
+          <div class="doc">
+            <div class="doc__bar"><span>Документ</span><span>SKU-AC-032</span></div>
+            <div class="doc__body">
+              <div><span class="fld">sku</span>: "SKU-AC-032" <span class="ok">строка — выполнено</span></div>
+              <div><span class="fld">category</span>: "аксессуары" <span class="ok">строка — выполнено</span></div>
+              <div><span class="fld">price</span>: -350 <span class="bad">меньше 1 — minimum</span></div>
+              <div><span class="fld">title</span>: <span class="bad">поля нет — required</span></div>
+            </div>
+          </div>
+        </div>
+        <p>Документ нарушает два условия: цена меньше единицы, и нет обязательного поля <code>title</code>. Достаточно одного нарушения, чтобы документ правилу не соответствовал.</p>
         <p>Правило из <code>properties</code> проверяется, только если поле в документе есть. Документ без цены не нарушает <code>{"bsonType": "number", "minimum": 1}</code>; его отклонит <code>required</code>. Поэтому обязательные поля перечисляют в <code>required</code>, а их типы и границы — в <code>properties</code>.</p>
         <p><code>$jsonSchema</code> — оператор запроса, как <code>$exists</code> и <code>$type</code>. Его ставят в фильтр <code>find</code> или <code>count_documents</code>, и документ попадает в результат, если соответствует правилу. Так проверяют данные, которые уже лежат в коллекции. Пример считает товары, которые соответствуют правилу, в <code>shop.products</code> и в <code>catalog</code> из §1, а затем выводит документы <code>catalog</code>, которые правилу не соответствуют: их отбирает <code>$nor</code> с одним условием (глава 2.4).</p>
         <div class="duo">
@@ -340,10 +374,19 @@ sandbox.catalog, подходят: 1
           <img src="../../shots/109-sandbox-catalog-nor.png" alt="Compass, коллекция sandbox.catalog: фильтр $nor с $jsonSchema, счётчик 1 – 2 of 2, подставка и товар без названия">
           <figcaption>Compass · <code>sandbox.catalog</code>, фильтр <code>{ $nor: [{ $jsonSchema: { … } }] }</code> с правилом товара</figcaption>
         </figure>
-        <p>Правило в поле фильтра записано так же, как в коде, одной строкой; Compass показывает её начало. Счётчик <code>1 – 2 of 2</code>: в выдаче подставка с ценой-строкой и товар без названия, чехол в неё не попал.</p>
+        <p>Правило в поле фильтра записано так же, как в коде, по строкам: Compass растягивает поле по высоте, и правило видно целиком. Счётчик <code>1 – 2 of 2</code>: в выдаче подставка с ценой-строкой и товар без названия, чехол в неё не попал.</p>
 
         <h2 id="s3"><span class="sec">§3</span>Коллекция с правилом: <code>validator</code></h2>
         <p>Правило, которое сервер проверяет при каждой записи в коллекцию, называется <span class="term">валидатором</span> (<code>validator</code>). Оно хранится в настройках коллекции. При вставке и при обновлении сервер проверяет документ в том виде, в каком он будет записан, и отклоняет запись, если документ правилу не соответствует. Это похоже на контроль на проходной: документ, который не прошёл проверку, в коллекцию не попадает.</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>insert_one, update_one</b><span>программа или Compass отправляет запись</span><em>1 · запись</em></div>
+          <div class="pipeline__stage"><b>validator</b><span>сервер сверяет документ с правилом коллекции</span><em>2 · проверка</em></div>
+          <div class="pipeline__stage is-lit"><b>результат</b><span>документ записан или отклонён</span><em>3 · ответ</em></div>
+        </div>
+        <div class="sieve">
+          <span class="pass"><b>соответствует</b>документ записан, программа получает обычный ответ</span>
+          <span class="drop is-shown"><b>не соответствует</b>запись отклонена: ошибка 121, причины в errInfo, коллекция не изменилась</span>
+        </div>
         <p>В модуле 1 коллекции появлялись сами при первой вставке. Коллекцию с валидатором создают явно, передавая правило в параметрах создания:</p>
         <p data-lang="python">Метод базы <code>create_collection(имя, validator=...)</code> создаёт коллекцию и возвращает объект коллекции. Значение <code>validator</code> — документ условия; правило <code>$jsonSchema</code> стоит в нём как оператор запроса, так же как в фильтре §2.</p>
         <p data-lang="ruby">Запись <code>sandbox[:checked, validator: ...]</code> создаёт объект коллекции с параметрами, но на сервер ничего не отправляет; коллекцию создаёт вызов <code>create</code>. Значение <code>validator</code> — документ условия; правило <code>$jsonSchema</code> стоит в нём как оператор запроса, так же как в фильтре §2.</p>
@@ -484,6 +527,52 @@ checked.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <
           <li>элемент с <code>"operatorName": "required"</code> перечисляет недостающие поля в массиве <code>missingProperties</code>;</li>
           <li>элемент с <code>"operatorName": "properties"</code> перечисляет поля с ошибками в массиве <code>propertiesNotSatisfied</code>. Для каждого поля указаны имя (<code>propertyName</code>) и список <code>details</code>: какое ключевое слово не выполнено (<code>operatorName</code>) и причина (<code>reason</code>).</li>
         </ul>
+        <p>Так выглядит <code>errInfo</code> для подставки из §1 — документа без названия и с ценой строкой. Ответ получен на стенде и напечатан в mongosh; <code>failingDocumentId</code> у каждого запуска свой.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · ответ сервера</span><span>поле errInfo</span></figcaption>
+<pre>{
+  failingDocumentId: ObjectId('6ac4b24260c9c86df89ab767'),
+  details: {
+    operatorName: '$jsonSchema',
+    schemaRulesNotSatisfied: [
+      {
+        operatorName: 'properties',
+        propertiesNotSatisfied: [
+          {
+            propertyName: 'price',
+            details: [
+              {
+                operatorName: 'bsonType',
+                specifiedAs: {
+                  bsonType: 'number'
+                },
+                reason: 'type did not match',
+                consideredValue: '2 490',
+                consideredType: 'string'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        operatorName: 'required',
+        specifiedAs: {
+          required: [
+            'sku',
+            'title',
+            'category',
+            'price'
+          ]
+        },
+        missingProperties: [
+          'title'
+        ]
+      }
+    ]
+  }
+}</pre>
+        </figure>
+        <p>Два элемента списка <code>schemaRulesNotSatisfied</code> соответствуют двум нарушениям. Элемент <code>properties</code>: поле <code>price</code>, условие <code>bsonType</code>, в документе строка <code>'2 490'</code> (<code>consideredType: 'string'</code>). Элемент <code>required</code>: нет поля <code>title</code>. Пример ниже проходит по этому списку и печатает имена полей и условий; остальные поля ответа ему не нужны.</p>
         <p>Пример пробует записать в коллекцию <code>checked</code> из §3 подставку из §1 — без названия и с ценой строкой — и печатает причины отказа.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -626,10 +715,35 @@ _, err := checked.<span class="f">InsertOne</span>(ctx, bson.D{
   нет обязательных полей: ["title"]</pre>
         </figure>
         <p>Нарушены два условия. У поля <code>price</code> не выполнено ключевое слово <code>bsonType</code>, причина <code>type did not match</code> — тип значения не совпал с указанным в правиле. И в документе нет обязательного поля <code>title</code>. Сервер сообщил обе причины сразу и не остановился на первом нарушении.</p>
-        <p data-lang="python">В исключении <code>WriteError</code> поле <code>details</code> хранит описание ошибки записи целиком; <code>errInfo</code> — один из его ключей.</p>
-        <p data-lang="ruby">Метод <code>details</code> исключения возвращает содержимое <code>errInfo</code>, поэтому разбор начинается сразу с ключа <code>"details"</code>.</p>
-        <p data-lang="go">Поле <code>Details</code> ошибки записи хранит <code>errInfo</code> в виде <code>bson.Raw</code> — документа BSON без разбора. <code>bson.Unmarshal</code> раскладывает его в структуру: поля структуры связаны с именами в документе тегами <code>bson:"…"</code>, а поля, которых в структуре нет, пропускаются. Тип <code>schemaRule</code> объявлен над <code>main</code>.</p>
-        <p data-lang="cpp">Метод <code>raw_server_error()</code> исключения возвращает весь ответ сервера. Ошибки записи лежат в нём массивом <code>writeErrors</code>, и <code>errInfo</code> берётся из его первого элемента. Значения достаются по цепочке <code>[]</code>, массивы — через <code>get_array().value</code>, строки — через <code>get_string().value</code>.</p>
+        <p>Код примера проходит по <code>errInfo</code> в одном и том же порядке на всех языках.</p>
+        <ol class="steps" data-lang="python">
+          <li><b>Поймать отказ</b><code>except WriteError as e</code> перехватывает исключение, которое выбросил <code>insert_one</code>. Класс <code>WriteError</code> импортирован в начале примера из модуля <code>pymongo.errors</code>.</li>
+          <li><b>Дойти до списка нарушений</b><code>e.details</code> — словарь с описанием ошибки записи: <code>code</code>, <code>errmsg</code>, <code>errInfo</code>. Цепочка <code>e.details["errInfo"]["details"]["schemaRulesNotSatisfied"]</code> спускается по вложенным словарям и даёт список из двух элементов, как в ответе выше.</li>
+          <li><b>Узнать, какое условие не выполнено</b>Цикл <code>for rule in …</code> перебирает элементы списка; каждый элемент — словарь, и <code>rule["operatorName"]</code> — имя ключевого слова: <code>"properties"</code> или <code>"required"</code>.</li>
+          <li><b>Напечатать недостающие поля</b>Для <code>required</code> имена лежат в списке <code>rule["missingProperties"]</code>; <code>print</code> выводит его как список Python: <code>['title']</code>.</li>
+          <li><b>Напечатать поля с ошибками</b>Для <code>properties</code> работают два вложенных цикла: внешний — по полям из <code>rule["propertiesNotSatisfied"]</code>, внутренний — по нарушенным условиям поля из <code>prop["details"]</code>. Печатаются имя поля, имя условия и причина.</li>
+        </ol>
+        <ol class="steps" data-lang="ruby">
+          <li><b>Поймать отказ</b><code>rescue Mongo::Error::OperationFailure =&gt; e</code> перехватывает исключение, которое выбросил <code>insert_one</code>.</li>
+          <li><b>Дойти до списка нарушений</b>Метод <code>e.details</code> возвращает содержимое <code>errInfo</code>, поэтому цепочка начинается на уровень ниже, чем в ответе выше: <code>e.details["details"]["schemaRulesNotSatisfied"]</code>.</li>
+          <li><b>Узнать, какое условие не выполнено</b><code>.each do |rule|</code> перебирает элементы списка; <code>rule["operatorName"]</code> — имя ключевого слова: <code>"properties"</code> или <code>"required"</code>.</li>
+          <li><b>Напечатать недостающие поля</b>Для <code>required</code> имена лежат в массиве <code>rule["missingProperties"]</code>; подстановка <code>#{…}</code> выводит его как массив Ruby: <code>["title"]</code>.</li>
+          <li><b>Напечатать поля с ошибками</b>Для <code>properties</code> работают два вложенных <code>each</code>: по полям из <code>rule["propertiesNotSatisfied"]</code> и по нарушенным условиям поля из <code>prop["details"]</code>.</li>
+        </ol>
+        <ol class="steps" data-lang="go">
+          <li><b>Описать нужную часть ответа</b>Тип <code>schemaRule</code> над <code>main</code> повторяет форму элемента списка. Поля структуры связаны с именами в документе тегами <code>bson:"…"</code>; поля ответа, которых в структуре нет (<code>specifiedAs</code>, <code>consideredValue</code>), при разборе пропускаются.</li>
+          <li><b>Поймать отказ</b><code>errors.As(err, &amp;we)</code> проверяет, что <code>InsertOne</code> вернул ошибку типа <code>mongo.WriteException</code>, и записывает её в переменную <code>we</code>.</li>
+          <li><b>Разобрать errInfo</b><code>we.WriteErrors[0].Details</code> — <code>errInfo</code> первой ошибки записи в виде <code>bson.Raw</code>. <code>bson.Unmarshal</code> раскладывает его в переменную <code>info</code>: её анонимная структура повторяет путь <code>details → schemaRulesNotSatisfied</code>, и после разбора список лежит в <code>info.Details.Rules</code>.</li>
+          <li><b>Напечатать недостающие поля</b>Для <code>rule.OperatorName == "required"</code> имена лежат в срезе <code>rule.MissingProperties</code>; <code>fmt.Println</code> выводит его как <code>[title]</code>.</li>
+          <li><b>Напечатать поля с ошибками</b>Для <code>"properties"</code> работают два вложенных цикла <code>for … range</code>: по полям и по нарушенным условиям каждого поля.</li>
+        </ol>
+        <ol class="steps" data-lang="cpp">
+          <li><b>Поймать отказ</b><code>catch (const mongocxx::operation_exception&amp; e)</code> перехватывает исключение, которое выбросил <code>insert_one</code>.</li>
+          <li><b>Дойти до errInfo</b><code>e.raw_server_error()</code> возвращает весь ответ сервера. Ошибки записи лежат в нём массивом <code>writeErrors</code>, и цепочка <code>view()["writeErrors"][0]["errInfo"]</code> берёт <code>errInfo</code> первой ошибки.</li>
+          <li><b>Перебрать нарушения</b><code>info["details"]["schemaRulesNotSatisfied"].get_array().value</code> — массив, по которому идёт цикл. Элемент превращается в документ через <code>get_document().value</code>, а имя условия — в строку <code>std::string name{…}</code>, чтобы сравнить его с <code>"required"</code> и <code>"properties"</code>.</li>
+          <li><b>Напечатать недостающие поля</b>Для <code>required</code> цикл по <code>rule["missingProperties"]</code> печатает имена через пробел.</li>
+          <li><b>Напечатать поля с ошибками</b>Для <code>properties</code> работают два вложенных цикла: по полям и по нарушенным условиям каждого поля.</li>
+        </ol>
         <p>Строка «нет обязательных полей: title» называет поле, которое нужно добавить в документ. Такой разбор пишут в журнал приложения или возвращают пользователю, который заполнял форму.</p>
         <figure class="shot">
           <img src="../../shots/111-sandbox-checked-insert.png" alt="Compass, окно Insert Document для sandbox.checked: документ без title с ценой строкой, сообщение Document failed validation и кнопка View error details">
@@ -1103,6 +1217,20 @@ moderate: цена ноутбука 0 не записана, код ошибки
         </figure>
         <p>В коллекции 22 товара, и один из них правилу не соответствует: включение правила не удалило и не изменило сумку. При <code>strict</code> обновление сумки отклонено, хотя меняется поле <code>brand</code>, которого в правиле нет. Сервер проверяет документ целиком в том виде, каким он станет после обновления, а цена в нём по-прежнему строка.</p>
         <p>При <code>moderate</code> то же обновление прошло: сумка не соответствовала правилу и до него. Обновление ноутбука проверено и отклонено: ноутбук соответствовал правилу, а с ценой 0 перестал бы. Уровень <code>moderate</code> выбирают, когда правило вводят для коллекции со старыми данными: старые документы можно исправлять постепенно, а новые ошибки в коллекцию не попадают.</p>
+        <p>Что делает сервер при каждом уровне, сведено в таблицу. Строки с ноутбуком и сумкой — из примера, остальные проверены на стенде тем же способом.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Запись</th><th>Документ до записи</th><th>Документ после записи</th><th><code>strict</code></th><th><code>moderate</code></th></tr></thead>
+            <tbody>
+              <tr><td>вставка</td><td>—</td><td>соответствует</td><td>записать</td><td>записать</td></tr>
+              <tr><td>вставка</td><td>—</td><td>не соответствует</td><td>отклонить</td><td>отклонить</td></tr>
+              <tr><td>обновление</td><td>соответствует</td><td>не соответствует (ноутбук с ценой 0)</td><td>отклонить</td><td>отклонить</td></tr>
+              <tr><td>обновление</td><td>не соответствует</td><td>не соответствует (сумка с новым <code>brand</code>)</td><td>отклонить</td><td>записать</td></tr>
+              <tr><td>обновление</td><td>не соответствует</td><td>соответствует (цена исправлена на число)</td><td>записать</td><td>записать</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Уровни различаются в одной строке — при обновлении документа, который не соответствовал правилу и не стал соответствовать после записи.</p>
         <figure class="shot">
           <img src="../../shots/114-sandbox-products-moderate.png" alt="Compass, вкладка Validation коллекции sandbox.products: Action Error, Level Moderate, правило $jsonSchema">
           <figcaption>Compass · <code>sandbox.products</code>, вкладка <b>Validation</b> после <code>collMod</code></figcaption>
@@ -1218,7 +1346,13 @@ validationAction: warn</pre>
         <p data-lang="ruby">Настройки коллекции возвращает <code>list_collections</code> с фильтром по имени. Метод возвращает массив описаний коллекций, <code>first</code> берёт первое; правило и оба параметра лежат в поле <code>"options"</code>.</p>
         <p data-lang="go">Настройки коллекции возвращает <code>ListCollectionSpecifications</code> с фильтром по имени. Метод возвращает срез описаний; поле <code>Options</code> хранит настройки в виде <code>bson.Raw</code>, и значение по имени достаёт <code>Lookup</code>.</p>
         <p data-lang="cpp">Настройки коллекции возвращает <code>list_collections</code> с фильтром по имени. Метод возвращает курсор по описаниям коллекций; правило и оба параметра лежат во вложенном документе <code>options</code>.</p>
-        <p>Предупреждение сервер пишет в свой журнал. Последние строки журнала возвращает команда <code>getLog</code>; в mongosh их можно отфильтровать по тексту предупреждения:</p>
+        <p>Предупреждение сервер пишет в свой журнал. Последние строки журнала возвращает команда <code>getLog</code>; её вызывают из mongosh — оболочки MongoDB (глава 1.1). Оболочка открывается тремя способами:</p>
+        <ul>
+          <li>стенд в Docker: из папки <code>mongodb-practice</code> команда <code>docker compose exec mongo mongosh</code>;</li>
+          <li>установленный сервер: команда <code>mongosh</code> в терминале, она подключается к <code>localhost:27017</code>;</li>
+          <li>Compass: кнопка <b>Open MongoDB shell</b> справа вверху над коллекцией, её видно на кадрах этой главы.</li>
+        </ul>
+        <p>В оболочке строки журнала фильтруются по тексту предупреждения:</p>
         <figure class="code">
           <figcaption><span>mongosh · оболочка</span><span>последнее предупреждение валидатора</span></figcaption>
 <pre>db.<span class="f">adminCommand</span>({ getLog: <span class="s">"global"</span> }).log
@@ -1284,12 +1418,23 @@ validationAction: warn</pre>
         </figure>
         <p>Под правилом Compass показывает по одному документу из коллекции: слева <b>Passed validation</b> — документ, который правилу соответствует, справа <b>Failed validation</b> — который не соответствует. Compass выбирает их сам из части коллекции, поэтому слева может оказаться другой товар. Справа здесь товар <code>p-902</code> с ценой <code>-1</code>.</p>
 
-        <h2 id="s8"><span class="sec">§8</span>Правило в Compass</h2>
+        <h2 id="s8"><span class="sec">§8</span>Порядок ввода правила на рабочей коллекции</h2>
+        <p>В §6 и §7 настройки валидатора разобраны по отдельности. На коллекции, в которую уже пишет приложение, их включают по шагам: так правило не начнёт отклонять записи приложения без предупреждения, а старые ошибки в данных будут найдены и исправлены.</p>
+        <ol class="steps">
+          <li><b>Проверить данные правилом</b>Фильтр <code>{"$nor": [{"$jsonSchema": правило}]}</code> (§2) показывает документы, которые правилу не соответствуют. Если таких документов много, сначала проверяют само правило: возможно, ошибка в нём.</li>
+          <li><b>Включить правило в режиме предупреждения</b>Команда <code>collMod</code> с правилом, <code>validationLevel: "moderate"</code> и <code>validationAction: "warn"</code> (§6, §7). Записи не отклоняются, старые документы можно обновлять.</li>
+          <li><b>Посмотреть журнал</b>Предупреждения <code>Document would fail validation</code> показывают, какие записи приложения правило отклонило бы. Ошибку исправляют в приложении или в правиле.</li>
+          <li><b>Исправить старые документы</b>Документы из шага 1 исправляют обновлением, пока фильтр из шага 1 не вернёт ноль.</li>
+          <li><b>Включить проверку полностью</b>Команда <code>collMod</code> с <code>validationLevel: "strict"</code> и <code>validationAction: "error"</code>. С этого момента документ, который правилу не соответствует, в коллекцию не попадёт.</li>
+        </ol>
+        <p>Шаги 1 и 4 выполняются запросами из этой главы и модуля 1, шаги 2 и 5 — одной командой <code>collMod</code> каждый.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Правило в Compass</h2>
         <p>Кадры в разделах выше сняты на тех же коллекциях, что и примеры. Правило коллекции в Compass находится на вкладке <b>Validation</b>. Если правила нет, на вкладке кнопка <b>Add rule</b>; если есть — редактор с документом валидатора, списки <b>Action</b> и <b>Level</b> и кнопка <b>Edit rules</b>. После <b>Edit rules</b> правило можно изменить и сохранить: Compass отправит серверу ту же команду <code>collMod</code>, что и пример §6.</p>
         <p>Пока правила нет, рядом с <b>Add rule</b> доступна кнопка <b>Generate rules</b>: Compass анализирует часть документов коллекции, как на вкладке <b>Schema</b> (глава 2.5), и составляет правило из полей, которые встречаются, и их типов. У коллекции с правилом эта кнопка неактивна — она серая на кадрах выше. Такое правило повторяет данные коллекции: если в ней уже лежит цена строкой, правило разрешит строку. Поэтому сгенерированное правило читают и исправляют до сохранения.</p>
-        <p>В поле фильтра на вкладке <b>Documents</b> оператор <code>$jsonSchema</code> пишется так же, как в коде, только одной строкой (кадр в §2). Документ, отклонённый правилом при вставке через Compass, остаётся в окне вставки вместе с сообщением сервера, и причины отказа открывает кнопка <b>View error details</b> (кадры в §4).</p>
+        <p>В поле фильтра на вкладке <b>Documents</b> оператор <code>$jsonSchema</code> пишется так же, как в коде; длинное правило удобнее вводить по строкам (кадр в §2). Документ, отклонённый правилом при вставке через Compass, остаётся в окне вставки вместе с сообщением сервера, и причины отказа открывает кнопка <b>View error details</b> (кадры в §4).</p>
 
-        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
         <div class="table-scroll errors-table" data-lang="python">
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
@@ -1347,7 +1492,7 @@ validationAction: warn</pre>
           </table>
         </div>
 
-        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
         <details>
           <summary>Чем <code>$jsonSchema</code> в фильтре отличается от <code>$jsonSchema</code> в валидаторе?</summary>
           <p>Правило одно и то же. В фильтре оно отбирает документы, которые уже лежат в коллекции, и ничего не меняет. В валидаторе сервер проверяет по нему каждую вставку и каждое обновление и отклоняет запись, если документ правилу не соответствует.</p>
@@ -1369,7 +1514,20 @@ validationAction: warn</pre>
           <p>При <code>warn</code> сервер проверяет каждую запись, записывает документ и оставляет в журнале предупреждение, если документ правилу не соответствует. При <code>off</code> проверки нет совсем, и в журнал ничего не пишется.</p>
         </details>
 
-        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в той же заготовке <code>lessons/ch3_1</code>. Заказы магазина лежат в коллекции <code>shop.orders</code>, она открыта в заготовке как <code>orders</code>. Поля заказа: <code>number</code> — номер вида <code>2026-0001</code>, <code>customer_id</code>, <code>created</code> — дата, <code>status</code>, <code>items</code> — массив позиций с полями <code>sku</code>, <code>qty</code>, <code>price</code>, и <code>total</code>.</p>
+        <ol class="steps">
+          <li><b>Записать правило заказа</b>Обязательны <code>number</code>, <code>customer_id</code>, <code>created</code>, <code>status</code>, <code>items</code>, <code>total</code>. <code>number</code> — строка по шаблону: <code>2026-</code> и четыре цифры; <code>customer_id</code> — строка; <code>created</code> — дата; <code>status</code> — одно из значений <code>"собирается"</code>, <code>"в пути"</code>, <code>"доставлен"</code>, <code>"отменён"</code>; <code>total</code> — число не меньше 1; <code>items</code> — массив хотя бы из одной позиции, у каждой обязательны <code>sku</code>, <code>qty</code>, <code>price</code>, а <code>qty</code> и <code>price</code> — числа не меньше 1.</li>
+          <li><b>Проверить заказы магазина</b>Посчитать, сколько документов <code>shop.orders</code> соответствуют правилу и сколько не соответствуют.</li>
+          <li><b>Создать коллекцию с правилом</b>В песочнице — коллекция <code>orders_checked</code> с этим правилом. Если она осталась от прошлого запуска, её сначала удаляют.</li>
+          <li><b>Записать пять заказов</b>Заказ А: <code>number</code> — <code>"2026-0901"</code>, <code>customer_id</code> — <code>"c-001"</code>, <code>created</code> — 06.10.2026 10:00 UTC, <code>status</code> — <code>"собирается"</code>, одна позиция <code>{"sku": "SKU-AC-019", "qty": 1, "price": 2990}</code>, <code>total</code> — 2990. Заказы Б–Д получают номера от <code>2026-0902</code> до <code>2026-0905</code> и отличаются от А одним полем: у Б <code>status</code> — <code>"оплачен"</code>; у В пустой массив <code>items</code>; у Г <code>created</code> записан строкой <code>"2026-10-06"</code>; у Д есть поле <code>comment</code> со строкой. Для каждого заказа напечатать, принят он или отклонён, а для отклонённых — причины из <code>errInfo</code>, как в §4.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Все 120 заказов магазина соответствуют правилу, не соответствуют — ноль. Приняты заказы А и Д, в коллекции <code>orders_checked</code> два документа. Отклонены с кодом 121: Б — поле <code>status</code>, условие <code>enum</code>; В — поле <code>items</code>, условие <code>minItems</code>; Г — поле <code>created</code>, условие <code>bsonType</code>. Заказ Д принят, потому что правило не запрещает поля, которых в нём нет (§5). Если результат другой, правило сверяют с описанием из шага 1 поле за полем.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
         <div class="cheat" data-lang="python">
           <div>
             <b>Правило: обязательные поля и типы</b>

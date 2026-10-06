@@ -34,6 +34,14 @@ const expect = (dbName, script, want, what) => {
 
 /* Правило товара из главы 3.1 — то же, что schema в заготовке главы. */
 const SCHEMA = '{ bsonType: "object", required: ["sku", "title", "category", "price"], properties: { sku: { bsonType: "string" }, title: { bsonType: "string" }, category: { bsonType: "string" }, price: { bsonType: "number", minimum: 1 } } }';
+const SCHEMA_LINES = `{ $nor: [{ $jsonSchema: {
+    bsonType: "object",
+    required: ["sku", "title", "category", "price"],
+    properties: {
+      sku: { bsonType: "string" },
+      title: { bsonType: "string" },
+      category: { bsonType: "string" },
+      price: { bsonType: "number", minimum: 1 } } } }] }`;
 const FULL = '{ bsonType: "object", required: ["sku", "title", "category", "price"], properties: { sku: { bsonType: "string", pattern: "^SKU-[A-Z]{2}-[0-9]{3}$" }, title: { bsonType: "string", minLength: 3 }, category: { enum: ["ноутбуки", "смартфоны", "периферия", "комплектующие", "аксессуары"] }, price: { bsonType: "number", minimum: 1 }, stock: { bsonType: "array", items: { bsonType: "object", required: ["warehouse", "qty"], properties: { qty: { bsonType: "number", minimum: 0 } } } } } }';
 
 expect('shop', `db.products.countDocuments({ $jsonSchema: ${SCHEMA} })`, 21, 'товары магазина по правилу');
@@ -319,7 +327,9 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     prep('catalog', 3);
     await openCollection('sandbox', 'catalog');
     await openTab('Documents');
-    await setQuery({ filter: `{ $nor: [{ $jsonSchema: ${SCHEMA} }] }`, project: '{ _id: 0 }' });
+    // Правило в одну строку не помещается в поле фильтра: записываем его по строкам,
+    // Compass растягивает поле по высоте, и правило видно целиком.
+    await setQuery({ filter: SCHEMA_LINES, project: '{ _id: 0 }' });
     await useJsonView();
     await collapseOptions();
     await page.locator('[data-testid="query-bar-option-filter-input"] .cm-content').first().click();
