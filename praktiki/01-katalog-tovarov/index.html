@@ -181,28 +181,28 @@ python3 check.py               <span class="c"># проверка, одна на
         <p>Сервер или драйвер не ставится — те же шаги выполняются в контейнерах, команды одинаковые в PowerShell и bash. Как поднять стенд и что делать при ошибках — <a href="../../temy/01a-stend-v-docker/index.html">глава 1.1а</a>.</p>
         <figure class="code" data-lang="python">
           <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
-<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и базы курса</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm python practice01/solution.py
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="cpp">
           <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
-<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и базы курса</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm cpp practice01/solution.cpp
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="go">
           <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
-<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и базы курса</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm go practice01/solution.go
 docker compose run --rm python practice01/check.py</pre>
         </figure>
         <figure class="code" data-lang="ruby">
           <figcaption><span>Терминал</span><span>через Docker, из корня репозитория</span></figcaption>
-<pre>docker compose up -d                                   <span class="c"># один раз: сервер и учебные базы</span>
+<pre>docker compose up -d                                   <span class="c"># один раз: сервер и базы курса</span>
 docker compose run --rm reset                          <span class="c"># чистые данные: 21 товар, 120 заказов</span>
 docker compose run --rm ruby practice01/solution.rb
 docker compose run --rm python practice01/check.py</pre>
@@ -620,7 +620,7 @@ report[<span class="s">"снято с продажи"</span>] = BOX.<span class=
 
 Пройдено 12 из 12</pre>
         </figure>
-        <p>Последняя проверка — главная. Она смотрит, не появилось ли поле <code>free_shipping</code> в эталонной базе <code>shop</code>. Если появилось, значит, правки ушли не туда: в учебной базе это лечится одной командой, в рабочей — разговором с руководителем.</p>
+        <p>Последняя проверка — главная. Она смотрит, не появилось ли поле <code>free_shipping</code> в эталонной базе <code>shop</code>. Если появилось, значит, правки ушли не туда: в базе курса это лечится одной командой, в рабочей — разговором с руководителем.</p>
 
         <h2 id="s3"><span class="sec">§3</span>Где писать решение и как сдать</h2>
         <p>Решения в папке <code>practice01</code> — эталонные: они показывают, к чему прийти. Своё решение вы пишете в собственном репозитории на GitHub и сдаёте ссылкой на него.</p>

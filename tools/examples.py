@@ -45,6 +45,7 @@ CHAPTERS = {
     "2.7": ("15-regex", "Текстовые шаблоны: $regex и $options", False),
     "2.8": ("16-expr", "Сравнение полей между собой: $expr", True),
     "2.9": ("18-skript-podbor", "Скрипт целиком: подбор кандидатов", False),
+    "3.1": ("19-jsonschema", "Правила на уровне базы: $jsonSchema", True),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -225,7 +226,8 @@ int main() {{
     raise ValueError(lang)
 
 
-# С какими коллекциями глава работает. Модуль 1 живёт на shop, модуль 2 — на hh.
+# С какими коллекциями глава работает. Модуль 1 живёт на shop, модуль 2 — на hh,
+# модуль 3 — на shop и журнале logs.
 # Песочница box есть в любой главе: в неё пишут, когда пример меняет данные.
 SCOPE = {
     "1": {
@@ -240,6 +242,12 @@ SCOPE = {
         "go": '\tdb := client.Database("hh")\n\tresumes := db.Collection("resumes")\n\tvacancies := db.Collection("vacancies")\n\tcompanies := db.Collection("companies")\n\tinterviews := db.Collection("interviews")\n\tbox := client.Database("sandbox").Collection("products") // песочница: здесь можно менять',
         "cpp": '    auto db = client["hh"];\n    auto resumes = db["resumes"];\n    auto vacancies = db["vacancies"];\n    auto companies = db["companies"];\n    auto interviews = db["interviews"];\n    auto box = client["sandbox"]["products"];   // песочница: здесь можно менять',
     },
+    "3": {
+        "python": 'db = client["shop"]\nproducts = db["products"]\norders = db["orders"]\nevents = client["logs"]["events"]\nsandbox = client["sandbox"]\nbox = sandbox["products"]        # песочница: здесь можно менять',
+        "ruby": 'db = client.use("shop").database\nproducts = db[:products]\norders = db[:orders]\nevents = client.use("logs").database[:events]\nsandbox = client.use("sandbox").database\nbox = sandbox[:products]   # песочница: здесь можно менять',
+        "go": '\tdb := client.Database("shop")\n\tproducts := db.Collection("products")\n\torders := db.Collection("orders")\n\tevents := client.Database("logs").Collection("events")\n\tsandbox := client.Database("sandbox")\n\tbox := sandbox.Collection("products") // песочница: здесь можно менять',
+        "cpp": '    auto db = client["shop"];\n    auto products = db["products"];\n    auto orders = db["orders"];\n    auto events = client["logs"]["events"];\n    auto sandbox = client["sandbox"];\n    auto box = sandbox["products"];   // песочница: здесь можно менять',
+    },
 }
 
 
@@ -248,7 +256,7 @@ def scope(chapter: str, lang: str) -> str:
     return SCOPE[chapter.split(".")[0]][lang]
 
 
-# Что глава добавляет к общей заготовке: данные, которых нет в учебных базах.
+# Что глава добавляет к общей заготовке: данные, которых нет в базах курса.
 EXTRAS = {
     ("1.6", "python"): '''
 # Коллекция на 20 000 документов для замера в §6. Создаётся один раз.
@@ -382,6 +390,67 @@ today = Date.today.iso8601
 ''',
 }
 
+# Глава 3.1: правило товара объявлено в заготовке — его разбирает §2 главы,
+# и им пользуются все примеры, начиная с первого.
+EXTRAS[("3.1", "python")] = '''
+catalog = sandbox["catalog"]                  # коллекция без правила, §1
+
+# Правило товара (§2 главы): обязательные поля и типы значений.
+schema = {
+    "bsonType": "object",
+    "required": ["sku", "title", "category", "price"],
+    "properties": {
+        "sku": {"bsonType": "string"},
+        "title": {"bsonType": "string"},
+        "category": {"bsonType": "string"},
+        "price": {"bsonType": "number", "minimum": 1},
+    },
+}
+'''
+EXTRAS[("3.1", "ruby")] = '''
+catalog = sandbox[:catalog]                   # коллекция без правила, §1
+
+# Правило товара (§2 главы): обязательные поля и типы значений.
+schema = {
+  "bsonType" => "object",
+  "required" => ["sku", "title", "category", "price"],
+  "properties" => {
+    "sku" => { "bsonType" => "string" },
+    "title" => { "bsonType" => "string" },
+    "category" => { "bsonType" => "string" },
+    "price" => { "bsonType" => "number", "minimum" => 1 },
+  },
+}
+'''
+EXTRAS[("3.1", "go")] = '''
+\tcatalog := sandbox.Collection("catalog") // коллекция без правила, §1
+
+\t// Правило товара (§2 главы): обязательные поля и типы значений.
+\tschema := bson.D{
+\t\t{Key: "bsonType", Value: "object"},
+\t\t{Key: "required", Value: bson.A{"sku", "title", "category", "price"}},
+\t\t{Key: "properties", Value: bson.D{
+\t\t\t{Key: "sku", Value: bson.D{{Key: "bsonType", Value: "string"}}},
+\t\t\t{Key: "title", Value: bson.D{{Key: "bsonType", Value: "string"}}},
+\t\t\t{Key: "category", Value: bson.D{{Key: "bsonType", Value: "string"}}},
+\t\t\t{Key: "price", Value: bson.D{{Key: "bsonType", Value: "number"}, {Key: "minimum", Value: 1}}},
+\t\t}},
+\t}
+'''
+EXTRAS[("3.1", "cpp")] = '''
+    auto catalog = sandbox["catalog"];   // коллекция без правила, §1
+
+    // Правило товара (§2 главы): обязательные поля и типы значений.
+    auto schema = make_document(
+        kvp("bsonType", "object"),
+        kvp("required", make_array("sku", "title", "category", "price")),
+        kvp("properties", make_document(
+            kvp("sku", make_document(kvp("bsonType", "string"))),
+            kvp("title", make_document(kvp("bsonType", "string"))),
+            kvp("category", make_document(kvp("bsonType", "string"))),
+            kvp("price", make_document(kvp("bsonType", "number"), kvp("minimum", 1))))));
+'''
+
 GO_IMPORTS = ["context", "errors", "fmt", "log", "os", "sort", "strings", "time"]
 GO_MONGO = {
     "bson": '"go.mongodb.org/mongo-driver/v2/bson"',
@@ -434,7 +503,8 @@ def starter(chapter: str, lang: str, snippets: list[str]) -> str:
         # Гасим «declared and not used» по тем коллекциям, которые открыла заготовка.
         names = re.findall(r"^\t(\w+) :=", scope(chapter, lang), re.M)
         head += "\t" + ", ".join("_" for _ in names) + " = " + ", ".join(names) + "\n"
-        used = [v for v in ("col", "lastSeenID", "ordersBox", "stats", "today") if re.search(r"\b%s :=" % v, extra)]
+        used = [v for v in ("col", "lastSeenID", "ordersBox", "stats", "today", "catalog", "schema")
+                if re.search(r"\b%s :=" % v, extra)]
         if used:
             extra += "\t" + ", ".join("_" for _ in used) + " = " + ", ".join(used) + "\n"
     if lang == "cpp":

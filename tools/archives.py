@@ -1,7 +1,7 @@
 """Архивы примеров для скачивания: по одному на главу и язык.
 
 В архиве всё, чтобы запустить примеры главы без репозитория mongodb-practice:
-каждый пример — готовая программа, стенд в Docker, учебные данные и README.md
+каждый пример — готовая программа, стенд в Docker, данные баз и README.md
 с запуском в Docker или на установленном сервере с Compass и ожидаемыми выводами.
 
     python3 tools/archives.py build             # архивы в temy/<глава>/primery/ и ссылки в главах
@@ -129,12 +129,12 @@ def compose(chapter: str, lang: str) -> str:
     volumes = "volumes:\n  mongo-data:\n" + ("  go-modules:\n" if lang == "go" else "")
     first = "первая сборка образа идёт несколько минут: драйвер C++ собирается из исходников" if lang == "cpp" \
         else "при первом запуске Docker соберёт образ с драйвером — это пара минут"
-    return f'''# Стенд для примеров главы {chapter} на {TITLE[lang]}: сервер MongoDB 7, учебные базы,
+    return f'''# Стенд для примеров главы {chapter} на {TITLE[lang]}: сервер MongoDB 7, базы курса,
 # mongo-express и контейнер с драйвером. Подробно — в README.md.
 #
 # Команды одинаковые в PowerShell, cmd и терминале macOS/Linux. Запускать из этой папки.
 #
-#   {"docker compose up -d":<48} сервер + учебные базы + mongo-express
+#   {"docker compose up -d":<48} сервер + базы курса + mongo-express
 #   {f"docker compose run --rm {lang} primery/01.{ex.EXT[lang]}":<48} один пример
 #   {f"docker compose run --rm {lang} primery":<48} все примеры по порядку
 #   {"docker compose run --rm reset":<48} вернуть базы в исходное состояние
@@ -162,7 +162,7 @@ services:
       timeout: 5s
       retries: 12
 
-  # Заливает учебные базы, если сервер пустой, и завершается.
+  # Заливает базы курса, если сервер пустой, и завершается.
   seed:
     <<: *seed
 
@@ -296,7 +296,7 @@ def readme(chapter: str, lang: str, items: list[dict]) -> str:
             f"{go_files}"
             f"  compose.yaml      стенд в Docker: сервер, базы, mongo-express, {L}\n"
             f"  docker/           образ с драйвером {L} и скрипт запуска run.sh\n"
-            f"  stend/seed/       учебные данные: 12 файлов JSON\n"
+            f"  stend/seed/       данные баз: 12 файлов JSON\n"
             f"  stend/load.ps1    загрузка данных на установленный сервер — Windows\n"
             f"  stend/load.sh     то же — macOS и Linux\n"
             f"{driver_files}")
@@ -424,7 +424,7 @@ bash stend/load.sh
 
     return f"""# Глава {chapter} · {title} — примеры на {L}
 
-Архив к «Справочнику по MongoDB»: все примеры главы готовыми программами, учебные базы и стенд в Docker.
+Архив к «Справочнику по MongoDB»: все примеры главы готовыми программами, данные баз и стенд в Docker.
 Глава: {url}
 
 Язык: **{L}** · драйвер {DRIVER[lang]} · сервер MongoDB 7.
@@ -459,7 +459,7 @@ Docker Desktop — с [docker.com](https://www.docker.com/products/docker-deskto
 Перед командами Docker Desktop должен быть запущен. Команды одинаковые в PowerShell, cmd и терминале
 macOS/Linux; выполняйте их **из папки архива** — там, где лежит `compose.yaml`.
 
-1. Поднять сервер и загрузить учебные базы:
+1. Поднять сервер и загрузить базы курса:
 
    ```bash
    docker compose up -d
@@ -505,7 +505,7 @@ docker compose down -v     # удалить всё вместе с данным�
 [главе 1.0а](https://maximbytecamp.github.io/mongodb_theory_makarov/temy/00a-windows-10-mongodb-7/index.html).
 Проверка: Compass подключается к `mongodb://localhost:27017`.
 
-### Шаг 1. Загрузить учебные базы
+### Шаг 1. Загрузить базы курса
 
 {load}
 
@@ -588,7 +588,7 @@ def link_row(chapter: str, sizes: dict[str, int]) -> str:
         f'<code>{archive_name(chapter, lang)}.zip</code></a>, {max(1, round(sizes[lang] / 1024))} КБ</span>'
         for lang in LANGS)
     return (f'          <div class="runbox__row"><b>Архив</b><span>{links} — все примеры главы готовыми '
-            f'программами, учебные базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, '
+            f'программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, '
             f'если Compass нет или он не подключается, и на установленном сервере с Compass, '
             f'а также что должна напечатать каждая программа.</span></div>')
 

@@ -384,7 +384,7 @@ async function renderResult(r, returning) {
       <p class="q-text">${q.text}</p>
       ${imgBlock(q)}${docsBlock(q)}${codeBlock(codeFor(q, lang))}
       ${reviewOptions(q, raw[q.id] || [], correct, s.notes)}
-      ${run ? `<figure class="q-code rv-run"><figcaption><span>Вывод в терминал</span><span>запуск на учебном стенде</span></figcaption><pre>${
+      ${run ? `<figure class="q-code rv-run"><figcaption><span>Вывод в терминал</span><span>запуск на стенде курса</span></figcaption><pre>${
         run.split('\n').map(line => `<span class="ln">${esc(line) || ' '}</span>`).join('')}</pre></figure>` : ''}
       <div class="why"><b>Разбор</b>${s.why}</div>
     </article>`;

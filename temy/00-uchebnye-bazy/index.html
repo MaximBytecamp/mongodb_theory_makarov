@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F1EFE6">
-  <title>1.0 Учебные базы · Справочник по MongoDB</title>
+  <title>1.0 Базы курса · Справочник по MongoDB</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -93,8 +93,8 @@
 
         <header class="chapter-head">
           <span class="chapter-num">1.0</span>
-          <h1>Учебные базы:<br>скачать и загрузить</h1>
-          <p class="lead">Все примеры, числа и кадры справочника получены на одних и тех же данных: четыре учебные базы и песочница. Данные лежат в репозитории практик на GitHub в виде JSON-файлов. В этой главе — как их скачать, как загрузить в MongoDB тремя способами и как проверить, что всё на месте. Главу проходят один раз, до первых запросов.</p>
+          <h1>Базы курса:<br>скачать и загрузить</h1>
+          <p class="lead">Все примеры, числа и кадры справочника получены на одних и тех же данных: четыре базы курса и песочница. Данные лежат в репозитории практик на GitHub в виде JSON-файлов. В этой главе — как их скачать, как загрузить в MongoDB тремя способами и как проверить, что всё на месте. Главу проходят один раз, до первых запросов.</p>
         </header>
 
         <dl class="passport">
@@ -274,7 +274,7 @@ sandbox.warehouse      &lt;- sandbox.warehouse.json
 shop.customers         &lt;- shop.customers.json
 shop.orders            &lt;- shop.orders.json
 shop.products          &lt;- shop.products.json
-Готово: учебные базы загружены</pre>
+Готово: базы курса загружены</pre>
         </figure>
         <p>Вернуть базы в исходное состояние — <code>docker compose run --rm reset</code>. Как поставить Docker и что делать при ошибках, разобрано в главе <a href="../01a-stend-v-docker/index.html">1.1а</a>.</p>
 
@@ -365,7 +365,7 @@ shop.products          ← shop.products.json
         <h2 id="s7"><span class="sec">§7</span>Способ 3. Вручную через Compass</h2>
         <p>Если нет ни Docker, ни <code>mongoimport</code>, но сервер и Compass работают, файлы загружаются мышью. На кадрах ниже — пустой сервер, на который загружаем первую коллекцию, <code>shop.products</code>.</p>
         <ol class="steps">
-          <li><b>Подключитесь к серверу</b>Откройте подключение к <code>mongodb://localhost:27017</code>. Если учебных баз ещё нет, в списке только три служебные: <code>admin</code>, <code>config</code>, <code>local</code>.</li>
+          <li><b>Подключитесь к серверу</b>Откройте подключение к <code>mongodb://localhost:27017</code>. Если баз курса ещё нет, в списке только три служебные: <code>admin</code>, <code>config</code>, <code>local</code>.</li>
         </ol>
         <figure class="shot">
           <img src="../../shots/16-compass-empty-server.png" alt="Compass: подключение к серверу, в списке только служебные базы admin, config и local, справа кнопка Create database">
@@ -426,10 +426,10 @@ shop.products          ← shop.products.json
         </div>
 
         <h2 id="s8"><span class="sec">§8</span>Проверить, что всё загрузилось</h2>
-        <p>После любого способа нажмите в Compass <b>Refresh</b> в списке баз. Должно быть восемь строк: пять учебных баз и три служебные.</p>
+        <p>После любого способа нажмите в Compass <b>Refresh</b> в списке баз. Должно быть восемь строк: пять баз курса и три служебные.</p>
         <figure class="shot">
           <img src="../../shots/21-compass-all-loaded.png" alt="Список баз в Compass после загрузки: admin, config, hh, local, logs, org, sandbox, shop">
-          <figcaption>Compass · после загрузки — пять учебных баз и три служебные</figcaption>
+          <figcaption>Compass · после загрузки — пять баз курса и три служебные</figcaption>
         </figure>
         <p>Надёжнее сверить число документов в каждой коллекции с таблицей из <a href="#s1">§1</a>. Для этого не нужен установленный <code>mongosh</code>: в Compass есть встроенная оболочка — кнопка <b>Open MongoDB shell</b> над списком баз. Вставьте туда одну строку:</p>
         <figure class="code">
@@ -465,7 +465,7 @@ sandbox.warehouse 21</pre>
           <p class="tree__head" style="margin:0">mongodb-practice/</p>
           <div class="tree__row tree__row--hot"><b>lessons/</b><span>заготовки для примеров из глав: <code>ch1_2.py</code> … <code>ch1_8.cpp</code> — по файлу на главу и язык</span></div>
           <div class="tree__row"><b>hello/</b><span>проверка подключения — первый запуск</span></div>
-          <div class="tree__row"><b>stend/</b><span>учебные данные и скрипты загрузки из §6</span></div>
+          <div class="tree__row"><b>stend/</b><span>данные курса и скрипты загрузки из §6</span></div>
           <div class="tree__row"><b>practice01/</b><span>ПР-01: задание, эталонное решение, <code>check.py</code></span></div>
           <div class="tree__row"><b>kt01/</b><span>КТ-01: задание, данные пересчёта, <code>check.py</code></span></div>
           <div class="tree__row tree__row--you"><b>work/</b><span>ваш репозиторий с решениями — появится в ПР-01</span></div>
@@ -786,12 +786,12 @@ g++ -std=c++17 ch1_4.cpp -o ch1_4 $(pkg-config --cflags --libs libmongocxx1)
         </div>
 
         <h3>Итог главы</h3>
-        <p>Учебные данные — двенадцать JSON-файлов в <code>stend/seed</code> репозитория практик; имя файла задаёт базу и коллекцию. Загрузить их можно Docker-стендом, скриптом с <code>mongoimport</code> или вручную через Compass — результат одинаковый, и проверяется он числом документов в каждой коллекции. Когда числа сошлись, переходим к главе 1.1: что такое сервер, база и коллекция и как до них дойти из кода.</p>
+        <p>Данные курса — двенадцать JSON-файлов в <code>stend/seed</code> репозитория практик; имя файла задаёт базу и коллекцию. Загрузить их можно Docker-стендом, скриптом с <code>mongoimport</code> или вручную через Compass — результат одинаковый, и проверяется он числом документов в каждой коллекции. Когда числа сошлись, переходим к главе 1.1: что такое сервер, база и коллекция и как до них дойти из кода.</p>
 
         <div class="pager"><a href="../../index.html">К содержанию справочника</a><a href="../00a-windows-10-mongodb-7/index.html">1.0а Windows 10: MongoDB 7.0 →</a></div>
 
         <div class="colophon">
-          <span>Глава 1.0 · Учебные базы · Справочник по MongoDB</span>
+          <span>Глава 1.0 · Базы курса · Справочник по MongoDB</span>
           <span class="author-line">Автор: Макаров Максим Николаевич</span>
         </div>
       </main>

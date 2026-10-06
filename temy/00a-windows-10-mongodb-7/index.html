@@ -108,7 +108,7 @@
         </div>
         <div class="margin-note margin-note--warn">
           <b>Осторожно: данные сервера 8.0 будут удалены</b>
-          <p>Сервер 7.0 не открывает файлы, записанные сервером 8.0, поэтому папка данных удаляется вместе с сервером. Учебные базы загружаются заново из репозитория практик — глава <a href="../00-uchebnye-bazy/index.html#s6">1.0, §6</a>. Если вы успели сделать что-то своё, сначала выгрузите это в Compass: <b>Export Data</b> у нужной коллекции.</p>
+          <p>Сервер 7.0 не открывает файлы, записанные сервером 8.0, поэтому папка данных удаляется вместе с сервером. Базы курса загружаются заново из репозитория практик — глава <a href="../00-uchebnye-bazy/index.html#s6">1.0, §6</a>. Если вы успели сделать что-то своё, сначала выгрузите это в Compass: <b>Export Data</b> у нужной коллекции.</p>
         </div>
 
         <h2 id="s3"><span class="sec">§3</span>Шаг 1. PowerShell от имени администратора</h2>
@@ -373,10 +373,10 @@ db version v7.0.43</pre>
         </figure>
         <p>Служба <code>MongoDB</code> в состоянии <code>Running</code> с автозапуском, сервер — версии 7.0.43. Откройте Compass из меню «Пуск», на приветствии нажмите <b>Start</b>, затем <b>Add new connection</b> → <b>Save &amp; Connect</b>: адрес <code>mongodb://localhost:27017</code> уже подставлен.</p>
         <figure class="shot">
-          <img src="../../shots/w10-compass146-13-connected.png" alt="Compass 1.46.11 подключён к серверу 7.0.43 на localhost:27017 — после загрузки видны учебные базы hh, logs, org, sandbox и shop" loading="lazy">
-          <figcaption>Compass 1.46.11 подключён к серверу 7.0.43 на localhost:27017 — после загрузки видны учебные базы hh, logs, org, sandbox и shop</figcaption>
+          <img src="../../shots/w10-compass146-13-connected.png" alt="Compass 1.46.11 подключён к серверу 7.0.43 на localhost:27017 — после загрузки видны базы курса hh, logs, org, sandbox и shop" loading="lazy">
+          <figcaption>Compass 1.46.11 подключён к серверу 7.0.43 на localhost:27017 — после загрузки видны базы курса hh, logs, org, sandbox и shop</figcaption>
         </figure>
-        <p>Сервер новый и пустой. Загрузите учебные базы — глава <a href="../00-uchebnye-bazy/index.html#s6">1.0, §6</a>, — и дальше всё идёт по книге.</p>
+        <p>Сервер новый и пустой. Загрузите базы курса — глава <a href="../00-uchebnye-bazy/index.html#s6">1.0, §6</a>, — и дальше всё идёт по книге.</p>
         <div class="margin-note">
           <b>На полях: не соглашайтесь на обновление Compass</b>
           <p>Через несколько минут работы Compass может предложить обновиться до последней версии — той, что на Windows 10 не поддерживается. Нажмите <b>Close</b>, а чтобы вопрос не повторялся, в <b>Settings → Privacy</b> снимите галочку <b>Enable Automatic Updates</b>.</p>
@@ -425,9 +425,9 @@ db version v7.0.43</pre>
         </div>
 
         <h3>Итог главы</h3>
-        <p>MongoDB 8.0 и свежий Compass рассчитаны на Windows 11, поэтому на Windows 10 ставим сервер 7.0.43 — версию, на которой сняты выводы книги, — и Compass 1.46.11. Перед установкой старое удаляется целиком: программы — их деинсталляторами, затем папки данных и настроек, служба и запись в <code>Path</code>; проверка должна показать ноль программ и три <code>False</code>. Сервер скачивается с mongodb.com выбором версии в списке, Compass — из архива выпусков по ссылке <b>Archived releases</b>. Главное в мастере — снять галочку <b>Install MongoDB Compass</b>. После установки загрузите учебные базы и возвращайтесь к главе 1.0.</p>
+        <p>MongoDB 8.0 и свежий Compass рассчитаны на Windows 11, поэтому на Windows 10 ставим сервер 7.0.43 — версию, на которой сняты выводы книги, — и Compass 1.46.11. Перед установкой старое удаляется целиком: программы — их деинсталляторами, затем папки данных и настроек, служба и запись в <code>Path</code>; проверка должна показать ноль программ и три <code>False</code>. Сервер скачивается с mongodb.com выбором версии в списке, Compass — из архива выпусков по ссылке <b>Archived releases</b>. Главное в мастере — снять галочку <b>Install MongoDB Compass</b>. После установки загрузите базы курса и возвращайтесь к главе 1.0.</p>
 
-        <div class="pager"><a href="../00-uchebnye-bazy/index.html">← 1.0 Учебные базы</a><a href="../01-klient-baza-kollekciya/index.html">1.1 Сервер, база, коллекция →</a></div>
+        <div class="pager"><a href="../00-uchebnye-bazy/index.html">← 1.0 Базы курса</a><a href="../01-klient-baza-kollekciya/index.html">1.1 Сервер, база, коллекция →</a></div>
 
         <div class="colophon">
           <span>Глава 1.0а · Windows 10: MongoDB 7.0 вместо 8.0 · Справочник по MongoDB</span>

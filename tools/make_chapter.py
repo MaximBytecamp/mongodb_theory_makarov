@@ -42,9 +42,12 @@ def build(num: str, folder: str, body_file: str) -> pathlib.Path:
     head = head.replace("<title>2.1 Фильтр — это документ. Точечная нотация",
                         f"<title>{num} {meta['title']} {meta['h1b']}")
     head = head.replace('<p class="running__folio">2.1</p>', f'<p class="running__folio">{num}</p>')
-    head = head.replace("· модуль 2 · язык фильтров",
-                        "· модуль 1 · подключение и первые данные" if num.startswith("1.")
-                        else "· модуль 2 · язык фильтров")
+    running = {"1": ("модуль 1 · подключение и первые данные", "Модуль 1 · Подключение и первые данные"),
+               "2": ("модуль 2 · язык фильтров", "Модуль 2 · Язык фильтров"),
+               "3": ("модуль 3 · форма данных и скорость", "Модуль 3 · Форма данных и скорость")}
+    eyebrow, spine = running[num.split(".")[0]]
+    head = head.replace("· модуль 2 · язык фильтров", "· " + eyebrow)
+    head = head.replace("<span>Модуль 2 · Язык фильтров</span>", f"<span>{spine}</span>")
     runbox = runbox.replace("2_1", u).replace("glava-2.1", f"glava-{num}")
     runbox = re.sub(r'[ \t]*<div class="runbox__row"><b>Архив</b>.*?</div>\n', "", runbox, flags=re.S)
     if meta.get("writes") == "да":

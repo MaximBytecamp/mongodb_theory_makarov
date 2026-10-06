@@ -17,7 +17,12 @@
     python3 tools/snippets.py expand 2.2      # маркеры → HTML, один раз
 
 После разворота маркеров в странице не остаётся: дальше текст правится
-в index.html как обычно. Описания примеров — в tools/chapters2.py.
+в index.html как обычно. Описания примеров — в tools/chapters2.py
+(модуль 2) и tools/chapters3.py (модуль 3 и дальше).
+
+В модуле 3 примеры процедурные: создать коллекцию с правилом, перехватить
+отказ сервера, построить индекс. Их код записывается на каждом языке
+целиком (ключ "plain"), а подсветку собирает codeedit.highlight.
 """
 
 import datetime as dt
@@ -353,10 +358,19 @@ def filter_var(step, lang: str) -> list[str]:
     return [head + body + (";" if lang == "cpp" else "")]
 
 
+def source(chapter: str):
+    """Модуль с описаниями примеров главы: chapters2 для модуля 2, chapters3 — дальше."""
+    import importlib
+    return importlib.import_module("chapters2" if chapter.startswith("2.") else "chapters3")
+
+
 def code(spec, lang: str) -> str:
     """Полный текст примера: даты, счётчики, выборка."""
     if "raw" in spec:
         return spec["raw"][lang].strip("\n")
+    if "plain" in spec:
+        from codeedit import highlight
+        return highlight(spec["plain"][lang].strip("\n"), lang)
     steps = spec["steps"]
     lines = []
     values = [st.get("filter") for st in steps if "filter" in st] + \
@@ -506,7 +520,8 @@ def cheat_html(cards) -> str:
 
 def expand(chapter: str) -> None:
     import examples
-    from chapters2 import EXAMPLES, ERRORS, CHEATS
+    src = source(chapter)
+    EXAMPLES, ERRORS, CHEATS = src.EXAMPLES, src.ERRORS, src.CHEATS
     path = BOOK / "temy" / examples.CHAPTERS[chapter][0] / "index.html"
     page = path.read_text()
     count = 0
@@ -528,7 +543,8 @@ def refresh(chapter: str) -> None:
     """Пересобрать код уже развёрнутых примеров: блок находится по подписи
     в figcaption, меняется только текст в <pre>. Текст главы не трогается."""
     import examples
-    from chapters2 import EXAMPLES
+    src = source(chapter)
+    EXAMPLES, ERRORS, CHEATS = src.EXAMPLES, src.ERRORS, src.CHEATS
     path = BOOK / "temy" / examples.CHAPTERS[chapter][0] / "index.html"
     page = path.read_text()
     changed = 0
@@ -545,7 +561,6 @@ def refresh(chapter: str) -> None:
             if page[start:end] != new:
                 page = page[:start] + new + page[end:]
                 changed += 1
-    from chapters2 import ERRORS, CHEATS
     if chapter in ERRORS:
         m = re.search(r'[ \t]*<div class="table-scroll errors-table" data-lang="python">.*?data-lang="ruby">.*?</table>\n\s*</div>', page, re.S)
         if m:
@@ -566,8 +581,8 @@ if __name__ == "__main__":
         for ch in sys.argv[2:]:
             refresh(ch)
     elif sys.argv[1] == "show":
-        from chapters2 import EXAMPLES
         ch, name = sys.argv[2], sys.argv[3]
+        EXAMPLES = source(ch).EXAMPLES
         for lang in LANGS:
             print(f"===== {lang}")
             print(html.unescape(re.sub(r"<[^>]+>", "", code(EXAMPLES[ch][name], lang))))

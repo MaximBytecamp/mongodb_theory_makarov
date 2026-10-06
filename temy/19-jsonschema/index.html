@@ -1,0 +1,1515 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>3.1 Правила на уровне базы: $jsonSchema · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Форма данных и скорость</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · форма данных и скорость</p>
+          <p class="running__folio">3.1</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">3.1</span>
+          <h1>Правила на уровне базы:<br>$jsonSchema</h1>
+          <p class="lead">В этой главе разобрано, как описать, какими должны быть документы коллекции, и поручить проверку серверу. Описание записывается оператором <code>$jsonSchema</code>: какие поля обязательны, какого они типа и в каких границах лежат значения. Тот же оператор работает как условие запроса, и им проверяют документы, которые уже лежат в коллекции. Отдельно разобраны ответ сервера на отклонённый документ и включение правила для коллекции, в которой уже есть данные.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Форма данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Типы BSON (глава 1.2), вставка и обновление (главы 1.3 и 1.7), <code>$nor</code> (глава 2.4), <code>$exists</code> и <code>$type</code> (глава 2.5)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Не пускать в коллекцию документы без обязательных полей и со значениями неверного типа</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-3.1-python.zip" download><code>mongodb-glava-3.1-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-3.1-ruby.zip" download><code>mongodb-glava-3.1-ruby.zip</code></a>, 64 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-3.1-go.zip" download><code>mongodb-glava-3.1-go.zip</code></a>, 70 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-3.1-cpp.zip" download><code>mongodb-glava-3.1-cpp.zip</code></a>, 67 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch3_1.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch3_1.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch3_1.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch3_1.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch3_1.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch3_1.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch3_1.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch3_1.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch3_1.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch3_1.go</code> · в Docker: <code>docker compose run --rm go lessons/ch3_1.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch3_1.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch3_1.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Сервер принимает любой документ</a></li>
+            <li><a href="#s2">Правило <code>$jsonSchema</code> и проверка данных</a></li>
+            <li><a href="#s3">Коллекция с правилом: <code>validator</code></a></li>
+            <li><a href="#s4">Почему документ отклонён: <code>errInfo</code></a></li>
+            <li><a href="#s5">Ключевые слова правила</a></li>
+            <li><a href="#s6">Правило для коллекции с данными: <code>collMod</code></a></li>
+            <li><a href="#s7"><code>validationAction</code>: предупреждение вместо отказа</a></li>
+            <li><a href="#s8">Правило в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Сервер принимает любой документ</h2>
+        <p>У коллекции MongoDB нет описания полей, как у таблицы в реляционной базе. Два документа одной коллекции могут иметь разный набор полей, а поле с одним и тем же именем может хранить в них значения разных типов. В главе 2.5 это было видно при чтении: условие по полю пропускает документы, в которых поле записано другим типом или отсутствует.</p>
+        <p>Пример записывает в песочницу три товара. Первый заполнен полностью. У второго цена записана строкой <code>"2 490"</code> — так её передаст программа, которая взяла значение из поля формы на сайте и не преобразовала в число. У третьего нет названия, а цена отрицательная. Коллекция <code>catalog</code> из базы <code>sandbox</code> открыта в заготовке главы; в начале примера она удаляется, чтобы повторный запуск начинал с пустой коллекции.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>три товара без правила</span></figcaption>
+<pre>catalog.<span class="f">drop</span>()
+catalog.<span class="f">insert_one</span>({<span class="s">"sku"</span>: <span class="s">"SKU-AC-030"</span>, <span class="s">"title"</span>: <span class="s">"Чехол для ноутбука 15 дюймов"</span>,
+                    <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">1990</span>})
+catalog.<span class="f">insert_one</span>({<span class="s">"sku"</span>: <span class="s">"SKU-AC-031"</span>, <span class="s">"title"</span>: <span class="s">"Подставка под монитор"</span>,
+                    <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="s">"2 490"</span>})
+catalog.<span class="f">insert_one</span>({<span class="s">"sku"</span>: <span class="s">"SKU-AC-032"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: -<span class="n">350</span>})
+
+<span class="f">print</span>(<span class="s">"документов в коллекции:"</span>, catalog.<span class="f">count_documents</span>({}))
+<span class="k">for</span> doc <span class="k">in</span> catalog.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>}):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>три товара без правила</span></figcaption>
+<pre>catalog.<span class="f">drop</span>();
+catalog.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-030"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Чехол для ноутбука 15 дюймов"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1990</span>)));
+catalog.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-031"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Подставка под монитор"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="s">"2 490"</span>)));
+catalog.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-032"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">350</span>)));
+
+std::cout &lt;&lt; <span class="s">"документов в коллекции: "</span> &lt;&lt; catalog.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>)));
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; doc : catalog.<span class="f">find</span>(<span class="f">make_document</span>(), options)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>три товара без правила</span></figcaption>
+<pre>catalog.<span class="f">Drop</span>(ctx)
+catalog.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-030"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Чехол для ноутбука 15 дюймов"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="n">1990</span>}})
+catalog.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-031"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Подставка под монитор"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="s">"2 490"</span>}})
+catalog.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-032"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: -<span class="n">350</span>}})
+
+n, _ := catalog.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"документов в коллекции:"</span>, n)
+
+cursor, _ := catalog.<span class="f">Find</span>(ctx, bson.D{},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>три товара без правила</span></figcaption>
+<pre>catalog.drop
+catalog.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-030"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Чехол для ноутбука 15 дюймов"</span>,
+                     <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">1990</span> })
+catalog.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-031"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Подставка под монитор"</span>,
+                     <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="s">"2 490"</span> })
+catalog.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-032"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; -<span class="n">350</span> })
+
+<span class="k">puts</span> <span class="s">"документов в коллекции: "</span> + catalog.<span class="f">count_documents</span>({}).to_s
+catalog.<span class="f">find</span>({}, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span> }).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в коллекции: 3
+{'sku': 'SKU-AC-030', 'title': 'Чехол для ноутбука 15 дюймов', 'category': 'аксессуары', 'price': 1990}
+{'sku': 'SKU-AC-031', 'title': 'Подставка под монитор', 'category': 'аксессуары', 'price': '2 490'}
+{'sku': 'SKU-AC-032', 'category': 'аксессуары', 'price': -350}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в коллекции: 3
+{ "sku" : "SKU-AC-030", "title" : "Чехол для ноутбука 15 дюймов", "category" : "аксессуары", "price" : 1990 }
+{ "sku" : "SKU-AC-031", "title" : "Подставка под монитор", "category" : "аксессуары", "price" : "2 490" }
+{ "sku" : "SKU-AC-032", "category" : "аксессуары", "price" : -350 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в коллекции: 3
+{"sku":"SKU-AC-030","title":"Чехол для ноутбука 15 дюймов","category":"аксессуары","price":1990}
+{"sku":"SKU-AC-031","title":"Подставка под монитор","category":"аксессуары","price":"2 490"}
+{"sku":"SKU-AC-032","category":"аксессуары","price":-350}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в коллекции: 3
+{"sku"=&gt;"SKU-AC-030", "title"=&gt;"Чехол для ноутбука 15 дюймов", "category"=&gt;"аксессуары", "price"=&gt;1990}
+{"sku"=&gt;"SKU-AC-031", "title"=&gt;"Подставка под монитор", "category"=&gt;"аксессуары", "price"=&gt;"2 490"}
+{"sku"=&gt;"SKU-AC-032", "category"=&gt;"аксессуары", "price"=&gt;-350}</pre>
+        </figure>
+        <p>Сервер записал все три документа и не сообщил об ошибке. Цена <code>"2 490"</code> хранится как строка, и проблема проявится при чтении: подставка не попадёт в выборку <code>{"price": {"$lt": 3000}}</code>, потому что строку с числом операторы сравнения не сравнивают (глава 2.2). Запросы из главы 2.5 находят такие документы уже после записи. Проверить документ до записи может сам сервер, если задать коллекции правило.</p>
+        <figure class="shot">
+          <img src="../../shots/108-sandbox-catalog.png" alt="Compass, коллекция sandbox.catalog: три документа, счётчик 1 – 3 of 3, у второго цена строкой "2 490", у третьего нет title и цена -350">
+          <figcaption>Compass · <code>sandbox.catalog</code>, проекция <code>{ _id: 0 }</code></figcaption>
+        </figure>
+        <p>Вкладка <b>Documents</b> подписана числом <code>3</code>, счётчик <code>1 – 3 of 3</code>. У второго документа цена <code>"2 490"</code> в кавычках и зелёного цвета, как все строки; у первого и третьего цены <code>1990</code> и <code>-350</code> синие, как числа. В третьем документе три поля, <code>title</code> среди них нет.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Правило <code>$jsonSchema</code> и проверка данных</h2>
+        <p>Требования к документу MongoDB записывает в формате <span class="term">JSON Schema</span> — это стандарт описания JSON-документов: какие в документе поля, какого типа значения, в каких пределах. Сервер поддерживает большую часть стандарта и добавляет своё ключевое слово <code>bsonType</code> — тип BSON вместо типа JSON. Описание правила само записано документом. Правило товара объявлено в заготовке главы в переменной <code>schema</code>, повторять его в примерах не нужно:</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>правило товара из заготовки главы</span></figcaption>
+<pre><span class="c"># Правило товара (§2 главы): обязательные поля и типы значений.</span>
+schema = {
+    <span class="s">"bsonType"</span>: <span class="s">"object"</span>,
+    <span class="s">"required"</span>: [<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>],
+    <span class="s">"properties"</span>: {
+        <span class="s">"sku"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>},
+        <span class="s">"title"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>},
+        <span class="s">"category"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>},
+        <span class="s">"price"</span>: {<span class="s">"bsonType"</span>: <span class="s">"number"</span>, <span class="s">"minimum"</span>: <span class="n">1</span>},
+    },
+}</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>правило товара из заготовки главы</span></figcaption>
+<pre><span class="c">// Правило товара (§2 главы): обязательные поля и типы значений.</span>
+<span class="k">auto</span> schema = <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"object"</span>),
+    <span class="f">kvp</span>(<span class="s">"required"</span>, <span class="f">make_array</span>(<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>)),
+    <span class="f">kvp</span>(<span class="s">"properties"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>))),
+        <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>))),
+        <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>))),
+        <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"number"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">1</span>))))));</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>правило товара из заготовки главы</span></figcaption>
+<pre><span class="c">// Правило товара (§2 главы): обязательные поля и типы значений.</span>
+schema := bson.D{
+    {Key: <span class="s">"bsonType"</span>, Value: <span class="s">"object"</span>},
+    {Key: <span class="s">"required"</span>, Value: bson.A{<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>}},
+    {Key: <span class="s">"properties"</span>, Value: bson.D{
+        {Key: <span class="s">"sku"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}}},
+        {Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}}},
+        {Key: <span class="s">"category"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}}},
+        {Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"number"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">1</span>}}},
+    }},
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>правило товара из заготовки главы</span></figcaption>
+<pre><span class="c"># Правило товара (§2 главы): обязательные поля и типы значений.</span>
+schema = {
+  <span class="s">"bsonType"</span> =&gt; <span class="s">"object"</span>,
+  <span class="s">"required"</span> =&gt; [<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>],
+  <span class="s">"properties"</span> =&gt; {
+    <span class="s">"sku"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span> },
+    <span class="s">"title"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span> },
+    <span class="s">"category"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span> },
+    <span class="s">"price"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"number"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">1</span> },
+  },
+}</pre>
+          </figure>
+        </div>
+        <p>Ключи правила:</p>
+        <ul>
+          <li><code>"bsonType": "object"</code> — проверяемое значение должно быть документом. На верхнем уровне правила это выполняется всегда, ключ записывают, чтобы правило читалось как описание документа целиком.</li>
+          <li><code>required</code> — массив имён обязательных полей. Документ, в котором нет хотя бы одного из них, правилу не соответствует.</li>
+          <li><code>properties</code> — правила для отдельных полей. Ключ — имя поля, значение — правило для значения этого поля. <code>{"bsonType": "string"}</code> требует строку. Имена типов те же, что у оператора <code>$type</code> (глава 2.5, §4): для цены указан <code>"number"</code>, он принимает любой числовой тип — <code>int</code>, <code>long</code>, <code>double</code> и <code>decimal</code>. Ключ <code>"minimum": 1</code> требует число не меньше единицы.</li>
+        </ul>
+        <p>Правило из <code>properties</code> проверяется, только если поле в документе есть. Документ без цены не нарушает <code>{"bsonType": "number", "minimum": 1}</code>; его отклонит <code>required</code>. Поэтому обязательные поля перечисляют в <code>required</code>, а их типы и границы — в <code>properties</code>.</p>
+        <p><code>$jsonSchema</code> — оператор запроса, как <code>$exists</code> и <code>$type</code>. Его ставят в фильтр <code>find</code> или <code>count_documents</code>, и документ попадает в результат, если соответствует правилу. Так проверяют данные, которые уже лежат в коллекции. Пример считает товары, которые соответствуют правилу, в <code>shop.products</code> и в <code>catalog</code> из §1, а затем выводит документы <code>catalog</code>, которые правилу не соответствуют: их отбирает <code>$nor</code> с одним условием (глава 2.4).</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>правило как условие запроса</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"shop.products, подходят:  "</span>, products.<span class="f">count_documents</span>({<span class="s">"$jsonSchema"</span>: schema}))
+<span class="f">print</span>(<span class="s">"sandbox.catalog, подходят:"</span>, catalog.<span class="f">count_documents</span>({<span class="s">"$jsonSchema"</span>: schema}))
+
+<span class="k">for</span> doc <span class="k">in</span> catalog.<span class="f">find</span>({<span class="s">"$nor"</span>: [{<span class="s">"$jsonSchema"</span>: schema}]}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"sku"</span>: <span class="n">1</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"price"</span>: <span class="n">1</span>}):
+    <span class="f">print</span>(<span class="s">"не подходит:"</span>, doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>правило как условие запроса</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"shop.products, подходят:   "</span> &lt;&lt; products.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>()))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"sandbox.catalog, подходят: "</span> &lt;&lt; catalog.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>()))) &lt;&lt; std::endl;
+
+mongocxx::options::find options;
+options.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; doc : catalog.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nor"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>()))))), options)) {
+    std::cout &lt;&lt; <span class="s">"не подходит: "</span> &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>правило как условие запроса</span></figcaption>
+<pre>vMagazine, _ := products.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}})
+vKataloge, _ := catalog.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}})
+fmt.<span class="f">Println</span>(<span class="s">"shop.products, подходят:  "</span>, vMagazine)
+fmt.<span class="f">Println</span>(<span class="s">"sandbox.catalog, подходят:"</span>, vKataloge)
+
+cursor, _ := catalog.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"$nor"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}}}}},
+    options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"sku"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"price"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="s">"не подходит:"</span>, <span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>правило как условие запроса</span></figcaption>
+<pre><span class="k">puts</span> <span class="s">"shop.products, подходят:   "</span> + products.<span class="f">count_documents</span>({ <span class="s">"$jsonSchema"</span> =&gt; schema }).to_s
+<span class="k">puts</span> <span class="s">"sandbox.catalog, подходят: "</span> + catalog.<span class="f">count_documents</span>({ <span class="s">"$jsonSchema"</span> =&gt; schema }).to_s
+
+catalog.<span class="f">find</span>({ <span class="s">"$nor"</span> =&gt; [{ <span class="s">"$jsonSchema"</span> =&gt; schema }] },
+             projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"sku"</span> =&gt; <span class="n">1</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"price"</span> =&gt; <span class="n">1</span> })
+       .each { |doc| <span class="k">puts</span> <span class="s">"не подходит: "</span> + doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>shop.products, подходят:   21
+sandbox.catalog, подходят: 1
+не подходит: {'sku': 'SKU-AC-031', 'title': 'Подставка под монитор', 'price': '2 490'}
+не подходит: {'sku': 'SKU-AC-032', 'price': -350}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>shop.products, подходят:   21
+sandbox.catalog, подходят: 1
+не подходит: { "sku" : "SKU-AC-031", "title" : "Подставка под монитор", "price" : "2 490" }
+не подходит: { "sku" : "SKU-AC-032", "price" : -350 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>shop.products, подходят:   21
+sandbox.catalog, подходят: 1
+не подходит: {"sku":"SKU-AC-031","title":"Подставка под монитор","price":"2 490"}
+не подходит: {"sku":"SKU-AC-032","price":-350}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>shop.products, подходят:   21
+sandbox.catalog, подходят: 1
+не подходит: {"sku"=&gt;"SKU-AC-031", "title"=&gt;"Подставка под монитор", "price"=&gt;"2 490"}
+не подходит: {"sku"=&gt;"SKU-AC-032", "price"=&gt;-350}</pre>
+        </figure>
+        <p>Все 21 товар магазина соответствуют правилу. В <code>catalog</code> правилу соответствует один документ из трёх. Два других выведены: у подставки цена записана строкой, у третьего товара нет поля <code>title</code>, а цена меньше единицы. Правило находит те же ошибки, что запросы главы 2.5, и записано одним документом. Этот же документ можно передать серверу как требование к коллекции, тогда сервер проверяет по нему каждую запись.</p>
+        <figure class="shot">
+          <img src="../../shots/109-sandbox-catalog-nor.png" alt="Compass, коллекция sandbox.catalog: фильтр $nor с $jsonSchema, счётчик 1 – 2 of 2, подставка и товар без названия">
+          <figcaption>Compass · <code>sandbox.catalog</code>, фильтр <code>{ $nor: [{ $jsonSchema: { … } }] }</code> с правилом товара</figcaption>
+        </figure>
+        <p>Правило в поле фильтра записано так же, как в коде, одной строкой; Compass показывает её начало. Счётчик <code>1 – 2 of 2</code>: в выдаче подставка с ценой-строкой и товар без названия, чехол в неё не попал.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Коллекция с правилом: <code>validator</code></h2>
+        <p>Правило, которое сервер проверяет при каждой записи в коллекцию, называется <span class="term">валидатором</span> (<code>validator</code>). Оно хранится в настройках коллекции. При вставке и при обновлении сервер проверяет документ в том виде, в каком он будет записан, и отклоняет запись, если документ правилу не соответствует. Это похоже на контроль на проходной: документ, который не прошёл проверку, в коллекцию не попадает.</p>
+        <p>В модуле 1 коллекции появлялись сами при первой вставке. Коллекцию с валидатором создают явно, передавая правило в параметрах создания:</p>
+        <p data-lang="python">Метод базы <code>create_collection(имя, validator=...)</code> создаёт коллекцию и возвращает объект коллекции. Значение <code>validator</code> — документ условия; правило <code>$jsonSchema</code> стоит в нём как оператор запроса, так же как в фильтре §2.</p>
+        <p data-lang="ruby">Запись <code>sandbox[:checked, validator: ...]</code> создаёт объект коллекции с параметрами, но на сервер ничего не отправляет; коллекцию создаёт вызов <code>create</code>. Значение <code>validator</code> — документ условия; правило <code>$jsonSchema</code> стоит в нём как оператор запроса, так же как в фильтре §2.</p>
+        <p data-lang="go">Метод базы <code>CreateCollection</code> принимает имя коллекции и параметры, собранные <code>options.CreateCollection()</code>; правило передаёт <code>SetValidator</code>. Значение валидатора — документ условия; правило <code>$jsonSchema</code> стоит в нём как оператор запроса, так же как в фильтре §2. Объект коллекции после создания берётся обычным <code>Collection</code>.</p>
+        <p data-lang="cpp">Метод базы <code>create_collection</code> принимает имя коллекции и документ параметров, в котором валидатор записан под ключом <code>"validator"</code>, и возвращает объект коллекции. Значение валидатора — документ условия; правило <code>$jsonSchema</code> стоит в нём как оператор запроса, так же как в фильтре §2.</p>
+        <p>Пример удаляет коллекцию <code>checked</code>, если она осталась от прошлого запуска, создаёт её с правилом товара и пробует записать два документа из §1: чехол и товар без названия.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>коллекция с правилом</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+sandbox.<span class="f">drop_collection</span>(<span class="s">"checked"</span>)
+checked = sandbox.<span class="f">create_collection</span>(<span class="s">"checked"</span>, validator={<span class="s">"$jsonSchema"</span>: schema})
+
+checked.<span class="f">insert_one</span>({<span class="s">"sku"</span>: <span class="s">"SKU-AC-030"</span>, <span class="s">"title"</span>: <span class="s">"Чехол для ноутбука 15 дюймов"</span>,
+                    <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">1990</span>})
+<span class="f">print</span>(<span class="s">"чехол записан"</span>)
+
+<span class="k">try</span>:
+    checked.<span class="f">insert_one</span>({<span class="s">"sku"</span>: <span class="s">"SKU-AC-032"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: -<span class="n">350</span>})
+    <span class="f">print</span>(<span class="s">"товар без названия записан"</span>)
+<span class="k">except</span> WriteError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"товар без названия отклонён, код ошибки"</span>, e.code)
+
+<span class="f">print</span>(<span class="s">"документов в коллекции:"</span>, checked.<span class="f">count_documents</span>({}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>коллекция с правилом</span></figcaption>
+<pre>sandbox[<span class="s">"checked"</span>].<span class="f">drop</span>();
+<span class="k">auto</span> checked = sandbox.<span class="f">create_collection</span>(<span class="s">"checked"</span>,
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"validator"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>())))));
+
+checked.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-030"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Чехол для ноутбука 15 дюймов"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">1990</span>)));
+std::cout &lt;&lt; <span class="s">"чехол записан"</span> &lt;&lt; std::endl;
+
+<span class="k">try</span> {
+    checked.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-032"</span>),
+        <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+        <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">350</span>)));
+    std::cout &lt;&lt; <span class="s">"товар без названия записан"</span> &lt;&lt; std::endl;
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"товар без названия отклонён, код ошибки "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"документов в коллекции: "</span> &lt;&lt; checked.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>коллекция с правилом</span></figcaption>
+<pre>sandbox.<span class="f">Collection</span>(<span class="s">"checked"</span>).<span class="f">Drop</span>(ctx)
+sandbox.<span class="f">CreateCollection</span>(ctx, <span class="s">"checked"</span>,
+    options.<span class="f">CreateCollection</span>().<span class="f">SetValidator</span>(bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}}))
+checked := sandbox.<span class="f">Collection</span>(<span class="s">"checked"</span>)
+
+checked.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-030"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Чехол для ноутбука 15 дюймов"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="n">1990</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"чехол записан"</span>)
+
+_, err := checked.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-032"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: -<span class="n">350</span>}})
+<span class="k">var</span> we mongo.WriteException
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"товар без названия отклонён, код ошибки"</span>, we.WriteErrors[<span class="n">0</span>].Code)
+} <span class="k">else</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"товар без названия записан"</span>)
+}
+
+n, _ := checked.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"документов в коллекции:"</span>, n)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>коллекция с правилом</span></figcaption>
+<pre>sandbox[:checked].drop
+checked = sandbox[:checked, validator: { <span class="s">"$jsonSchema"</span> =&gt; schema }]
+checked.create
+
+checked.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-030"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Чехол для ноутбука 15 дюймов"</span>,
+                     <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">1990</span> })
+<span class="k">puts</span> <span class="s">"чехол записан"</span>
+
+<span class="k">begin</span>
+  checked.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-032"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; -<span class="n">350</span> })
+  <span class="k">puts</span> <span class="s">"товар без названия записан"</span>
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"товар без названия отклонён, код ошибки #{e.code}"</span>
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"документов в коллекции: "</span> + checked.<span class="f">count_documents</span>({}).to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>чехол записан
+товар без названия отклонён, код ошибки 121
+документов в коллекции: 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>чехол записан
+товар без названия отклонён, код ошибки 121
+документов в коллекции: 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>чехол записан
+товар без названия отклонён, код ошибки 121
+документов в коллекции: 1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>чехол записан
+товар без названия отклонён, код ошибки 121
+документов в коллекции: 1</pre>
+        </figure>
+        <p>Чехол прошёл проверку и записан. Товар без названия сервер отклонил: вставка завершилась ошибкой с кодом <code>121</code>. Это код <code>DocumentValidationFailure</code>, текст ошибки — <code>Document failed validation</code>. В коллекции один документ: отклонённый не записан ни целиком, ни частично.</p>
+        <p data-lang="python">Отказ сервера PyMongo выбрасывает исключением <code>WriteError</code> из модуля <code>pymongo.errors</code>; код ошибки — в его поле <code>code</code>. Без <code>try</code> программа остановилась бы на второй вставке, и последняя строка не была бы напечатана.</p>
+        <p data-lang="ruby">Отказ сервера драйвер выбрасывает исключением <code>Mongo::Error::OperationFailure</code>; код ошибки — в методе <code>code</code>. Без <code>begin … rescue</code> программа остановилась бы на второй вставке, и последняя строка не была бы напечатана.</p>
+        <p data-lang="go"><code>InsertOne</code> возвращает ошибку типа <code>mongo.WriteException</code>. Функция <code>errors.As</code> проверяет, что ошибка этого типа, и записывает её в переменную <code>we</code>; код отказа — в <code>we.WriteErrors[0].Code</code>, первой и единственной ошибке записи. Если ошибки нет, <code>errors.As</code> возвращает <code>false</code>.</p>
+        <p data-lang="cpp">Отказ сервера драйвер выбрасывает исключением <code>mongocxx::operation_exception</code>; код ошибки возвращает <code>e.code().value()</code>. Без <code>try</code> программа завершилась бы на второй вставке, и последняя строка не была бы напечатана.</p>
+        <figure class="shot">
+          <img src="../../shots/110-sandbox-checked-validation.png" alt="Compass, вкладка Validation коллекции sandbox.checked: правило $jsonSchema, Action Error, Level Strict">
+          <figcaption>Compass · <code>sandbox.checked</code>, вкладка <b>Validation</b></figcaption>
+        </figure>
+        <p>Правило коллекции показывает вкладка <b>Validation</b>. В редакторе — документ валидатора: оператор <code>$jsonSchema</code> и под ним правило товара, разложенное по строкам. Справа вверху два списка: <b>Action</b> — значение <code>validationAction</code>, сейчас <code>Error</code>, и <b>Level</b> — значение <code>validationLevel</code>, сейчас <code>Strict</code>; оба параметра разобраны в §6 и §7. Вкладка <b>Documents</b> подписана числом <code>1</code>: в коллекции один чехол.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Почему документ отклонён: <code>errInfo</code></h2>
+        <p>Код <code>121</code> сообщает только, что правило нарушено. Какие условия не выполнены, сервер пишет в поле ответа <code>errInfo</code>. В нём два поля: <code>failingDocumentId</code> — <code>_id</code> отклонённого документа — и <code>details</code> с разбором. В <code>details</code> лежит список <code>schemaRulesNotSatisfied</code>, по элементу на каждое невыполненное ключевое слово верхнего уровня правила:</p>
+        <ul>
+          <li>элемент с <code>"operatorName": "required"</code> перечисляет недостающие поля в массиве <code>missingProperties</code>;</li>
+          <li>элемент с <code>"operatorName": "properties"</code> перечисляет поля с ошибками в массиве <code>propertiesNotSatisfied</code>. Для каждого поля указаны имя (<code>propertyName</code>) и список <code>details</code>: какое ключевое слово не выполнено (<code>operatorName</code>) и причина (<code>reason</code>).</li>
+        </ul>
+        <p>Пример пробует записать в коллекцию <code>checked</code> из §3 подставку из §1 — без названия и с ценой строкой — и печатает причины отказа.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>причины отказа из errInfo</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+checked = sandbox[<span class="s">"checked"</span>]
+<span class="k">try</span>:
+    checked.<span class="f">insert_one</span>({<span class="s">"sku"</span>: <span class="s">"SKU-AC-031"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="s">"2 490"</span>})
+<span class="k">except</span> WriteError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"подставка отклонена, причины:"</span>)
+    <span class="k">for</span> rule <span class="k">in</span> e.details[<span class="s">"errInfo"</span>][<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>]:
+        <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"required"</span>:
+            <span class="f">print</span>(<span class="s">"  нет обязательных полей:"</span>, rule[<span class="s">"missingProperties"</span>])
+        <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"properties"</span>:
+            <span class="k">for</span> prop <span class="k">in</span> rule[<span class="s">"propertiesNotSatisfied"</span>]:
+                <span class="k">for</span> detail <span class="k">in</span> prop[<span class="s">"details"</span>]:
+                    <span class="f">print</span>(<span class="s">"  поле "</span> + prop[<span class="s">"propertyName"</span>] + <span class="s">":"</span>, detail[<span class="s">"operatorName"</span>], <span class="s">"—"</span>, detail[<span class="s">"reason"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>причины отказа из errInfo</span></figcaption>
+<pre><span class="k">auto</span> checked = sandbox[<span class="s">"checked"</span>];
+<span class="k">try</span> {
+    checked.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-031"</span>),
+        <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+        <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="s">"2 490"</span>)));
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"подставка отклонена, причины:"</span> &lt;&lt; std::endl;
+    <span class="k">auto</span> info = e.<span class="f">raw_server_error</span>()-&gt;<span class="f">view</span>()[<span class="s">"writeErrors"</span>][<span class="n">0</span>][<span class="s">"errInfo"</span>];
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; item : info[<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>].<span class="f">get_array</span>().value) {
+        <span class="k">auto</span> rule = item.<span class="f">get_document</span>().value;
+        std::string name{rule[<span class="s">"operatorName"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (name == <span class="s">"required"</span>) {
+            std::cout &lt;&lt; <span class="s">"  нет обязательных полей:"</span>;
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : rule[<span class="s">"missingProperties"</span>].<span class="f">get_array</span>().value) {
+                std::cout &lt;&lt; <span class="s">" "</span> &lt;&lt; field.<span class="f">get_string</span>().value;
+            }
+            std::cout &lt;&lt; std::endl;
+        }
+        <span class="k">if</span> (name == <span class="s">"properties"</span>) {
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; prop : rule[<span class="s">"propertiesNotSatisfied"</span>].<span class="f">get_array</span>().value) {
+                <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; detail : prop[<span class="s">"details"</span>].<span class="f">get_array</span>().value) {
+                    std::cout &lt;&lt; <span class="s">"  поле "</span> &lt;&lt; prop[<span class="s">"propertyName"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="s">": "</span>
+                              &lt;&lt; detail[<span class="s">"operatorName"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="s">" — "</span>
+                              &lt;&lt; detail[<span class="s">"reason"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+                }
+            }
+        }
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>причины отказа из errInfo</span></figcaption>
+<pre><span class="c">// Часть errInfo, которую читает пример: какие правила схемы не выполнены.</span>
+<span class="k">type</span> schemaRule <span class="k">struct</span> {
+    OperatorName           <span class="k">string</span>   <span class="s">`bson:"operatorName"`</span>
+    MissingProperties      []<span class="k">string</span> <span class="s">`bson:"missingProperties"`</span>
+    PropertiesNotSatisfied []<span class="k">struct</span> {
+        PropertyName <span class="k">string</span> <span class="s">`bson:"propertyName"`</span>
+        Details      []<span class="k">struct</span> {
+            OperatorName <span class="k">string</span> <span class="s">`bson:"operatorName"`</span>
+            Reason       <span class="k">string</span> <span class="s">`bson:"reason"`</span>
+        } <span class="s">`bson:"details"`</span>
+    } <span class="s">`bson:"propertiesNotSatisfied"`</span>
+}
+
+checked := sandbox.<span class="f">Collection</span>(<span class="s">"checked"</span>)
+_, err := checked.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-031"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="s">"2 490"</span>}})
+<span class="k">var</span> we mongo.WriteException
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    <span class="k">var</span> info <span class="k">struct</span> {
+        Details <span class="k">struct</span> {
+            Rules []schemaRule <span class="s">`bson:"schemaRulesNotSatisfied"`</span>
+        } <span class="s">`bson:"details"`</span>
+    }
+    bson.<span class="f">Unmarshal</span>(we.WriteErrors[<span class="n">0</span>].Details, &amp;info)
+    fmt.<span class="f">Println</span>(<span class="s">"подставка отклонена, причины:"</span>)
+    <span class="k">for</span> _, rule := <span class="k">range</span> info.Details.Rules {
+        <span class="k">if</span> rule.OperatorName == <span class="s">"required"</span> {
+            fmt.<span class="f">Println</span>(<span class="s">"  нет обязательных полей:"</span>, rule.MissingProperties)
+        }
+        <span class="k">if</span> rule.OperatorName == <span class="s">"properties"</span> {
+            <span class="k">for</span> _, prop := <span class="k">range</span> rule.PropertiesNotSatisfied {
+                <span class="k">for</span> _, detail := <span class="k">range</span> prop.Details {
+                    fmt.<span class="f">Println</span>(<span class="s">"  поле "</span>+prop.PropertyName+<span class="s">":"</span>, detail.OperatorName, <span class="s">"—"</span>, detail.Reason)
+                }
+            }
+        }
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>причины отказа из errInfo</span></figcaption>
+<pre>checked = sandbox[:checked]
+<span class="k">begin</span>
+  checked.<span class="f">insert_one</span>({ <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-031"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="s">"2 490"</span> })
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"подставка отклонена, причины:"</span>
+  e.details[<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>].each <span class="k">do</span> |rule|
+    <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"required"</span>
+      <span class="k">puts</span> <span class="s">"  нет обязательных полей: #{rule["</span>missingProperties<span class="s">"]}"</span>
+    <span class="k">end</span>
+    <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"properties"</span>
+      rule[<span class="s">"propertiesNotSatisfied"</span>].each <span class="k">do</span> |prop|
+        prop[<span class="s">"details"</span>].each <span class="k">do</span> |detail|
+          <span class="k">puts</span> <span class="s">"  поле #{prop["</span>propertyName<span class="s">"]}: #{detail["</span>operatorName<span class="s">"]} — #{detail["</span>reason<span class="s">"]}"</span>
+        <span class="k">end</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>подставка отклонена, причины:
+  поле price: bsonType — type did not match
+  нет обязательных полей: ['title']</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>подставка отклонена, причины:
+  поле price: bsonType — type did not match
+  нет обязательных полей: title</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>подставка отклонена, причины:
+  поле price: bsonType — type did not match
+  нет обязательных полей: [title]</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>подставка отклонена, причины:
+  поле price: bsonType — type did not match
+  нет обязательных полей: ["title"]</pre>
+        </figure>
+        <p>Нарушены два условия. У поля <code>price</code> не выполнено ключевое слово <code>bsonType</code>, причина <code>type did not match</code> — тип значения не совпал с указанным в правиле. И в документе нет обязательного поля <code>title</code>. Сервер сообщил обе причины сразу и не остановился на первом нарушении.</p>
+        <p data-lang="python">В исключении <code>WriteError</code> поле <code>details</code> хранит описание ошибки записи целиком; <code>errInfo</code> — один из его ключей.</p>
+        <p data-lang="ruby">Метод <code>details</code> исключения возвращает содержимое <code>errInfo</code>, поэтому разбор начинается сразу с ключа <code>"details"</code>.</p>
+        <p data-lang="go">Поле <code>Details</code> ошибки записи хранит <code>errInfo</code> в виде <code>bson.Raw</code> — документа BSON без разбора. <code>bson.Unmarshal</code> раскладывает его в структуру: поля структуры связаны с именами в документе тегами <code>bson:"…"</code>, а поля, которых в структуре нет, пропускаются. Тип <code>schemaRule</code> объявлен над <code>main</code>.</p>
+        <p data-lang="cpp">Метод <code>raw_server_error()</code> исключения возвращает весь ответ сервера. Ошибки записи лежат в нём массивом <code>writeErrors</code>, и <code>errInfo</code> берётся из его первого элемента. Значения достаются по цепочке <code>[]</code>, массивы — через <code>get_array().value</code>, строки — через <code>get_string().value</code>.</p>
+        <p>Строка «нет обязательных полей: title» называет поле, которое нужно добавить в документ. Такой разбор пишут в журнал приложения или возвращают пользователю, который заполнял форму.</p>
+        <figure class="shot">
+          <img src="../../shots/111-sandbox-checked-insert.png" alt="Compass, окно Insert Document для sandbox.checked: документ без title с ценой строкой, сообщение Document failed validation и кнопка View error details">
+          <figcaption>Compass · вставка подставки в <code>sandbox.checked</code> через <b>Add data → Insert document</b></figcaption>
+        </figure>
+        <p>Compass записывает документ той же командой вставки, что и драйвер, поэтому правило действует и здесь. После нажатия <b>Insert</b> окно не закрылось: под документом красная плашка с текстом сервера <code>Document failed validation</code> и кнопкой <b>View error details</b>.</p>
+        <figure class="shot">
+          <img src="../../shots/112-sandbox-checked-errinfo.png" alt="Compass, окно Error details: errInfo с failingDocumentId, operatorName $jsonSchema, schemaRulesNotSatisfied, поле price, bsonType, reason type did not match">
+          <figcaption>Compass · <b>View error details</b> — содержимое <code>errInfo</code></figcaption>
+        </figure>
+        <p>Кнопка открывает <code>errInfo</code> целиком. Сверху <code>failingDocumentId</code> — <code>_id</code>, который документ получил при отправке: в окне вставки его не было. Ниже тот же разбор, что напечатал пример: у <code>price</code> не выполнено <code>bsonType</code>, причина <code>type did not match</code>. Сервер добавляет и подробности, которые пример не печатал: <code>specifiedAs</code> — условие из правила, <code>consideredValue</code> — значение из документа, <code>"2 490"</code>, и <code>consideredType</code> — его тип, <code>string</code>. Элемент про <code>required</code> ниже, его видно при прокрутке окна.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Ключевые слова правила</h2>
+        <p>Правило из §2 проверяет наличие полей и их типы. Остальные ключевые слова задают границы значений. Основные из них собраны в таблице; каждое ставится в правило поля внутри <code>properties</code>.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Ключевое слово</th><th>Что требует</th><th>Пример</th></tr></thead>
+            <tbody>
+              <tr><td><code>bsonType</code></td><td>тип BSON; можно перечислить несколько массивом</td><td><code>"bsonType": ["string", "null"]</code></td></tr>
+              <tr><td><code>minimum</code>, <code>maximum</code></td><td>число не меньше и не больше границы</td><td><code>"minimum": 1</code></td></tr>
+              <tr><td><code>minLength</code>, <code>maxLength</code></td><td>длина строки в знаках</td><td><code>"minLength": 3</code></td></tr>
+              <tr><td><code>pattern</code></td><td>строка подходит под регулярное выражение (глава 2.7)</td><td><code>"pattern": "^SKU-[A-Z]{2}-[0-9]{3}$"</code></td></tr>
+              <tr><td><code>enum</code></td><td>значение из списка</td><td><code>"enum": ["ноутбуки", "смартфоны"]</code></td></tr>
+              <tr><td><code>items</code></td><td>правило для каждого элемента массива</td><td><code>"items": {"bsonType": "object"}</code></td></tr>
+              <tr><td><code>minItems</code>, <code>maxItems</code></td><td>число элементов массива</td><td><code>"minItems": 1</code></td></tr>
+              <tr><td><code>required</code>, <code>properties</code></td><td>обязательные поля и правила полей вложенного документа</td><td>как на верхнем уровне</td></tr>
+              <tr><td><code>additionalProperties</code></td><td><code>false</code> запрещает поля, которых нет в <code>properties</code></td><td><code>"additionalProperties": false</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Пример создаёт коллекцию <code>checked</code> заново с полным правилом товара. К правилу из §2 добавлены четыре условия: артикул по шаблону <code>SKU-</code>, две латинские буквы, дефис и три цифры; название не короче трёх знаков; категория из пяти категорий магазина; склады — массив документов, в каждом обязательны склад и количество, а количество не меньше нуля. Правило для элементов массива задаёт <code>items</code>, и внутри него снова стоят <code>required</code> и <code>properties</code>, как для вложенного документа.</p>
+        <p>Затем пример пробует записать семь вариантов кабеля. Первый соответствует правилу; каждый следующий отличается от него одним полем.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>ключевые слова правила</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+full = {
+    <span class="s">"bsonType"</span>: <span class="s">"object"</span>,
+    <span class="s">"required"</span>: [<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>],
+    <span class="s">"properties"</span>: {
+        <span class="s">"sku"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>, <span class="s">"pattern"</span>: <span class="s">"^SKU-[A-Z]{2}-[0-9]{3}$"</span>},
+        <span class="s">"title"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>, <span class="s">"minLength"</span>: <span class="n">3</span>},
+        <span class="s">"category"</span>: {<span class="s">"enum"</span>: [<span class="s">"ноутбуки"</span>, <span class="s">"смартфоны"</span>, <span class="s">"периферия"</span>, <span class="s">"комплектующие"</span>, <span class="s">"аксессуары"</span>]},
+        <span class="s">"price"</span>: {<span class="s">"bsonType"</span>: <span class="s">"number"</span>, <span class="s">"minimum"</span>: <span class="n">1</span>},
+        <span class="s">"stock"</span>: {
+            <span class="s">"bsonType"</span>: <span class="s">"array"</span>,
+            <span class="s">"items"</span>: {
+                <span class="s">"bsonType"</span>: <span class="s">"object"</span>,
+                <span class="s">"required"</span>: [<span class="s">"warehouse"</span>, <span class="s">"qty"</span>],
+                <span class="s">"properties"</span>: {<span class="s">"qty"</span>: {<span class="s">"bsonType"</span>: <span class="s">"number"</span>, <span class="s">"minimum"</span>: <span class="n">0</span>}},
+            },
+        },
+    },
+}
+
+sandbox.<span class="f">drop_collection</span>(<span class="s">"checked"</span>)
+checked = sandbox.<span class="f">create_collection</span>(<span class="s">"checked"</span>, validator={<span class="s">"$jsonSchema"</span>: full})
+
+cable = {<span class="s">"sku"</span>: <span class="s">"SKU-AC-034"</span>, <span class="s">"title"</span>: <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="n">990</span>,
+         <span class="s">"stock"</span>: [{<span class="s">"warehouse"</span>: <span class="s">"Москва-1"</span>, <span class="s">"qty"</span>: <span class="n">15</span>}]}
+candidates = [
+    (<span class="s">"всё по правилу"</span>, cable),
+    (<span class="s">"категория не из списка"</span>, {**cable, <span class="s">"category"</span>: <span class="s">"кабели"</span>}),
+    (<span class="s">"артикул не по шаблону"</span>, {**cable, <span class="s">"sku"</span>: <span class="s">"AC-034"</span>}),
+    (<span class="s">"название короче трёх знаков"</span>, {**cable, <span class="s">"title"</span>: <span class="s">"ТВ"</span>}),
+    (<span class="s">"на складе нет количества"</span>, {**cable, <span class="s">"stock"</span>: [{<span class="s">"warehouse"</span>: <span class="s">"Москва-1"</span>}]}),
+    (<span class="s">"количество меньше нуля"</span>, {**cable, <span class="s">"stock"</span>: [{<span class="s">"warehouse"</span>: <span class="s">"Москва-1"</span>, <span class="s">"qty"</span>: -<span class="n">2</span>}]}),
+    (<span class="s">"поле, которого нет в правиле"</span>, {**cable, <span class="s">"color"</span>: <span class="s">"чёрный"</span>}),
+]
+<span class="k">for</span> label, doc <span class="k">in</span> candidates:
+    <span class="k">try</span>:
+        checked.<span class="f">insert_one</span>(doc)
+        <span class="f">print</span>(<span class="s">"принят:  "</span>, label)
+    <span class="k">except</span> WriteError:
+        <span class="f">print</span>(<span class="s">"отклонён:"</span>, label)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>ключевые слова правила</span></figcaption>
+<pre><span class="k">auto</span> full = <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"object"</span>),
+    <span class="f">kvp</span>(<span class="s">"required"</span>, <span class="f">make_array</span>(<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>)),
+    <span class="f">kvp</span>(<span class="s">"properties"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>), <span class="f">kvp</span>(<span class="s">"pattern"</span>, <span class="s">"^SKU-[A-Z]{2}-[0-9]{3}$"</span>))),
+        <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>), <span class="f">kvp</span>(<span class="s">"minLength"</span>, <span class="n">3</span>))),
+        <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"enum"</span>, <span class="f">make_array</span>(<span class="s">"ноутбуки"</span>, <span class="s">"смартфоны"</span>, <span class="s">"периферия"</span>, <span class="s">"комплектующие"</span>, <span class="s">"аксессуары"</span>)))),
+        <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"number"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"array"</span>),
+            <span class="f">kvp</span>(<span class="s">"items"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"object"</span>),
+                <span class="f">kvp</span>(<span class="s">"required"</span>, <span class="f">make_array</span>(<span class="s">"warehouse"</span>, <span class="s">"qty"</span>)),
+                <span class="f">kvp</span>(<span class="s">"properties"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"number"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">0</span>))))))))))));
+
+sandbox[<span class="s">"checked"</span>].<span class="f">drop</span>();
+<span class="k">auto</span> checked = sandbox.<span class="f">create_collection</span>(<span class="s">"checked"</span>,
+    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"validator"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, full.<span class="f">view</span>())))));
+
+<span class="c">// верный товар; остальные кандидаты отличаются от него одним полем</span>
+<span class="k">auto</span> stock = [](<span class="k">int</span> qty) { <span class="k">return</span> <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"warehouse"</span>, <span class="s">"Москва-1"</span>), <span class="f">kvp</span>(<span class="s">"qty"</span>, qty))); };
+std::vector&lt;std::pair&lt;std::string, bsoncxx::document::value&gt;&gt; candidates;
+candidates.<span class="f">emplace_back</span>(<span class="s">"всё по правилу"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">stock</span>(<span class="n">15</span>))));
+candidates.<span class="f">emplace_back</span>(<span class="s">"категория не из списка"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"кабели"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">stock</span>(<span class="n">15</span>))));
+candidates.<span class="f">emplace_back</span>(<span class="s">"артикул не по шаблону"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">stock</span>(<span class="n">15</span>))));
+candidates.<span class="f">emplace_back</span>(<span class="s">"название короче трёх знаков"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"ТВ"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">stock</span>(<span class="n">15</span>))));
+candidates.<span class="f">emplace_back</span>(<span class="s">"на складе нет количества"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>),
+    <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"warehouse"</span>, <span class="s">"Москва-1"</span>))))));
+candidates.<span class="f">emplace_back</span>(<span class="s">"количество меньше нуля"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">stock</span>(-<span class="n">2</span>))));
+candidates.<span class="f">emplace_back</span>(<span class="s">"поле, которого нет в правиле"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-034"</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Кабель HDMI 2 м"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>), <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">990</span>), <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="f">stock</span>(<span class="n">15</span>)),
+    <span class="f">kvp</span>(<span class="s">"color"</span>, <span class="s">"чёрный"</span>)));
+
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [label, doc] : candidates) {
+    <span class="k">try</span> {
+        checked.<span class="f">insert_one</span>(doc.<span class="f">view</span>());
+        std::cout &lt;&lt; <span class="s">"принят:   "</span> &lt;&lt; label &lt;&lt; std::endl;
+    } <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp;) {
+        std::cout &lt;&lt; <span class="s">"отклонён: "</span> &lt;&lt; label &lt;&lt; std::endl;
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>ключевые слова правила</span></figcaption>
+<pre>full := bson.D{
+    {Key: <span class="s">"bsonType"</span>, Value: <span class="s">"object"</span>},
+    {Key: <span class="s">"required"</span>, Value: bson.A{<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>}},
+    {Key: <span class="s">"properties"</span>, Value: bson.D{
+        {Key: <span class="s">"sku"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}, {Key: <span class="s">"pattern"</span>, Value: <span class="s">"^SKU-[A-Z]{2}-[0-9]{3}$"</span>}}},
+        {Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}, {Key: <span class="s">"minLength"</span>, Value: <span class="n">3</span>}}},
+        {Key: <span class="s">"category"</span>, Value: bson.D{{Key: <span class="s">"enum"</span>, Value: bson.A{<span class="s">"ноутбуки"</span>, <span class="s">"смартфоны"</span>, <span class="s">"периферия"</span>, <span class="s">"комплектующие"</span>, <span class="s">"аксессуары"</span>}}}},
+        {Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"number"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"stock"</span>, Value: bson.D{
+            {Key: <span class="s">"bsonType"</span>, Value: <span class="s">"array"</span>},
+            {Key: <span class="s">"items"</span>, Value: bson.D{
+                {Key: <span class="s">"bsonType"</span>, Value: <span class="s">"object"</span>},
+                {Key: <span class="s">"required"</span>, Value: bson.A{<span class="s">"warehouse"</span>, <span class="s">"qty"</span>}},
+                {Key: <span class="s">"properties"</span>, Value: bson.D{
+                    {Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"number"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">0</span>}}},
+                }},
+            }},
+        }},
+    }},
+}
+
+sandbox.<span class="f">Collection</span>(<span class="s">"checked"</span>).<span class="f">Drop</span>(ctx)
+sandbox.<span class="f">CreateCollection</span>(ctx, <span class="s">"checked"</span>,
+    options.<span class="f">CreateCollection</span>().<span class="f">SetValidator</span>(bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: full}}))
+checked := sandbox.<span class="f">Collection</span>(<span class="s">"checked"</span>)
+
+<span class="c">// base — товар, который проходит правило; with возвращает его копию,</span>
+<span class="c">// где одно поле заменено или добавлено</span>
+base := <span class="k">func</span>() bson.D {
+    <span class="k">return</span> bson.D{
+        {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-034"</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="s">"Кабель HDMI 2 м"</span>},
+        {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+        {Key: <span class="s">"price"</span>, Value: <span class="n">990</span>},
+        {Key: <span class="s">"stock"</span>, Value: bson.A{bson.D{{Key: <span class="s">"warehouse"</span>, Value: <span class="s">"Москва-1"</span>}, {Key: <span class="s">"qty"</span>, Value: <span class="n">15</span>}}}}}
+}
+with := <span class="k">func</span>(key <span class="k">string</span>, value <span class="k">any</span>) bson.D {
+    doc := <span class="f">base</span>()
+    <span class="k">for</span> i := <span class="k">range</span> doc {
+        <span class="k">if</span> doc[i].Key == key {
+            doc[i].Value = value
+            <span class="k">return</span> doc
+        }
+    }
+    <span class="k">return</span> <span class="f">append</span>(doc, bson.E{Key: key, Value: value})
+}
+candidates := []<span class="k">struct</span> {
+    label <span class="k">string</span>
+    doc   bson.D
+}{
+    {<span class="s">"всё по правилу"</span>, <span class="f">base</span>()},
+    {<span class="s">"категория не из списка"</span>, <span class="f">with</span>(<span class="s">"category"</span>, <span class="s">"кабели"</span>)},
+    {<span class="s">"артикул не по шаблону"</span>, <span class="f">with</span>(<span class="s">"sku"</span>, <span class="s">"AC-034"</span>)},
+    {<span class="s">"название короче трёх знаков"</span>, <span class="f">with</span>(<span class="s">"title"</span>, <span class="s">"ТВ"</span>)},
+    {<span class="s">"на складе нет количества"</span>, <span class="f">with</span>(<span class="s">"stock"</span>, bson.A{bson.D{{Key: <span class="s">"warehouse"</span>, Value: <span class="s">"Москва-1"</span>}}})},
+    {<span class="s">"количество меньше нуля"</span>, <span class="f">with</span>(<span class="s">"stock"</span>, bson.A{bson.D{{Key: <span class="s">"warehouse"</span>, Value: <span class="s">"Москва-1"</span>}, {Key: <span class="s">"qty"</span>, Value: -<span class="n">2</span>}}})},
+    {<span class="s">"поле, которого нет в правиле"</span>, <span class="f">with</span>(<span class="s">"color"</span>, <span class="s">"чёрный"</span>)},
+}
+<span class="k">for</span> _, c := <span class="k">range</span> candidates {
+    <span class="k">if</span> _, err := checked.<span class="f">InsertOne</span>(ctx, c.doc); err != <span class="k">nil</span> {
+        fmt.<span class="f">Println</span>(<span class="s">"отклонён:"</span>, c.label)
+    } <span class="k">else</span> {
+        fmt.<span class="f">Println</span>(<span class="s">"принят:  "</span>, c.label)
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>ключевые слова правила</span></figcaption>
+<pre>full = {
+  <span class="s">"bsonType"</span> =&gt; <span class="s">"object"</span>,
+  <span class="s">"required"</span> =&gt; [<span class="s">"sku"</span>, <span class="s">"title"</span>, <span class="s">"category"</span>, <span class="s">"price"</span>],
+  <span class="s">"properties"</span> =&gt; {
+    <span class="s">"sku"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span>, <span class="s">"pattern"</span> =&gt; <span class="s">"^SKU-[A-Z]{2}-[0-9]{3}$"</span> },
+    <span class="s">"title"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span>, <span class="s">"minLength"</span> =&gt; <span class="n">3</span> },
+    <span class="s">"category"</span> =&gt; { <span class="s">"enum"</span> =&gt; [<span class="s">"ноутбуки"</span>, <span class="s">"смартфоны"</span>, <span class="s">"периферия"</span>, <span class="s">"комплектующие"</span>, <span class="s">"аксессуары"</span>] },
+    <span class="s">"price"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"number"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"stock"</span> =&gt; {
+      <span class="s">"bsonType"</span> =&gt; <span class="s">"array"</span>,
+      <span class="s">"items"</span> =&gt; {
+        <span class="s">"bsonType"</span> =&gt; <span class="s">"object"</span>,
+        <span class="s">"required"</span> =&gt; [<span class="s">"warehouse"</span>, <span class="s">"qty"</span>],
+        <span class="s">"properties"</span> =&gt; { <span class="s">"qty"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"number"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">0</span> } },
+      },
+    },
+  },
+}
+
+sandbox[:checked].drop
+checked = sandbox[:checked, validator: { <span class="s">"$jsonSchema"</span> =&gt; full }]
+checked.create
+
+cable = { <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-034"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Кабель HDMI 2 м"</span>, <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="n">990</span>,
+          <span class="s">"stock"</span> =&gt; [{ <span class="s">"warehouse"</span> =&gt; <span class="s">"Москва-1"</span>, <span class="s">"qty"</span> =&gt; <span class="n">15</span> }] }
+candidates = [
+  [<span class="s">"всё по правилу"</span>, cable],
+  [<span class="s">"категория не из списка"</span>, cable.<span class="f">merge</span>(<span class="s">"category"</span> =&gt; <span class="s">"кабели"</span>)],
+  [<span class="s">"артикул не по шаблону"</span>, cable.<span class="f">merge</span>(<span class="s">"sku"</span> =&gt; <span class="s">"AC-034"</span>)],
+  [<span class="s">"название короче трёх знаков"</span>, cable.<span class="f">merge</span>(<span class="s">"title"</span> =&gt; <span class="s">"ТВ"</span>)],
+  [<span class="s">"на складе нет количества"</span>, cable.<span class="f">merge</span>(<span class="s">"stock"</span> =&gt; [{ <span class="s">"warehouse"</span> =&gt; <span class="s">"Москва-1"</span> }])],
+  [<span class="s">"количество меньше нуля"</span>, cable.<span class="f">merge</span>(<span class="s">"stock"</span> =&gt; [{ <span class="s">"warehouse"</span> =&gt; <span class="s">"Москва-1"</span>, <span class="s">"qty"</span> =&gt; -<span class="n">2</span> }])],
+  [<span class="s">"поле, которого нет в правиле"</span>, cable.<span class="f">merge</span>(<span class="s">"color"</span> =&gt; <span class="s">"чёрный"</span>)],
+]
+candidates.each <span class="k">do</span> |label, doc|
+  <span class="k">begin</span>
+    checked.<span class="f">insert_one</span>(doc)
+    <span class="k">puts</span> <span class="s">"принят:   "</span> + label
+  <span class="k">rescue</span> Mongo::Error::OperationFailure
+    <span class="k">puts</span> <span class="s">"отклонён: "</span> + label
+  <span class="k">end</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>принят:   всё по правилу
+отклонён: категория не из списка
+отклонён: артикул не по шаблону
+отклонён: название короче трёх знаков
+отклонён: на складе нет количества
+отклонён: количество меньше нуля
+принят:   поле, которого нет в правиле</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>принят:   всё по правилу
+отклонён: категория не из списка
+отклонён: артикул не по шаблону
+отклонён: название короче трёх знаков
+отклонён: на складе нет количества
+отклонён: количество меньше нуля
+принят:   поле, которого нет в правиле</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>принят:   всё по правилу
+отклонён: категория не из списка
+отклонён: артикул не по шаблону
+отклонён: название короче трёх знаков
+отклонён: на складе нет количества
+отклонён: количество меньше нуля
+принят:   поле, которого нет в правиле</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>принят:   всё по правилу
+отклонён: категория не из списка
+отклонён: артикул не по шаблону
+отклонён: название короче трёх знаков
+отклонён: на складе нет количества
+отклонён: количество меньше нуля
+принят:   поле, которого нет в правиле</pre>
+        </figure>
+        <p>Пять вариантов отклонены, и каждый — своим ключевым словом: <code>enum</code> не пропустил категорию «кабели», <code>pattern</code> — артикул без префикса <code>SKU-</code>, <code>minLength</code> — название из двух знаков. Два варианта со складом отклонило правило <code>items</code>: в одном у элемента массива нет <code>qty</code>, в другом количество меньше нуля.</p>
+        <p>Последний вариант принят, хотя поля <code>color</code> в правиле нет. Правило проверяет поля, которые в нём описаны, и не запрещает остальные. Запрет задаёт <code>"additionalProperties": false</code>: тогда документ может содержать только поля из <code>properties</code>. Поле <code>_id</code> в этом случае тоже нужно перечислить в <code>properties</code>, иначе сервер отклонит каждый документ: <code>_id</code> есть в любом документе, и для правила это лишнее поле.</p>
+        <figure class="shot">
+          <img src="../../shots/113-sandbox-checked-full.png" alt="Compass, коллекция sandbox.checked с полным правилом: два принятых кабеля, у второго поле color">
+          <figcaption>Compass · <code>sandbox.checked</code> после примера, проекция <code>{ _id: 0 }</code></figcaption>
+        </figure>
+        <p>В коллекции два документа из семи вариантов, счётчик <code>1 – 2 of 2</code>. Оба — кабель с одним складом «Москва-1» и количеством <code>15</code>; у второго в конце поле <code>"color": "чёрный"</code>, которого в правиле нет.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Правило для коллекции с данными: <code>collMod</code></h2>
+        <p>Валидатор можно добавить коллекции, в которой уже есть документы. Это делает команда сервера <code>collMod</code> (от collection modify — изменить коллекцию): она меняет настройки существующей коллекции, а документы коллекции остаются прежними. Команда отправляется методом базы:</p>
+        <p data-lang="python"><code>sandbox.command("collMod", "products", validator=..., validationLevel=...)</code> — первым аргументом имя команды, вторым её значение (имя коллекции), остальные параметры передаются именованными аргументами.</p>
+        <p data-lang="ruby"><code>sandbox.command(collMod: "products", validator: ..., validationLevel: ...)</code> — команда записывается хешем, первым ключом идёт имя команды.</p>
+        <p data-lang="go"><code>sandbox.RunCommand(ctx, bson.D{...})</code> — команда записывается документом <code>bson.D</code>, первым ключом идёт имя команды. Сервер берёт имя команды из первого ключа, а <code>bson.D</code> сохраняет ключи в том порядке, в каком они записаны.</p>
+        <p data-lang="cpp"><code>sandbox.run_command(make_document(...))</code> — команда записывается документом, первым ключом идёт имя команды.</p>
+        <p>Сервер не перепроверяет документы, которые уже лежат в коллекции: правило действует на последующие записи. Насколько строго оно применяется к старым документам, задаёт параметр <code>validationLevel</code>:</p>
+        <ul>
+          <li><code>"strict"</code> — значение по умолчанию: проверяются все вставки и все обновления;</li>
+          <li><code>"moderate"</code> — обновления документов, которые уже не соответствуют правилу, не проверяются; вставки и обновления остальных документов проверяются;</li>
+          <li><code>"off"</code> — проверка выключена, правило хранится в настройках коллекции.</li>
+        </ul>
+        <p>В песочнице лежит коллекция <code>products</code> — копия 21 товара магазина. Пример сначала добавляет в неё сумку с ценой строкой, затем включает правило товара с уровнем <code>strict</code> и пробует обновить сумке поле <code>brand</code>. Потом переключает уровень на <code>moderate</code> и повторяет то же обновление, а напоследок пробует поставить ноутбуку <code>p-001</code> цену 0.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>правило для коллекции с данными</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+box.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"p-901"</span>, <span class="s">"sku"</span>: <span class="s">"SKU-AC-040"</span>, <span class="s">"title"</span>: <span class="s">"Сумка для ноутбука"</span>,
+                <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: <span class="s">"1 290"</span>})
+
+sandbox.<span class="f">command</span>(<span class="s">"collMod"</span>, <span class="s">"products"</span>, validator={<span class="s">"$jsonSchema"</span>: schema}, validationLevel=<span class="s">"strict"</span>)
+<span class="f">print</span>(<span class="s">"товаров в песочнице:    "</span>, box.<span class="f">count_documents</span>({}))
+<span class="f">print</span>(<span class="s">"не подходят под правило:"</span>, box.<span class="f">count_documents</span>({<span class="s">"$nor"</span>: [{<span class="s">"$jsonSchema"</span>: schema}]}))
+
+<span class="k">try</span>:
+    box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-901"</span>}, {<span class="s">"$set"</span>: {<span class="s">"brand"</span>: <span class="s">"OEM"</span>}})
+    <span class="f">print</span>(<span class="s">"strict: бренд сумки записан"</span>)
+<span class="k">except</span> WriteError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"strict: бренд сумки не записан, код ошибки"</span>, e.code)
+
+sandbox.<span class="f">command</span>(<span class="s">"collMod"</span>, <span class="s">"products"</span>, validationLevel=<span class="s">"moderate"</span>)
+box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-901"</span>}, {<span class="s">"$set"</span>: {<span class="s">"brand"</span>: <span class="s">"OEM"</span>}})
+<span class="f">print</span>(<span class="s">"moderate: бренд сумки записан"</span>)
+
+<span class="k">try</span>:
+    box.<span class="f">update_one</span>({<span class="s">"_id"</span>: <span class="s">"p-001"</span>}, {<span class="s">"$set"</span>: {<span class="s">"price"</span>: <span class="n">0</span>}})
+    <span class="f">print</span>(<span class="s">"moderate: цена ноутбука 0 записана"</span>)
+<span class="k">except</span> WriteError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"moderate: цена ноутбука 0 не записана, код ошибки"</span>, e.code)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>правило для коллекции с данными</span></figcaption>
+<pre>box.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-901"</span>),
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-040"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Сумка для ноутбука"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="s">"1 290"</span>)));
+
+sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"collMod"</span>, <span class="s">"products"</span>),
+    <span class="f">kvp</span>(<span class="s">"validator"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>()))),
+    <span class="f">kvp</span>(<span class="s">"validationLevel"</span>, <span class="s">"strict"</span>)));
+std::cout &lt;&lt; <span class="s">"товаров в песочнице:     "</span> &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"не подходят под правило: "</span>
+          &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nor"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>()))))))
+          &lt;&lt; std::endl;
+
+<span class="k">try</span> {
+    box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-901"</span>)),
+                   <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"brand"</span>, <span class="s">"OEM"</span>)))));
+    std::cout &lt;&lt; <span class="s">"strict: бренд сумки записан"</span> &lt;&lt; std::endl;
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"strict: бренд сумки не записан, код ошибки "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}
+
+sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"collMod"</span>, <span class="s">"products"</span>), <span class="f">kvp</span>(<span class="s">"validationLevel"</span>, <span class="s">"moderate"</span>)));
+box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-901"</span>)),
+               <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"brand"</span>, <span class="s">"OEM"</span>)))));
+std::cout &lt;&lt; <span class="s">"moderate: бренд сумки записан"</span> &lt;&lt; std::endl;
+
+<span class="k">try</span> {
+    box.<span class="f">update_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-001"</span>)),
+                   <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, <span class="n">0</span>)))));
+    std::cout &lt;&lt; <span class="s">"moderate: цена ноутбука 0 записана"</span> &lt;&lt; std::endl;
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"moderate: цена ноутбука 0 не записана, код ошибки "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>правило для коллекции с данными</span></figcaption>
+<pre>box.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"_id"</span>, Value: <span class="s">"p-901"</span>},
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-040"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Сумка для ноутбука"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: <span class="s">"1 290"</span>}})
+
+sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+    {Key: <span class="s">"collMod"</span>, Value: <span class="s">"products"</span>},
+    {Key: <span class="s">"validator"</span>, Value: bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}}},
+    {Key: <span class="s">"validationLevel"</span>, Value: <span class="s">"strict"</span>}})
+vsego, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{})
+ne, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$nor"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}}}}})
+fmt.<span class="f">Println</span>(<span class="s">"товаров в песочнице:    "</span>, vsego)
+fmt.<span class="f">Println</span>(<span class="s">"не подходят под правило:"</span>, ne)
+
+<span class="k">var</span> we mongo.WriteException
+_, err := box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-901"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"brand"</span>, Value: <span class="s">"OEM"</span>}}}})
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"strict: бренд сумки не записан, код ошибки"</span>, we.WriteErrors[<span class="n">0</span>].Code)
+} <span class="k">else</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"strict: бренд сумки записан"</span>)
+}
+
+sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+    {Key: <span class="s">"collMod"</span>, Value: <span class="s">"products"</span>},
+    {Key: <span class="s">"validationLevel"</span>, Value: <span class="s">"moderate"</span>}})
+box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-901"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"brand"</span>, Value: <span class="s">"OEM"</span>}}}})
+fmt.<span class="f">Println</span>(<span class="s">"moderate: бренд сумки записан"</span>)
+
+_, err = box.<span class="f">UpdateOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"p-001"</span>}},
+    bson.D{{Key: <span class="s">"$set"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: <span class="n">0</span>}}}})
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"moderate: цена ноутбука 0 не записана, код ошибки"</span>, we.WriteErrors[<span class="n">0</span>].Code)
+} <span class="k">else</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"moderate: цена ноутбука 0 записана"</span>)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>правило для коллекции с данными</span></figcaption>
+<pre>box.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-901"</span>, <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-040"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Сумка для ноутбука"</span>,
+                 <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; <span class="s">"1 290"</span> })
+
+sandbox.<span class="f">command</span>(collMod: <span class="s">"products"</span>, validator: { <span class="s">"$jsonSchema"</span> =&gt; schema }, validationLevel: <span class="s">"strict"</span>)
+<span class="k">puts</span> <span class="s">"товаров в песочнице:     "</span> + box.<span class="f">count_documents</span>({}).to_s
+<span class="k">puts</span> <span class="s">"не подходят под правило: "</span> + box.<span class="f">count_documents</span>({ <span class="s">"$nor"</span> =&gt; [{ <span class="s">"$jsonSchema"</span> =&gt; schema }] }).to_s
+
+<span class="k">begin</span>
+  box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-901"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"brand"</span> =&gt; <span class="s">"OEM"</span> } })
+  <span class="k">puts</span> <span class="s">"strict: бренд сумки записан"</span>
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"strict: бренд сумки не записан, код ошибки #{e.code}"</span>
+<span class="k">end</span>
+
+sandbox.<span class="f">command</span>(collMod: <span class="s">"products"</span>, validationLevel: <span class="s">"moderate"</span>)
+box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-901"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"brand"</span> =&gt; <span class="s">"OEM"</span> } })
+<span class="k">puts</span> <span class="s">"moderate: бренд сумки записан"</span>
+
+<span class="k">begin</span>
+  box.<span class="f">update_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-001"</span> }, { <span class="s">"$set"</span> =&gt; { <span class="s">"price"</span> =&gt; <span class="n">0</span> } })
+  <span class="k">puts</span> <span class="s">"moderate: цена ноутбука 0 записана"</span>
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"moderate: цена ноутбука 0 не записана, код ошибки #{e.code}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в песочнице:     22
+не подходят под правило: 1
+strict: бренд сумки не записан, код ошибки 121
+moderate: бренд сумки записан
+moderate: цена ноутбука 0 не записана, код ошибки 121</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в песочнице:     22
+не подходят под правило: 1
+strict: бренд сумки не записан, код ошибки 121
+moderate: бренд сумки записан
+moderate: цена ноутбука 0 не записана, код ошибки 121</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в песочнице:     22
+не подходят под правило: 1
+strict: бренд сумки не записан, код ошибки 121
+moderate: бренд сумки записан
+moderate: цена ноутбука 0 не записана, код ошибки 121</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в песочнице:     22
+не подходят под правило: 1
+strict: бренд сумки не записан, код ошибки 121
+moderate: бренд сумки записан
+moderate: цена ноутбука 0 не записана, код ошибки 121</pre>
+        </figure>
+        <p>В коллекции 22 товара, и один из них правилу не соответствует: включение правила не удалило и не изменило сумку. При <code>strict</code> обновление сумки отклонено, хотя меняется поле <code>brand</code>, которого в правиле нет. Сервер проверяет документ целиком в том виде, каким он станет после обновления, а цена в нём по-прежнему строка.</p>
+        <p>При <code>moderate</code> то же обновление прошло: сумка не соответствовала правилу и до него. Обновление ноутбука проверено и отклонено: ноутбук соответствовал правилу, а с ценой 0 перестал бы. Уровень <code>moderate</code> выбирают, когда правило вводят для коллекции со старыми данными: старые документы можно исправлять постепенно, а новые ошибки в коллекцию не попадают.</p>
+        <figure class="shot">
+          <img src="../../shots/114-sandbox-products-moderate.png" alt="Compass, вкладка Validation коллекции sandbox.products: Action Error, Level Moderate, правило $jsonSchema">
+          <figcaption>Compass · <code>sandbox.products</code>, вкладка <b>Validation</b> после <code>collMod</code></figcaption>
+        </figure>
+        <p>Вкладка <b>Documents</b> подписана числом <code>22</code> — 21 товар и сумка. На вкладке <b>Validation</b> — правило товара, <b>Action</b> <code>Error</code> и <b>Level</b> <code>Moderate</code>: так коллекцию оставил пример.</p>
+
+        <h2 id="s7"><span class="sec">§7</span><code>validationAction</code>: предупреждение вместо отказа</h2>
+        <p>Второй параметр валидатора, <code>validationAction</code>, задаёт, что сервер делает с документом, который не прошёл проверку:</p>
+        <ul>
+          <li><code>"error"</code> — значение по умолчанию: запись отклоняется с ошибкой 121;</li>
+          <li><code>"warn"</code> — документ записывается, а в журнал сервера добавляется предупреждение с причинами.</li>
+        </ul>
+        <p>Пример переключает коллекцию <code>products</code> в песочнице на <code>warn</code>, записывает товар с ценой −1 и читает настройки коллекции.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>предупреждение вместо отказа</span></figcaption>
+<pre>sandbox.<span class="f">command</span>(<span class="s">"collMod"</span>, <span class="s">"products"</span>, validationAction=<span class="s">"warn"</span>)
+
+box.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"p-902"</span>, <span class="s">"sku"</span>: <span class="s">"SKU-AC-041"</span>, <span class="s">"title"</span>: <span class="s">"Сумка-чехол"</span>,
+                <span class="s">"category"</span>: <span class="s">"аксессуары"</span>, <span class="s">"price"</span>: -<span class="n">1</span>})
+<span class="f">print</span>(<span class="s">"товар с ценой -1 записан"</span>)
+<span class="f">print</span>(<span class="s">"не подходят под правило:"</span>, box.<span class="f">count_documents</span>({<span class="s">"$nor"</span>: [{<span class="s">"$jsonSchema"</span>: schema}]}))
+
+info = <span class="f">next</span>(sandbox.<span class="f">list_collections</span>(filter={<span class="s">"name"</span>: <span class="s">"products"</span>}))
+<span class="f">print</span>(<span class="s">"validationLevel: "</span>, info[<span class="s">"options"</span>][<span class="s">"validationLevel"</span>])
+<span class="f">print</span>(<span class="s">"validationAction:"</span>, info[<span class="s">"options"</span>][<span class="s">"validationAction"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>предупреждение вместо отказа</span></figcaption>
+<pre>sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"collMod"</span>, <span class="s">"products"</span>), <span class="f">kvp</span>(<span class="s">"validationAction"</span>, <span class="s">"warn"</span>)));
+
+box.<span class="f">insert_one</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"p-902"</span>),
+    <span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"SKU-AC-041"</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Сумка-чехол"</span>),
+    <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"аксессуары"</span>),
+    <span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+std::cout &lt;&lt; <span class="s">"товар с ценой -1 записан"</span> &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"не подходят под правило: "</span>
+          &lt;&lt; box.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nor"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, schema.<span class="f">view</span>()))))))
+          &lt;&lt; std::endl;
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; info : sandbox.<span class="f">list_collections</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"products"</span>)))) {
+    <span class="k">auto</span> opts = info[<span class="s">"options"</span>].<span class="f">get_document</span>().value;
+    std::cout &lt;&lt; <span class="s">"validationLevel:  "</span> &lt;&lt; opts[<span class="s">"validationLevel"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+    std::cout &lt;&lt; <span class="s">"validationAction: "</span> &lt;&lt; opts[<span class="s">"validationAction"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>предупреждение вместо отказа</span></figcaption>
+<pre>sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+    {Key: <span class="s">"collMod"</span>, Value: <span class="s">"products"</span>},
+    {Key: <span class="s">"validationAction"</span>, Value: <span class="s">"warn"</span>}})
+
+box.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"_id"</span>, Value: <span class="s">"p-902"</span>},
+    {Key: <span class="s">"sku"</span>, Value: <span class="s">"SKU-AC-041"</span>},
+    {Key: <span class="s">"title"</span>, Value: <span class="s">"Сумка-чехол"</span>},
+    {Key: <span class="s">"category"</span>, Value: <span class="s">"аксессуары"</span>},
+    {Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"товар с ценой -1 записан"</span>)
+ne, _ := box.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$nor"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: schema}}}}})
+fmt.<span class="f">Println</span>(<span class="s">"не подходят под правило:"</span>, ne)
+
+specs, _ := sandbox.<span class="f">ListCollectionSpecifications</span>(ctx, bson.D{{Key: <span class="s">"name"</span>, Value: <span class="s">"products"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"validationLevel: "</span>, specs[<span class="n">0</span>].Options.<span class="f">Lookup</span>(<span class="s">"validationLevel"</span>).<span class="f">StringValue</span>())
+fmt.<span class="f">Println</span>(<span class="s">"validationAction:"</span>, specs[<span class="n">0</span>].Options.<span class="f">Lookup</span>(<span class="s">"validationAction"</span>).<span class="f">StringValue</span>())</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>предупреждение вместо отказа</span></figcaption>
+<pre>sandbox.<span class="f">command</span>(collMod: <span class="s">"products"</span>, validationAction: <span class="s">"warn"</span>)
+
+box.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"p-902"</span>, <span class="s">"sku"</span> =&gt; <span class="s">"SKU-AC-041"</span>, <span class="s">"title"</span> =&gt; <span class="s">"Сумка-чехол"</span>,
+                 <span class="s">"category"</span> =&gt; <span class="s">"аксессуары"</span>, <span class="s">"price"</span> =&gt; -<span class="n">1</span> })
+<span class="k">puts</span> <span class="s">"товар с ценой -1 записан"</span>
+<span class="k">puts</span> <span class="s">"не подходят под правило: "</span> + box.<span class="f">count_documents</span>({ <span class="s">"$nor"</span> =&gt; [{ <span class="s">"$jsonSchema"</span> =&gt; schema }] }).to_s
+
+info = sandbox.<span class="f">list_collections</span>(filter: { name: <span class="s">"products"</span> }).first
+<span class="k">puts</span> <span class="s">"validationLevel:  "</span> + info[<span class="s">"options"</span>][<span class="s">"validationLevel"</span>]
+<span class="k">puts</span> <span class="s">"validationAction: "</span> + info[<span class="s">"options"</span>][<span class="s">"validationAction"</span>]</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товар с ценой -1 записан
+не подходят под правило: 2
+validationLevel:  moderate
+validationAction: warn</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товар с ценой -1 записан
+не подходят под правило: 2
+validationLevel:  moderate
+validationAction: warn</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товар с ценой -1 записан
+не подходят под правило: 2
+validationLevel:  moderate
+validationAction: warn</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товар с ценой -1 записан
+не подходят под правило: 2
+validationLevel:  moderate
+validationAction: warn</pre>
+        </figure>
+        <p>Товар с ценой −1 записан, и правилу теперь не соответствуют два документа: сумка из §6 и новый товар. Последние строки показывают настройки коллекции: уровень <code>moderate</code> остался с §6, действие — <code>warn</code>.</p>
+        <p data-lang="python">Настройки коллекции возвращает <code>list_collections</code> с фильтром по имени. Метод возвращает курсор по описаниям коллекций, <code>next</code> берёт первое; правило и оба параметра лежат в поле <code>options</code>.</p>
+        <p data-lang="ruby">Настройки коллекции возвращает <code>list_collections</code> с фильтром по имени. Метод возвращает массив описаний коллекций, <code>first</code> берёт первое; правило и оба параметра лежат в поле <code>"options"</code>.</p>
+        <p data-lang="go">Настройки коллекции возвращает <code>ListCollectionSpecifications</code> с фильтром по имени. Метод возвращает срез описаний; поле <code>Options</code> хранит настройки в виде <code>bson.Raw</code>, и значение по имени достаёт <code>Lookup</code>.</p>
+        <p data-lang="cpp">Настройки коллекции возвращает <code>list_collections</code> с фильтром по имени. Метод возвращает курсор по описаниям коллекций; правило и оба параметра лежат во вложенном документе <code>options</code>.</p>
+        <p>Предупреждение сервер пишет в свой журнал. Последние строки журнала возвращает команда <code>getLog</code>; в mongosh их можно отфильтровать по тексту предупреждения:</p>
+        <figure class="code">
+          <figcaption><span>mongosh · оболочка</span><span>последнее предупреждение валидатора</span></figcaption>
+<pre>db.<span class="f">adminCommand</span>({ getLog: <span class="s">"global"</span> }).log
+  .<span class="f">filter</span>(line =&gt; line.<span class="f">includes</span>(<span class="s">"would fail validation"</span>))
+  .<span class="f">map</span>(line =&gt; JSON.<span class="f">parse</span>(line))
+  .<span class="f">at</span>(-<span class="n">1</span>)</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод mongosh</span><span>запись журнала сервера</span></figcaption>
+<pre>{
+  t: { '$date': '2026-10-06T06:25:03.573+00:00' },
+  s: 'W',
+  c: 'STORAGE',
+  id: 20294,
+  ctx: 'conn2241',
+  msg: 'Document would fail validation',
+  attr: {
+    namespace: 'sandbox.products',
+    document: {
+      _id: 'p-902',
+      sku: 'SKU-AC-041',
+      title: 'Сумка-чехол',
+      category: 'аксессуары',
+      price: -1
+    },
+    errInfo: {
+      failingDocumentId: 'p-902',
+      details: {
+        operatorName: '$jsonSchema',
+        schemaRulesNotSatisfied: [
+          {
+            operatorName: 'properties',
+            propertiesNotSatisfied: [
+              {
+                propertyName: 'price',
+                details: [
+                  {
+                    operatorName: 'minimum',
+                    specifiedAs: { minimum: 1 },
+                    reason: 'comparison failed',
+                    consideredValue: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}</pre>
+        </figure>
+        <p>Строка журнала — документ JSON; <code>JSON.parse</code> превращает её в объект, и mongosh печатает его с отступами, <code>at(-1)</code> берёт последнюю подходящую строку. Поле <code>t</code> — время записи, <code>s: 'W'</code> — уровень, предупреждение, <code>msg</code> — текст: документ не прошёл бы проверку. В <code>attr</code> указаны коллекция (<code>namespace</code>), сам документ и <code>errInfo</code> с тем же разбором, что в §4: у поля <code>price</code> не выполнено <code>minimum</code>, значение −1.</p>
+        <p>Режим <code>warn</code> используют, чтобы проверить новое правило на записях работающего приложения. Запись не прерывается, а по предупреждениям в журнале видно, какие документы правило отклонило бы.</p>
+        <figure class="shot">
+          <img src="../../shots/115-sandbox-products-warn.png" alt="Compass, вкладка Validation коллекции sandbox.products: Action Warning, Level Moderate, документов 23">
+          <figcaption>Compass · <code>sandbox.products</code> после переключения на <code>warn</code></figcaption>
+        </figure>
+        <p><b>Action</b> показывает <code>Warning</code>, <b>Level</b> — <code>Moderate</code>, документов <code>23</code>: товар с ценой −1 записан.</p>
+        <figure class="shot">
+          <img src="../../shots/116-sandbox-products-samples.png" alt="Compass, нижняя часть вкладки Validation: Passed validation — товар p-013, Failed validation — p-902 с ценой -1">
+          <figcaption>Compass · образцы документов под правилом, кнопка <b>Preview documents</b></figcaption>
+        </figure>
+        <p>Под правилом Compass показывает по одному документу из коллекции: слева <b>Passed validation</b> — документ, который правилу соответствует, справа <b>Failed validation</b> — который не соответствует. Compass выбирает их сам из части коллекции, поэтому слева может оказаться другой товар. Справа здесь товар <code>p-902</code> с ценой <code>-1</code>.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Правило в Compass</h2>
+        <p>Кадры в разделах выше сняты на тех же коллекциях, что и примеры. Правило коллекции в Compass находится на вкладке <b>Validation</b>. Если правила нет, на вкладке кнопка <b>Add rule</b>; если есть — редактор с документом валидатора, списки <b>Action</b> и <b>Level</b> и кнопка <b>Edit rules</b>. После <b>Edit rules</b> правило можно изменить и сохранить: Compass отправит серверу ту же команду <code>collMod</code>, что и пример §6.</p>
+        <p>Пока правила нет, рядом с <b>Add rule</b> доступна кнопка <b>Generate rules</b>: Compass анализирует часть документов коллекции, как на вкладке <b>Schema</b> (глава 2.5), и составляет правило из полей, которые встречаются, и их типов. У коллекции с правилом эта кнопка неактивна — она серая на кадрах выше. Такое правило повторяет данные коллекции: если в ней уже лежит цена строкой, правило разрешит строку. Поэтому сгенерированное правило читают и исправляют до сохранения.</p>
+        <p>В поле фильтра на вкладке <b>Documents</b> оператор <code>$jsonSchema</code> пишется так же, как в коде, только одной строкой (кадр в §2). Документ, отклонённый правилом при вставке через Compass, остаётся в окне вставки вместе с сообщением сервера, и причины отказа открывает кнопка <b>View error details</b> (кадры в §4).</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"price": {"type": "integer"}</code></td><td>Сервер не создаёт коллекцию: <code>$jsonSchema type 'integer' is not currently supported</code></td><td><code>"bsonType": "int"</code> или <code>"bsonType": "number"</code></td></tr>
+              <tr><td><code>"price": {"bsonType": "int"}</code></td><td>Цена <code>1990.0</code> и число больше 2 147 483 647 отклоняются: это <code>double</code> и <code>long</code></td><td><code>"bsonType": "number"</code> — любой числовой тип</td></tr>
+              <tr><td>Поле описано в <code>properties</code>, но не перечислено в <code>required</code></td><td>Документ без этого поля записывается: правило поля проверяется, только если поле есть</td><td>Добавить имя поля в <code>required</code></td></tr>
+              <tr><td><code>"additionalProperties": false</code>, а <code>_id</code> в <code>properties</code> нет</td><td>Сервер отклоняет каждый документ: <code>_id</code> для правила — лишнее поле</td><td><code>"_id": {}</code> или <code>"_id": {"bsonType": "objectId"}</code> в <code>properties</code></td></tr>
+              <tr><td><code>create_collection</code> для коллекции, которая уже есть</td><td>Исключение <code>CollectionInvalid</code>, правило не меняется</td><td>Команда <code>collMod</code> с новым <code>validator</code></td></tr>
+              <tr><td>Правило включено <code>collMod</code>, и документы коллекции считаются проверенными</td><td>Старые документы не перепроверяются; неподходящие остаются в коллекции</td><td>Найти их фильтром <code>{"$nor": [{"$jsonSchema": …}]}</code> и исправить</td></tr>
+              <tr><td><code>"validationAction": "warn"</code> в рабочей коллекции</td><td>Ошибочные документы записываются, предупреждения о них есть только в журнале сервера</td><td><code>"warn"</code> — на время проверки нового правила, затем <code>"error"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"price": {"type": "integer"}</code></td><td>Сервер не создаёт коллекцию: <code>$jsonSchema type 'integer' is not currently supported</code></td><td><code>"bsonType": "int"</code> или <code>"bsonType": "number"</code></td></tr>
+              <tr><td><code>"price": {"bsonType": "int"}</code></td><td>Цена <code>1990.0</code> и любое значение типа <code>std::int64_t</code> отклоняются: это <code>double</code> и <code>long</code></td><td><code>"bsonType": "number"</code> — любой числовой тип</td></tr>
+              <tr><td>Поле описано в <code>properties</code>, но не перечислено в <code>required</code></td><td>Документ без этого поля записывается: правило поля проверяется, только если поле есть</td><td>Добавить имя поля в <code>required</code></td></tr>
+              <tr><td><code>"additionalProperties": false</code>, а <code>_id</code> в <code>properties</code> нет</td><td>Сервер отклоняет каждый документ: <code>_id</code> для правила — лишнее поле</td><td><code>"_id": {}</code> или <code>"_id": {"bsonType": "objectId"}</code> в <code>properties</code></td></tr>
+              <tr><td><code>create_collection</code> для коллекции, которая уже есть</td><td>Ошибка <code>NamespaceExists</code> (код 48), если параметры отличаются; правило не меняется</td><td>Команда <code>collMod</code> с новым <code>validator</code></td></tr>
+              <tr><td>Правило включено <code>collMod</code>, и документы коллекции считаются проверенными</td><td>Старые документы не перепроверяются; неподходящие остаются в коллекции</td><td>Найти их фильтром <code>{"$nor": [{"$jsonSchema": …}]}</code> и исправить</td></tr>
+              <tr><td><code>"validationAction": "warn"</code> в рабочей коллекции</td><td>Ошибочные документы записываются, предупреждения о них есть только в журнале сервера</td><td><code>"warn"</code> — на время проверки нового правила, затем <code>"error"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"price": {"type": "integer"}</code></td><td>Сервер не создаёт коллекцию: <code>$jsonSchema type 'integer' is not currently supported</code></td><td><code>"bsonType": "int"</code> или <code>"bsonType": "number"</code></td></tr>
+              <tr><td><code>"price": {"bsonType": "int"}</code></td><td>Цена <code>1990.0</code> и любое значение типа <code>int64</code> отклоняются: это <code>double</code> и <code>long</code></td><td><code>"bsonType": "number"</code> — любой числовой тип</td></tr>
+              <tr><td>Поле описано в <code>properties</code>, но не перечислено в <code>required</code></td><td>Документ без этого поля записывается: правило поля проверяется, только если поле есть</td><td>Добавить имя поля в <code>required</code></td></tr>
+              <tr><td><code>"additionalProperties": false</code>, а <code>_id</code> в <code>properties</code> нет</td><td>Сервер отклоняет каждый документ: <code>_id</code> для правила — лишнее поле</td><td><code>"_id": {}</code> или <code>"_id": {"bsonType": "objectId"}</code> в <code>properties</code></td></tr>
+              <tr><td><code>CreateCollection</code> для коллекции, которая уже есть</td><td>Ошибка <code>NamespaceExists</code> (код 48), если параметры отличаются; правило не меняется</td><td>Команда <code>collMod</code> с новым <code>validator</code></td></tr>
+              <tr><td>Правило включено <code>collMod</code>, и документы коллекции считаются проверенными</td><td>Старые документы не перепроверяются; неподходящие остаются в коллекции</td><td>Найти их фильтром <code>{"$nor": [{"$jsonSchema": …}]}</code> и исправить</td></tr>
+              <tr><td><code>"validationAction": "warn"</code> в рабочей коллекции</td><td>Ошибочные документы записываются, предупреждения о них есть только в журнале сервера</td><td><code>"warn"</code> — на время проверки нового правила, затем <code>"error"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"price": {"type": "integer"}</code></td><td>Сервер не создаёт коллекцию: <code>$jsonSchema type 'integer' is not currently supported</code></td><td><code>"bsonType": "int"</code> или <code>"bsonType": "number"</code></td></tr>
+              <tr><td><code>"price": {"bsonType": "int"}</code></td><td>Цена <code>1990.0</code> и число больше 2 147 483 647 отклоняются: это <code>double</code> и <code>long</code></td><td><code>"bsonType": "number"</code> — любой числовой тип</td></tr>
+              <tr><td>Поле описано в <code>properties</code>, но не перечислено в <code>required</code></td><td>Документ без этого поля записывается: правило поля проверяется, только если поле есть</td><td>Добавить имя поля в <code>required</code></td></tr>
+              <tr><td><code>"additionalProperties": false</code>, а <code>_id</code> в <code>properties</code> нет</td><td>Сервер отклоняет каждый документ: <code>_id</code> для правила — лишнее поле</td><td><code>"_id": {}</code> или <code>"_id": {"bsonType": "objectId"}</code> в <code>properties</code></td></tr>
+              <tr><td><code>create</code> для коллекции, которая уже есть</td><td>Ошибка <code>NamespaceExists</code> (код 48), если параметры отличаются; правило не меняется</td><td>Команда <code>collMod</code> с новым <code>validator</code></td></tr>
+              <tr><td>Правило включено <code>collMod</code>, и документы коллекции считаются проверенными</td><td>Старые документы не перепроверяются; неподходящие остаются в коллекции</td><td>Найти их фильтром <code>{"$nor": [{"$jsonSchema": …}]}</code> и исправить</td></tr>
+              <tr><td><code>"validationAction": "warn"</code> в рабочей коллекции</td><td>Ошибочные документы записываются, предупреждения о них есть только в журнале сервера</td><td><code>"warn"</code> — на время проверки нового правила, затем <code>"error"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем <code>$jsonSchema</code> в фильтре отличается от <code>$jsonSchema</code> в валидаторе?</summary>
+          <p>Правило одно и то же. В фильтре оно отбирает документы, которые уже лежат в коллекции, и ничего не меняет. В валидаторе сервер проверяет по нему каждую вставку и каждое обновление и отклоняет запись, если документ правилу не соответствует.</p>
+        </details>
+        <details>
+          <summary>В правиле есть <code>"price": {"bsonType": "number", "minimum": 1}</code>, но нет <code>required</code>. Запишется ли документ без цены?</summary>
+          <p>Запишется. Правило из <code>properties</code> проверяется, только если поле в документе есть. Чтобы цена была обязательной, её имя добавляют в <code>required</code>.</p>
+        </details>
+        <details>
+          <summary>Правило включено командой <code>collMod</code>. Что стало с документами, которые ему не соответствуют?</summary>
+          <p>Они остаются в коллекции без изменений: сервер не перепроверяет документы, которые уже лежат в коллекции. Найти их можно фильтром <code>{"$nor": [{"$jsonSchema": правило}]}</code>. При уровне <code>strict</code> сервер отклонит обновление такого документа, если и после него документ правилу не соответствует; при <code>moderate</code> обновления таких документов не проверяются.</p>
+        </details>
+        <details>
+          <summary>Как узнать, какое условие правила нарушил отклонённый документ?</summary>
+          <p>Из поля <code>errInfo</code> ответа сервера. В <code>details.schemaRulesNotSatisfied</code> перечислены невыполненные ключевые слова: для <code>required</code> — недостающие поля, для <code>properties</code> — поля с ошибками, нарушенное ключевое слово и причина.</p>
+        </details>
+        <details>
+          <summary>Чем режим <code>warn</code> отличается от уровня <code>off</code>?</summary>
+          <p>При <code>warn</code> сервер проверяет каждую запись, записывает документ и оставляет в журнале предупреждение, если документ правилу не соответствует. При <code>off</code> проверки нет совсем, и в журнал ничего не пишется.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Правило: обязательные поля и типы</b>
+            <code>{"bsonType": "object",</code>
+            <code> "required": ["title", "price"],</code>
+            <code> "properties": {"price": {"bsonType": "number", "minimum": 1}}}</code>
+          </div>
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>coll.count_documents({"$nor": [{"$jsonSchema": schema}]})</code>
+          </div>
+          <div>
+            <b>Коллекция с правилом</b>
+            <code>db.create_collection("checked",</code>
+            <code>    validator={"$jsonSchema": schema})</code>
+          </div>
+          <div>
+            <b>Правило для коллекции с данными</b>
+            <code>db.command("collMod", "products",</code>
+            <code>    validator={"$jsonSchema": schema}, validationLevel="moderate")</code>
+          </div>
+          <div>
+            <b>Предупреждать вместо отказа</b>
+            <code>db.command("collMod", "products", validationAction="warn")</code>
+          </div>
+          <div>
+            <b>Причины отказа</b>
+            <code>except WriteError as e:</code>
+            <code>    e.details["errInfo"]["details"]</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Правило: обязательные поля и типы</b>
+            <code>make_document(kvp("bsonType", "object"),</code>
+            <code>  kvp("required", make_array("title", "price")),</code>
+            <code>  kvp("properties", make_document(...)))</code>
+          </div>
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>coll.count_documents(make_document(kvp("$nor",</code>
+            <code>  make_array(make_document(kvp("$jsonSchema", schema.view()))))))</code>
+          </div>
+          <div>
+            <b>Коллекция с правилом</b>
+            <code>db.create_collection("checked", make_document(kvp("validator",</code>
+            <code>  make_document(kvp("$jsonSchema", schema.view())))));</code>
+          </div>
+          <div>
+            <b>Правило для коллекции с данными</b>
+            <code>db.run_command(make_document(kvp("collMod", "products"),</code>
+            <code>  kvp("validator", ...), kvp("validationLevel", "moderate")));</code>
+          </div>
+          <div>
+            <b>Предупреждать вместо отказа</b>
+            <code>db.run_command(make_document(kvp("collMod", "products"),</code>
+            <code>  kvp("validationAction", "warn")));</code>
+          </div>
+          <div>
+            <b>Причины отказа</b>
+            <code>catch (const mongocxx::operation_exception& e)</code>
+            <code>  e.raw_server_error()-&gt;view()["writeErrors"][0]["errInfo"]</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Правило: обязательные поля и типы</b>
+            <code>bson.D{{Key: "bsonType", Value: "object"},</code>
+            <code>  {Key: "required", Value: bson.A{"title", "price"}},</code>
+            <code>  {Key: "properties", Value: bson.D{...}}}</code>
+          </div>
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>coll.CountDocuments(ctx, bson.D{{Key: "$nor",</code>
+            <code>  Value: bson.A{bson.D{{Key: "$jsonSchema", Value: schema}}}}})</code>
+          </div>
+          <div>
+            <b>Коллекция с правилом</b>
+            <code>db.CreateCollection(ctx, "checked", options.CreateCollection().</code>
+            <code>  SetValidator(bson.D{{Key: "$jsonSchema", Value: schema}}))</code>
+          </div>
+          <div>
+            <b>Правило для коллекции с данными</b>
+            <code>db.RunCommand(ctx, bson.D{{Key: "collMod", Value: "products"},</code>
+            <code>  {Key: "validator", Value: ...}, {Key: "validationLevel", Value: "moderate"}})</code>
+          </div>
+          <div>
+            <b>Предупреждать вместо отказа</b>
+            <code>db.RunCommand(ctx, bson.D{{Key: "collMod", Value: "products"},</code>
+            <code>  {Key: "validationAction", Value: "warn"}})</code>
+          </div>
+          <div>
+            <b>Причины отказа</b>
+            <code>errors.As(err, &we)</code>
+            <code>bson.Unmarshal(we.WriteErrors[0].Details, &info)</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Правило: обязательные поля и типы</b>
+            <code>{ "bsonType" =&gt; "object",</code>
+            <code>  "required" =&gt; ["title", "price"],</code>
+            <code>  "properties" =&gt; { "price" =&gt; { "bsonType" =&gt; "number", "minimum" =&gt; 1 } } }</code>
+          </div>
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>coll.count_documents({ "$nor" =&gt; [{ "$jsonSchema" =&gt; schema }] })</code>
+          </div>
+          <div>
+            <b>Коллекция с правилом</b>
+            <code>db[:checked, validator: { "$jsonSchema" =&gt; schema }].create</code>
+          </div>
+          <div>
+            <b>Правило для коллекции с данными</b>
+            <code>db.command(collMod: "products", validator: { "$jsonSchema" =&gt; schema },</code>
+            <code>           validationLevel: "moderate")</code>
+          </div>
+          <div>
+            <b>Предупреждать вместо отказа</b>
+            <code>db.command(collMod: "products", validationAction: "warn")</code>
+          </div>
+          <div>
+            <b>Причины отказа</b>
+            <code>rescue Mongo::Error::OperationFailure =&gt; e</code>
+            <code>  e.details["details"]</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Правило для документов коллекции записывается оператором <code>$jsonSchema</code>: <code>required</code> перечисляет обязательные поля, <code>properties</code> задаёт правила для значений полей — тип через <code>bsonType</code>, границы через <code>minimum</code>, <code>minLength</code>, <code>pattern</code>, <code>enum</code>, правило элементов массива через <code>items</code>. В фильтре запроса правило отбирает документы, которые ему соответствуют, и так проверяют уже записанные данные. Переданное серверу как валидатор коллекции, правило проверяется при каждой вставке и каждом обновлении; отказ приходит ошибкой с кодом 121, а причины — в поле <code>errInfo</code>. Существующей коллекции правило добавляет команда <code>collMod</code>; старые документы при этом не перепроверяются, <code>validationLevel</code> задаёт, проверять ли их обновления, а <code>validationAction</code> — отклонять ли запись или только предупреждать в журнале сервера.</p>
+
+        <div class="pager"><a href="../18-skript-podbor/index.html">← 2.9 Скрипт целиком</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 3.1 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

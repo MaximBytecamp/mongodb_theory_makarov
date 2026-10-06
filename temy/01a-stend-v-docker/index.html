@@ -76,7 +76,7 @@
         <header class="chapter-head">
           <span class="chapter-num">1.1а</span>
           <h1>Стенд в Docker:<br>если Compass не подключается</h1>
-          <p class="lead">На учебных компьютерах MongoDB Server и Compass ставятся не всегда: установщику нужны права администратора, служба сервера не запускается, а Compass при подключении пишет <code>connect ECONNREFUSED</code>. В этой главе — запасной путь. Сервер и учебные базы запускаются в Docker одной командой, данные открываются в браузере, а код работает в контейнере, где драйвер уже установлен. Если не ставится и Docker, тот же стенд поднимается в GitHub Codespaces.</p>
+          <p class="lead">На компьютерах в классе MongoDB Server и Compass ставятся не всегда: установщику нужны права администратора, служба сервера не запускается, а Compass при подключении пишет <code>connect ECONNREFUSED</code>. В этой главе — запасной путь. Сервер и базы курса запускаются в Docker одной командой, данные открываются в браузере, а код работает в контейнере, где драйвер уже установлен. Если не ставится и Docker, тот же стенд поднимается в GitHub Codespaces.</p>
         </header>
 
         <dl class="passport">
@@ -162,7 +162,7 @@
             <p>Docker · проект mongodb-practice · контейнеры запуска в сети сервера: для них он тоже localhost:27017</p>
             <div class="dock__boxes">
               <div class="dock__box dock__box--main"><b>mongo</b><span>MongoDB 7 — тот самый сервер</span><em>работает всё время</em></div>
-              <div class="dock__box dock__box--done"><b>seed</b><span>заливает учебные базы, если сервер пустой</span><em>завершается сам</em></div>
+              <div class="dock__box dock__box--done"><b>seed</b><span>заливает базы курса, если сервер пустой</span><em>завершается сам</em></div>
               <div class="dock__box"><b>mongo-express</b><span>базы и документы в браузере</span><em>работает всё время</em></div>
               <div class="dock__box dock__box--done"><b>python · ruby · go · cpp</b><span>драйвер уже внутри; запускают файл решения</span><em>на время команды</em></div>
             </div>
@@ -550,7 +550,7 @@ sandbox.warehouse      &lt;- sandbox.warehouse.json
 shop.customers         &lt;- shop.customers.json
 shop.orders            &lt;- shop.orders.json
 shop.products          &lt;- shop.products.json
-Готово: учебные базы загружены</pre>
+Готово: базы курса загружены</pre>
         </figure>
         <p>Двенадцать файлов — двенадцать коллекций в пяти базах. При следующем <code>docker compose up -d</code> загрузчик увидит, что заказы уже на месте, и ничего не тронет: ваши изменения в <code>sandbox</code> не пропадут от перезапуска. Проверить, что работает сейчас:</p>
         <figure class="code">
@@ -571,7 +571,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
           <img src="../../shots/11-express-databases.png" alt="Главная страница mongo-express: список баз данных стенда">
           <figcaption>mongo-express · стенд в Docker — те же базы, что в Compass в главе 1.1</figcaption>
         </figure>
-        <p>Список баз совпадает с тем, что вернул <code>list_database_names()</code> в главе 1.1: пять учебных и три служебные. Зелёная кнопка <b>View</b> открывает базу, красная <b>Del</b> удаляет её вместе со всеми коллекциями. Ниже на странице — <b>Server Status</b>: версия сервера (у нас 7.0.40), время работы и счётчики операций.</p>
+        <p>Список баз совпадает с тем, что вернул <code>list_database_names()</code> в главе 1.1: пять баз курса и три служебные. Зелёная кнопка <b>View</b> открывает базу, красная <b>Del</b> удаляет её вместе со всеми коллекциями. Ниже на странице — <b>Server Status</b>: версия сервера (у нас 7.0.40), время работы и счётчики операций.</p>
         <figure class="shot">
           <img src="../../shots/12-express-shop.png" alt="База shop в mongo-express: коллекции customers, orders, products">
           <figcaption>mongo-express · база <code>shop</code></figcaption>
@@ -586,7 +586,7 @@ mongodb-practice-mongo-express-1   mongo-express:1.0.2  mongo-express   4 minute
           <p>Тогда он подключается к контейнеру без всяких изменений: <b>New Connection</b>, адрес <code>mongodb://localhost:27017</code>, <b>Connect</b>. Docker пробрасывает порт сервера на компьютер, и для Compass контейнер ничем не отличается от установленного сервера. Все кадры Compass в этом справочнике сняты с сервера в контейнере.</p>
         </div>
         <div class="margin-note margin-note--warn">
-          <b>Осторожно: mongo-express — только для учебного стенда</b>
+          <b>Осторожно: mongo-express — только для стенда курса</b>
           <p>Через этот интерфейс можно удалить любую базу. Поэтому порт 8081 открыт только для вашего компьютера (<code>127.0.0.1</code>), а вход закрыт паролем. Выставлять такой интерфейс в интернет нельзя; почему — разобрано в разделе <a href="../../keysy/index.html">«Кейсы»</a>.</p>
         </div>
 
@@ -764,7 +764,7 @@ docker compose run --rm python kt01/check.py</pre>
         <p>Файл запускается из своей папки, поэтому <code>stocktake.json</code> рядом с решением открывается по короткому имени — как если бы вы сделали <code>cd kt01</code> и запустили скрипт на компьютере.</p>
 
         <h2 id="s10"><span class="sec">§10</span>Без установки: Codespaces</h2>
-        <p><span class="term">GitHub Codespaces</span> — редактор VS Code в браузере, под которым работает виртуальная машина GitHub. В репозитории практик есть папка <code>.devcontainer</code>: по ней Codespaces поднимает тот же <code>compose.yaml</code> — сервер, учебные базы, mongo-express — и ставит Python, Go и Ruby с драйверами.</p>
+        <p><span class="term">GitHub Codespaces</span> — редактор VS Code в браузере, под которым работает виртуальная машина GitHub. В репозитории практик есть папка <code>.devcontainer</code>: по ней Codespaces поднимает тот же <code>compose.yaml</code> — сервер, базы курса, mongo-express — и ставит Python, Go и Ruby с драйверами.</p>
         <ol>
           <li>Войдите на <a href="https://github.com">github.com</a> — аккаунт бесплатный.</li>
           <li>Откройте <a href="https://github.com/MaximBytecamp/mongodb-practice">репозиторий практик</a> и нажмите <b>Code → Codespaces → Create codespace on main</b>.</li>
@@ -821,7 +821,7 @@ python check.py</pre>
           <table>
             <thead><tr><th>Команда</th><th>Что происходит</th><th>Данные</th></tr></thead>
             <tbody>
-              <tr><td><code>docker compose run --rm reset</code></td><td>Учебные базы перезаписываются заново</td><td>Изменения в <code>sandbox</code> пропадут — для этого и нужна</td></tr>
+              <tr><td><code>docker compose run --rm reset</code></td><td>Базы курса перезаписываются заново</td><td>Изменения в <code>sandbox</code> пропадут — для этого и нужна</td></tr>
               <tr><td><code>docker compose stop</code></td><td>Контейнеры останавливаются, память освобождается</td><td>Остаются</td></tr>
               <tr><td><code>docker compose up -d</code></td><td>Всё запускается снова</td><td>Остаются; <code>seed</code> ничего не перезаписывает</td></tr>
               <tr><td><code>docker compose down</code></td><td>Контейнеры удаляются</td><td>Остаются в томе <code>mongo-data</code></td></tr>
@@ -907,7 +907,7 @@ python check.py</pre>
         </div>
 
         <h3>Итог главы</h3>
-        <p>Если Compass не подключается, чаще всего дело в сервере: его нет на порту 27017. Сервер в контейнере поднимается командой <code>docker compose up -d</code> вместе с учебными базами и mongo-express на <code>localhost:8081</code>. Код запускается командой <code>docker compose run --rm</code> с путём к файлу, а адрес сервера везде один — <code>mongodb://localhost:27017</code>. Если не ставится и Docker Desktop, тот же стенд открывается в Codespaces. Дальше — снова к данным: глава 1.2 о том, как устроен документ.</p>
+        <p>Если Compass не подключается, чаще всего дело в сервере: его нет на порту 27017. Сервер в контейнере поднимается командой <code>docker compose up -d</code> вместе с базами курса и mongo-express на <code>localhost:8081</code>. Код запускается командой <code>docker compose run --rm</code> с путём к файлу, а адрес сервера везде один — <code>mongodb://localhost:27017</code>. Если не ставится и Docker Desktop, тот же стенд открывается в Codespaces. Дальше — снова к данным: глава 1.2 о том, как устроен документ.</p>
 
         <div class="pager"><a href="../01-klient-baza-kollekciya/index.html">← 1.1 Сервер, база, коллекция</a><a href="../02-dokument-i-bson/index.html">1.2 Документ и BSON →</a></div>
 

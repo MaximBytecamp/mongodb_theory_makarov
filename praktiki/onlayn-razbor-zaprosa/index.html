@@ -119,31 +119,31 @@
 
         <div class="margin-note">
           <b>Данные наружу</b>
-          <p>Вставленный план уходит на чужой сайт, а ссылка на него доступна любому, кто её получил. Данные на стенде учебные, поэтому здесь ограничений нет. На рабочем проекте перед вставкой из плана убирают значения фильтра: в поле <code>command</code> видны реальные параметры запроса.</p>
+          <p>Вставленный план уходит на чужой сайт, а ссылка на него доступна любому, кто её получил. На стенде лежат данные курса, поэтому здесь ограничений нет. На рабочем проекте перед вставкой из плана убирают значения фильтра: в поле <code>command</code> видны реальные параметры запроса.</p>
         </div>
 
         <h2 id="s3"><span class="sec">§3</span>Стенд и три способа снять план</h2>
-        <p>Работа идёт на базе <code>logs</code> учебного стенда. Стенд поднимается один раз и дальше используется без перезапуска.</p>
+        <p>Работа идёт на базе <code>logs</code> стенда курса. Стенд поднимается один раз и дальше используется без перезапуска.</p>
 
         <figure class="code" data-os="win">
           <figcaption><span>PowerShell</span><span>стенд: один раз в начале работы</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice
-docker compose up -d                      <span class="c"># сервер, учебные базы и mongo-express</span>
+docker compose up -d                      <span class="c"># сервер, базы курса и mongo-express</span>
 docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span></pre>
         </figure>
         <figure class="code" data-os="mac">
           <figcaption><span>Терминал</span><span>стенд: один раз в начале работы</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice
-docker compose up -d                      <span class="c"># сервер, учебные базы и mongo-express</span>
+docker compose up -d                      <span class="c"># сервер, базы курса и mongo-express</span>
 docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span></pre>
         </figure>
         <figure class="code" data-os="linux">
           <figcaption><span>Терминал</span><span>стенд: один раз в начале работы</span></figcaption>
 <pre>git clone https://github.com/MaximBytecamp/mongodb-practice.git
 <span class="k">cd</span> mongodb-practice
-docker compose up -d                      <span class="c"># сервер, учебные базы и mongo-express</span>
+docker compose up -d                      <span class="c"># сервер, базы курса и mongo-express</span>
 docker compose run --rm reset             <span class="c"># исходное состояние: 1200 событий, индексов нет</span></pre>
         </figure>
 
@@ -349,7 +349,7 @@ FAYL = <span class="s">"plan-1.json"</span></pre>
               <tr><td><code>nReturned</code></td><td>Сколько документов запрос вернул</td><td>Совпадает ли с тем, что вы получили в оболочке. Если нет — разбирается чужой план</td></tr>
               <tr><td><code>totalDocsExamined</code></td><td>Сколько документов сервер прочитал</td><td>Равно числу документов в коллекции — значит, был полный перебор</td></tr>
               <tr><td><code>totalKeysExamined</code></td><td>Сколько записей индекса просмотрено</td><td>Ноль означает, что индекс не использован совсем</td></tr>
-              <tr><td><code>executionTimeMillis</code></td><td>Сколько заняло выполнение</td><td>На учебной коллекции всегда около нуля. Выводы по этому числу здесь не делают</td></tr>
+              <tr><td><code>executionTimeMillis</code></td><td>Сколько заняло выполнение</td><td>На коллекции стенда всегда около нуля. Выводы по этому числу здесь не делают</td></tr>
               <tr><td>Document Efficiency</td><td>Доля прочитанного, которая пригодилась: <code>nReturned</code> к <code>totalDocsExamined</code></td><td>2,8% со знаком предупреждения: из ста прочитанных документов нужными оказались три</td></tr>
               <tr><td>Index Efficiency</td><td>То же для записей индекса</td><td><code>N/A</code>, пока индекса нет. После создания индекса здесь появится процент</td></tr>
               <tr><td>Has Sort?</td><td>Есть ли в запросе сортировка</td><td>Отвечает на вопрос, участвует ли в разборе буква S правила ESR</td></tr>
