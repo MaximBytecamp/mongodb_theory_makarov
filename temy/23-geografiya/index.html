@@ -929,7 +929,7 @@ circle = { <span class="s">"location"</span> =&gt; { <span class="s">"$geoWithin
         <h3>Итог главы</h3>
         <p>Точка на карте хранится как GeoJSON: <code>{"type": "Point", "coordinates": [долгота, широта]}</code>, область — как <code>Polygon</code> с замкнутым контуром. Индекс <code>2dsphere</code> обязателен для <code>$near</code>, который возвращает документы от ближнего к дальнему и ограничивает расстояние параметром <code>$maxDistance</code> в метрах. <code>$geoWithin</code> отбирает точки внутри круга (<code>$centerSphere</code>, радиус в радианах — километры, делённые на 6378,1) или многоугольника, без порядка по расстоянию. <code>$geoIntersects</code> находит области, в которые попадает точка, — так определяют зону доставки. Перепутанные долгота и широта дают точку в другом месте без ошибки, и только широта больше 90° отклоняется индексом с ошибкой 16755.</p>
 
-        <div class="pager"><a href="../22-tekstovyy-poisk/index.html">← 3.4 Текстовый поиск</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../22-tekstovyy-poisk/index.html">← 3.4 Текстовый поиск</a><a href="../24-skript-audit/index.html">3.6 Скрипт целиком →</a></div>
 
         <div class="colophon">
           <span>Глава 3.5 · Справочник по MongoDB</span>

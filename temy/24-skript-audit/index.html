@@ -1,0 +1,2268 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>3.6 Скрипт целиком: аудит журнала сервиса · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Форма данных и скорость</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · форма данных и скорость</p>
+          <p class="running__folio">3.6</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">3.6</span>
+          <h1>Скрипт целиком:<br>аудит журнала сервиса</h1>
+          <p class="lead">В этой главе разобрана готовая программа, которая собирает приёмы модуля 3 в одну задачу. Скрипт копирует журнал сервиса в песочницу, проверяет события правилом и включает его как валидатор, снимает планы трёх запросов дежурного, строит под них индексы и печатает, сколько сервер читал до индексов и сколько после. Скрипт разобран по частям, затем приведён целиком вместе с выводом.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Форма данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Правила <code>$jsonSchema</code> (глава 3.1), индексы (глава 3.2), план запроса и правило ESR (глава 3.3)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Видеть, как правило, индексы и проверка плана складываются в одну рабочую процедуру</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Скрипт пересоздаёт коллекцию <code>sandbox.audit</code> при каждом запуске. Сбрасывать базы перед запуском не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-3.6-python.zip" download><code>mongodb-glava-3.6-python.zip</code></a>, 58 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-3.6-ruby.zip" download><code>mongodb-glava-3.6-ruby.zip</code></a>, 57 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-3.6-go.zip" download><code>mongodb-glava-3.6-go.zip</code></a>, 61 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-3.6-cpp.zip" download><code>mongodb-glava-3.6-cpp.zip</code></a>, 59 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>scripts/logs_audit.py</code></span><span data-lang="ruby"><code>scripts/logs_audit.rb</code></span><span data-lang="go"><code>scripts/logs_audit.go</code></span><span data-lang="cpp"><code>scripts/logs_audit.cpp</code></span> в репозитории практик — готовая программа, вставлять в неё ничего не нужно.</span></div>
+          <div class="runbox__row"><b>Запуск</b><span>Из корня репозитория практик: <span data-lang="python"><code>docker compose run --rm python scripts/logs_audit.py</code></span><span data-lang="ruby"><code>docker compose run --rm ruby scripts/logs_audit.rb</code></span><span data-lang="go"><code>docker compose run --rm go scripts/logs_audit.go</code></span><span data-lang="cpp"><code>docker compose run --rm cpp scripts/logs_audit.cpp</code></span>. Запуск на своём сервере — в §10.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Что делает скрипт</a></li>
+            <li><a href="#s2">Подключение и функция summary</a></li>
+            <li><a href="#s3">Копия журнала и правило для событий</a></li>
+            <li><a href="#s4">Неверные события</a></li>
+            <li><a href="#s5">Запросы дежурного без индексов</a></li>
+            <li><a href="#s6">Индексы и те же запросы</a></li>
+            <li><a href="#s7">Найденные события</a></li>
+            <li><a href="#s8">Что показал отчёт</a></li>
+            <li><a href="#s9">Скрипт целиком</a></li>
+            <li><a href="#s10">Как запустить</a></li>
+            <li><a href="#s11">Частые ошибки</a></li>
+            <li><a href="#s12">Проверьте себя</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Что делает скрипт</h2>
+        <p>Скрипт <code>logs_audit</code> решает задачу администратора базы: журнал событий сервиса растёт, дежурные жалуются на медленные запросы, а в журнал иногда попадают события с неверными полями. Нужно описать, каким должно быть событие, запретить запись неверных, выяснить, как сервер выполняет запросы дежурных, и ускорить их индексами. Результат проверяется числами из отчёта сервера.</p>
+        <p>Семь разделов отчёта — приёмы трёх глав модуля.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Раздел отчёта</th><th>Что используется</th><th>Глава</th></tr></thead>
+            <tbody>
+              <tr><td>1. Копия журнала</td><td>копия коллекции в песочнице, список индексов</td><td>3.2</td></tr>
+              <tr><td>2. Правило для событий</td><td><code>$jsonSchema</code> в фильтре, <code>$nor</code>, <code>collMod</code></td><td>3.1</td></tr>
+              <tr><td>3. Неверные события</td><td>отказ с кодом 121, причины из <code>errInfo</code></td><td>3.1</td></tr>
+              <tr><td>4. Запросы без индексов</td><td><code>explain</code>, стадии плана, три счётчика</td><td>3.3</td></tr>
+              <tr><td>5. Индексы</td><td>составные индексы по правилу ESR</td><td>3.2, 3.3</td></tr>
+              <tr><td>6. Запросы с индексами</td><td>тот же отчёт <code>explain</code> для сравнения</td><td>3.3</td></tr>
+              <tr><td>7. Последние ошибки платежей</td><td>запрос с сортировкой и пределом</td><td>1.6, 2.2</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Скрипт работает с копией журнала — коллекцией <code>sandbox.audit</code> — и пересоздаёт её при каждом запуске. База <code>logs</code> остаётся без изменений, сбрасывать базы перед запуском не нужно.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Подключение и функция summary</h2>
+        <p>Начало скрипта — подключение, коллекция журнала <code>events</code> из базы <code>logs</code>, база <code>sandbox</code> и коллекция <code>audit</code> в ней. Функция <code>title</code> печатает заголовок раздела отчёта с подчёркиванием. Функция <code>summary</code> — та же, что в заготовке главы 3.3: она отправляет команду <code>explain</code> для запроса и возвращает стадии выбранного плана и три счётчика. Здесь она возвращает четыре значения по отдельности, чтобы отчёт напечатал их столбцами.</p>
+        <p data-lang="go">В Go над <code>main</code> объявлены также запросы дежурного (<code>queries</code>), функция <code>report</code> и тип <code>schemaRule</code> для разбора <code>errInfo</code>: функции и типы в Go объявляются вне <code>main</code>. Они разобраны в §4 и §5.</p>
+        <p data-lang="cpp">В C++ над <code>main</code> объявлены также запросы дежурного (функция <code>queries</code>), функция <code>report</code> и вспомогательные <code>pad</code>, <code>right</code> и <code>number</code>: функции в C++ объявляются вне <code>main</code>. Запросы и <code>report</code> разобраны в §5.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>подключение и функция summary</span></figcaption>
+<pre><span class="k">import</span> os
+<span class="k">from</span> datetime <span class="k">import</span> datetime
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+<span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>]
+sandbox = client[<span class="s">"sandbox"</span>]
+audit = sandbox[<span class="s">"audit"</span>]
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))
+
+
+<span class="k">def</span> <span class="f">summary</span>(find):
+    <span class="s">""</span><span class="s">"План и счётчики explain: стадии сверху вниз, вернул, ключей, документов."</span><span class="s">""</span>
+    info = sandbox.<span class="f">command</span>(<span class="s">"explain"</span>, {<span class="s">"find"</span>: <span class="s">"audit"</span>, **find}, verbosity=<span class="s">"executionStats"</span>)
+    stage = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+    stage = stage.<span class="f">get</span>(<span class="s">"queryPlan"</span>, stage)
+    steps = []
+    <span class="k">while</span> stage:
+        steps.<span class="f">append</span>(stage[<span class="s">"stage"</span>] + (<span class="s">" "</span> + stage[<span class="s">"indexName"</span>] <span class="k">if</span> <span class="s">"indexName"</span> <span class="k">in</span> stage <span class="k">else</span> <span class="s">""</span>))
+        stage = stage.<span class="f">get</span>(<span class="s">"inputStage"</span>)
+    stats = info[<span class="s">"executionStats"</span>]
+    <span class="k">return</span> <span class="s">" → "</span>.<span class="f">join</span>(steps), stats[<span class="s">"nReturned"</span>], stats[<span class="s">"totalKeysExamined"</span>], stats[<span class="s">"totalDocsExamined"</span>]</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>подключение и функция summary</span></figcaption>
+<pre>#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdint&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;ctime&gt;
+#<span class="k">include</span> &lt;iomanip&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;sstream&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;tuple&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/json.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/collection.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/exception/operation_exception.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/options/find.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_array;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Число из ответа сервера: счётчики приходят как int32 или int64.</span>
+<span class="k">std</span>::int64_t <span class="f">number</span>(bsoncxx::document::element value) {
+    <span class="k">return</span> value.<span class="f">type</span>() == bsoncxx::type::k_int64 ? value.<span class="f">get_int64</span>().value : value.<span class="f">get_int32</span>().value;
+}
+
+<span class="c">// План и счётчики explain: стадии сверху вниз, вернул, ключей, документов.</span>
+<span class="k">std</span>::tuple&lt;<span class="k">std</span>::string, <span class="k">std</span>::int64_t, <span class="k">std</span>::int64_t, <span class="k">std</span>::int64_t&gt; <span class="f">summary</span>(mongocxx::database&amp; sandbox,
+                                                                          bsoncxx::document::view find) {
+    bsoncxx::builder::basic::document cmd;
+    cmd.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"find"</span>, <span class="s">"audit"</span>));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : find) cmd.<span class="f">append</span>(<span class="f">kvp</span>(field.<span class="f">key</span>(), field.<span class="f">get_value</span>()));
+    <span class="k">auto</span> info = sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"explain"</span>, cmd.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"verbosity"</span>, <span class="s">"executionStats"</span>)));
+    <span class="k">auto</span> stage = info.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>].<span class="f">get_document</span>().value;
+    <span class="k">if</span> (stage[<span class="s">"queryPlan"</span>]) stage = stage[<span class="s">"queryPlan"</span>].<span class="f">get_document</span>().value;
+    <span class="k">std</span>::string steps;
+    while (<span class="k">true</span>) {
+        steps += <span class="k">std</span>::string{stage[<span class="s">"stage"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (stage[<span class="s">"indexName"</span>]) steps += <span class="s">" "</span> + <span class="k">std</span>::string{stage[<span class="s">"indexName"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (!stage[<span class="s">"inputStage"</span>]) break;
+        steps += <span class="s">" → "</span>;
+        stage = stage[<span class="s">"inputStage"</span>].<span class="f">get_document</span>().value;
+    }
+    <span class="k">auto</span> stats = info.<span class="f">view</span>()[<span class="s">"executionStats"</span>].<span class="f">get_document</span>().value;
+    <span class="k">return</span> {steps, <span class="f">number</span>(stats[<span class="s">"nReturned"</span>]), <span class="f">number</span>(stats[<span class="s">"totalKeysExamined"</span>]), <span class="f">number</span>(stats[<span class="s">"totalDocsExamined"</span>])};
+}
+
+<span class="c">// Запросы дежурного: название и части команды find.</span>
+<span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; <span class="f">queries</span>() {
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; out;
+    out.<span class="f">emplace_back</span>(<span class="s">"ошибки платежей"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">5</span>)));
+    out.<span class="f">emplace_back</span>(<span class="s">"медленный поиск"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"search"</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">1000</span>))))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"duration_ms"</span>, -<span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">5</span>)));
+    out.<span class="f">emplace_back</span>(<span class="s">"события покупателя"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, <span class="s">"c-015"</span>))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)))));
+    <span class="k">return</span> out;
+}
+
+<span class="k">void</span> <span class="f">report</span>(mongocxx::database&amp; sandbox) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"запрос"</span>, <span class="n">20</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"вернул"</span>, <span class="n">6</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"ключей"</span>, <span class="n">7</span>) &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; <span class="f">right</span>(<span class="s">"документов"</span>, <span class="n">11</span>) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [name, find] : <span class="f">queries</span>()) {
+        <span class="k">auto</span> [plan, returned, keys, docs] = <span class="f">summary</span>(sandbox, find.<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(name, <span class="n">20</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">6</span>) &lt;&lt; returned &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">7</span>) &lt;&lt; keys &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">11</span>) &lt;&lt; docs &lt;&lt; <span class="k">std</span>::endl;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"      "</span> &lt;&lt; plan &lt;&lt; <span class="k">std</span>::endl;
+    }
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+
+    <span class="k">auto</span> events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>];
+    <span class="k">auto</span> sandbox = client[<span class="s">"sandbox"</span>];
+    <span class="k">auto</span> audit = sandbox[<span class="s">"audit"</span>];</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>подключение и функция summary</span></figcaption>
+<pre><span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"errors"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"time"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="c">// summary — план и счётчики explain: стадии сверху вниз, вернул, ключей, документов.</span>
+<span class="k">func</span> <span class="f">summary</span>(sandbox *mongo.Database, find bson.D) (<span class="k">string</span>, int64, int64, int64) {
+	cmd := <span class="k">append</span>(bson.D{{Key: <span class="s">"find"</span>, Value: <span class="s">"audit"</span>}}, find...)
+	<span class="k">var</span> info bson.Raw
+	sandbox.<span class="f">RunCommand</span>(context.<span class="f">Background</span>(),
+		bson.D{{Key: <span class="s">"explain"</span>, Value: cmd}, {Key: <span class="s">"verbosity"</span>, Value: <span class="s">"executionStats"</span>}}).<span class="f">Decode</span>(&amp;info)
+	stage := info.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"winningPlan"</span>).<span class="f">Document</span>()
+	<span class="k">if</span> inner, ok := stage.<span class="f">Lookup</span>(<span class="s">"queryPlan"</span>).<span class="f">DocumentOK</span>(); ok {
+		stage = inner
+	}
+	steps := []<span class="k">string</span>{}
+	<span class="k">for</span> {
+		step := stage.<span class="f">Lookup</span>(<span class="s">"stage"</span>).<span class="f">StringValue</span>()
+		<span class="k">if</span> name, ok := stage.<span class="f">Lookup</span>(<span class="s">"indexName"</span>).<span class="f">StringValueOK</span>(); ok {
+			step += <span class="s">" "</span> + name
+		}
+		steps = <span class="k">append</span>(steps, step)
+		next, ok := stage.<span class="f">Lookup</span>(<span class="s">"inputStage"</span>).<span class="f">DocumentOK</span>()
+		<span class="k">if</span> !ok {
+			break
+		}
+		stage = next
+	}
+	stats := info.<span class="f">Lookup</span>(<span class="s">"executionStats"</span>).<span class="f">Document</span>()
+	<span class="k">return</span> strings.<span class="f">Join</span>(steps, <span class="s">" → "</span>), stats.<span class="f">Lookup</span>(<span class="s">"nReturned"</span>).<span class="f">AsInt64</span>(),
+		stats.<span class="f">Lookup</span>(<span class="s">"totalKeysExamined"</span>).<span class="f">AsInt64</span>(), stats.<span class="f">Lookup</span>(<span class="s">"totalDocsExamined"</span>).<span class="f">AsInt64</span>()
+}
+
+<span class="c">// Запрос дежурного: название и части команды find.</span>
+<span class="k">type</span> query <span class="k">struct</span> {
+	name <span class="k">string</span>
+	find bson.D
+}
+
+<span class="k">var</span> queries = []query{
+	{<span class="s">"ошибки платежей"</span>, bson.D{
+		{Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}},
+		{Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}},
+		{Key: <span class="s">"limit"</span>, Value: <span class="n">5</span>}}},
+	{<span class="s">"медленный поиск"</span>, bson.D{
+		{Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"search"</span>}, {Key: <span class="s">"duration_ms"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">1000</span>}}}}},
+		{Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"duration_ms"</span>, Value: -<span class="n">1</span>}}},
+		{Key: <span class="s">"limit"</span>, Value: <span class="n">5</span>}}},
+	{<span class="s">"события покупателя"</span>, bson.D{
+		{Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"user_id"</span>, Value: <span class="s">"c-015"</span>}}},
+		{Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}}}},
+}
+
+<span class="k">func</span> <span class="f">report</span>(sandbox *mongo.Database) {
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %6s %7s %11s\n"</span>, <span class="f">pad</span>(<span class="s">"запрос"</span>, <span class="n">20</span>), <span class="s">"вернул"</span>, <span class="s">"ключей"</span>, <span class="s">"документов"</span>)
+	<span class="k">for</span> _, q := <span class="k">range</span> queries {
+		plan, returned, keys, docs := <span class="f">summary</span>(sandbox, q.find)
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %6d %7d %11d\n"</span>, <span class="f">pad</span>(q.name, <span class="n">20</span>), returned, keys, docs)
+		fmt.<span class="f">Println</span>(<span class="s">"      "</span> + plan)
+	}
+}
+
+<span class="c">// Причины отказа из errInfo: недостающие поля и нарушенные условия полей.</span>
+<span class="k">type</span> schemaRule <span class="k">struct</span> {
+	OperatorName           <span class="k">string</span>   `bson:<span class="s">"operatorName"</span>`
+	MissingProperties      []<span class="k">string</span> `bson:<span class="s">"missingProperties"</span>`
+	PropertiesNotSatisfied []<span class="k">struct</span> {
+		PropertyName <span class="k">string</span> `bson:<span class="s">"propertyName"</span>`
+		Details      []<span class="k">struct</span> {
+			OperatorName <span class="k">string</span> `bson:<span class="s">"operatorName"</span>`
+		} `bson:<span class="s">"details"</span>`
+	} `bson:<span class="s">"propertiesNotSatisfied"</span>`
+}
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	ctx := context.<span class="f">Background</span>()
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+	events := client.<span class="f">Database</span>(<span class="s">"logs"</span>).<span class="f">Collection</span>(<span class="s">"events"</span>)
+	sandbox := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>)
+	audit := sandbox.<span class="f">Collection</span>(<span class="s">"audit"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>подключение и функция summary</span></figcaption>
+<pre><span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+events = client.<span class="f">use</span>(<span class="s">"logs"</span>).database[:events]
+sandbox = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database
+audit = sandbox[:audit]
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="c"># План и счётчики explain: стадии сверху вниз, вернул, ключей, документов.</span>
+<span class="k">def</span> <span class="f">summary</span>(sandbox, find)
+  info = sandbox.<span class="f">command</span>(explain: { find: <span class="s">"audit"</span> }.<span class="f">merge</span>(find), verbosity: <span class="s">"executionStats"</span>).first
+  stage = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+  stage = stage[<span class="s">"queryPlan"</span>] || stage
+  steps = []
+  while stage
+    steps &lt;&lt; stage[<span class="s">"stage"</span>] + (stage[<span class="s">"indexName"</span>] ? <span class="s">" "</span> + stage[<span class="s">"indexName"</span>] : <span class="s">""</span>)
+    stage = stage[<span class="s">"inputStage"</span>]
+  <span class="k">end</span>
+  stats = info[<span class="s">"executionStats"</span>]
+  [steps.<span class="f">join</span>(<span class="s">" → "</span>), stats[<span class="s">"nReturned"</span>], stats[<span class="s">"totalKeysExamined"</span>], stats[<span class="s">"totalDocsExamined"</span>]]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Копия журнала и правило для событий</h2>
+        <p>Первый раздел пересоздаёт копию: удаляет <code>audit</code> вместе с индексами и правилом, оставшимися от прошлого запуска, и копирует в неё все события <code>logs.events</code>. Второй раздел описывает событие правилом <code>$jsonSchema</code>: шесть обязательных полей, время — дата, сервис и уровень — из списков, статус — целое от 100 до 599, длительность — число не меньше нуля.</p>
+        <p>До включения правило применяется как фильтр: скрипт считает события, которые ему соответствуют и не соответствуют. Так выполняется первый шаг порядка из главы 3.1, §8 — проверить данные правилом до того, как правило начнёт отклонять записи. Затем команда <code>collMod</code> включает правило с уровнем <code>strict</code> и действием <code>error</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>копия журнала и правило</span></figcaption>
+<pre><span class="c"># ── 1. Копия журнала ──────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>)
+
+audit.<span class="f">drop</span>()
+audit.<span class="f">insert_many</span>(events.<span class="f">find</span>())
+<span class="f">print</span>(f<span class="s">"  событий в копии: {audit.count_documents({})}"</span>)
+<span class="f">print</span>(f<span class="s">"  индексов: {len(list(audit.list_indexes()))}"</span>)
+
+<span class="c"># ── 2. Правило для событий ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Правило для событий"</span>)
+
+RULE = {
+    <span class="s">"bsonType"</span>: <span class="s">"object"</span>,
+    <span class="s">"required"</span>: [<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>],
+    <span class="s">"properties"</span>: {
+        <span class="s">"ts"</span>: {<span class="s">"bsonType"</span>: <span class="s">"date"</span>},
+        <span class="s">"service"</span>: {<span class="s">"enum"</span>: [<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>]},
+        <span class="s">"level"</span>: {<span class="s">"enum"</span>: [<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>]},
+        <span class="s">"route"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>},
+        <span class="s">"status"</span>: {<span class="s">"bsonType"</span>: <span class="s">"int"</span>, <span class="s">"minimum"</span>: <span class="n">100</span>, <span class="s">"maximum"</span>: <span class="n">599</span>},
+        <span class="s">"duration_ms"</span>: {<span class="s">"bsonType"</span>: <span class="s">"number"</span>, <span class="s">"minimum"</span>: <span class="n">0</span>},
+    },
+}
+<span class="f">print</span>(f<span class="s">"  соответствуют правилу:    {audit.count_documents({'$jsonSchema': RULE})}"</span>)
+<span class="f">print</span>(f<span class="s">"  не соответствуют правилу: {audit.count_documents({'$nor': [{'$jsonSchema': RULE}]})}"</span>)
+
+sandbox.<span class="f">command</span>(<span class="s">"collMod"</span>, <span class="s">"audit"</span>, validator={<span class="s">"$jsonSchema"</span>: RULE},
+                validationLevel=<span class="s">"strict"</span>, validationAction=<span class="s">"error"</span>)
+<span class="f">print</span>(<span class="s">"  правило включено: strict, error"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>копия журнала и правило</span></figcaption>
+<pre>    <span class="c">// ── 1. Копия журнала ──────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>);
+
+    audit.<span class="f">drop</span>();
+    <span class="k">std</span>::vector&lt;bsoncxx::document::value&gt; all;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : events.<span class="f">find</span>(<span class="f">make_document</span>())) all.<span class="f">emplace_back</span>(doc);
+    audit.<span class="f">insert_many</span>(all);
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  событий в копии: "</span> &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">int</span> indexes = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; ix : audit.<span class="f">list_indexes</span>()) {
+        (<span class="k">void</span>)ix;
+        ++indexes;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  индексов: "</span> &lt;&lt; indexes &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 2. Правило для событий ────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Правило для событий"</span>);
+
+    <span class="k">auto</span> rule = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"object"</span>),
+        <span class="f">kvp</span>(<span class="s">"required"</span>, <span class="f">make_array</span>(<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>)),
+        <span class="f">kvp</span>(<span class="s">"properties"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"ts"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"date"</span>))),
+            <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"enum"</span>, <span class="f">make_array</span>(<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>)))),
+            <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"enum"</span>, <span class="f">make_array</span>(<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>)))),
+            <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>))),
+            <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"int"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">100</span>), <span class="f">kvp</span>(<span class="s">"maximum"</span>, <span class="n">599</span>))),
+            <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"number"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">0</span>))))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  соответствуют правилу:    "</span>
+              &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, rule.<span class="f">view</span>()))) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  не соответствуют правилу: "</span>
+              &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nor"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, rule.<span class="f">view</span>()))))))
+              &lt;&lt; <span class="k">std</span>::endl;
+
+    sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"collMod"</span>, <span class="s">"audit"</span>),
+        <span class="f">kvp</span>(<span class="s">"validator"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, rule.<span class="f">view</span>()))),
+        <span class="f">kvp</span>(<span class="s">"validationLevel"</span>, <span class="s">"strict"</span>),
+        <span class="f">kvp</span>(<span class="s">"validationAction"</span>, <span class="s">"error"</span>)));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  правило включено: strict, error"</span> &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>копия журнала и правило</span></figcaption>
+<pre>	<span class="c">// ── 1. Копия журнала ──────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>)
+
+	audit.<span class="f">Drop</span>(ctx)
+	<span class="k">var</span> all []bson.D
+	cursor, _ := events.<span class="f">Find</span>(ctx, bson.D{})
+	cursor.<span class="f">All</span>(ctx, &amp;all)
+	docs := <span class="k">make</span>([]any, <span class="f">len</span>(all))
+	<span class="k">for</span> i := <span class="k">range</span> all {
+		docs[i] = all[i]
+	}
+	audit.<span class="f">InsertMany</span>(ctx, docs)
+	n, _ := audit.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"  событий в копии: %d\n"</span>, n)
+	specs, _ := audit.<span class="f">Indexes</span>().<span class="f">ListSpecifications</span>(ctx)
+	fmt.<span class="f">Printf</span>(<span class="s">"  индексов: %d\n"</span>, <span class="f">len</span>(specs))
+
+	<span class="c">// ── 2. Правило для событий ────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Правило для событий"</span>)
+
+	rule := bson.D{
+		{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"object"</span>},
+		{Key: <span class="s">"required"</span>, Value: bson.A{<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>}},
+		{Key: <span class="s">"properties"</span>, Value: bson.D{
+			{Key: <span class="s">"ts"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"date"</span>}}},
+			{Key: <span class="s">"service"</span>, Value: bson.D{{Key: <span class="s">"enum"</span>, Value: bson.A{<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>}}}},
+			{Key: <span class="s">"level"</span>, Value: bson.D{{Key: <span class="s">"enum"</span>, Value: bson.A{<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>}}}},
+			{Key: <span class="s">"route"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}}},
+			{Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"int"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">100</span>}, {Key: <span class="s">"maximum"</span>, Value: <span class="n">599</span>}}},
+			{Key: <span class="s">"duration_ms"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"number"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">0</span>}}},
+		}},
+	}
+	fits, _ := audit.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: rule}})
+	misfits, _ := audit.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$nor"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: rule}}}}})
+	fmt.<span class="f">Printf</span>(<span class="s">"  соответствуют правилу:    %d\n"</span>, fits)
+	fmt.<span class="f">Printf</span>(<span class="s">"  не соответствуют правилу: %d\n"</span>, misfits)
+
+	sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+		{Key: <span class="s">"collMod"</span>, Value: <span class="s">"audit"</span>},
+		{Key: <span class="s">"validator"</span>, Value: bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: rule}}},
+		{Key: <span class="s">"validationLevel"</span>, Value: <span class="s">"strict"</span>},
+		{Key: <span class="s">"validationAction"</span>, Value: <span class="s">"error"</span>}})
+	fmt.<span class="f">Println</span>(<span class="s">"  правило включено: strict, error"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>копия журнала и правило</span></figcaption>
+<pre><span class="c"># ── 1. Копия журнала ──────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>)
+
+audit.drop
+audit.<span class="f">insert_many</span>(events.find.to_a)
+<span class="k">puts</span> <span class="s">"  событий в копии: #{audit.count_documents({})}"</span>
+<span class="k">puts</span> <span class="s">"  индексов: #{audit.indexes.count}"</span>
+
+<span class="c"># ── 2. Правило для событий ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Правило для событий"</span>)
+
+RULE = {
+  <span class="s">"bsonType"</span> =&gt; <span class="s">"object"</span>,
+  <span class="s">"required"</span> =&gt; [<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>],
+  <span class="s">"properties"</span> =&gt; {
+    <span class="s">"ts"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"date"</span> },
+    <span class="s">"service"</span> =&gt; { <span class="s">"enum"</span> =&gt; [<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>] },
+    <span class="s">"level"</span> =&gt; { <span class="s">"enum"</span> =&gt; [<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>] },
+    <span class="s">"route"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span> },
+    <span class="s">"status"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"int"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">100</span>, <span class="s">"maximum"</span> =&gt; <span class="n">599</span> },
+    <span class="s">"duration_ms"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"number"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">0</span> },
+  },
+}.<span class="k">freeze</span>
+<span class="k">puts</span> <span class="s">"  соответствуют правилу:    #{audit.count_documents({ "</span>$jsonSchema<span class="s">" =&gt; RULE })}"</span>
+<span class="k">puts</span> <span class="s">"  не соответствуют правилу: #{audit.count_documents({ "</span>$nor<span class="s">" =&gt; [{ "</span>$jsonSchema<span class="s">" =&gt; RULE }] })}"</span>
+
+sandbox.<span class="f">command</span>(collMod: <span class="s">"audit"</span>, validator: { <span class="s">"$jsonSchema"</span> =&gt; RULE },
+                validationLevel: <span class="s">"strict"</span>, validationAction: <span class="s">"error"</span>)
+<span class="k">puts</span> <span class="s">"  правило включено: strict, error"</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>разделы 1 и 2 отчёта</span></figcaption>
+<pre>1. Копия журнала в песочнице
+────────────────────────────
+  событий в копии: 1200
+  индексов: 1
+
+2. Правило для событий
+──────────────────────
+  соответствуют правилу:    1200
+  не соответствуют правилу: 0
+  правило включено: strict, error</pre>
+        </figure>
+        <p>В копии 1200 событий и один индекс, <code>_id_</code>. Все 1200 событий соответствуют правилу, несоответствующих нет, поэтому правило включено сразу в строгом режиме. Если бы второе число было больше нуля, правило сначала включали бы с уровнем <code>moderate</code> и действием <code>warn</code>, а неверные события исправляли.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Неверные события</h2>
+        <p>Третий раздел проверяет, что правило действует: скрипт пробует записать три события, каждое с одной ошибкой — статус 700, уровень <code>fatal</code>, которого нет в списке, и событие без времени. Отказ сервера перехватывается, и из <code>errInfo</code> собирается короткая строка причин: для недостающих полей — «нет» и имя поля, для нарушенных условий — имя поля и ключевое слово правила. Разбор <code>errInfo</code> тот же, что в главе 3.1, §4.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>три неверных события</span></figcaption>
+<pre><span class="c"># ── 3. Проверка правила на записи ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Неверные события"</span>)
+
+good = {<span class="s">"ts"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">2</span>, <span class="n">18</span>, <span class="n">30</span>), <span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"level"</span>: <span class="s">"error"</span>,
+        <span class="s">"route"</span>: <span class="s">"/api/pay"</span>, <span class="s">"status"</span>: <span class="n">500</span>, <span class="s">"duration_ms"</span>: <span class="n">300</span>}
+wrong = [
+    (<span class="s">"статус 700"</span>, {**good, <span class="s">"status"</span>: <span class="n">700</span>}),
+    (<span class="s">"уровень fatal"</span>, {**good, <span class="s">"level"</span>: <span class="s">"fatal"</span>}),
+    (<span class="s">"без времени"</span>, {key: value <span class="k">for</span> key, value <span class="k">in</span> good.<span class="f">items</span>() <span class="k">if</span> key != <span class="s">"ts"</span>}),
+]
+<span class="k">for</span> label, doc <span class="k">in</span> wrong:
+    try:
+        audit.<span class="f">insert_one</span>(doc)
+        <span class="f">print</span>(f<span class="s">"  {label:14} записано"</span>)
+    except WriteError <span class="k">as</span> e:
+        reasons = []
+        <span class="k">for</span> rule <span class="k">in</span> e.details[<span class="s">"errInfo"</span>][<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>]:
+            <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"required"</span>:
+                reasons += [f<span class="s">"нет {name}"</span> <span class="k">for</span> name <span class="k">in</span> rule[<span class="s">"missingProperties"</span>]]
+            <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"properties"</span>:
+                <span class="k">for</span> prop <span class="k">in</span> rule[<span class="s">"propertiesNotSatisfied"</span>]:
+                    reasons += [f<span class="s">"{prop['propertyName']}: {d['operatorName']}"</span> <span class="k">for</span> d <span class="k">in</span> prop[<span class="s">"details"</span>]]
+        <span class="f">print</span>(f<span class="s">"  {label:14} отклонено, код {e.code}: {', '.join(reasons)}"</span>)
+<span class="f">print</span>(f<span class="s">"  событий в копии: {audit.count_documents({})}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>три неверных события</span></figcaption>
+<pre>    <span class="c">// ── 3. Проверка правила на записи ─────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Неверные события"</span>);
+
+    <span class="k">auto</span> ts = bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{<span class="n">1788373800000</span>}};   <span class="c">// 02.09.2026 18:30 UTC</span>
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; wrong;
+    wrong.<span class="f">emplace_back</span>(<span class="s">"статус 700"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, ts), <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"error"</span>),
+                                                   <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="s">"/api/pay"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">700</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="n">300</span>)));
+    wrong.<span class="f">emplace_back</span>(<span class="s">"уровень fatal"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, ts), <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"fatal"</span>),
+                                                      <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="s">"/api/pay"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">500</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="n">300</span>)));
+    wrong.<span class="f">emplace_back</span>(<span class="s">"без времени"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"error"</span>),
+                                                    <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="s">"/api/pay"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">500</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="n">300</span>)));
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [label, doc] : wrong) {
+        try {
+            audit.<span class="f">insert_one</span>(doc.<span class="f">view</span>());
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(label, <span class="n">14</span>) &lt;&lt; <span class="s">" записано"</span> &lt;&lt; <span class="k">std</span>::endl;
+        } catch (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+            <span class="k">std</span>::string reasons;
+            <span class="k">auto</span> add = [&amp;](<span class="k">const</span> <span class="k">std</span>::string&amp; text) { reasons += (reasons.<span class="f">empty</span>() ? <span class="s">""</span> : <span class="s">", "</span>) + text; };
+            <span class="k">auto</span> info = e.<span class="f">raw_server_error</span>()-&gt;<span class="f">view</span>()[<span class="s">"writeErrors"</span>][<span class="n">0</span>][<span class="s">"errInfo"</span>];
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; item : info[<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>].<span class="f">get_array</span>().value) {
+                <span class="k">auto</span> r = item.<span class="f">get_document</span>().value;
+                <span class="k">std</span>::string op{r[<span class="s">"operatorName"</span>].<span class="f">get_string</span>().value};
+                <span class="k">if</span> (op == <span class="s">"required"</span>) {
+                    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; name : r[<span class="s">"missingProperties"</span>].<span class="f">get_array</span>().value)
+                        <span class="f">add</span>(<span class="s">"нет "</span> + <span class="k">std</span>::string{name.<span class="f">get_string</span>().value});
+                }
+                <span class="k">if</span> (op == <span class="s">"properties"</span>) {
+                    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; prop : r[<span class="s">"propertiesNotSatisfied"</span>].<span class="f">get_array</span>().value)
+                        <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; d : prop[<span class="s">"details"</span>].<span class="f">get_array</span>().value)
+                            <span class="f">add</span>(<span class="k">std</span>::string{prop[<span class="s">"propertyName"</span>].<span class="f">get_string</span>().value} + <span class="s">": "</span> +
+                                <span class="k">std</span>::string{d[<span class="s">"operatorName"</span>].<span class="f">get_string</span>().value});
+                }
+            }
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(label, <span class="n">14</span>) &lt;&lt; <span class="s">" отклонено, код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; <span class="s">": "</span> &lt;&lt; reasons &lt;&lt; <span class="k">std</span>::endl;
+        }
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  событий в копии: "</span> &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>три неверных события</span></figcaption>
+<pre>	<span class="c">// ── 3. Проверка правила на записи ─────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Неверные события"</span>)
+
+	event := <span class="k">func</span>(key <span class="k">string</span>, value any) bson.D {
+		doc := bson.D{
+			{Key: <span class="s">"ts"</span>, Value: time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">2</span>, <span class="n">18</span>, <span class="n">30</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)},
+			{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>},
+			{Key: <span class="s">"level"</span>, Value: <span class="s">"error"</span>},
+			{Key: <span class="s">"route"</span>, Value: <span class="s">"/api/pay"</span>},
+			{Key: <span class="s">"status"</span>, Value: <span class="n">500</span>},
+			{Key: <span class="s">"duration_ms"</span>, Value: <span class="n">300</span>}}
+		out := bson.D{}
+		<span class="k">for</span> _, field := <span class="k">range</span> doc {
+			<span class="k">if</span> field.Key != key {
+				out = <span class="k">append</span>(out, field)
+			} <span class="k">else</span> <span class="k">if</span> value != <span class="k">nil</span> {
+				out = <span class="k">append</span>(out, bson.E{Key: key, Value: value})
+			}
+		}
+		<span class="k">return</span> out
+	}
+	wrong := []<span class="k">struct</span> {
+		label <span class="k">string</span>
+		doc   bson.D
+	}{
+		{<span class="s">"статус 700"</span>, <span class="f">event</span>(<span class="s">"status"</span>, <span class="n">700</span>)},
+		{<span class="s">"уровень fatal"</span>, <span class="f">event</span>(<span class="s">"level"</span>, <span class="s">"fatal"</span>)},
+		{<span class="s">"без времени"</span>, <span class="f">event</span>(<span class="s">"ts"</span>, <span class="k">nil</span>)},
+	}
+	<span class="k">for</span> _, w := <span class="k">range</span> wrong {
+		_, err := audit.<span class="f">InsertOne</span>(ctx, w.doc)
+		<span class="k">var</span> we mongo.WriteException
+		<span class="k">if</span> !errors.<span class="f">As</span>(err, &amp;we) {
+			fmt.<span class="f">Printf</span>(<span class="s">"  %s записано\n"</span>, <span class="f">pad</span>(w.label, <span class="n">14</span>))
+			continue
+		}
+		<span class="k">var</span> info <span class="k">struct</span> {
+			Details <span class="k">struct</span> {
+				Rules []schemaRule `bson:<span class="s">"schemaRulesNotSatisfied"</span>`
+			} `bson:<span class="s">"details"</span>`
+		}
+		bson.<span class="f">Unmarshal</span>(we.WriteErrors[<span class="n">0</span>].Details, &amp;info)
+		reasons := []<span class="k">string</span>{}
+		<span class="k">for</span> _, r := <span class="k">range</span> info.Details.Rules {
+			<span class="k">if</span> r.OperatorName == <span class="s">"required"</span> {
+				<span class="k">for</span> _, name := <span class="k">range</span> r.MissingProperties {
+					reasons = <span class="k">append</span>(reasons, <span class="s">"нет "</span>+name)
+				}
+			}
+			<span class="k">if</span> r.OperatorName == <span class="s">"properties"</span> {
+				<span class="k">for</span> _, prop := <span class="k">range</span> r.PropertiesNotSatisfied {
+					<span class="k">for</span> _, d := <span class="k">range</span> prop.Details {
+						reasons = <span class="k">append</span>(reasons, prop.PropertyName+<span class="s">": "</span>+d.OperatorName)
+					}
+				}
+			}
+		}
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s отклонено, код %d: %s\n"</span>, <span class="f">pad</span>(w.label, <span class="n">14</span>), we.WriteErrors[<span class="n">0</span>].Code, strings.<span class="f">Join</span>(reasons, <span class="s">", "</span>))
+	}
+	n, _ = audit.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"  событий в копии: %d\n"</span>, n)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>три неверных события</span></figcaption>
+<pre><span class="c"># ── 3. Проверка правила на записи ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Неверные события"</span>)
+
+good = { <span class="s">"ts"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">2</span>, <span class="n">18</span>, <span class="n">30</span>), <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"level"</span> =&gt; <span class="s">"error"</span>,
+         <span class="s">"route"</span> =&gt; <span class="s">"/api/pay"</span>, <span class="s">"status"</span> =&gt; <span class="n">500</span>, <span class="s">"duration_ms"</span> =&gt; <span class="n">300</span> }
+wrong = [
+  [<span class="s">"статус 700"</span>, good.<span class="f">merge</span>(<span class="s">"status"</span> =&gt; <span class="n">700</span>)],
+  [<span class="s">"уровень fatal"</span>, good.<span class="f">merge</span>(<span class="s">"level"</span> =&gt; <span class="s">"fatal"</span>)],
+  [<span class="s">"без времени"</span>, good.reject { |key, _| key == <span class="s">"ts"</span> }],
+]
+wrong.<span class="k">each</span> <span class="k">do</span> |label, doc|
+  begin
+    audit.<span class="f">insert_one</span>(doc)
+    <span class="k">puts</span> <span class="s">"  #{label.ljust(14)} записано"</span>
+  rescue Mongo::Error::OperationFailure =&gt; e
+    reasons = []
+    e.details[<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>].<span class="k">each</span> <span class="k">do</span> |rule|
+      <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"required"</span>
+        reasons += rule[<span class="s">"missingProperties"</span>].map { |name| <span class="s">"нет #{name}"</span> }
+      <span class="k">end</span>
+      <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"properties"</span>
+        rule[<span class="s">"propertiesNotSatisfied"</span>].<span class="k">each</span> <span class="k">do</span> |prop|
+          reasons += prop[<span class="s">"details"</span>].map { |d| <span class="s">"#{prop["</span>propertyName<span class="s">"]}: #{d["</span>operatorName<span class="s">"]}"</span> }
+        <span class="k">end</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+    <span class="k">puts</span> <span class="s">"  #{label.ljust(14)} отклонено, код #{e.code}: #{reasons.join("</span>, <span class="s">")}"</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  событий в копии: #{audit.count_documents({})}"</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 3 отчёта</span></figcaption>
+<pre>3. Неверные события
+───────────────────
+  статус 700     отклонено, код 121: status: maximum
+  уровень fatal  отклонено, код 121: level: enum
+  без времени    отклонено, код 121: нет ts
+  событий в копии: 1200</pre>
+        </figure>
+        <p>Все три события отклонены с кодом 121, и у каждого названа причина: у статуса нарушено <code>maximum</code>, у уровня — <code>enum</code>, в третьем событии нет поля <code>ts</code>. Событий в копии по-прежнему 1200.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Запросы дежурного без индексов</h2>
+        <p>Три запроса, которые дежурные выполняют чаще всего, записаны списком: название и части команды <code>find</code> — фильтр, сортировка, предел.</p>
+        <ul>
+          <li><b>ошибки платежей</b> — пять последних событий сервиса <code>payments</code> со статусом от 500;</li>
+          <li><b>медленный поиск</b> — пять самых долгих запросов сервиса <code>search</code> длительностью от секунды;</li>
+          <li><b>события покупателя</b> — все события покупателя <code>c-015</code>, новые первыми.</li>
+        </ul>
+        <p>Функция <code>report</code> проходит по списку, для каждого запроса вызывает <code>summary</code> и печатает строку таблицы — сколько документов запрос вернул, сколько ключей индекса и документов прочитано — и под ней стадии плана. Отчёт понадобится дважды, до индексов и после, поэтому он вынесен в функцию.</p>
+        <p data-lang="go">Список <code>queries</code> и функция <code>report</code> объявлены над <code>main</code> (§2); в этом разделе скрипта остаются заголовок и вызов.</p>
+        <p data-lang="cpp">Функции <code>queries</code> и <code>report</code> объявлены над <code>main</code> (§2); в этом разделе скрипта остаются заголовок и вызов.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>запросы дежурного и отчёт</span></figcaption>
+<pre><span class="c"># ── 4. Запросы дежурного без индексов ─────────────────────────────────────</span>
+QUERIES = [
+    (<span class="s">"ошибки платежей"</span>, {<span class="s">"filter"</span>: {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}},
+                         <span class="s">"sort"</span>: {<span class="s">"ts"</span>: -<span class="n">1</span>}, <span class="s">"limit"</span>: <span class="n">5</span>}),
+    (<span class="s">"медленный поиск"</span>, {<span class="s">"filter"</span>: {<span class="s">"service"</span>: <span class="s">"search"</span>, <span class="s">"duration_ms"</span>: {<span class="s">"$gte"</span>: <span class="n">1000</span>}},
+                         <span class="s">"sort"</span>: {<span class="s">"duration_ms"</span>: -<span class="n">1</span>}, <span class="s">"limit"</span>: <span class="n">5</span>}),
+    (<span class="s">"события покупателя"</span>, {<span class="s">"filter"</span>: {<span class="s">"user_id"</span>: <span class="s">"c-015"</span>}, <span class="s">"sort"</span>: {<span class="s">"ts"</span>: -<span class="n">1</span>}}),
+]
+
+
+<span class="k">def</span> <span class="f">report</span>():
+    <span class="f">print</span>(f<span class="s">"  {'запрос':20} {'вернул':&gt;6} {'ключей':&gt;7} {'документов':&gt;11}"</span>)
+    <span class="k">for</span> name, find <span class="k">in</span> QUERIES:
+        plan, returned, keys, docs = <span class="f">summary</span>(find)
+        <span class="f">print</span>(f<span class="s">"  {name:20} {returned:6} {keys:7} {docs:11}"</span>)
+        <span class="f">print</span>(f<span class="s">"      {plan}"</span>)
+
+
+<span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>)
+<span class="f">report</span>()</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>запросы дежурного и отчёт</span></figcaption>
+<pre>    <span class="c">// ── 4. Запросы дежурного без индексов ─────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>);
+    <span class="f">report</span>(sandbox);</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>запросы дежурного и отчёт</span></figcaption>
+<pre>	<span class="c">// ── 4. Запросы дежурного без индексов ─────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>)
+	<span class="f">report</span>(sandbox)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>запросы дежурного и отчёт</span></figcaption>
+<pre><span class="c"># ── 4. Запросы дежурного без индексов ─────────────────────────────────────</span>
+QUERIES = [
+  [<span class="s">"ошибки платежей"</span>, { filter: { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } },
+                        sort: { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }, limit: <span class="n">5</span> }],
+  [<span class="s">"медленный поиск"</span>, { filter: { <span class="s">"service"</span> =&gt; <span class="s">"search"</span>, <span class="s">"duration_ms"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">1000</span> } },
+                        sort: { <span class="s">"duration_ms"</span> =&gt; -<span class="n">1</span> }, limit: <span class="n">5</span> }],
+  [<span class="s">"события покупателя"</span>, { filter: { <span class="s">"user_id"</span> =&gt; <span class="s">"c-015"</span> }, sort: { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> } }],
+].<span class="k">freeze</span>
+
+<span class="k">def</span> <span class="f">report</span>(sandbox)
+  <span class="k">puts</span> <span class="s">"  #{"</span>запрос<span class="s">".ljust(20)} #{"</span>вернул<span class="s">".rjust(6)} #{"</span>ключей<span class="s">".rjust(7)} #{"</span>документов<span class="s">".rjust(11)}"</span>
+  QUERIES.<span class="k">each</span> <span class="k">do</span> |name, find|
+    plan, returned, keys, docs = <span class="f">summary</span>(sandbox, find)
+    <span class="k">puts</span> <span class="s">"  #{name.ljust(20)} #{returned.to_s.rjust(6)} #{keys.to_s.rjust(7)} #{docs.to_s.rjust(11)}"</span>
+    <span class="k">puts</span> <span class="s">"      #{plan}"</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>)
+<span class="f">report</span>(sandbox)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 4 отчёта</span></figcaption>
+<pre>4. Запросы дежурного без индексов
+─────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5       0        1200
+      SORT → COLLSCAN
+  медленный поиск           5       0        1200
+      SORT → COLLSCAN
+  события покупателя       32       0        1200
+      SORT → COLLSCAN</pre>
+        </figure>
+        <p>У всех трёх запросов план <code>SORT → COLLSCAN</code>: сервер читает все 1200 событий и сортирует подходящие в памяти. Первые два запроса возвращают по 5 документов, прочитав 1200.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Индексы и те же запросы</h2>
+        <p>Пятый раздел строит по индексу на каждый запрос, порядок полей — по правилу ESR из главы 3.3, §6: равенство, сортировка, диапазон.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Запрос</th><th>Равенство</th><th>Сортировка</th><th>Диапазон</th><th>Индекс</th></tr></thead>
+            <tbody>
+              <tr><td>ошибки платежей</td><td><code>service</code></td><td><code>ts</code> ↓</td><td><code>status</code></td><td><code>service, ts ↓, status</code></td></tr>
+              <tr><td>медленный поиск</td><td><code>service</code></td><td><code>duration_ms</code> ↓</td><td><code>duration_ms</code></td><td><code>service, duration_ms ↓</code></td></tr>
+              <tr><td>события покупателя</td><td><code>user_id</code></td><td><code>ts</code> ↓</td><td>—</td><td><code>user_id, ts ↓</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Во втором запросе сортировка и диапазон — по одному и тому же полю <code>duration_ms</code>, и в индексе оно стоит один раз. Шестой раздел вызывает <code>report</code> ещё раз, уже с индексами.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>индексы и повторный отчёт</span></figcaption>
+<pre><span class="c"># ── 5. Индексы по правилу ESR ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>)
+
+<span class="k">for</span> keys <span class="k">in</span> ([(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"ts"</span>, -<span class="n">1</span>), (<span class="s">"status"</span>, <span class="n">1</span>)],
+             [(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"duration_ms"</span>, -<span class="n">1</span>)],
+             [(<span class="s">"user_id"</span>, <span class="n">1</span>), (<span class="s">"ts"</span>, -<span class="n">1</span>)]):
+    <span class="f">print</span>(f<span class="s">"  создан {audit.create_index(keys)}"</span>)
+
+<span class="c"># ── 6. Те же запросы с индексами ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>)
+<span class="f">report</span>()</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>индексы и повторный отчёт</span></figcaption>
+<pre>    <span class="c">// ── 5. Индексы по правилу ESR ─────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>);
+
+    <span class="k">std</span>::vector&lt;bsoncxx::document::value&gt; keys;
+    keys.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)));
+    keys.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, -<span class="n">1</span>)));
+    keys.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; key : keys) {
+        <span class="k">auto</span> created = audit.<span class="f">create_index</span>(key.<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  создан "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 6. Те же запросы с индексами ──────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>);
+    <span class="f">report</span>(sandbox);</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>индексы и повторный отчёт</span></figcaption>
+<pre>	<span class="c">// ── 5. Индексы по правилу ESR ─────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>)
+
+	<span class="k">for</span> _, keys := <span class="k">range</span> []bson.D{
+		{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}},
+		{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"duration_ms"</span>, Value: -<span class="n">1</span>}},
+		{{Key: <span class="s">"user_id"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}},
+	} {
+		name, _ := audit.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: keys})
+		fmt.<span class="f">Println</span>(<span class="s">"  создан "</span> + name)
+	}
+
+	<span class="c">// ── 6. Те же запросы с индексами ──────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>)
+	<span class="f">report</span>(sandbox)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>индексы и повторный отчёт</span></figcaption>
+<pre><span class="c"># ── 5. Индексы по правилу ESR ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>)
+
+[{ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> },
+ { <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"duration_ms"</span> =&gt; -<span class="n">1</span> },
+ { <span class="s">"user_id"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }].<span class="k">each</span> <span class="k">do</span> |keys|
+  audit.indexes.<span class="f">create_one</span>(keys)
+  <span class="k">puts</span> <span class="s">"  создан #{audit.indexes.get(keys)["</span>name<span class="s">"]}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 6. Те же запросы с индексами ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>)
+<span class="f">report</span>(sandbox)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>разделы 5 и 6 отчёта</span></figcaption>
+<pre>5. Индексы: равенство, сортировка, диапазон
+───────────────────────────────────────────
+  создан service_1_ts_-1_status_1
+  создан service_1_duration_ms_-1
+  создан user_id_1_ts_-1
+
+6. Запросы дежурного с индексами
+────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5      18           5
+      LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1
+  медленный поиск           5       5           5
+      LIMIT → FETCH → IXSCAN service_1_duration_ms_-1
+  события покупателя       32      32          32
+      FETCH → IXSCAN user_id_1_ts_-1</pre>
+        </figure>
+        <p>Стадии <code>SORT</code> нет ни в одном плане. «Ошибки платежей»: прочитано 18 записей индекса и 5 документов вместо 1200. «Медленный поиск»: 5 и 5 — записи индекса уже упорядочены по убыванию длительности, и сервер берёт первые пять. «События покупателя»: 32 и 32 — столько же, сколько возвращено.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Найденные события</h2>
+        <p>Последний раздел выполняет первый запрос обычным <code>find</code> и печатает сами события: время, маршрут, статус и длительность. Отчёт <code>explain</code> документов не возвращает, поэтому результат запроса получают отдельным вызовом.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>пять последних ошибок платежей</span></figcaption>
+<pre><span class="c"># ── 7. Пять последних ошибок платежей ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>)
+
+name, find = QUERIES[<span class="n">0</span>]
+<span class="k">for</span> doc <span class="k">in</span> audit.<span class="f">find</span>(find[<span class="s">"filter"</span>]).<span class="f">sort</span>(<span class="s">"ts"</span>, -<span class="n">1</span>).<span class="f">limit</span>(find[<span class="s">"limit"</span>]):
+    <span class="f">print</span>(f<span class="s">"  {doc['ts']:%d.%m %H:%M:%S}  {doc['route']:18} {doc['status']}  {doc['duration_ms']:5} мс"</span>)
+
+client.<span class="f">close</span>()</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>пять последних ошибок платежей</span></figcaption>
+<pre>    <span class="c">// ── 7. Пять последних ошибок платежей ─────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>);
+
+    mongocxx::options::find newest;
+    newest.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)));
+    newest.<span class="f">limit</span>(<span class="n">5</span>);
+    <span class="k">auto</span> errors = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : audit.<span class="f">find</span>(errors.<span class="f">view</span>(), newest)) {
+        <span class="k">std</span>::time_t seconds = doc[<span class="s">"ts"</span>].<span class="f">get_date</span>().<span class="f">to_int64</span>() / <span class="n">1000</span>;
+        <span class="k">std</span>::ostringstream when;
+        when &lt;&lt; <span class="k">std</span>::<span class="f">put_time</span>(<span class="k">std</span>::<span class="f">gmtime</span>(&amp;seconds), <span class="s">"%d.%m %H:%M:%S"</span>);
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; when.<span class="f">str</span>() &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::string{doc[<span class="s">"route"</span>].<span class="f">get_string</span>().value}, <span class="n">18</span>) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="f">number</span>(doc[<span class="s">"status"</span>]) &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">5</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"duration_ms"</span>]) &lt;&lt; <span class="s">" мс"</span> &lt;&lt; <span class="k">std</span>::endl;
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>пять последних ошибок платежей</span></figcaption>
+<pre>	<span class="c">// ── 7. Пять последних ошибок платежей ─────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>)
+
+	filtr := queries[<span class="n">0</span>].find[<span class="n">0</span>].Value <span class="c">// фильтр первого запроса: первое поле его команды find</span>
+	last, _ := audit.<span class="f">Find</span>(ctx, filtr, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">5</span>))
+	<span class="k">for</span> last.<span class="f">Next</span>(ctx) {
+		doc := last.Current
+		ts := doc.<span class="f">Lookup</span>(<span class="s">"ts"</span>).<span class="f">Time</span>().<span class="f">UTC</span>()
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s  %s %d  %5d мс\n"</span>, ts.<span class="f">Format</span>(<span class="s">"02.01 15:04:05"</span>), <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"route"</span>).<span class="f">StringValue</span>(), <span class="n">18</span>),
+			doc.<span class="f">Lookup</span>(<span class="s">"status"</span>).<span class="f">AsInt64</span>(), doc.<span class="f">Lookup</span>(<span class="s">"duration_ms"</span>).<span class="f">AsInt64</span>())
+	}
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>пять последних ошибок платежей</span></figcaption>
+<pre><span class="c"># ── 7. Пять последних ошибок платежей ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>)
+
+_, find = QUERIES[<span class="n">0</span>]
+audit.<span class="f">find</span>(find[:filter]).<span class="f">sort</span>({ <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }).<span class="f">limit</span>(find[:limit]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc["</span>ts<span class="s">"].utc.strftime("</span>%d.%m %H:%M:%S<span class="s">")}  #{doc["</span>route<span class="s">"].ljust(18)} #{doc["</span>status<span class="s">"]}  "</span> \
+       <span class="s">"#{doc["</span>duration_ms<span class="s">"].to_s.rjust(5)} мс"</span>
+<span class="k">end</span>
+
+client.close</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 7 отчёта</span></figcaption>
+<pre>7. Пять последних ошибок платежей
+─────────────────────────────────
+  02.09 18:13:22  /api/orders        500    167 мс
+  02.09 18:07:16  /api/orders        503   1185 мс
+  02.09 17:21:47  /api/orders        500   2043 мс
+  02.09 17:04:34  /api/products      500    952 мс
+  02.09 14:53:42  /api/login         503   1288 мс</pre>
+        </figure>
+        <p>Пять событий идут от новых к старым. Время хранится в базе в UTC и печатается без перевода в местное.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Что показал отчёт</h2>
+        <p>Разделы 4 и 6 отчёта дают сравнение «до и после» в одних и тех же единицах — числе прочитанных документов.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Запрос</th><th>Вернул</th><th>Документов без индекса</th><th>Документов с индексом</th><th>Ключей с индексом</th></tr></thead>
+            <tbody>
+              <tr><td>ошибки платежей</td><td>5</td><td>1200</td><td>5</td><td>18</td></tr>
+              <tr><td>медленный поиск</td><td>5</td><td>1200</td><td>5</td><td>5</td></tr>
+              <tr><td>события покупателя</td><td>32</td><td>1200</td><td>32</td><td>32</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>В первом запросе ключей прочитано больше, чем документов: сервер идёт по событиям <code>payments</code> от новых к старым и проверяет статус по записи индекса, пока не наберёт пять подходящих; восемнадцать записей пришлось просмотреть, чтобы найти пять со статусом от 500. Документы при этом читаются только для подходящих записей.</p>
+        <p>У трёх индексов есть цена: каждая запись события в журнал теперь обновляет четыре индекса вместо одного (глава 3.2, §8). Для журнала, в который пишут чаще, чем читают, это существенно, поэтому индексы строят под запросы, которые выполняются часто.</p>
+        <figure class="shot">
+          <img src="../../shots/141-audit-indexes.png" alt="Compass, вкладка Indexes коллекции sandbox.audit после скрипта: _id_ 4,1 kB и три составных индекса размером 32,8, 28,7 и 36,9 kB">
+          <figcaption>Compass · <code>sandbox.audit</code>, вкладка <b>Indexes</b> после запуска скрипта</figcaption>
+        </figure>
+        <p>После запуска у коллекции четыре индекса. Три составных занимают 32,8, 28,7 и 36,9 kB — в сумме около 98 kB на 1200 событий, тогда как индекс <code>_id_</code> — 4,1 kB. Столбец <b>Usage</b> показывает, сколько раз индекс использовали запросы; индекс с нулём в этом столбце спустя недели работы — кандидат на удаление.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Скрипт целиком</h2>
+        <p>Ниже — тот же файл без пропусков, а под ним вывод его запуска на стенде курса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>скрипт целиком</span></figcaption>
+<pre><span class="s">""</span>"Аудит журнала сервиса: что умеют правила, индексы и explain из модуля <span class="n">3</span>.
+
+Скрипт работает с копией журнала logs.events в песочнице: проверяет события
+правилом $jsonSchema и включает его как валидатор, снимает планы трёх
+запросов дежурного, строит под них индексы по правилу ESR и сравнивает
+планы до и после. База logs остаётся без изменений.
+
+    cd scripts
+    python3 logs_audit.py
+
+    docker compose run --rm python scripts/logs_audit.py    <span class="c"># в контейнере</span>
+<span class="s">""</span>"
+
+<span class="k">import</span> os
+<span class="k">from</span> datetime <span class="k">import</span> datetime
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+<span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>]
+sandbox = client[<span class="s">"sandbox"</span>]
+audit = sandbox[<span class="s">"audit"</span>]
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))
+
+
+<span class="k">def</span> <span class="f">summary</span>(find):
+    <span class="s">""</span><span class="s">"План и счётчики explain: стадии сверху вниз, вернул, ключей, документов."</span><span class="s">""</span>
+    info = sandbox.<span class="f">command</span>(<span class="s">"explain"</span>, {<span class="s">"find"</span>: <span class="s">"audit"</span>, **find}, verbosity=<span class="s">"executionStats"</span>)
+    stage = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+    stage = stage.<span class="f">get</span>(<span class="s">"queryPlan"</span>, stage)
+    steps = []
+    <span class="k">while</span> stage:
+        steps.<span class="f">append</span>(stage[<span class="s">"stage"</span>] + (<span class="s">" "</span> + stage[<span class="s">"indexName"</span>] <span class="k">if</span> <span class="s">"indexName"</span> <span class="k">in</span> stage <span class="k">else</span> <span class="s">""</span>))
+        stage = stage.<span class="f">get</span>(<span class="s">"inputStage"</span>)
+    stats = info[<span class="s">"executionStats"</span>]
+    <span class="k">return</span> <span class="s">" → "</span>.<span class="f">join</span>(steps), stats[<span class="s">"nReturned"</span>], stats[<span class="s">"totalKeysExamined"</span>], stats[<span class="s">"totalDocsExamined"</span>]
+
+
+<span class="c"># ── 1. Копия журнала ──────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>)
+
+audit.<span class="f">drop</span>()
+audit.<span class="f">insert_many</span>(events.<span class="f">find</span>())
+<span class="f">print</span>(f<span class="s">"  событий в копии: {audit.count_documents({})}"</span>)
+<span class="f">print</span>(f<span class="s">"  индексов: {len(list(audit.list_indexes()))}"</span>)
+
+<span class="c"># ── 2. Правило для событий ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Правило для событий"</span>)
+
+RULE = {
+    <span class="s">"bsonType"</span>: <span class="s">"object"</span>,
+    <span class="s">"required"</span>: [<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>],
+    <span class="s">"properties"</span>: {
+        <span class="s">"ts"</span>: {<span class="s">"bsonType"</span>: <span class="s">"date"</span>},
+        <span class="s">"service"</span>: {<span class="s">"enum"</span>: [<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>]},
+        <span class="s">"level"</span>: {<span class="s">"enum"</span>: [<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>]},
+        <span class="s">"route"</span>: {<span class="s">"bsonType"</span>: <span class="s">"string"</span>},
+        <span class="s">"status"</span>: {<span class="s">"bsonType"</span>: <span class="s">"int"</span>, <span class="s">"minimum"</span>: <span class="n">100</span>, <span class="s">"maximum"</span>: <span class="n">599</span>},
+        <span class="s">"duration_ms"</span>: {<span class="s">"bsonType"</span>: <span class="s">"number"</span>, <span class="s">"minimum"</span>: <span class="n">0</span>},
+    },
+}
+<span class="f">print</span>(f<span class="s">"  соответствуют правилу:    {audit.count_documents({'$jsonSchema': RULE})}"</span>)
+<span class="f">print</span>(f<span class="s">"  не соответствуют правилу: {audit.count_documents({'$nor': [{'$jsonSchema': RULE}]})}"</span>)
+
+sandbox.<span class="f">command</span>(<span class="s">"collMod"</span>, <span class="s">"audit"</span>, validator={<span class="s">"$jsonSchema"</span>: RULE},
+                validationLevel=<span class="s">"strict"</span>, validationAction=<span class="s">"error"</span>)
+<span class="f">print</span>(<span class="s">"  правило включено: strict, error"</span>)
+
+<span class="c"># ── 3. Проверка правила на записи ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Неверные события"</span>)
+
+good = {<span class="s">"ts"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">2</span>, <span class="n">18</span>, <span class="n">30</span>), <span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"level"</span>: <span class="s">"error"</span>,
+        <span class="s">"route"</span>: <span class="s">"/api/pay"</span>, <span class="s">"status"</span>: <span class="n">500</span>, <span class="s">"duration_ms"</span>: <span class="n">300</span>}
+wrong = [
+    (<span class="s">"статус 700"</span>, {**good, <span class="s">"status"</span>: <span class="n">700</span>}),
+    (<span class="s">"уровень fatal"</span>, {**good, <span class="s">"level"</span>: <span class="s">"fatal"</span>}),
+    (<span class="s">"без времени"</span>, {key: value <span class="k">for</span> key, value <span class="k">in</span> good.<span class="f">items</span>() <span class="k">if</span> key != <span class="s">"ts"</span>}),
+]
+<span class="k">for</span> label, doc <span class="k">in</span> wrong:
+    try:
+        audit.<span class="f">insert_one</span>(doc)
+        <span class="f">print</span>(f<span class="s">"  {label:14} записано"</span>)
+    except WriteError <span class="k">as</span> e:
+        reasons = []
+        <span class="k">for</span> rule <span class="k">in</span> e.details[<span class="s">"errInfo"</span>][<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>]:
+            <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"required"</span>:
+                reasons += [f<span class="s">"нет {name}"</span> <span class="k">for</span> name <span class="k">in</span> rule[<span class="s">"missingProperties"</span>]]
+            <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"properties"</span>:
+                <span class="k">for</span> prop <span class="k">in</span> rule[<span class="s">"propertiesNotSatisfied"</span>]:
+                    reasons += [f<span class="s">"{prop['propertyName']}: {d['operatorName']}"</span> <span class="k">for</span> d <span class="k">in</span> prop[<span class="s">"details"</span>]]
+        <span class="f">print</span>(f<span class="s">"  {label:14} отклонено, код {e.code}: {', '.join(reasons)}"</span>)
+<span class="f">print</span>(f<span class="s">"  событий в копии: {audit.count_documents({})}"</span>)
+
+<span class="c"># ── 4. Запросы дежурного без индексов ─────────────────────────────────────</span>
+QUERIES = [
+    (<span class="s">"ошибки платежей"</span>, {<span class="s">"filter"</span>: {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}},
+                         <span class="s">"sort"</span>: {<span class="s">"ts"</span>: -<span class="n">1</span>}, <span class="s">"limit"</span>: <span class="n">5</span>}),
+    (<span class="s">"медленный поиск"</span>, {<span class="s">"filter"</span>: {<span class="s">"service"</span>: <span class="s">"search"</span>, <span class="s">"duration_ms"</span>: {<span class="s">"$gte"</span>: <span class="n">1000</span>}},
+                         <span class="s">"sort"</span>: {<span class="s">"duration_ms"</span>: -<span class="n">1</span>}, <span class="s">"limit"</span>: <span class="n">5</span>}),
+    (<span class="s">"события покупателя"</span>, {<span class="s">"filter"</span>: {<span class="s">"user_id"</span>: <span class="s">"c-015"</span>}, <span class="s">"sort"</span>: {<span class="s">"ts"</span>: -<span class="n">1</span>}}),
+]
+
+
+<span class="k">def</span> <span class="f">report</span>():
+    <span class="f">print</span>(f<span class="s">"  {'запрос':20} {'вернул':&gt;6} {'ключей':&gt;7} {'документов':&gt;11}"</span>)
+    <span class="k">for</span> name, find <span class="k">in</span> QUERIES:
+        plan, returned, keys, docs = <span class="f">summary</span>(find)
+        <span class="f">print</span>(f<span class="s">"  {name:20} {returned:6} {keys:7} {docs:11}"</span>)
+        <span class="f">print</span>(f<span class="s">"      {plan}"</span>)
+
+
+<span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>)
+<span class="f">report</span>()
+
+<span class="c"># ── 5. Индексы по правилу ESR ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>)
+
+<span class="k">for</span> keys <span class="k">in</span> ([(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"ts"</span>, -<span class="n">1</span>), (<span class="s">"status"</span>, <span class="n">1</span>)],
+             [(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"duration_ms"</span>, -<span class="n">1</span>)],
+             [(<span class="s">"user_id"</span>, <span class="n">1</span>), (<span class="s">"ts"</span>, -<span class="n">1</span>)]):
+    <span class="f">print</span>(f<span class="s">"  создан {audit.create_index(keys)}"</span>)
+
+<span class="c"># ── 6. Те же запросы с индексами ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>)
+<span class="f">report</span>()
+
+<span class="c"># ── 7. Пять последних ошибок платежей ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>)
+
+name, find = QUERIES[<span class="n">0</span>]
+<span class="k">for</span> doc <span class="k">in</span> audit.<span class="f">find</span>(find[<span class="s">"filter"</span>]).<span class="f">sort</span>(<span class="s">"ts"</span>, -<span class="n">1</span>).<span class="f">limit</span>(find[<span class="s">"limit"</span>]):
+    <span class="f">print</span>(f<span class="s">"  {doc['ts']:%d.%m %H:%M:%S}  {doc['route']:18} {doc['status']}  {doc['duration_ms']:5} мс"</span>)
+
+client.<span class="f">close</span>()
+</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>скрипт целиком</span></figcaption>
+<pre><span class="c">// Аудит журнала сервиса: что умеют правила, индексы и explain из модуля 3.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт работает с копией журнала logs.events в песочнице: проверяет события</span>
+<span class="c">// правилом $jsonSchema и включает его как валидатор, снимает планы трёх</span>
+<span class="c">// запросов дежурного, строит под них индексы по правилу ESR и сравнивает</span>
+<span class="c">// планы до и после. База logs остаётся без изменений.</span>
+<span class="c">//</span>
+<span class="c">//     cd scripts</span>
+<span class="c">//     g++ -std=c++17 logs_audit.cpp -o logs_audit $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./logs_audit</span>
+<span class="c">//</span>
+<span class="c">//     docker compose run --rm cpp scripts/logs_audit.cpp    # в контейнере</span>
+
+#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdint&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;ctime&gt;
+#<span class="k">include</span> &lt;iomanip&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;sstream&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;tuple&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/json.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/collection.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/exception/operation_exception.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/options/find.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_array;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Число из ответа сервера: счётчики приходят как int32 или int64.</span>
+<span class="k">std</span>::int64_t <span class="f">number</span>(bsoncxx::document::element value) {
+    <span class="k">return</span> value.<span class="f">type</span>() == bsoncxx::type::k_int64 ? value.<span class="f">get_int64</span>().value : value.<span class="f">get_int32</span>().value;
+}
+
+<span class="c">// План и счётчики explain: стадии сверху вниз, вернул, ключей, документов.</span>
+<span class="k">std</span>::tuple&lt;<span class="k">std</span>::string, <span class="k">std</span>::int64_t, <span class="k">std</span>::int64_t, <span class="k">std</span>::int64_t&gt; <span class="f">summary</span>(mongocxx::database&amp; sandbox,
+                                                                          bsoncxx::document::view find) {
+    bsoncxx::builder::basic::document cmd;
+    cmd.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"find"</span>, <span class="s">"audit"</span>));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : find) cmd.<span class="f">append</span>(<span class="f">kvp</span>(field.<span class="f">key</span>(), field.<span class="f">get_value</span>()));
+    <span class="k">auto</span> info = sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"explain"</span>, cmd.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"verbosity"</span>, <span class="s">"executionStats"</span>)));
+    <span class="k">auto</span> stage = info.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>].<span class="f">get_document</span>().value;
+    <span class="k">if</span> (stage[<span class="s">"queryPlan"</span>]) stage = stage[<span class="s">"queryPlan"</span>].<span class="f">get_document</span>().value;
+    <span class="k">std</span>::string steps;
+    while (<span class="k">true</span>) {
+        steps += <span class="k">std</span>::string{stage[<span class="s">"stage"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (stage[<span class="s">"indexName"</span>]) steps += <span class="s">" "</span> + <span class="k">std</span>::string{stage[<span class="s">"indexName"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (!stage[<span class="s">"inputStage"</span>]) break;
+        steps += <span class="s">" → "</span>;
+        stage = stage[<span class="s">"inputStage"</span>].<span class="f">get_document</span>().value;
+    }
+    <span class="k">auto</span> stats = info.<span class="f">view</span>()[<span class="s">"executionStats"</span>].<span class="f">get_document</span>().value;
+    <span class="k">return</span> {steps, <span class="f">number</span>(stats[<span class="s">"nReturned"</span>]), <span class="f">number</span>(stats[<span class="s">"totalKeysExamined"</span>]), <span class="f">number</span>(stats[<span class="s">"totalDocsExamined"</span>])};
+}
+
+<span class="c">// Запросы дежурного: название и части команды find.</span>
+<span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; <span class="f">queries</span>() {
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; out;
+    out.<span class="f">emplace_back</span>(<span class="s">"ошибки платежей"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">5</span>)));
+    out.<span class="f">emplace_back</span>(<span class="s">"медленный поиск"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"search"</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">1000</span>))))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"duration_ms"</span>, -<span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">5</span>)));
+    out.<span class="f">emplace_back</span>(<span class="s">"события покупателя"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, <span class="s">"c-015"</span>))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)))));
+    <span class="k">return</span> out;
+}
+
+<span class="k">void</span> <span class="f">report</span>(mongocxx::database&amp; sandbox) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"запрос"</span>, <span class="n">20</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"вернул"</span>, <span class="n">6</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"ключей"</span>, <span class="n">7</span>) &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; <span class="f">right</span>(<span class="s">"документов"</span>, <span class="n">11</span>) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [name, find] : <span class="f">queries</span>()) {
+        <span class="k">auto</span> [plan, returned, keys, docs] = <span class="f">summary</span>(sandbox, find.<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(name, <span class="n">20</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">6</span>) &lt;&lt; returned &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">7</span>) &lt;&lt; keys &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">11</span>) &lt;&lt; docs &lt;&lt; <span class="k">std</span>::endl;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"      "</span> &lt;&lt; plan &lt;&lt; <span class="k">std</span>::endl;
+    }
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+
+    <span class="k">auto</span> events = client[<span class="s">"logs"</span>][<span class="s">"events"</span>];
+    <span class="k">auto</span> sandbox = client[<span class="s">"sandbox"</span>];
+    <span class="k">auto</span> audit = sandbox[<span class="s">"audit"</span>];
+
+    <span class="c">// ── 1. Копия журнала ──────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>);
+
+    audit.<span class="f">drop</span>();
+    <span class="k">std</span>::vector&lt;bsoncxx::document::value&gt; all;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : events.<span class="f">find</span>(<span class="f">make_document</span>())) all.<span class="f">emplace_back</span>(doc);
+    audit.<span class="f">insert_many</span>(all);
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  событий в копии: "</span> &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">int</span> indexes = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; ix : audit.<span class="f">list_indexes</span>()) {
+        (<span class="k">void</span>)ix;
+        ++indexes;
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  индексов: "</span> &lt;&lt; indexes &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 2. Правило для событий ────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Правило для событий"</span>);
+
+    <span class="k">auto</span> rule = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"object"</span>),
+        <span class="f">kvp</span>(<span class="s">"required"</span>, <span class="f">make_array</span>(<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>)),
+        <span class="f">kvp</span>(<span class="s">"properties"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"ts"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"date"</span>))),
+            <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"enum"</span>, <span class="f">make_array</span>(<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>)))),
+            <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"enum"</span>, <span class="f">make_array</span>(<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>)))),
+            <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"string"</span>))),
+            <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"int"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">100</span>), <span class="f">kvp</span>(<span class="s">"maximum"</span>, <span class="n">599</span>))),
+            <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"bsonType"</span>, <span class="s">"number"</span>), <span class="f">kvp</span>(<span class="s">"minimum"</span>, <span class="n">0</span>))))));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  соответствуют правилу:    "</span>
+              &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, rule.<span class="f">view</span>()))) &lt;&lt; <span class="k">std</span>::endl;
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  не соответствуют правилу: "</span>
+              &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$nor"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, rule.<span class="f">view</span>()))))))
+              &lt;&lt; <span class="k">std</span>::endl;
+
+    sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"collMod"</span>, <span class="s">"audit"</span>),
+        <span class="f">kvp</span>(<span class="s">"validator"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$jsonSchema"</span>, rule.<span class="f">view</span>()))),
+        <span class="f">kvp</span>(<span class="s">"validationLevel"</span>, <span class="s">"strict"</span>),
+        <span class="f">kvp</span>(<span class="s">"validationAction"</span>, <span class="s">"error"</span>)));
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  правило включено: strict, error"</span> &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 3. Проверка правила на записи ─────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Неверные события"</span>);
+
+    <span class="k">auto</span> ts = bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{<span class="n">1788373800000</span>}};   <span class="c">// 02.09.2026 18:30 UTC</span>
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::pair&lt;<span class="k">std</span>::string, bsoncxx::document::value&gt;&gt; wrong;
+    wrong.<span class="f">emplace_back</span>(<span class="s">"статус 700"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, ts), <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"error"</span>),
+                                                   <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="s">"/api/pay"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">700</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="n">300</span>)));
+    wrong.<span class="f">emplace_back</span>(<span class="s">"уровень fatal"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, ts), <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"fatal"</span>),
+                                                      <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="s">"/api/pay"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">500</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="n">300</span>)));
+    wrong.<span class="f">emplace_back</span>(<span class="s">"без времени"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"error"</span>),
+                                                    <span class="f">kvp</span>(<span class="s">"route"</span>, <span class="s">"/api/pay"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">500</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, <span class="n">300</span>)));
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [label, doc] : wrong) {
+        try {
+            audit.<span class="f">insert_one</span>(doc.<span class="f">view</span>());
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(label, <span class="n">14</span>) &lt;&lt; <span class="s">" записано"</span> &lt;&lt; <span class="k">std</span>::endl;
+        } catch (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+            <span class="k">std</span>::string reasons;
+            <span class="k">auto</span> add = [&amp;](<span class="k">const</span> <span class="k">std</span>::string&amp; text) { reasons += (reasons.<span class="f">empty</span>() ? <span class="s">""</span> : <span class="s">", "</span>) + text; };
+            <span class="k">auto</span> info = e.<span class="f">raw_server_error</span>()-&gt;<span class="f">view</span>()[<span class="s">"writeErrors"</span>][<span class="n">0</span>][<span class="s">"errInfo"</span>];
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; item : info[<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>].<span class="f">get_array</span>().value) {
+                <span class="k">auto</span> r = item.<span class="f">get_document</span>().value;
+                <span class="k">std</span>::string op{r[<span class="s">"operatorName"</span>].<span class="f">get_string</span>().value};
+                <span class="k">if</span> (op == <span class="s">"required"</span>) {
+                    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; name : r[<span class="s">"missingProperties"</span>].<span class="f">get_array</span>().value)
+                        <span class="f">add</span>(<span class="s">"нет "</span> + <span class="k">std</span>::string{name.<span class="f">get_string</span>().value});
+                }
+                <span class="k">if</span> (op == <span class="s">"properties"</span>) {
+                    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; prop : r[<span class="s">"propertiesNotSatisfied"</span>].<span class="f">get_array</span>().value)
+                        <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; d : prop[<span class="s">"details"</span>].<span class="f">get_array</span>().value)
+                            <span class="f">add</span>(<span class="k">std</span>::string{prop[<span class="s">"propertyName"</span>].<span class="f">get_string</span>().value} + <span class="s">": "</span> +
+                                <span class="k">std</span>::string{d[<span class="s">"operatorName"</span>].<span class="f">get_string</span>().value});
+                }
+            }
+            <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(label, <span class="n">14</span>) &lt;&lt; <span class="s">" отклонено, код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; <span class="s">": "</span> &lt;&lt; reasons &lt;&lt; <span class="k">std</span>::endl;
+        }
+    }
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  событий в копии: "</span> &lt;&lt; audit.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="k">std</span>::endl;
+
+    <span class="c">// ── 4. Запросы дежурного без индексов ─────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>);
+    <span class="f">report</span>(sandbox);
+
+    <span class="c">// ── 5. Индексы по правилу ESR ─────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>);
+
+    <span class="k">std</span>::vector&lt;bsoncxx::document::value&gt; keys;
+    keys.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)));
+    keys.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"duration_ms"</span>, -<span class="n">1</span>)));
+    keys.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"user_id"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; key : keys) {
+        <span class="k">auto</span> created = audit.<span class="f">create_index</span>(key.<span class="f">view</span>());
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  создан "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 6. Те же запросы с индексами ──────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>);
+    <span class="f">report</span>(sandbox);
+
+    <span class="c">// ── 7. Пять последних ошибок платежей ─────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>);
+
+    mongocxx::options::find newest;
+    newest.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)));
+    newest.<span class="f">limit</span>(<span class="n">5</span>);
+    <span class="k">auto</span> errors = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : audit.<span class="f">find</span>(errors.<span class="f">view</span>(), newest)) {
+        <span class="k">std</span>::time_t seconds = doc[<span class="s">"ts"</span>].<span class="f">get_date</span>().<span class="f">to_int64</span>() / <span class="n">1000</span>;
+        <span class="k">std</span>::ostringstream when;
+        when &lt;&lt; <span class="k">std</span>::<span class="f">put_time</span>(<span class="k">std</span>::<span class="f">gmtime</span>(&amp;seconds), <span class="s">"%d.%m %H:%M:%S"</span>);
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; when.<span class="f">str</span>() &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="k">std</span>::string{doc[<span class="s">"route"</span>].<span class="f">get_string</span>().value}, <span class="n">18</span>) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="f">number</span>(doc[<span class="s">"status"</span>]) &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">5</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"duration_ms"</span>]) &lt;&lt; <span class="s">" мс"</span> &lt;&lt; <span class="k">std</span>::endl;
+    }
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>скрипт целиком</span></figcaption>
+<pre><span class="c">// Аудит журнала сервиса: что умеют правила, индексы и explain из модуля 3.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт работает с копией журнала logs.events в песочнице: проверяет события</span>
+<span class="c">// правилом $jsonSchema и включает его как валидатор, снимает планы трёх</span>
+<span class="c">// запросов дежурного, строит под них индексы по правилу ESR и сравнивает</span>
+<span class="c">// планы до и после. База logs остаётся без изменений.</span>
+<span class="c">//</span>
+<span class="c">//	cd scripts</span>
+<span class="c">//	go run logs_audit.go</span>
+<span class="c">//</span>
+<span class="c">//	docker compose run --rm go scripts/logs_audit.go    # в контейнере</span>
+<span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"errors"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"time"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="c">// summary — план и счётчики explain: стадии сверху вниз, вернул, ключей, документов.</span>
+<span class="k">func</span> <span class="f">summary</span>(sandbox *mongo.Database, find bson.D) (<span class="k">string</span>, int64, int64, int64) {
+	cmd := <span class="k">append</span>(bson.D{{Key: <span class="s">"find"</span>, Value: <span class="s">"audit"</span>}}, find...)
+	<span class="k">var</span> info bson.Raw
+	sandbox.<span class="f">RunCommand</span>(context.<span class="f">Background</span>(),
+		bson.D{{Key: <span class="s">"explain"</span>, Value: cmd}, {Key: <span class="s">"verbosity"</span>, Value: <span class="s">"executionStats"</span>}}).<span class="f">Decode</span>(&amp;info)
+	stage := info.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"winningPlan"</span>).<span class="f">Document</span>()
+	<span class="k">if</span> inner, ok := stage.<span class="f">Lookup</span>(<span class="s">"queryPlan"</span>).<span class="f">DocumentOK</span>(); ok {
+		stage = inner
+	}
+	steps := []<span class="k">string</span>{}
+	<span class="k">for</span> {
+		step := stage.<span class="f">Lookup</span>(<span class="s">"stage"</span>).<span class="f">StringValue</span>()
+		<span class="k">if</span> name, ok := stage.<span class="f">Lookup</span>(<span class="s">"indexName"</span>).<span class="f">StringValueOK</span>(); ok {
+			step += <span class="s">" "</span> + name
+		}
+		steps = <span class="k">append</span>(steps, step)
+		next, ok := stage.<span class="f">Lookup</span>(<span class="s">"inputStage"</span>).<span class="f">DocumentOK</span>()
+		<span class="k">if</span> !ok {
+			break
+		}
+		stage = next
+	}
+	stats := info.<span class="f">Lookup</span>(<span class="s">"executionStats"</span>).<span class="f">Document</span>()
+	<span class="k">return</span> strings.<span class="f">Join</span>(steps, <span class="s">" → "</span>), stats.<span class="f">Lookup</span>(<span class="s">"nReturned"</span>).<span class="f">AsInt64</span>(),
+		stats.<span class="f">Lookup</span>(<span class="s">"totalKeysExamined"</span>).<span class="f">AsInt64</span>(), stats.<span class="f">Lookup</span>(<span class="s">"totalDocsExamined"</span>).<span class="f">AsInt64</span>()
+}
+
+<span class="c">// Запрос дежурного: название и части команды find.</span>
+<span class="k">type</span> query <span class="k">struct</span> {
+	name <span class="k">string</span>
+	find bson.D
+}
+
+<span class="k">var</span> queries = []query{
+	{<span class="s">"ошибки платежей"</span>, bson.D{
+		{Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}},
+		{Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}},
+		{Key: <span class="s">"limit"</span>, Value: <span class="n">5</span>}}},
+	{<span class="s">"медленный поиск"</span>, bson.D{
+		{Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"search"</span>}, {Key: <span class="s">"duration_ms"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">1000</span>}}}}},
+		{Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"duration_ms"</span>, Value: -<span class="n">1</span>}}},
+		{Key: <span class="s">"limit"</span>, Value: <span class="n">5</span>}}},
+	{<span class="s">"события покупателя"</span>, bson.D{
+		{Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"user_id"</span>, Value: <span class="s">"c-015"</span>}}},
+		{Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}}}},
+}
+
+<span class="k">func</span> <span class="f">report</span>(sandbox *mongo.Database) {
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %6s %7s %11s\n"</span>, <span class="f">pad</span>(<span class="s">"запрос"</span>, <span class="n">20</span>), <span class="s">"вернул"</span>, <span class="s">"ключей"</span>, <span class="s">"документов"</span>)
+	<span class="k">for</span> _, q := <span class="k">range</span> queries {
+		plan, returned, keys, docs := <span class="f">summary</span>(sandbox, q.find)
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %6d %7d %11d\n"</span>, <span class="f">pad</span>(q.name, <span class="n">20</span>), returned, keys, docs)
+		fmt.<span class="f">Println</span>(<span class="s">"      "</span> + plan)
+	}
+}
+
+<span class="c">// Причины отказа из errInfo: недостающие поля и нарушенные условия полей.</span>
+<span class="k">type</span> schemaRule <span class="k">struct</span> {
+	OperatorName           <span class="k">string</span>   `bson:<span class="s">"operatorName"</span>`
+	MissingProperties      []<span class="k">string</span> `bson:<span class="s">"missingProperties"</span>`
+	PropertiesNotSatisfied []<span class="k">struct</span> {
+		PropertyName <span class="k">string</span> `bson:<span class="s">"propertyName"</span>`
+		Details      []<span class="k">struct</span> {
+			OperatorName <span class="k">string</span> `bson:<span class="s">"operatorName"</span>`
+		} `bson:<span class="s">"details"</span>`
+	} `bson:<span class="s">"propertiesNotSatisfied"</span>`
+}
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	ctx := context.<span class="f">Background</span>()
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(ctx)
+
+	events := client.<span class="f">Database</span>(<span class="s">"logs"</span>).<span class="f">Collection</span>(<span class="s">"events"</span>)
+	sandbox := client.<span class="f">Database</span>(<span class="s">"sandbox"</span>)
+	audit := sandbox.<span class="f">Collection</span>(<span class="s">"audit"</span>)
+
+	<span class="c">// ── 1. Копия журнала ──────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>)
+
+	audit.<span class="f">Drop</span>(ctx)
+	<span class="k">var</span> all []bson.D
+	cursor, _ := events.<span class="f">Find</span>(ctx, bson.D{})
+	cursor.<span class="f">All</span>(ctx, &amp;all)
+	docs := <span class="k">make</span>([]any, <span class="f">len</span>(all))
+	<span class="k">for</span> i := <span class="k">range</span> all {
+		docs[i] = all[i]
+	}
+	audit.<span class="f">InsertMany</span>(ctx, docs)
+	n, _ := audit.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"  событий в копии: %d\n"</span>, n)
+	specs, _ := audit.<span class="f">Indexes</span>().<span class="f">ListSpecifications</span>(ctx)
+	fmt.<span class="f">Printf</span>(<span class="s">"  индексов: %d\n"</span>, <span class="f">len</span>(specs))
+
+	<span class="c">// ── 2. Правило для событий ────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Правило для событий"</span>)
+
+	rule := bson.D{
+		{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"object"</span>},
+		{Key: <span class="s">"required"</span>, Value: bson.A{<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>}},
+		{Key: <span class="s">"properties"</span>, Value: bson.D{
+			{Key: <span class="s">"ts"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"date"</span>}}},
+			{Key: <span class="s">"service"</span>, Value: bson.D{{Key: <span class="s">"enum"</span>, Value: bson.A{<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>}}}},
+			{Key: <span class="s">"level"</span>, Value: bson.D{{Key: <span class="s">"enum"</span>, Value: bson.A{<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>}}}},
+			{Key: <span class="s">"route"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"string"</span>}}},
+			{Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"int"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">100</span>}, {Key: <span class="s">"maximum"</span>, Value: <span class="n">599</span>}}},
+			{Key: <span class="s">"duration_ms"</span>, Value: bson.D{{Key: <span class="s">"bsonType"</span>, Value: <span class="s">"number"</span>}, {Key: <span class="s">"minimum"</span>, Value: <span class="n">0</span>}}},
+		}},
+	}
+	fits, _ := audit.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: rule}})
+	misfits, _ := audit.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$nor"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: rule}}}}})
+	fmt.<span class="f">Printf</span>(<span class="s">"  соответствуют правилу:    %d\n"</span>, fits)
+	fmt.<span class="f">Printf</span>(<span class="s">"  не соответствуют правилу: %d\n"</span>, misfits)
+
+	sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+		{Key: <span class="s">"collMod"</span>, Value: <span class="s">"audit"</span>},
+		{Key: <span class="s">"validator"</span>, Value: bson.D{{Key: <span class="s">"$jsonSchema"</span>, Value: rule}}},
+		{Key: <span class="s">"validationLevel"</span>, Value: <span class="s">"strict"</span>},
+		{Key: <span class="s">"validationAction"</span>, Value: <span class="s">"error"</span>}})
+	fmt.<span class="f">Println</span>(<span class="s">"  правило включено: strict, error"</span>)
+
+	<span class="c">// ── 3. Проверка правила на записи ─────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Неверные события"</span>)
+
+	event := <span class="k">func</span>(key <span class="k">string</span>, value any) bson.D {
+		doc := bson.D{
+			{Key: <span class="s">"ts"</span>, Value: time.<span class="f">Date</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">2</span>, <span class="n">18</span>, <span class="n">30</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)},
+			{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>},
+			{Key: <span class="s">"level"</span>, Value: <span class="s">"error"</span>},
+			{Key: <span class="s">"route"</span>, Value: <span class="s">"/api/pay"</span>},
+			{Key: <span class="s">"status"</span>, Value: <span class="n">500</span>},
+			{Key: <span class="s">"duration_ms"</span>, Value: <span class="n">300</span>}}
+		out := bson.D{}
+		<span class="k">for</span> _, field := <span class="k">range</span> doc {
+			<span class="k">if</span> field.Key != key {
+				out = <span class="k">append</span>(out, field)
+			} <span class="k">else</span> <span class="k">if</span> value != <span class="k">nil</span> {
+				out = <span class="k">append</span>(out, bson.E{Key: key, Value: value})
+			}
+		}
+		<span class="k">return</span> out
+	}
+	wrong := []<span class="k">struct</span> {
+		label <span class="k">string</span>
+		doc   bson.D
+	}{
+		{<span class="s">"статус 700"</span>, <span class="f">event</span>(<span class="s">"status"</span>, <span class="n">700</span>)},
+		{<span class="s">"уровень fatal"</span>, <span class="f">event</span>(<span class="s">"level"</span>, <span class="s">"fatal"</span>)},
+		{<span class="s">"без времени"</span>, <span class="f">event</span>(<span class="s">"ts"</span>, <span class="k">nil</span>)},
+	}
+	<span class="k">for</span> _, w := <span class="k">range</span> wrong {
+		_, err := audit.<span class="f">InsertOne</span>(ctx, w.doc)
+		<span class="k">var</span> we mongo.WriteException
+		<span class="k">if</span> !errors.<span class="f">As</span>(err, &amp;we) {
+			fmt.<span class="f">Printf</span>(<span class="s">"  %s записано\n"</span>, <span class="f">pad</span>(w.label, <span class="n">14</span>))
+			continue
+		}
+		<span class="k">var</span> info <span class="k">struct</span> {
+			Details <span class="k">struct</span> {
+				Rules []schemaRule `bson:<span class="s">"schemaRulesNotSatisfied"</span>`
+			} `bson:<span class="s">"details"</span>`
+		}
+		bson.<span class="f">Unmarshal</span>(we.WriteErrors[<span class="n">0</span>].Details, &amp;info)
+		reasons := []<span class="k">string</span>{}
+		<span class="k">for</span> _, r := <span class="k">range</span> info.Details.Rules {
+			<span class="k">if</span> r.OperatorName == <span class="s">"required"</span> {
+				<span class="k">for</span> _, name := <span class="k">range</span> r.MissingProperties {
+					reasons = <span class="k">append</span>(reasons, <span class="s">"нет "</span>+name)
+				}
+			}
+			<span class="k">if</span> r.OperatorName == <span class="s">"properties"</span> {
+				<span class="k">for</span> _, prop := <span class="k">range</span> r.PropertiesNotSatisfied {
+					<span class="k">for</span> _, d := <span class="k">range</span> prop.Details {
+						reasons = <span class="k">append</span>(reasons, prop.PropertyName+<span class="s">": "</span>+d.OperatorName)
+					}
+				}
+			}
+		}
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s отклонено, код %d: %s\n"</span>, <span class="f">pad</span>(w.label, <span class="n">14</span>), we.WriteErrors[<span class="n">0</span>].Code, strings.<span class="f">Join</span>(reasons, <span class="s">", "</span>))
+	}
+	n, _ = audit.<span class="f">CountDocuments</span>(ctx, bson.D{})
+	fmt.<span class="f">Printf</span>(<span class="s">"  событий в копии: %d\n"</span>, n)
+
+	<span class="c">// ── 4. Запросы дежурного без индексов ─────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>)
+	<span class="f">report</span>(sandbox)
+
+	<span class="c">// ── 5. Индексы по правилу ESR ─────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>)
+
+	<span class="k">for</span> _, keys := <span class="k">range</span> []bson.D{
+		{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}},
+		{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"duration_ms"</span>, Value: -<span class="n">1</span>}},
+		{{Key: <span class="s">"user_id"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}},
+	} {
+		name, _ := audit.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: keys})
+		fmt.<span class="f">Println</span>(<span class="s">"  создан "</span> + name)
+	}
+
+	<span class="c">// ── 6. Те же запросы с индексами ──────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>)
+	<span class="f">report</span>(sandbox)
+
+	<span class="c">// ── 7. Пять последних ошибок платежей ─────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>)
+
+	filtr := queries[<span class="n">0</span>].find[<span class="n">0</span>].Value <span class="c">// фильтр первого запроса: первое поле его команды find</span>
+	last, _ := audit.<span class="f">Find</span>(ctx, filtr, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}).<span class="f">SetLimit</span>(<span class="n">5</span>))
+	<span class="k">for</span> last.<span class="f">Next</span>(ctx) {
+		doc := last.Current
+		ts := doc.<span class="f">Lookup</span>(<span class="s">"ts"</span>).<span class="f">Time</span>().<span class="f">UTC</span>()
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s  %s %d  %5d мс\n"</span>, ts.<span class="f">Format</span>(<span class="s">"02.01 15:04:05"</span>), <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"route"</span>).<span class="f">StringValue</span>(), <span class="n">18</span>),
+			doc.<span class="f">Lookup</span>(<span class="s">"status"</span>).<span class="f">AsInt64</span>(), doc.<span class="f">Lookup</span>(<span class="s">"duration_ms"</span>).<span class="f">AsInt64</span>())
+	}
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>скрипт целиком</span></figcaption>
+<pre><span class="c"># Аудит журнала сервиса: что умеют правила, индексы и explain из модуля 3.</span>
+<span class="c">#</span>
+<span class="c"># Скрипт работает с копией журнала logs.events в песочнице: проверяет события</span>
+<span class="c"># правилом $jsonSchema и включает его как валидатор, снимает планы трёх</span>
+<span class="c"># запросов дежурного, строит под них индексы по правилу ESR и сравнивает</span>
+<span class="c"># планы до и после. База logs остаётся без изменений.</span>
+<span class="c">#</span>
+<span class="c">#     cd scripts</span>
+<span class="c">#     ruby logs_audit.rb</span>
+<span class="c">#</span>
+<span class="c">#     docker compose run --rm ruby scripts/logs_audit.rb    # в контейнере</span>
+
+<span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+events = client.<span class="f">use</span>(<span class="s">"logs"</span>).database[:events]
+sandbox = client.<span class="f">use</span>(<span class="s">"sandbox"</span>).database
+audit = sandbox[:audit]
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="c"># План и счётчики explain: стадии сверху вниз, вернул, ключей, документов.</span>
+<span class="k">def</span> <span class="f">summary</span>(sandbox, find)
+  info = sandbox.<span class="f">command</span>(explain: { find: <span class="s">"audit"</span> }.<span class="f">merge</span>(find), verbosity: <span class="s">"executionStats"</span>).first
+  stage = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+  stage = stage[<span class="s">"queryPlan"</span>] || stage
+  steps = []
+  while stage
+    steps &lt;&lt; stage[<span class="s">"stage"</span>] + (stage[<span class="s">"indexName"</span>] ? <span class="s">" "</span> + stage[<span class="s">"indexName"</span>] : <span class="s">""</span>)
+    stage = stage[<span class="s">"inputStage"</span>]
+  <span class="k">end</span>
+  stats = info[<span class="s">"executionStats"</span>]
+  [steps.<span class="f">join</span>(<span class="s">" → "</span>), stats[<span class="s">"nReturned"</span>], stats[<span class="s">"totalKeysExamined"</span>], stats[<span class="s">"totalDocsExamined"</span>]]
+<span class="k">end</span>
+
+<span class="c"># ── 1. Копия журнала ──────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Копия журнала в песочнице"</span>)
+
+audit.drop
+audit.<span class="f">insert_many</span>(events.find.to_a)
+<span class="k">puts</span> <span class="s">"  событий в копии: #{audit.count_documents({})}"</span>
+<span class="k">puts</span> <span class="s">"  индексов: #{audit.indexes.count}"</span>
+
+<span class="c"># ── 2. Правило для событий ────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Правило для событий"</span>)
+
+RULE = {
+  <span class="s">"bsonType"</span> =&gt; <span class="s">"object"</span>,
+  <span class="s">"required"</span> =&gt; [<span class="s">"ts"</span>, <span class="s">"service"</span>, <span class="s">"level"</span>, <span class="s">"route"</span>, <span class="s">"status"</span>, <span class="s">"duration_ms"</span>],
+  <span class="s">"properties"</span> =&gt; {
+    <span class="s">"ts"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"date"</span> },
+    <span class="s">"service"</span> =&gt; { <span class="s">"enum"</span> =&gt; [<span class="s">"api-gateway"</span>, <span class="s">"notifier"</span>, <span class="s">"orders"</span>, <span class="s">"payments"</span>, <span class="s">"search"</span>] },
+    <span class="s">"level"</span> =&gt; { <span class="s">"enum"</span> =&gt; [<span class="s">"info"</span>, <span class="s">"warn"</span>, <span class="s">"error"</span>] },
+    <span class="s">"route"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"string"</span> },
+    <span class="s">"status"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"int"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">100</span>, <span class="s">"maximum"</span> =&gt; <span class="n">599</span> },
+    <span class="s">"duration_ms"</span> =&gt; { <span class="s">"bsonType"</span> =&gt; <span class="s">"number"</span>, <span class="s">"minimum"</span> =&gt; <span class="n">0</span> },
+  },
+}.<span class="k">freeze</span>
+<span class="k">puts</span> <span class="s">"  соответствуют правилу:    #{audit.count_documents({ "</span>$jsonSchema<span class="s">" =&gt; RULE })}"</span>
+<span class="k">puts</span> <span class="s">"  не соответствуют правилу: #{audit.count_documents({ "</span>$nor<span class="s">" =&gt; [{ "</span>$jsonSchema<span class="s">" =&gt; RULE }] })}"</span>
+
+sandbox.<span class="f">command</span>(collMod: <span class="s">"audit"</span>, validator: { <span class="s">"$jsonSchema"</span> =&gt; RULE },
+                validationLevel: <span class="s">"strict"</span>, validationAction: <span class="s">"error"</span>)
+<span class="k">puts</span> <span class="s">"  правило включено: strict, error"</span>
+
+<span class="c"># ── 3. Проверка правила на записи ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Неверные события"</span>)
+
+good = { <span class="s">"ts"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">9</span>, <span class="n">2</span>, <span class="n">18</span>, <span class="n">30</span>), <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"level"</span> =&gt; <span class="s">"error"</span>,
+         <span class="s">"route"</span> =&gt; <span class="s">"/api/pay"</span>, <span class="s">"status"</span> =&gt; <span class="n">500</span>, <span class="s">"duration_ms"</span> =&gt; <span class="n">300</span> }
+wrong = [
+  [<span class="s">"статус 700"</span>, good.<span class="f">merge</span>(<span class="s">"status"</span> =&gt; <span class="n">700</span>)],
+  [<span class="s">"уровень fatal"</span>, good.<span class="f">merge</span>(<span class="s">"level"</span> =&gt; <span class="s">"fatal"</span>)],
+  [<span class="s">"без времени"</span>, good.reject { |key, _| key == <span class="s">"ts"</span> }],
+]
+wrong.<span class="k">each</span> <span class="k">do</span> |label, doc|
+  begin
+    audit.<span class="f">insert_one</span>(doc)
+    <span class="k">puts</span> <span class="s">"  #{label.ljust(14)} записано"</span>
+  rescue Mongo::Error::OperationFailure =&gt; e
+    reasons = []
+    e.details[<span class="s">"details"</span>][<span class="s">"schemaRulesNotSatisfied"</span>].<span class="k">each</span> <span class="k">do</span> |rule|
+      <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"required"</span>
+        reasons += rule[<span class="s">"missingProperties"</span>].map { |name| <span class="s">"нет #{name}"</span> }
+      <span class="k">end</span>
+      <span class="k">if</span> rule[<span class="s">"operatorName"</span>] == <span class="s">"properties"</span>
+        rule[<span class="s">"propertiesNotSatisfied"</span>].<span class="k">each</span> <span class="k">do</span> |prop|
+          reasons += prop[<span class="s">"details"</span>].map { |d| <span class="s">"#{prop["</span>propertyName<span class="s">"]}: #{d["</span>operatorName<span class="s">"]}"</span> }
+        <span class="k">end</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+    <span class="k">puts</span> <span class="s">"  #{label.ljust(14)} отклонено, код #{e.code}: #{reasons.join("</span>, <span class="s">")}"</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"  событий в копии: #{audit.count_documents({})}"</span>
+
+<span class="c"># ── 4. Запросы дежурного без индексов ─────────────────────────────────────</span>
+QUERIES = [
+  [<span class="s">"ошибки платежей"</span>, { filter: { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } },
+                        sort: { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }, limit: <span class="n">5</span> }],
+  [<span class="s">"медленный поиск"</span>, { filter: { <span class="s">"service"</span> =&gt; <span class="s">"search"</span>, <span class="s">"duration_ms"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">1000</span> } },
+                        sort: { <span class="s">"duration_ms"</span> =&gt; -<span class="n">1</span> }, limit: <span class="n">5</span> }],
+  [<span class="s">"события покупателя"</span>, { filter: { <span class="s">"user_id"</span> =&gt; <span class="s">"c-015"</span> }, sort: { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> } }],
+].<span class="k">freeze</span>
+
+<span class="k">def</span> <span class="f">report</span>(sandbox)
+  <span class="k">puts</span> <span class="s">"  #{"</span>запрос<span class="s">".ljust(20)} #{"</span>вернул<span class="s">".rjust(6)} #{"</span>ключей<span class="s">".rjust(7)} #{"</span>документов<span class="s">".rjust(11)}"</span>
+  QUERIES.<span class="k">each</span> <span class="k">do</span> |name, find|
+    plan, returned, keys, docs = <span class="f">summary</span>(sandbox, find)
+    <span class="k">puts</span> <span class="s">"  #{name.ljust(20)} #{returned.to_s.rjust(6)} #{keys.to_s.rjust(7)} #{docs.to_s.rjust(11)}"</span>
+    <span class="k">puts</span> <span class="s">"      #{plan}"</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="f">title</span>(<span class="s">"4. Запросы дежурного без индексов"</span>)
+<span class="f">report</span>(sandbox)
+
+<span class="c"># ── 5. Индексы по правилу ESR ─────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Индексы: равенство, сортировка, диапазон"</span>)
+
+[{ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> },
+ { <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"duration_ms"</span> =&gt; -<span class="n">1</span> },
+ { <span class="s">"user_id"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }].<span class="k">each</span> <span class="k">do</span> |keys|
+  audit.indexes.<span class="f">create_one</span>(keys)
+  <span class="k">puts</span> <span class="s">"  создан #{audit.indexes.get(keys)["</span>name<span class="s">"]}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 6. Те же запросы с индексами ──────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Запросы дежурного с индексами"</span>)
+<span class="f">report</span>(sandbox)
+
+<span class="c"># ── 7. Пять последних ошибок платежей ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Пять последних ошибок платежей"</span>)
+
+_, find = QUERIES[<span class="n">0</span>]
+audit.<span class="f">find</span>(find[:filter]).<span class="f">sort</span>({ <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }).<span class="f">limit</span>(find[:limit]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc["</span>ts<span class="s">"].utc.strftime("</span>%d.%m %H:%M:%S<span class="s">")}  #{doc["</span>route<span class="s">"].ljust(18)} #{doc["</span>status<span class="s">"]}  "</span> \
+       <span class="s">"#{doc["</span>duration_ms<span class="s">"].to_s.rjust(5)} мс"</span>
+<span class="k">end</span>
+
+client.close
+</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Копия журнала в песочнице
+────────────────────────────
+  событий в копии: 1200
+  индексов: 1
+
+2. Правило для событий
+──────────────────────
+  соответствуют правилу:    1200
+  не соответствуют правилу: 0
+  правило включено: strict, error
+
+3. Неверные события
+───────────────────
+  статус 700     отклонено, код 121: status: maximum
+  уровень fatal  отклонено, код 121: level: enum
+  без времени    отклонено, код 121: нет ts
+  событий в копии: 1200
+
+4. Запросы дежурного без индексов
+─────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5       0        1200
+      SORT → COLLSCAN
+  медленный поиск           5       0        1200
+      SORT → COLLSCAN
+  события покупателя       32       0        1200
+      SORT → COLLSCAN
+
+5. Индексы: равенство, сортировка, диапазон
+───────────────────────────────────────────
+  создан service_1_ts_-1_status_1
+  создан service_1_duration_ms_-1
+  создан user_id_1_ts_-1
+
+6. Запросы дежурного с индексами
+────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5      18           5
+      LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1
+  медленный поиск           5       5           5
+      LIMIT → FETCH → IXSCAN service_1_duration_ms_-1
+  события покупателя       32      32          32
+      FETCH → IXSCAN user_id_1_ts_-1
+
+7. Пять последних ошибок платежей
+─────────────────────────────────
+  02.09 18:13:22  /api/orders        500    167 мс
+  02.09 18:07:16  /api/orders        503   1185 мс
+  02.09 17:21:47  /api/orders        500   2043 мс
+  02.09 17:04:34  /api/products      500    952 мс
+  02.09 14:53:42  /api/login         503   1288 мс</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Копия журнала в песочнице
+────────────────────────────
+  событий в копии: 1200
+  индексов: 1
+
+2. Правило для событий
+──────────────────────
+  соответствуют правилу:    1200
+  не соответствуют правилу: 0
+  правило включено: strict, error
+
+3. Неверные события
+───────────────────
+  статус 700     отклонено, код 121: status: maximum
+  уровень fatal  отклонено, код 121: level: enum
+  без времени    отклонено, код 121: нет ts
+  событий в копии: 1200
+
+4. Запросы дежурного без индексов
+─────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5       0        1200
+      SORT → COLLSCAN
+  медленный поиск           5       0        1200
+      SORT → COLLSCAN
+  события покупателя       32       0        1200
+      SORT → COLLSCAN
+
+5. Индексы: равенство, сортировка, диапазон
+───────────────────────────────────────────
+  создан service_1_ts_-1_status_1
+  создан service_1_duration_ms_-1
+  создан user_id_1_ts_-1
+
+6. Запросы дежурного с индексами
+────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5      18           5
+      LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1
+  медленный поиск           5       5           5
+      LIMIT → FETCH → IXSCAN service_1_duration_ms_-1
+  события покупателя       32      32          32
+      FETCH → IXSCAN user_id_1_ts_-1
+
+7. Пять последних ошибок платежей
+─────────────────────────────────
+  02.09 18:13:22  /api/orders        500    167 мс
+  02.09 18:07:16  /api/orders        503   1185 мс
+  02.09 17:21:47  /api/orders        500   2043 мс
+  02.09 17:04:34  /api/products      500    952 мс
+  02.09 14:53:42  /api/login         503   1288 мс</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Копия журнала в песочнице
+────────────────────────────
+  событий в копии: 1200
+  индексов: 1
+
+2. Правило для событий
+──────────────────────
+  соответствуют правилу:    1200
+  не соответствуют правилу: 0
+  правило включено: strict, error
+
+3. Неверные события
+───────────────────
+  статус 700     отклонено, код 121: status: maximum
+  уровень fatal  отклонено, код 121: level: enum
+  без времени    отклонено, код 121: нет ts
+  событий в копии: 1200
+
+4. Запросы дежурного без индексов
+─────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5       0        1200
+      SORT → COLLSCAN
+  медленный поиск           5       0        1200
+      SORT → COLLSCAN
+  события покупателя       32       0        1200
+      SORT → COLLSCAN
+
+5. Индексы: равенство, сортировка, диапазон
+───────────────────────────────────────────
+  создан service_1_ts_-1_status_1
+  создан service_1_duration_ms_-1
+  создан user_id_1_ts_-1
+
+6. Запросы дежурного с индексами
+────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5      18           5
+      LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1
+  медленный поиск           5       5           5
+      LIMIT → FETCH → IXSCAN service_1_duration_ms_-1
+  события покупателя       32      32          32
+      FETCH → IXSCAN user_id_1_ts_-1
+
+7. Пять последних ошибок платежей
+─────────────────────────────────
+  02.09 18:13:22  /api/orders        500    167 мс
+  02.09 18:07:16  /api/orders        503   1185 мс
+  02.09 17:21:47  /api/orders        500   2043 мс
+  02.09 17:04:34  /api/products      500    952 мс
+  02.09 14:53:42  /api/login         503   1288 мс</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Копия журнала в песочнице
+────────────────────────────
+  событий в копии: 1200
+  индексов: 1
+
+2. Правило для событий
+──────────────────────
+  соответствуют правилу:    1200
+  не соответствуют правилу: 0
+  правило включено: strict, error
+
+3. Неверные события
+───────────────────
+  статус 700     отклонено, код 121: status: maximum
+  уровень fatal  отклонено, код 121: level: enum
+  без времени    отклонено, код 121: нет ts
+  событий в копии: 1200
+
+4. Запросы дежурного без индексов
+─────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5       0        1200
+      SORT → COLLSCAN
+  медленный поиск           5       0        1200
+      SORT → COLLSCAN
+  события покупателя       32       0        1200
+      SORT → COLLSCAN
+
+5. Индексы: равенство, сортировка, диапазон
+───────────────────────────────────────────
+  создан service_1_ts_-1_status_1
+  создан service_1_duration_ms_-1
+  создан user_id_1_ts_-1
+
+6. Запросы дежурного с индексами
+────────────────────────────────
+  запрос               вернул  ключей  документов
+  ошибки платежей           5      18           5
+      LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1
+  медленный поиск           5       5           5
+      LIMIT → FETCH → IXSCAN service_1_duration_ms_-1
+  события покупателя       32      32          32
+      FETCH → IXSCAN user_id_1_ts_-1
+
+7. Пять последних ошибок платежей
+─────────────────────────────────
+  02.09 18:13:22  /api/orders        500    167 мс
+  02.09 18:07:16  /api/orders        503   1185 мс
+  02.09 17:21:47  /api/orders        500   2043 мс
+  02.09 17:04:34  /api/products      500    952 мс
+  02.09 14:53:42  /api/login         503   1288 мс</pre>
+        </figure>
+
+        <h2 id="s10"><span class="sec">§10</span>Как запустить</h2>
+        <p>Скрипт лежит в репозитории практик, в папке <code>scripts</code>. Он пересоздаёт коллекцию <code>sandbox.audit</code>, поэтому запускать его можно повторно, и вывод будет тем же.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск на своём сервере</span></figcaption>
+<pre>python3 scripts/logs_audit.py
+ruby scripts/logs_audit.rb
+go run scripts/logs_audit.go
+g++ -std=c++<span class="n">17</span> scripts/logs_audit.cpp -o audit $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./audit</pre>
+        </figure>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск в контейнере</span></figcaption>
+<pre>docker compose run --rm python scripts/logs_audit.py
+docker compose run --rm ruby   scripts/logs_audit.rb
+docker compose run --rm go     scripts/logs_audit.go
+docker compose run --rm cpp    scripts/logs_audit.cpp</pre>
+        </figure>
+        <p>Чтобы проверить свой запрос, его добавляют в список запросов дежурного: название и части команды <code>find</code>. Отчёт покажет его план и счётчики до индексов и после.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Правило включено <code>collMod</code> без проверки данных фильтром</td><td>Старые неверные события остаются, а при <code>strict</code> любое их обновление отклоняется</td><td>Сначала посчитать несоответствующие: <code>$nor</code> с <code>$jsonSchema</code></td></tr>
+              <tr><td>Отчёт <code>explain</code> снят только после создания индексов</td><td>Сравнивать не с чем: непонятно, что дал индекс</td><td>Снять отчёт тех же запросов до индексов и после</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой и пределом</td><td>В плане остаётся <code>SORT</code>, сервер читает все подходящие документы</td><td>Порядок по правилу ESR: поле сортировки перед полем диапазона</td></tr>
+              <tr><td>По индексу на каждый запрос, который когда-либо выполнялся</td><td>Каждая запись в журнал обновляет все индексы</td><td>Индексы — под частые запросы; лишние удалять</td></tr>
+              <tr><td>Скрипт запущен на рабочей коллекции вместо копии</td><td>Первый раздел удаляет коллекцию <code>audit</code></td><td>Работать с копией в песочнице, как в скрипте</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Правило включено <code>collMod</code> без проверки данных фильтром</td><td>Старые неверные события остаются, а при <code>strict</code> любое их обновление отклоняется</td><td>Сначала посчитать несоответствующие: <code>$nor</code> с <code>$jsonSchema</code></td></tr>
+              <tr><td>Отчёт <code>explain</code> снят только после создания индексов</td><td>Сравнивать не с чем: непонятно, что дал индекс</td><td>Снять отчёт тех же запросов до индексов и после</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой и пределом</td><td>В плане остаётся <code>SORT</code>, сервер читает все подходящие документы</td><td>Порядок по правилу ESR: поле сортировки перед полем диапазона</td></tr>
+              <tr><td>По индексу на каждый запрос, который когда-либо выполнялся</td><td>Каждая запись в журнал обновляет все индексы</td><td>Индексы — под частые запросы; лишние удалять</td></tr>
+              <tr><td>Скрипт запущен на рабочей коллекции вместо копии</td><td>Первый раздел удаляет коллекцию <code>audit</code></td><td>Работать с копией в песочнице, как в скрипте</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Правило включено <code>collMod</code> без проверки данных фильтром</td><td>Старые неверные события остаются, а при <code>strict</code> любое их обновление отклоняется</td><td>Сначала посчитать несоответствующие: <code>$nor</code> с <code>$jsonSchema</code></td></tr>
+              <tr><td>Отчёт <code>explain</code> снят только после создания индексов</td><td>Сравнивать не с чем: непонятно, что дал индекс</td><td>Снять отчёт тех же запросов до индексов и после</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой и пределом</td><td>В плане остаётся <code>SORT</code>, сервер читает все подходящие документы</td><td>Порядок по правилу ESR: поле сортировки перед полем диапазона</td></tr>
+              <tr><td>По индексу на каждый запрос, который когда-либо выполнялся</td><td>Каждая запись в журнал обновляет все индексы</td><td>Индексы — под частые запросы; лишние удалять</td></tr>
+              <tr><td>Скрипт запущен на рабочей коллекции вместо копии</td><td>Первый раздел удаляет коллекцию <code>audit</code></td><td>Работать с копией в песочнице, как в скрипте</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Правило включено <code>collMod</code> без проверки данных фильтром</td><td>Старые неверные события остаются, а при <code>strict</code> любое их обновление отклоняется</td><td>Сначала посчитать несоответствующие: <code>$nor</code> с <code>$jsonSchema</code></td></tr>
+              <tr><td>Отчёт <code>explain</code> снят только после создания индексов</td><td>Сравнивать не с чем: непонятно, что дал индекс</td><td>Снять отчёт тех же запросов до индексов и после</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой и пределом</td><td>В плане остаётся <code>SORT</code>, сервер читает все подходящие документы</td><td>Порядок по правилу ESR: поле сортировки перед полем диапазона</td></tr>
+              <tr><td>По индексу на каждый запрос, который когда-либо выполнялся</td><td>Каждая запись в журнал обновляет все индексы</td><td>Индексы — под частые запросы; лишние удалять</td></tr>
+              <tr><td>Скрипт запущен на рабочей коллекции вместо копии</td><td>Первый раздел удаляет коллекцию <code>audit</code></td><td>Работать с копией в песочнице, как в скрипте</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s12"><span class="sec">§12</span>Проверьте себя</h2>
+        <details>
+          <summary>Зачем скрипт считает события, не соответствующие правилу, до команды <code>collMod</code>?</summary>
+          <p>Правило, включённое командой <code>collMod</code>, не перепроверяет документы, которые уже лежат в коллекции. Подсчёт фильтром <code>$nor</code> с <code>$jsonSchema</code> показывает, есть ли такие документы, и от этого зависит режим: при нуле правило включают строго, иначе — с <code>moderate</code> и <code>warn</code>.</p>
+        </details>
+        <details>
+          <summary>Почему функция <code>report</code> вызывается дважды?</summary>
+          <p>Чтобы сравнить одни и те же запросы до индексов и после. Отчёт <code>explain</code> снимается с теми же фильтром, сортировкой и пределом, и разница в счётчиках показывает, что дали индексы.</p>
+        </details>
+        <details>
+          <summary>У запроса «ошибки платежей» с индексом прочитано 18 ключей и 5 документов. Откуда разница?</summary>
+          <p>Индекс упорядочен по сервису, времени и статусу. Сервер идёт по записям <code>payments</code> от новых к старым и проверяет статус по записи индекса; из восемнадцати просмотренных записей пять со статусом от 500, и только для них прочитаны документы.</p>
+        </details>
+        <details>
+          <summary>Почему в индексе для запроса «медленный поиск» только два поля?</summary>
+          <p>Сортировка и условие-диапазон в этом запросе — по одному полю <code>duration_ms</code>. По правилу ESR после поля равенства <code>service</code> идёт поле сортировки, и оно же обслуживает диапазон.</p>
+        </details>
+        <details>
+          <summary>Что изменится в выводе, если запустить скрипт второй раз?</summary>
+          <p>Ничего: первый раздел удаляет коллекцию <code>audit</code> вместе с правилом и индексами и создаёт копию заново, а данные журнала и сами запросы не меняются.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>{"$nor": [{"$jsonSchema": RULE}]}</code>
+          </div>
+          <div>
+            <b>Включить правило</b>
+            <code>collMod: validator, validationLevel: "strict",</code>
+            <code>         validationAction: "error"</code>
+          </div>
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>explain: {find, filter, sort, limit}</code>
+            <code>verbosity: "executionStats"</code>
+          </div>
+          <div>
+            <b>Три счётчика</b>
+            <code>nReturned</code>
+            <code>totalKeysExamined</code>
+            <code>totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Индекс по ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>{"$nor": [{"$jsonSchema": RULE}]}</code>
+          </div>
+          <div>
+            <b>Включить правило</b>
+            <code>collMod: validator, validationLevel: "strict",</code>
+            <code>         validationAction: "error"</code>
+          </div>
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>explain: {find, filter, sort, limit}</code>
+            <code>verbosity: "executionStats"</code>
+          </div>
+          <div>
+            <b>Три счётчика</b>
+            <code>nReturned</code>
+            <code>totalKeysExamined</code>
+            <code>totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Индекс по ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>{"$nor": [{"$jsonSchema": RULE}]}</code>
+          </div>
+          <div>
+            <b>Включить правило</b>
+            <code>collMod: validator, validationLevel: "strict",</code>
+            <code>         validationAction: "error"</code>
+          </div>
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>explain: {find, filter, sort, limit}</code>
+            <code>verbosity: "executionStats"</code>
+          </div>
+          <div>
+            <b>Три счётчика</b>
+            <code>nReturned</code>
+            <code>totalKeysExamined</code>
+            <code>totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Индекс по ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Проверить данные правилом</b>
+            <code>{"$nor": [{"$jsonSchema": RULE}]}</code>
+          </div>
+          <div>
+            <b>Включить правило</b>
+            <code>collMod: validator, validationLevel: "strict",</code>
+            <code>         validationAction: "error"</code>
+          </div>
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>explain: {find, filter, sort, limit}</code>
+            <code>verbosity: "executionStats"</code>
+          </div>
+          <div>
+            <b>Три счётчика</b>
+            <code>nReturned</code>
+            <code>totalKeysExamined</code>
+            <code>totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Индекс по ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Скрипт <code>logs_audit</code> проходит порядок, которым правило и индексы вводят на рабочей коллекции: проверить данные правилом в фильтре, включить правило командой <code>collMod</code>, убедиться, что неверные записи отклоняются и причины читаются из <code>errInfo</code>; снять планы частых запросов, построить индексы по правилу ESR и снять планы ещё раз. Результат видно числами: три запроса дежурного вместо 1200 документов читают 5, 5 и 32. На этом разобраны все темы модуля 3: правила на уровне базы, индексы, план запроса, текстовый поиск и геозапросы.</p>
+
+        <div class="pager"><a href="../23-geografiya/index.html">← 3.5 География</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 3.6 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

@@ -633,4 +633,16 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     console.log('снят', name);
     await openTab('Documents');
   }
+
+  // ── Глава 3.6: коллекция audit после скрипта logs_audit ──────────────
+  if (need('141-audit-indexes')) {
+    const got = mongoIn('sandbox', `db.audit.drop(); db.audit.insertMany(db.getSiblingDB("logs").events.find().toArray());
+      db.audit.createIndex({ service: 1, ts: -1, status: 1 }); db.audit.createIndex({ service: 1, duration_ms: -1 });
+      db.audit.createIndex({ user_id: 1, ts: -1 }); db.audit.getIndexes().length`).split('\n').pop();
+    if (got !== '4') throw new Error('подготовка audit: ждали 4 индекса, получили ' + got);
+    await freshOpen('audit');
+    await openTab('Indexes');
+    await settle(1500);
+    await shot('141-audit-indexes', 520);
+  }
 });
