@@ -531,4 +531,54 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
   await explainShot('128-explain-sort', 'sort', 2, { filter: '{ service: "payments" }', sort: '{ ts: -1 }', limit: '10' });
   await explainShot('129-explain-esr', 'esr', 4, { filter: ERR, sort: '{ ts: -1 }', limit: '5', hint: '"service_1_ts_-1_status_1"' });
   await explainShot('130-explain-raw', 'bare', 1, { filter: ERR }, true);
+
+  // ── Глава 3.4: текстовый поиск на копии товаров ──────────────────────
+  const SC = `db.showcase.drop(); db.showcase.insertMany(db.getSiblingDB("shop").products.find().toArray());`;
+  const TX = {
+    copy: `${SC} db.showcase.countDocuments()`,
+    title: `${SC} db.showcase.createIndex({ title: "text" }, { default_language: "russian" }); db.showcase.countDocuments()`,
+    poisk: `${SC} db.showcase.createIndex({ title: "text", category: "text" },
+      { weights: { title: 10, category: 1 }, default_language: "russian", name: "poisk" }); db.showcase.countDocuments()`,
+  };
+  const prepTx = (name) => {
+    const got = mongoIn('sandbox', TX[name]).split('\n').pop();
+    if (got !== '21') throw new Error(`подготовка ${name}: ждали 21, получили ${got}`);
+  };
+  for (const q of [
+    { name: '131-showcase-regex', state: 'copy', filter: '{ title: { $regex: "ноутбук", $options: "i" } }', project: '{ _id: 0, title: 1 }' },
+    { name: '132-showcase-text', state: 'title', filter: '{ $text: { $search: "ноутбуки" } }', project: '{ _id: 0, title: 1 }', sort: '{ title: 1 }' },
+    { name: '133-showcase-phrase', state: 'title', filter: '{ $text: { $search: "\\"для ноутбука\\"" } }', project: '{ _id: 0, title: 1 }' },
+    { name: '134-showcase-score', state: 'title', filter: '{ $text: { $search: "apple ноутбук" } }',
+      project: '{ _id: 0, title: 1, score: { $meta: "textScore" } }', sort: '{ score: { $meta: "textScore" }, title: 1 }' },
+  ]) {
+    if (!need(q.name)) continue;
+    prepTx(q.state);
+    await freshOpen('showcase');
+    await openTab('Documents');
+    await setQuery({ filter: q.filter, project: q.project || '', sort: q.sort || '' });
+    await collapseOptions();
+    await useJsonView();
+    await shot(q.name, await fitHeight(1160));
+  }
+  if (need('135-showcase-poisk')) {
+    prepTx('poisk');
+    await freshOpen('showcase');
+    await openTab('Indexes');
+    await settle(1500);
+    await shot('135-showcase-poisk', 420);
+  }
+  if (need('136-showcase-explain')) {
+    prepTx('title');
+    await freshOpen('showcase');
+    await openTab('Documents');
+    await setQuery({ filter: '{ $text: { $search: "ноутбук" } }' });
+    await collapseOptions();
+    await page.locator('[data-testid="query-bar-explain-button"], button:has-text("Explain")').first().click({ force: true });
+    await settle(4000);
+    await page.screenshot({ path: `${OUT}/136-showcase-explain.png`, clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', '136-showcase-explain');
+    const close = page.getByRole('button', { name: /^close$/i }).first();
+    if (await close.count()) await close.click({ force: true }).catch(() => {});
+    await settle(800);
+  }
 });

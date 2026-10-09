@@ -1675,3 +1675,344 @@ CHEATS["3.3"] = [
     ("Стадии плана", {"all": ['COLLSCAN — вся коллекция', 'IXSCAN — индекс, FETCH — документы по ссылкам', 'SORT — сортировка в памяти', 'PROJECTION_COVERED — без чтения документов']}),
     ("Правило ESR", {"all": ['равенство → сортировка → диапазон', '{service: 1, ts: -1, status: 1}']}),
 ]
+
+# ── 3.4 Текстовый поиск ────────────────────────────────────────────────────
+#
+# Заготовка главы открывает showcase = sandbox.showcase — копию товаров.
+
+EXAMPLES["3.4"] = {}
+
+# 21 товар; regex 1, с i — 6, «ноутбуки» — 0
+EXAMPLES["3.4"]["regex"] = {"caption": "поиск слова шаблоном", "plain": {
+    "python": '''
+showcase.drop()
+showcase.insert_many(products.find())
+print("товаров в копии:", showcase.count_documents({}))
+
+print("ноутбук:         ", showcase.count_documents({"title": {"$regex": "ноутбук"}}))
+print("ноутбук, без регистра:", showcase.count_documents({"title": {"$regex": "ноутбук", "$options": "i"}}))
+print("ноутбуки, без регистра:", showcase.count_documents({"title": {"$regex": "ноутбуки", "$options": "i"}}))
+''',
+    "ruby": '''
+showcase.drop
+showcase.insert_many(products.find.to_a)
+puts "товаров в копии: " + showcase.count_documents({}).to_s
+
+puts "ноутбук:          " + showcase.count_documents({ "title" => { "$regex" => "ноутбук" } }).to_s
+puts "ноутбук, без регистра: " + showcase.count_documents({ "title" => { "$regex" => "ноутбук", "$options" => "i" } }).to_s
+puts "ноутбуки, без регистра: " + showcase.count_documents({ "title" => { "$regex" => "ноутбуки", "$options" => "i" } }).to_s
+''',
+    "go": '''
+showcase.Drop(ctx)
+var all []bson.D
+cursor, _ := products.Find(ctx, bson.D{})
+cursor.All(ctx, &all)
+docs := make([]any, len(all))
+for i := range all {
+    docs[i] = all[i]
+}
+showcase.InsertMany(ctx, docs)
+n, _ := showcase.CountDocuments(ctx, bson.D{})
+fmt.Println("товаров в копии:", n)
+
+word, _ := showcase.CountDocuments(ctx, bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "ноутбук"}}}})
+anyCase, _ := showcase.CountDocuments(ctx, bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "ноутбук"}, {Key: "$options", Value: "i"}}}})
+plural, _ := showcase.CountDocuments(ctx, bson.D{{Key: "title", Value: bson.D{{Key: "$regex", Value: "ноутбуки"}, {Key: "$options", Value: "i"}}}})
+fmt.Println("ноутбук:         ", word)
+fmt.Println("ноутбук, без регистра:", anyCase)
+fmt.Println("ноутбуки, без регистра:", plural)
+''',
+    "cpp": '''
+showcase.drop();
+std::vector<bsoncxx::document::value> all;
+for (auto&& doc : products.find(make_document())) all.emplace_back(doc);
+showcase.insert_many(all);
+std::cout << "товаров в копии: " << showcase.count_documents(make_document()) << std::endl;
+
+std::cout << "ноутбук:          "
+          << showcase.count_documents(make_document(kvp("title", make_document(kvp("$regex", "ноутбук"))))) << std::endl;
+std::cout << "ноутбук, без регистра: "
+          << showcase.count_documents(make_document(kvp("title", make_document(kvp("$regex", "ноутбук"), kvp("$options", "i"))))) << std::endl;
+std::cout << "ноутбуки, без регистра: "
+          << showcase.count_documents(make_document(kvp("title", make_document(kvp("$regex", "ноутбуки"), kvp("$options", "i"))))) << std::endl;
+''',
+}}
+
+# title_text; «ноутбуки» — 6 товаров по названию
+EXAMPLES["3.4"]["text"] = {"caption": "текстовый индекс и $text", "plain": {
+    "python": '''
+name = showcase.create_index([("title", "text")], default_language="russian")
+print("создан индекс:", name)
+
+for doc in showcase.find({"$text": {"$search": "ноутбуки"}}, {"_id": 0, "title": 1}).sort("title", 1):
+    print(doc["title"])
+''',
+    "ruby": '''
+showcase.indexes.create_one({ "title" => "text" }, default_language: "russian")
+# ключ текстового индекса хранится как _fts, поэтому индекс ищется в списке по этому полю
+puts "создан индекс: " + showcase.indexes.find { |ix| ix["key"].key?("_fts") }["name"]
+
+showcase.find({ "$text" => { "$search" => "ноутбуки" } }, projection: { "_id" => 0, "title" => 1 })
+        .sort({ "title" => 1 })
+        .each { |doc| puts doc["title"] }
+''',
+    "go": '''
+name, _ := showcase.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: "title", Value: "text"}},
+    Options: options.Index().SetDefaultLanguage("russian")})
+fmt.Println("создан индекс:", name)
+
+cursor, _ := showcase.Find(ctx, bson.D{{Key: "$text", Value: bson.D{{Key: "$search", Value: "ноутбуки"}}}},
+    options.Find().SetSort(bson.D{{Key: "title", Value: 1}}))
+for cursor.Next(ctx) {
+    fmt.Println(cursor.Current.Lookup("title").StringValue())
+}
+''',
+    "cpp": '''
+mongocxx::options::index russian;
+russian.default_language("russian");
+auto created = showcase.create_index(make_document(kvp("title", "text")), russian);
+std::cout << "создан индекс: " << created.view()["name"].get_string().value << std::endl;
+
+mongocxx::options::find by_title;
+by_title.sort(make_document(kvp("title", 1)));
+for (auto&& doc : showcase.find(make_document(kvp("$text", make_document(kvp("$search", "ноутбуки")))), by_title)) {
+    std::cout << doc["title"].get_string().value << std::endl;
+}
+''',
+}}
+
+# несколько слов, фраза, исключение, часть слова, стоп-слово
+EXAMPLES["3.4"]["search"] = {"caption": "слова, фраза, исключение", "plain": {
+    "python": '''
+for search in ["мышь клавиатура", '"для ноутбука"', "ноутбук -рюкзак", "ноут", "для"]:
+    found = [doc["title"] for doc in showcase.find({"$text": {"$search": search}}).sort("title", 1)]
+    print(search.ljust(16), "→", ", ".join(found) or "ничего")
+''',
+    "ruby": '''
+["мышь клавиатура", '"для ноутбука"', "ноутбук -рюкзак", "ноут", "для"].each do |search|
+  found = showcase.find({ "$text" => { "$search" => search } }).sort({ "title" => 1 }).map { |doc| doc["title"] }
+  puts search.ljust(16) + " → " + (found.empty? ? "ничего" : found.join(", "))
+end
+''',
+    "go": '''
+for _, search := range []string{"мышь клавиатура", "\\"для ноутбука\\"", "ноутбук -рюкзак", "ноут", "для"} {
+    cursor, _ := showcase.Find(ctx, bson.D{{Key: "$text", Value: bson.D{{Key: "$search", Value: search}}}},
+        options.Find().SetSort(bson.D{{Key: "title", Value: 1}}))
+    found := []string{}
+    for cursor.Next(ctx) {
+        found = append(found, cursor.Current.Lookup("title").StringValue())
+    }
+    line := strings.Join(found, ", ")
+    if line == "" {
+        line = "ничего"
+    }
+    fmt.Printf("%-16s → %s\\n", search, line)
+}
+''',
+    "cpp": '''
+mongocxx::options::find by_title;
+by_title.sort(make_document(kvp("title", 1)));
+for (std::string search : {"мышь клавиатура", "\\"для ноутбука\\"", "ноутбук -рюкзак", "ноут", "для"}) {
+    std::string found;
+    for (auto&& doc : showcase.find(make_document(kvp("$text", make_document(kvp("$search", search)))), by_title)) {
+        if (!found.empty()) found += ", ";
+        found += std::string{doc["title"].get_string().value};
+    }
+    size_t letters = 0;                       // в UTF-8 буква кириллицы занимает два байта
+    for (unsigned char c : search) letters += (c & 0xC0) != 0x80;
+    std::cout << search << std::string(16 - std::min<size_t>(16, letters), ' ') << " → "
+              << (found.empty() ? "ничего" : found) << std::endl;
+}
+''',
+}}
+
+# оценка совпадения для «apple ноутбук»
+EXAMPLES["3.4"]["score"] = {"caption": "оценка совпадения", "plain": {
+    "python": '''
+cursor = showcase.find({"$text": {"$search": "apple ноутбук"}},
+                       {"_id": 0, "title": 1, "score": {"$meta": "textScore"}})
+for doc in cursor.sort([("score", {"$meta": "textScore"}), ("title", 1)]):
+    print(f"{doc['score']:.3f}", doc["title"])
+''',
+    "ruby": '''
+showcase.find({ "$text" => { "$search" => "apple ноутбук" } },
+              projection: { "_id" => 0, "title" => 1, "score" => { "$meta" => "textScore" } })
+        .sort({ "score" => { "$meta" => "textScore" }, "title" => 1 })
+        .each { |doc| puts format("%.3f", doc["score"]) + " " + doc["title"] }
+''',
+    "go": '''
+cursor, _ := showcase.Find(ctx, bson.D{{Key: "$text", Value: bson.D{{Key: "$search", Value: "apple ноутбук"}}}},
+    options.Find().
+        SetProjection(bson.D{{Key: "_id", Value: 0}, {Key: "title", Value: 1}, {Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}}).
+        SetSort(bson.D{{Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}, {Key: "title", Value: 1}}))
+for cursor.Next(ctx) {
+    fmt.Printf("%.3f %s\\n", cursor.Current.Lookup("score").Double(), cursor.Current.Lookup("title").StringValue())
+}
+''',
+    "cpp": '''
+mongocxx::options::find by_score;
+by_score.projection(make_document(kvp("_id", 0), kvp("title", 1), kvp("score", make_document(kvp("$meta", "textScore")))));
+by_score.sort(make_document(kvp("score", make_document(kvp("$meta", "textScore"))), kvp("title", 1)));
+for (auto&& doc : showcase.find(make_document(kvp("$text", make_document(kvp("$search", "apple ноутбук")))), by_score)) {
+    std::cout << std::fixed << std::setprecision(3) << doc["score"].get_double().value << " "
+              << doc["title"].get_string().value << std::endl;
+}
+''',
+}}
+
+# язык индекса и язык запроса: russian 6, none 0 и 6; стоп-слово 0 и 0
+EXAMPLES["3.4"]["language"] = {"caption": "язык индекса и язык запроса", "plain": {
+    "python": '''
+for search, language in [("ноутбуки", "russian"), ("ноутбуки", "none"), ("ноутбук", "none"), ("для", "none")]:
+    count = showcase.count_documents({"$text": {"$search": search, "$language": language}})
+    print(f"{search} ({language}):", count)
+''',
+    "ruby": '''
+[["ноутбуки", "russian"], ["ноутбуки", "none"], ["ноутбук", "none"], ["для", "none"]].each do |search, language|
+  count = showcase.count_documents({ "$text" => { "$search" => search, "$language" => language } })
+  puts "#{search} (#{language}): #{count}"
+end
+''',
+    "go": '''
+for _, pair := range [][2]string{{"ноутбуки", "russian"}, {"ноутбуки", "none"}, {"ноутбук", "none"}, {"для", "none"}} {
+    count, _ := showcase.CountDocuments(ctx, bson.D{{Key: "$text", Value: bson.D{
+        {Key: "$search", Value: pair[0]}, {Key: "$language", Value: pair[1]}}}})
+    fmt.Printf("%s (%s): %d\\n", pair[0], pair[1], count)
+}
+''',
+    "cpp": '''
+std::vector<std::pair<std::string, std::string>> queries{
+    {"ноутбуки", "russian"}, {"ноутбуки", "none"}, {"ноутбук", "none"}, {"для", "none"}};
+for (const auto& [search, language] : queries) {
+    auto count = showcase.count_documents(make_document(kvp("$text", make_document(
+        kvp("$search", search), kvp("$language", language)))));
+    std::cout << search << " (" << language << "): " << count << std::endl;
+}
+''',
+}}
+
+# индекс по двум полям с весами; «смартфоны» 7.250 / 7.000; второй текстовый — 85
+EXAMPLES["3.4"]["weights"] = {"caption": "индекс по двум полям с весами", "plain": {
+    "python": '''
+from pymongo.errors import OperationFailure
+
+showcase.drop_index("title_text")
+showcase.create_index([("title", "text"), ("category", "text")],
+                      weights={"title": 10, "category": 1}, default_language="russian", name="poisk")
+
+cursor = showcase.find({"$text": {"$search": "смартфоны"}},
+                       {"_id": 0, "title": 1, "score": {"$meta": "textScore"}})
+for doc in cursor.sort([("score", {"$meta": "textScore"}), ("title", 1)]):
+    print(f"{doc['score']:.3f}", doc["title"])
+
+try:
+    showcase.create_index([("brand", "text")])
+except OperationFailure as e:
+    print("второй текстовый индекс не создан, код", e.code)
+''',
+    "ruby": '''
+showcase.indexes.drop_one("title_text")
+showcase.indexes.create_one({ "title" => "text", "category" => "text" },
+                            weights: { "title" => 10, "category" => 1 }, default_language: "russian", name: "poisk")
+
+showcase.find({ "$text" => { "$search" => "смартфоны" } },
+              projection: { "_id" => 0, "title" => 1, "score" => { "$meta" => "textScore" } })
+        .sort({ "score" => { "$meta" => "textScore" }, "title" => 1 })
+        .each { |doc| puts format("%.3f", doc["score"]) + " " + doc["title"] }
+
+begin
+  showcase.indexes.create_one({ "brand" => "text" })
+rescue Mongo::Error::OperationFailure => e
+  puts "второй текстовый индекс не создан, код #{e.code}"
+end
+''',
+    "go": '''
+showcase.Indexes().DropOne(ctx, "title_text")
+showcase.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: "title", Value: "text"}, {Key: "category", Value: "text"}},
+    Options: options.Index().
+        SetWeights(bson.D{{Key: "title", Value: 10}, {Key: "category", Value: 1}}).
+        SetDefaultLanguage("russian").
+        SetName("poisk")})
+
+cursor, _ := showcase.Find(ctx, bson.D{{Key: "$text", Value: bson.D{{Key: "$search", Value: "смартфоны"}}}},
+    options.Find().
+        SetProjection(bson.D{{Key: "_id", Value: 0}, {Key: "title", Value: 1}, {Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}}).
+        SetSort(bson.D{{Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}, {Key: "title", Value: 1}}))
+for cursor.Next(ctx) {
+    fmt.Printf("%.3f %s\\n", cursor.Current.Lookup("score").Double(), cursor.Current.Lookup("title").StringValue())
+}
+
+_, err := showcase.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "brand", Value: "text"}}})
+var ce mongo.CommandError
+if errors.As(err, &ce) {
+    fmt.Println("второй текстовый индекс не создан, код", ce.Code)
+}
+''',
+    "cpp": '''
+showcase.indexes().drop_one("title_text");
+auto weights = make_document(kvp("title", 10), kvp("category", 1));
+mongocxx::options::index poisk;
+poisk.weights(weights.view());
+poisk.default_language("russian");
+poisk.name("poisk");
+showcase.create_index(make_document(kvp("title", "text"), kvp("category", "text")), poisk);
+
+mongocxx::options::find by_score;
+by_score.projection(make_document(kvp("_id", 0), kvp("title", 1), kvp("score", make_document(kvp("$meta", "textScore")))));
+by_score.sort(make_document(kvp("score", make_document(kvp("$meta", "textScore"))), kvp("title", 1)));
+for (auto&& doc : showcase.find(make_document(kvp("$text", make_document(kvp("$search", "смартфоны")))), by_score)) {
+    std::cout << std::fixed << std::setprecision(3) << doc["score"].get_double().value << " "
+              << doc["title"].get_string().value << std::endl;
+}
+
+try {
+    showcase.create_index(make_document(kvp("brand", "text")));
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "второй текстовый индекс не создан, код " << e.code().value() << std::endl;
+}
+''',
+}}
+
+ERRORS["3.4"] = [
+    ('<code>{"$text": {"$search": "ноутбук"}}</code> на коллекции без текстового индекса',
+     "Ошибка 27 <code>IndexNotFound</code>: text index required for $text query",
+     "Создать текстовый индекс по нужным полям"),
+    ('<code>{"title": {"$text": {"$search": "…"}}}</code>',
+     "Ошибка: <code>$text</code> не ставится внутрь поля",
+     '<code>$text</code> — на месте имени поля: <code>{"$text": {"$search": "…"}}</code>'),
+    ("Второй текстовый индекс на ту же коллекцию",
+     "Ошибка 85 <code>IndexOptionsConflict</code>: текстовый индекс у коллекции один",
+     "Добавить поле в существующий текстовый индекс"),
+    ("Поиск по началу слова: «ноут»",
+     "Ничего не найдено: индекс хранит слова целиком",
+     "Целое слово в любой форме или <code>$regex</code> с <code>^</code>"),
+    ("Индекс построен без <code>default_language</code> по русским названиям",
+     "Язык индекса — английский: «ноутбуки» не находит ничего, «ноутбук» — 5 товаров из 6 без «ноутбука», служебное «для» ищется",
+     '<code>default_language="russian"</code> при создании индекса'),
+    ("Сортировка по оценке без <code>$meta</code> в сортировке",
+     "Порядок не по оценке: поле <code>score</code> в проекции само по себе порядок не задаёт",
+     '<code>sort({"score": {"$meta": "textScore"}})</code>'),
+]
+
+CHEATS["3.4"] = [
+    ("Текстовый индекс", {
+        "python": ['coll.create_index([("title", "text")],', '    default_language="russian")'],
+        "ruby": ['coll.indexes.create_one({ "title" => "text" },', '  default_language: "russian")'],
+        "go": ['Keys: bson.D{{Key: "title", Value: "text"}},', 'Options: options.Index().SetDefaultLanguage("russian")'],
+        "cpp": ['o.default_language("russian");', 'coll.create_index(make_document(kvp("title", "text")), o);']}),
+    ("Поиск", {"all": ['{"$text": {"$search": "ноутбуки"}}']}),
+    ("Строка поиска", {"all": ['"мышь клавиатура" — любое слово', '"\\"для ноутбука\\"" — фраза', '"ноутбук -рюкзак" — без слова']}),
+    ("Оценка совпадения", {
+        "python": ['{"score": {"$meta": "textScore"}}  # проекция и сортировка'],
+        "ruby": ['{ "score" => { "$meta" => "textScore" } }'],
+        "go": ['bson.D{{Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}}'],
+        "cpp": ['make_document(kvp("score", make_document(kvp("$meta", "textScore"))))']}),
+    ("Несколько полей с весами", {
+        "python": ['coll.create_index([("title", "text"), ("category", "text")],', '    weights={"title": 10, "category": 1})'],
+        "ruby": ['coll.indexes.create_one({ "title" => "text", "category" => "text" },', '  weights: { "title" => 10, "category" => 1 })'],
+        "go": ['options.Index().SetWeights(bson.D{', '  {Key: "title", Value: 10}, {Key: "category", Value: 1}})'],
+        "cpp": ['o.weights(weights.view());']}),
+    ("Язык запроса", {"all": ['{"$text": {"$search": "…", "$language": "none"}}']}),
+]

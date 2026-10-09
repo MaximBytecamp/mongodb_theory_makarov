@@ -965,7 +965,7 @@ service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | �
         <h3>Итог главы</h3>
         <p><code>explain</code> возвращает отчёт о выполнении запроса. В разделе <code>queryPlanner</code> лежат выбранный план (<code>winningPlan</code>) и отклонённые (<code>rejectedPlans</code>), в разделе <code>executionStats</code> — счётчики выбранного плана: <code>nReturned</code>, <code>totalKeysExamined</code>, <code>totalDocsExamined</code>. У хорошо обслуженного запроса три счётчика близки; если прочитано намного больше, чем возвращено, индекса нет или он не подходит. Индекс для сравнения задаётся параметром <code>hint</code>, <code>{"$natural": 1}</code> — чтение без индекса. Покрывающий запрос берёт поля из индекса и не читает документы, стадия <code>SORT</code> означает сортировку в памяти, а порядок полей составного индекса подбирается по правилу ESR: равенство, сортировка, диапазон. Время выполнения меняется от запуска к запуску, поэтому планы сравнивают по счётчикам.</p>
 
-        <div class="pager"><a href="../20-indeksy/index.html">← 3.2 Индексы</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../20-indeksy/index.html">← 3.2 Индексы</a><a href="../22-tekstovyy-poisk/index.html">3.4 Текстовый поиск →</a></div>
 
         <div class="colophon">
           <span>Глава 3.3 · Справочник по MongoDB</span>

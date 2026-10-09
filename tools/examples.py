@@ -48,6 +48,7 @@ CHAPTERS = {
     "3.1": ("19-jsonschema", "Правила на уровне базы: $jsonSchema", True),
     "3.2": ("20-indeksy", "Индексы: одиночные, составные, уникальные", True),
     "3.3": ("21-explain", "Как читать explain: COLLSCAN против IXSCAN", True),
+    "3.4": ("22-tekstovyy-poisk", "Текстовый поиск: $text и $search", True),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -543,6 +544,20 @@ EXTRAS[("3.3", "cpp")] = """
     auto journal = sandbox["events"];      // копия журнала: на ней строятся индексы главы
 """
 
+# Глава 3.4: текстовый индекс строится на копии товаров в песочнице.
+EXTRAS[("3.4", "python")] = """
+showcase = sandbox["showcase"]    # копия товаров магазина: на ней строится текстовый индекс
+"""
+EXTRAS[("3.4", "ruby")] = """
+showcase = sandbox[:showcase]     # копия товаров магазина: на ней строится текстовый индекс
+"""
+EXTRAS[("3.4", "go")] = """
+\tshowcase := sandbox.Collection("showcase") // копия товаров магазина: на ней строится текстовый индекс
+"""
+EXTRAS[("3.4", "cpp")] = """
+    auto showcase = sandbox["showcase"];   // копия товаров магазина: на ней строится текстовый индекс
+"""
+
 GO_IMPORTS = ["context", "errors", "fmt", "log", "os", "sort", "strings", "time"]
 GO_MONGO = {
     "bson": '"go.mongodb.org/mongo-driver/v2/bson"',
@@ -701,7 +716,7 @@ def starter(chapter: str, lang: str, snippets: list[str]) -> str:
         head += "\t" + ", ".join("_" for _ in names) + " = " + ", ".join(names) + "\n"
         used = [v for v in ("col", "lastSeenID", "ordersBox", "stats", "today", "catalog", "schema")
                 if re.search(r"\b%s :=" % v, extra)]
-        used += [v for v in ("journal", "clients") if re.search(r"\b%s :=" % v, extra)]
+        used += [v for v in ("journal", "clients", "showcase") if re.search(r"\b%s :=" % v, extra)]
         if used:
             extra += "\t" + ", ".join("_" for _ in used) + " = " + ", ".join(used) + "\n"
     if lang == "cpp":

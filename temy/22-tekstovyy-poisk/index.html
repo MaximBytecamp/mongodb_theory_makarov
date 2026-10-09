@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>3.4 Текстовый поиск: $text и $search · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .doc__body .bad { color: var(--clay); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Форма данных и скорость</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · форма данных и скорость</p>
+          <p class="running__folio">3.4</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">3.4</span>
+          <h1>Текстовый поиск:<br>$text и $search</h1>
+          <p class="lead">В этой главе разобран поиск по словам: текстовый индекс делит строки на слова, приводит их к основе и находит документы по слову в любой форме. На копии товаров магазина разобраны оператор $text, поиск нескольких слов, фразы и слова с исключением, оценка совпадения для сортировки результатов, язык индекса и текстовый индекс по нескольким полям с весами.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Форма данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Текстовые шаблоны <code>$regex</code> (глава 2.7), индексы (глава 3.2), план запроса (глава 3.3)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Искать по словам в любой форме в названиях и описаниях</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-3.4-python.zip" download><code>mongodb-glava-3.4-python.zip</code></a>, 61 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-3.4-ruby.zip" download><code>mongodb-glava-3.4-ruby.zip</code></a>, 61 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-3.4-go.zip" download><code>mongodb-glava-3.4-go.zip</code></a>, 66 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-3.4-cpp.zip" download><code>mongodb-glava-3.4-cpp.zip</code></a>, 64 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch3_4.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch3_4.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch3_4.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch3_4.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch3_4.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch3_4.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch3_4.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch3_4.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch3_4.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch3_4.go</code> · в Docker: <code>docker compose run --rm go lessons/ch3_4.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch3_4.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch3_4.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Поиск слова шаблоном</a></li>
+            <li><a href="#s2">Текстовый индекс и $text</a></li>
+            <li><a href="#s3">Несколько слов, фраза, исключение</a></li>
+            <li><a href="#s4">Оценка совпадения</a></li>
+            <li><a href="#s5">Язык индекса и язык запроса</a></li>
+            <li><a href="#s6">Индекс по нескольким полям и веса</a></li>
+            <li><a href="#s7">Текстовый поиск в плане запроса</a></li>
+            <li><a href="#s8">Текстовый поиск в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Самостоятельная работа</a></li>
+            <li><a href="#s12">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Поиск слова шаблоном</h2>
+        <p>Покупатель вводит в строку поиска магазина «ноутбуки». В главе 2.7 строки искали шаблоном <code>$regex</code>, но шаблон сравнивает символы: он ищет точную последовательность букв с учётом регистра. Слово «ноутбуки» не совпадает ни с «Ноутбук» в начале названия, ни с «ноутбука» в названии рюкзака, хотя покупатель ищет именно эти товары.</p>
+        <p>Текстовый индекс главы строится на копии товаров в песочнице, коллекции <code>showcase</code> (<code>sandbox.showcase</code>) из заготовки главы: база <code>shop</code> остаётся без новых индексов. Первый пример копирует в неё товары магазина и считает совпадения трёх шаблонов.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>поиск слова шаблоном</span></figcaption>
+<pre>showcase.<span class="f">drop</span>()
+showcase.<span class="f">insert_many</span>(products.<span class="f">find</span>())
+<span class="f">print</span>(<span class="s">"товаров в копии:"</span>, showcase.<span class="f">count_documents</span>({}))
+
+<span class="f">print</span>(<span class="s">"ноутбук:         "</span>, showcase.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"ноутбук"</span>}}))
+<span class="f">print</span>(<span class="s">"ноутбук, без регистра:"</span>, showcase.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"ноутбук"</span>, <span class="s">"$options"</span>: <span class="s">"i"</span>}}))
+<span class="f">print</span>(<span class="s">"ноутбуки, без регистра:"</span>, showcase.<span class="f">count_documents</span>({<span class="s">"title"</span>: {<span class="s">"$regex"</span>: <span class="s">"ноутбуки"</span>, <span class="s">"$options"</span>: <span class="s">"i"</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>поиск слова шаблоном</span></figcaption>
+<pre>showcase.<span class="f">drop</span>();
+std::vector&lt;bsoncxx::document::value&gt; all;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">find</span>(<span class="f">make_document</span>())) all.<span class="f">emplace_back</span>(doc);
+showcase.<span class="f">insert_many</span>(all);
+std::cout &lt;&lt; <span class="s">"товаров в копии: "</span> &lt;&lt; showcase.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+
+std::cout &lt;&lt; <span class="s">"ноутбук:          "</span>
+          &lt;&lt; showcase.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"ноутбук"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"ноутбук, без регистра: "</span>
+          &lt;&lt; showcase.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"ноутбук"</span>), <span class="f">kvp</span>(<span class="s">"$options"</span>, <span class="s">"i"</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"ноутбуки, без регистра: "</span>
+          &lt;&lt; showcase.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$regex"</span>, <span class="s">"ноутбуки"</span>), <span class="f">kvp</span>(<span class="s">"$options"</span>, <span class="s">"i"</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>поиск слова шаблоном</span></figcaption>
+<pre>showcase.<span class="f">Drop</span>(ctx)
+<span class="k">var</span> all []bson.D
+cursor, _ := products.<span class="f">Find</span>(ctx, bson.D{})
+cursor.<span class="f">All</span>(ctx, &amp;all)
+docs := <span class="f">make</span>([]<span class="k">any</span>, <span class="f">len</span>(all))
+<span class="k">for</span> i := <span class="k">range</span> all {
+    docs[i] = all[i]
+}
+showcase.<span class="f">InsertMany</span>(ctx, docs)
+n, _ := showcase.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"товаров в копии:"</span>, n)
+
+word, _ := showcase.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"ноутбук"</span>}}}})
+anyCase, _ := showcase.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"ноутбук"</span>}, {Key: <span class="s">"$options"</span>, Value: <span class="s">"i"</span>}}}})
+plural, _ := showcase.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: bson.D{{Key: <span class="s">"$regex"</span>, Value: <span class="s">"ноутбуки"</span>}, {Key: <span class="s">"$options"</span>, Value: <span class="s">"i"</span>}}}})
+fmt.<span class="f">Println</span>(<span class="s">"ноутбук:         "</span>, word)
+fmt.<span class="f">Println</span>(<span class="s">"ноутбук, без регистра:"</span>, anyCase)
+fmt.<span class="f">Println</span>(<span class="s">"ноутбуки, без регистра:"</span>, plural)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>поиск слова шаблоном</span></figcaption>
+<pre>showcase.drop
+showcase.<span class="f">insert_many</span>(products.find.to_a)
+<span class="k">puts</span> <span class="s">"товаров в копии: "</span> + showcase.<span class="f">count_documents</span>({}).to_s
+
+<span class="k">puts</span> <span class="s">"ноутбук:          "</span> + showcase.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"ноутбук"</span> } }).to_s
+<span class="k">puts</span> <span class="s">"ноутбук, без регистра: "</span> + showcase.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"ноутбук"</span>, <span class="s">"$options"</span> =&gt; <span class="s">"i"</span> } }).to_s
+<span class="k">puts</span> <span class="s">"ноутбуки, без регистра: "</span> + showcase.<span class="f">count_documents</span>({ <span class="s">"title"</span> =&gt; { <span class="s">"$regex"</span> =&gt; <span class="s">"ноутбуки"</span>, <span class="s">"$options"</span> =&gt; <span class="s">"i"</span> } }).to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в копии: 21
+ноутбук:          1
+ноутбук, без регистра: 6
+ноутбуки, без регистра: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в копии: 21
+ноутбук:          1
+ноутбук, без регистра: 6
+ноутбуки, без регистра: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в копии: 21
+ноутбук:          1
+ноутбук, без регистра: 6
+ноутбуки, без регистра: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>товаров в копии: 21
+ноутбук:          1
+ноутбук, без регистра: 6
+ноутбуки, без регистра: 0</pre>
+        </figure>
+        <p>Шаблон <code>ноутбук</code> нашёл один товар — «Рюкзак для ноутбука Xiaomi»: в пяти названиях ноутбуков слово начинается с заглавной буквы. Без учёта регистра (<code>$options: "i"</code>) найдено шесть товаров. Шаблон <code>ноутбуки</code> не нашёл ничего: такой последовательности букв нет ни в одном названии. Перебирать окончания в шаблоне вручную неудобно, а шаблон без привязки к началу строки не может использовать индекс (глава 2.7) и проверяет каждый документ.</p>
+        <figure class="shot">
+          <img src="../../shots/131-showcase-regex.png" alt="Compass, коллекция sandbox.showcase: фильтр regex ноутбук с опцией i, найдено 6 товаров">
+          <figcaption>Compass · <code>sandbox.showcase</code>, шаблон <code>ноутбук</code> без учёта регистра</figcaption>
+        </figure>
+        <p>Счётчик <code>1 – 6 of 6</code>: пять ноутбуков и рюкзак. На вкладке <b>Indexes</b> — <code>1</code>, у копии только индекс <code>_id_</code>.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Текстовый индекс и $text</h2>
+        <p><span class="term">Текстовый индекс</span> хранит не строки целиком, а отдельные слова. При построении сервер делит строку на слова по пробелам и знакам препинания, переводит их в нижний регистр, отбрасывает служебные слова — предлоги, союзы — и приводит каждое слово к основе: «ноутбуки», «ноутбука» и «Ноутбук» дают одну и ту же запись «ноутбук». Правила деления и приведения к основе зависят от языка, его задаёт параметр <code>default_language</code>.</p>
+        <div class="duo">
+          <div class="doc">
+            <div class="doc__bar"><span>Название</span><span>title</span></div>
+            <div class="doc__body"><div>"Рюкзак для ноутбука Xiaomi"</div></div>
+          </div>
+          <div class="doc">
+            <div class="doc__bar"><span>Слова в индексе</span><span>russian</span></div>
+            <div class="doc__body">
+              <div><span class="fld">рюкзак</span></div>
+              <div><span class="fld">ноутбук</span> ← «ноутбука»</div>
+              <div><span class="fld">xiaomi</span></div>
+              <div class="bad">«для» — служебное слово, в индекс не попадает</div>
+            </div>
+          </div>
+        </div>
+        <p>Слово запроса обрабатывается по тем же правилам, поэтому «ноутбуки» находит и «Ноутбук», и «ноутбука». Поиск по текстовому индексу записывает оператор <code>$text</code>; он стоит в фильтре на месте имени поля, а искомые слова — строка в его параметре <code>$search</code>. Поле в <code>$text</code> не указывается: оператор ищет по тем полям, по которым построен текстовый индекс коллекции.</p>
+        <p data-lang="python">Текстовый индекс создаёт тот же <code>create_index</code>, что и обычный: вместо направления у поля указывается <code>"text"</code>, язык — именованный аргумент <code>default_language</code>.</p>
+        <p data-lang="ruby">Текстовый индекс создаёт тот же <code>indexes.create_one</code>: вместо направления у поля указывается <code>"text"</code>, язык — параметр <code>default_language:</code>. Ключ текстового индекса сервер хранит в своём виде — <code>{"_fts": "text", "_ftsx": 1}</code>, поэтому имя индекса пример находит в списке индексов по полю <code>_fts</code>.</p>
+        <p data-lang="go">Текстовый индекс создаёт тот же <code>Indexes().CreateOne</code>: вместо направления у поля указывается <code>"text"</code>, язык задаёт <code>SetDefaultLanguage</code> в параметрах индекса. Название документа берётся из текущего документа курсора: <code>cursor.Current.Lookup("title")</code>.</p>
+        <p data-lang="cpp">Текстовый индекс создаёт тот же <code>create_index</code>: вместо направления у поля указывается <code>"text"</code>, язык задаёт <code>default_language</code> объекта параметров индекса.</p>
+        <p>Пример создаёт текстовый индекс по названию на русском языке и ищет «ноутбуки». Результат отсортирован по названию: без сортировки документы идут в порядке записей индекса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>текстовый индекс и $text</span></figcaption>
+<pre>name = showcase.<span class="f">create_index</span>([(<span class="s">"title"</span>, <span class="s">"text"</span>)], default_language=<span class="s">"russian"</span>)
+<span class="f">print</span>(<span class="s">"создан индекс:"</span>, name)
+
+<span class="k">for</span> doc <span class="k">in</span> showcase.<span class="f">find</span>({<span class="s">"$text"</span>: {<span class="s">"$search"</span>: <span class="s">"ноутбуки"</span>}}, {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>}).<span class="f">sort</span>(<span class="s">"title"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc[<span class="s">"title"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>текстовый индекс и $text</span></figcaption>
+<pre>mongocxx::options::index russian;
+russian.<span class="f">default_language</span>(<span class="s">"russian"</span>);
+<span class="k">auto</span> created = showcase.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"text"</span>)), russian);
+std::cout &lt;&lt; <span class="s">"создан индекс: "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+
+mongocxx::options::find by_title;
+by_title.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : showcase.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$text"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$search"</span>, <span class="s">"ноутбуки"</span>)))), by_title)) {
+    std::cout &lt;&lt; doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>текстовый индекс и $text</span></figcaption>
+<pre>name, _ := showcase.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: <span class="s">"title"</span>, Value: <span class="s">"text"</span>}},
+    Options: options.<span class="f">Index</span>().<span class="f">SetDefaultLanguage</span>(<span class="s">"russian"</span>)})
+fmt.<span class="f">Println</span>(<span class="s">"создан индекс:"</span>, name)
+
+cursor, _ := showcase.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"$text"</span>, Value: bson.D{{Key: <span class="s">"$search"</span>, Value: <span class="s">"ноутбуки"</span>}}}},
+    options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    fmt.<span class="f">Println</span>(cursor.Current.<span class="f">Lookup</span>(<span class="s">"title"</span>).<span class="f">StringValue</span>())
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>текстовый индекс и $text</span></figcaption>
+<pre>showcase.indexes.<span class="f">create_one</span>({ <span class="s">"title"</span> =&gt; <span class="s">"text"</span> }, default_language: <span class="s">"russian"</span>)
+<span class="c"># ключ текстового индекса хранится как _fts, поэтому индекс ищется в списке по этому полю</span>
+<span class="k">puts</span> <span class="s">"создан индекс: "</span> + showcase.indexes.find { |ix| ix[<span class="s">"key"</span>].key?(<span class="s">"_fts"</span>) }[<span class="s">"name"</span>]
+
+showcase.<span class="f">find</span>({ <span class="s">"$text"</span> =&gt; { <span class="s">"$search"</span> =&gt; <span class="s">"ноутбуки"</span> } }, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+        .<span class="f">sort</span>({ <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+        .each { |doc| <span class="k">puts</span> doc[<span class="s">"title"</span>] }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: title_text
+Ноутбук ASUS VivoBook 15
+Ноутбук Acer Nitro V15
+Ноутбук Apple MacBook Air 13
+Ноутбук HP Pavilion 14
+Ноутбук Lenovo IdeaPad 3
+Рюкзак для ноутбука Xiaomi</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: title_text
+Ноутбук ASUS VivoBook 15
+Ноутбук Acer Nitro V15
+Ноутбук Apple MacBook Air 13
+Ноутбук HP Pavilion 14
+Ноутбук Lenovo IdeaPad 3
+Рюкзак для ноутбука Xiaomi</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: title_text
+Ноутбук ASUS VivoBook 15
+Ноутбук Acer Nitro V15
+Ноутбук Apple MacBook Air 13
+Ноутбук HP Pavilion 14
+Ноутбук Lenovo IdeaPad 3
+Рюкзак для ноутбука Xiaomi</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: title_text
+Ноутбук ASUS VivoBook 15
+Ноутбук Acer Nitro V15
+Ноутбук Apple MacBook Air 13
+Ноутбук HP Pavilion 14
+Ноутбук Lenovo IdeaPad 3
+Рюкзак для ноутбука Xiaomi</pre>
+        </figure>
+        <p>Индекс получил имя <code>title_text</code> — поле и слово <code>text</code> вместо направления. Найдены все шесть товаров, которые нашёл шаблон без учёта регистра в §1, хотя слово запроса стоит в другой форме: пять ноутбуков и рюкзак.</p>
+        <figure class="shot">
+          <img src="../../shots/132-showcase-text.png" alt="Compass, коллекция sandbox.showcase: фильтр $text $search ноутбуки, найдено 6 товаров, отсортированных по названию">
+          <figcaption>Compass · <code>{ $text: { $search: "ноутбуки" } }</code>, сортировка по названию</figcaption>
+        </figure>
+        <p>Оператор <code>$text</code> в поле фильтра записывается так же, как в коде. Найдены те же шесть товаров, что и шаблоном без учёта регистра, но по слову в другой форме. Счётчик вкладки <b>Indexes</b> — <code>2</code>: добавился <code>title_text</code>.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Несколько слов, фраза, исключение</h2>
+        <p>Строка <code>$search</code> может содержать несколько слов, и у некоторых знаков в ней особый смысл:</p>
+        <ul>
+          <li>слова через пробел соединяются по «или»: документ подходит, если в нём есть хотя бы одно слово;</li>
+          <li>слова в двойных кавычках — фраза: документ подходит, если в нём есть эта последовательность слов;</li>
+          <li>минус перед словом — исключение: документ с этим словом не подходит.</li>
+        </ul>
+        <p>Пример выполняет пять поисков и печатает найденные названия через запятую: два слова, фразу «для ноутбука», «ноутбук» без рюкзаков, часть слова «ноут» и служебное слово «для».</p>
+        <p data-lang="python">Фраза записана в строке Python в одинарных кавычках, чтобы двойные кавычки фразы вошли в строку как есть.</p>
+        <p data-lang="ruby">Фраза записана в строке Ruby в одинарных кавычках, чтобы двойные кавычки фразы вошли в строку как есть.</p>
+        <p data-lang="go">Двойные кавычки фразы внутри строки Go экранированы обратной косой чертой: <code>"\"для ноутбука\""</code>.</p>
+        <p data-lang="cpp">Двойные кавычки фразы внутри строки C++ экранированы обратной косой чертой: <code>"\"для ноутбука\""</code>. Для выравнивания столбца пример считает буквы: в кодировке UTF-8 буква кириллицы занимает два байта, и <code>size()</code> строки возвращает число байтов.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>слова, фраза, исключение</span></figcaption>
+<pre><span class="k">for</span> search <span class="k">in</span> [<span class="s">"мышь клавиатура"</span>, <span class="s">'"для ноутбука"'</span>, <span class="s">"ноутбук -рюкзак"</span>, <span class="s">"ноут"</span>, <span class="s">"для"</span>]:
+    found = [doc[<span class="s">"title"</span>] <span class="k">for</span> doc <span class="k">in</span> showcase.<span class="f">find</span>({<span class="s">"$text"</span>: {<span class="s">"$search"</span>: search}}).<span class="f">sort</span>(<span class="s">"title"</span>, <span class="n">1</span>)]
+    <span class="f">print</span>(search.<span class="f">ljust</span>(<span class="n">16</span>), <span class="s">"→"</span>, <span class="s">", "</span>.<span class="f">join</span>(found) <span class="k">or</span> <span class="s">"ничего"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>слова, фраза, исключение</span></figcaption>
+<pre>mongocxx::options::find by_title;
+by_title.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (std::string search : {<span class="s">"мышь клавиатура"</span>, <span class="s">"\"для ноутбука\""</span>, <span class="s">"ноутбук -рюкзак"</span>, <span class="s">"ноут"</span>, <span class="s">"для"</span>}) {
+    std::string found;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : showcase.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$text"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$search"</span>, search)))), by_title)) {
+        <span class="k">if</span> (!found.<span class="f">empty</span>()) found += <span class="s">", "</span>;
+        found += std::string{doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value};
+    }
+    size_t letters = <span class="n">0</span>;                       <span class="c">// в UTF-8 буква кириллицы занимает два байта</span>
+    <span class="k">for</span> (unsigned char c : search) letters += (c &amp; 0xC0) != 0x80;
+    std::cout &lt;&lt; search &lt;&lt; std::<span class="f">string</span>(<span class="n">16</span> - std::min&lt;size_t&gt;(<span class="n">16</span>, letters), <span class="s">' '</span>) &lt;&lt; <span class="s">" → "</span>
+              &lt;&lt; (found.<span class="f">empty</span>() ? <span class="s">"ничего"</span> : found) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>слова, фраза, исключение</span></figcaption>
+<pre><span class="k">for</span> _, search := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"мышь клавиатура"</span>, <span class="s">"\"для ноутбука\""</span>, <span class="s">"ноутбук -рюкзак"</span>, <span class="s">"ноут"</span>, <span class="s">"для"</span>} {
+    cursor, _ := showcase.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"$text"</span>, Value: bson.D{{Key: <span class="s">"$search"</span>, Value: search}}}},
+        options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}))
+    found := []<span class="k">string</span>{}
+    <span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+        found = <span class="f">append</span>(found, cursor.Current.<span class="f">Lookup</span>(<span class="s">"title"</span>).<span class="f">StringValue</span>())
+    }
+    line := strings.<span class="f">Join</span>(found, <span class="s">", "</span>)
+    <span class="k">if</span> line == <span class="s">""</span> {
+        line = <span class="s">"ничего"</span>
+    }
+    fmt.<span class="f">Printf</span>(<span class="s">"%-16s → %s\n"</span>, search, line)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>слова, фраза, исключение</span></figcaption>
+<pre>[<span class="s">"мышь клавиатура"</span>, <span class="s">'"для ноутбука"'</span>, <span class="s">"ноутбук -рюкзак"</span>, <span class="s">"ноут"</span>, <span class="s">"для"</span>].each <span class="k">do</span> |search|
+  found = showcase.<span class="f">find</span>({ <span class="s">"$text"</span> =&gt; { <span class="s">"$search"</span> =&gt; search } }).<span class="f">sort</span>({ <span class="s">"title"</span> =&gt; <span class="n">1</span> }).map { |doc| doc[<span class="s">"title"</span>] }
+  <span class="k">puts</span> search.<span class="f">ljust</span>(<span class="n">16</span>) + <span class="s">" → "</span> + (found.empty? ? <span class="s">"ничего"</span> : found.<span class="f">join</span>(<span class="s">", "</span>))
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>мышь клавиатура  → Клавиатура Keychron K2, Мышь Logitech MX Master 3S
+"для ноутбука"   → Рюкзак для ноутбука Xiaomi
+ноутбук -рюкзак  → Ноутбук ASUS VivoBook 15, Ноутбук Acer Nitro V15, Ноутбук Apple MacBook Air 13, Ноутбук HP Pavilion 14, Ноутбук Lenovo IdeaPad 3
+ноут             → ничего
+для              → ничего</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>мышь клавиатура  → Клавиатура Keychron K2, Мышь Logitech MX Master 3S
+"для ноутбука"   → Рюкзак для ноутбука Xiaomi
+ноутбук -рюкзак  → Ноутбук ASUS VivoBook 15, Ноутбук Acer Nitro V15, Ноутбук Apple MacBook Air 13, Ноутбук HP Pavilion 14, Ноутбук Lenovo IdeaPad 3
+ноут             → ничего
+для              → ничего</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>мышь клавиатура  → Клавиатура Keychron K2, Мышь Logitech MX Master 3S
+"для ноутбука"   → Рюкзак для ноутбука Xiaomi
+ноутбук -рюкзак  → Ноутбук ASUS VivoBook 15, Ноутбук Acer Nitro V15, Ноутбук Apple MacBook Air 13, Ноутбук HP Pavilion 14, Ноутбук Lenovo IdeaPad 3
+ноут             → ничего
+для              → ничего</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>мышь клавиатура  → Клавиатура Keychron K2, Мышь Logitech MX Master 3S
+"для ноутбука"   → Рюкзак для ноутбука Xiaomi
+ноутбук -рюкзак  → Ноутбук ASUS VivoBook 15, Ноутбук Acer Nitro V15, Ноутбук Apple MacBook Air 13, Ноутбук HP Pavilion 14, Ноутбук Lenovo IdeaPad 3
+ноут             → ничего
+для              → ничего</pre>
+        </figure>
+        <p>«мышь клавиатура» нашла оба товара — по одному слову в каждом. Фраза «для ноутбука» нашла только рюкзак: в нём эти слова стоят подряд. «ноутбук -рюкзак» нашёл пять ноутбуков без рюкзака. «ноут» не нашёл ничего: текстовый индекс ищет слова целиком, начало слова в нём не ищется — для этого остаётся шаблон <code>$regex</code> с <code>^</code>. «для» тоже ничего не нашёл: служебные слова в индекс не попали.</p>
+        <figure class="shot">
+          <img src="../../shots/133-showcase-phrase.png" alt="Compass, коллекция sandbox.showcase: фильтр $text с фразой для ноутбука в кавычках, найден 1 товар">
+          <figcaption>Compass · фраза <code>"\"для ноутбука\""</code></figcaption>
+        </figure>
+        <p>Кавычки фразы внутри строки поиска экранированы обратной косой чертой, как в коде на Go и C++. Найден один документ — рюкзак.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Оценка совпадения</h2>
+        <p>При поиске нескольких слов одни документы подходят лучше других. Для каждого найденного документа сервер вычисляет <span class="term">оценку совпадения</span> — число, которое больше, когда совпало больше слов запроса и когда совпавшее слово занимает большую часть поля. Оценку получают в проекции выражением <code>{"$meta": "textScore"}</code> и по нему же сортируют результат, лучшие совпадения — первыми. Имя поля для оценки выбирается любое, в примере — <code>score</code>.</p>
+        <p>Пример ищет «apple ноутбук» и печатает оценку с тремя знаками после запятой. Документы с равной оценкой упорядочены по названию — вторым ключом сортировки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>оценка совпадения</span></figcaption>
+<pre>cursor = showcase.<span class="f">find</span>({<span class="s">"$text"</span>: {<span class="s">"$search"</span>: <span class="s">"apple ноутбук"</span>}},
+                       {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"score"</span>: {<span class="s">"$meta"</span>: <span class="s">"textScore"</span>}})
+<span class="k">for</span> doc <span class="k">in</span> cursor.<span class="f">sort</span>([(<span class="s">"score"</span>, {<span class="s">"$meta"</span>: <span class="s">"textScore"</span>}), (<span class="s">"title"</span>, <span class="n">1</span>)]):
+    <span class="f">print</span>(f<span class="s">"{doc['score']:.3f}"</span>, doc[<span class="s">"title"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>оценка совпадения</span></figcaption>
+<pre>mongocxx::options::find by_score;
+by_score.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"score"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$meta"</span>, <span class="s">"textScore"</span>)))));
+by_score.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"score"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$meta"</span>, <span class="s">"textScore"</span>))), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : showcase.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$text"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$search"</span>, <span class="s">"apple ноутбук"</span>)))), by_score)) {
+    std::cout &lt;&lt; std::fixed &lt;&lt; std::<span class="f">setprecision</span>(<span class="n">3</span>) &lt;&lt; doc[<span class="s">"score"</span>].<span class="f">get_double</span>().value &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>оценка совпадения</span></figcaption>
+<pre>cursor, _ := showcase.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"$text"</span>, Value: bson.D{{Key: <span class="s">"$search"</span>, Value: <span class="s">"apple ноутбук"</span>}}}},
+    options.<span class="f">Find</span>().
+        <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"score"</span>, Value: bson.D{{Key: <span class="s">"$meta"</span>, Value: <span class="s">"textScore"</span>}}}}).
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"score"</span>, Value: bson.D{{Key: <span class="s">"$meta"</span>, Value: <span class="s">"textScore"</span>}}}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    fmt.<span class="f">Printf</span>(<span class="s">"%.3f %s\n"</span>, cursor.Current.<span class="f">Lookup</span>(<span class="s">"score"</span>).<span class="f">Double</span>(), cursor.Current.<span class="f">Lookup</span>(<span class="s">"title"</span>).<span class="f">StringValue</span>())
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>оценка совпадения</span></figcaption>
+<pre>showcase.<span class="f">find</span>({ <span class="s">"$text"</span> =&gt; { <span class="s">"$search"</span> =&gt; <span class="s">"apple ноутбук"</span> } },
+              projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"score"</span> =&gt; { <span class="s">"$meta"</span> =&gt; <span class="s">"textScore"</span> } })
+        .<span class="f">sort</span>({ <span class="s">"score"</span> =&gt; { <span class="s">"$meta"</span> =&gt; <span class="s">"textScore"</span> }, <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+        .each { |doc| <span class="k">puts</span> <span class="f">format</span>(<span class="s">"%.3f"</span>, doc[<span class="s">"score"</span>]) + <span class="s">" "</span> + doc[<span class="s">"title"</span>] }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>1.200 Ноутбук Apple MacBook Air 13
+0.667 Рюкзак для ноутбука Xiaomi
+0.625 Ноутбук ASUS VivoBook 15
+0.625 Ноутбук Acer Nitro V15
+0.625 Ноутбук HP Pavilion 14
+0.625 Ноутбук Lenovo IdeaPad 3
+0.625 Смартфон Apple iPhone 15</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>1.200 Ноутбук Apple MacBook Air 13
+0.667 Рюкзак для ноутбука Xiaomi
+0.625 Ноутбук ASUS VivoBook 15
+0.625 Ноутбук Acer Nitro V15
+0.625 Ноутбук HP Pavilion 14
+0.625 Ноутбук Lenovo IdeaPad 3
+0.625 Смартфон Apple iPhone 15</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>1.200 Ноутбук Apple MacBook Air 13
+0.667 Рюкзак для ноутбука Xiaomi
+0.625 Ноутбук ASUS VivoBook 15
+0.625 Ноутбук Acer Nitro V15
+0.625 Ноутбук HP Pavilion 14
+0.625 Ноутбук Lenovo IdeaPad 3
+0.625 Смартфон Apple iPhone 15</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>1.200 Ноутбук Apple MacBook Air 13
+0.667 Рюкзак для ноутбука Xiaomi
+0.625 Ноутбук ASUS VivoBook 15
+0.625 Ноутбук Acer Nitro V15
+0.625 Ноутбук HP Pavilion 14
+0.625 Ноутбук Lenovo IdeaPad 3
+0.625 Смартфон Apple iPhone 15</pre>
+        </figure>
+        <p>Первым стоит «Ноутбук Apple MacBook Air 13» с оценкой 1,2: в нём оба слова запроса. Остальные содержат одно слово. Рюкзак (0,667) оценён выше ноутбуков других марок (0,625): после удаления служебного слова в его названии три слова, а в названиях ноутбуков — четыре, и одно совпавшее слово составляет большую долю. «Смартфон Apple iPhone 15» найден по слову «apple». Названия брендов в индексе есть, потому что индекс строится по всему названию.</p>
+        <figure class="shot">
+          <img src="../../shots/134-showcase-score.png" alt="Compass, коллекция sandbox.showcase: поиск apple ноутбук с полем score из textScore, первым MacBook с оценкой 1.2, затем рюкзак 0.6666666666666666 и пять товаров с 0.625">
+          <figcaption>Compass · «apple ноутбук», проекция и сортировка по <code>{ $meta: "textScore" }</code></figcaption>
+        </figure>
+        <p>Поле <code>score</code> Compass показывает с полной точностью: у рюкзака — <code>0.6666666666666666</code>, в примере оно округлено до трёх знаков. Порядок тот же: MacBook, рюкзак, затем пять товаров с оценкой <code>0.625</code> по названию.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Язык индекса и язык запроса</h2>
+        <p>Правила деления на слова и приведения к основе у каждого языка свои. Язык индекса задаётся при создании (<code>default_language</code>) и определяет, какие слова попадут в индекс. Язык запроса задаёт параметр <code>$language</code> оператора <code>$text</code>; по умолчанию он совпадает с языком индекса. Значение <code>"none"</code> отключает обработку: слова запроса только переводятся в нижний регистр, без приведения к основе и без отбрасывания служебных слов.</p>
+        <p>Пример сравнивает поиск на русском и с <code>"none"</code> по индексу из §2, построенному на русском.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>язык индекса и язык запроса</span></figcaption>
+<pre><span class="k">for</span> search, language <span class="k">in</span> [(<span class="s">"ноутбуки"</span>, <span class="s">"russian"</span>), (<span class="s">"ноутбуки"</span>, <span class="s">"none"</span>), (<span class="s">"ноутбук"</span>, <span class="s">"none"</span>), (<span class="s">"для"</span>, <span class="s">"none"</span>)]:
+    count = showcase.<span class="f">count_documents</span>({<span class="s">"$text"</span>: {<span class="s">"$search"</span>: search, <span class="s">"$language"</span>: language}})
+    <span class="f">print</span>(f<span class="s">"{search} ({language}):"</span>, count)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>язык индекса и язык запроса</span></figcaption>
+<pre>std::vector&lt;std::pair&lt;std::string, std::string&gt;&gt; queries{
+    {<span class="s">"ноутбуки"</span>, <span class="s">"russian"</span>}, {<span class="s">"ноутбуки"</span>, <span class="s">"none"</span>}, {<span class="s">"ноутбук"</span>, <span class="s">"none"</span>}, {<span class="s">"для"</span>, <span class="s">"none"</span>}};
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [search, language] : queries) {
+    <span class="k">auto</span> count = showcase.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$text"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$search"</span>, search), <span class="f">kvp</span>(<span class="s">"$language"</span>, language)))));
+    std::cout &lt;&lt; search &lt;&lt; <span class="s">" ("</span> &lt;&lt; language &lt;&lt; <span class="s">"): "</span> &lt;&lt; count &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>язык индекса и язык запроса</span></figcaption>
+<pre><span class="k">for</span> _, pair := <span class="k">range</span> [][<span class="n">2</span>]<span class="k">string</span>{{<span class="s">"ноутбуки"</span>, <span class="s">"russian"</span>}, {<span class="s">"ноутбуки"</span>, <span class="s">"none"</span>}, {<span class="s">"ноутбук"</span>, <span class="s">"none"</span>}, {<span class="s">"для"</span>, <span class="s">"none"</span>}} {
+    count, _ := showcase.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"$text"</span>, Value: bson.D{
+        {Key: <span class="s">"$search"</span>, Value: pair[<span class="n">0</span>]}, {Key: <span class="s">"$language"</span>, Value: pair[<span class="n">1</span>]}}}})
+    fmt.<span class="f">Printf</span>(<span class="s">"%s (%s): %d\n"</span>, pair[<span class="n">0</span>], pair[<span class="n">1</span>], count)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>язык индекса и язык запроса</span></figcaption>
+<pre>[[<span class="s">"ноутбуки"</span>, <span class="s">"russian"</span>], [<span class="s">"ноутбуки"</span>, <span class="s">"none"</span>], [<span class="s">"ноутбук"</span>, <span class="s">"none"</span>], [<span class="s">"для"</span>, <span class="s">"none"</span>]].each <span class="k">do</span> |search, language|
+  count = showcase.<span class="f">count_documents</span>({ <span class="s">"$text"</span> =&gt; { <span class="s">"$search"</span> =&gt; search, <span class="s">"$language"</span> =&gt; language } })
+  <span class="k">puts</span> <span class="s">"#{search} (#{language}): #{count}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ноутбуки (russian): 6
+ноутбуки (none): 0
+ноутбук (none): 6
+для (none): 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ноутбуки (russian): 6
+ноутбуки (none): 0
+ноутбук (none): 6
+для (none): 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ноутбуки (russian): 6
+ноутбуки (none): 0
+ноутбук (none): 6
+для (none): 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>ноутбуки (russian): 6
+ноутбуки (none): 0
+ноутбук (none): 6
+для (none): 0</pre>
+        </figure>
+        <p>С языком <code>"none"</code> «ноутбуки» не находит ничего: в индексе лежит основа «ноутбук», а слово запроса к основе не приведено. «ноутбук» с <code>"none"</code> находит все шесть товаров: слово запроса и так совпадает с основой. «для» не находится и с <code>"none"</code>: язык запроса меняет обработку запроса, а служебное слово отброшено ещё при построении индекса. Поэтому язык индекса выбирают по языку данных при создании, а <code>$language</code> в запросе меняют редко.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Индекс по нескольким полям и веса</h2>
+        <p>Текстовый индекс можно построить по нескольким полям сразу: тогда <code>$text</code> ищет слово во всех этих полях. У каждого поля можно задать <span class="term">вес</span> — множитель оценки совпадения: совпадение в поле с весом 10 даёт оценку в десять раз больше, чем такое же совпадение в поле с весом 1. Без весов у всех полей вес 1.</p>
+        <p>Текстовый индекс у коллекции может быть только один. Поэтому пример удаляет <code>title_text</code> и строит индекс <code>poisk</code> по названию (вес 10) и категории (вес 1), затем ищет «смартфоны». Последним шагом пример пробует создать второй текстовый индекс, по бренду.</p>
+        <p data-lang="python">Веса передаются словарём в именованном аргументе <code>weights</code>, своё имя индекса — аргументом <code>name</code>.</p>
+        <p data-lang="ruby">Веса передаются хешем в параметре <code>weights:</code>, своё имя индекса — параметром <code>name:</code>.</p>
+        <p data-lang="go">Веса задаёт <code>SetWeights</code>, своё имя индекса — <code>SetName</code> в той же цепочке параметров.</p>
+        <p data-lang="cpp">Веса задаёт метод <code>weights</code> объекта параметров, своё имя — <code>name</code>. Документ весов лежит в отдельной переменной: объект параметров хранит ссылку на него.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>индекс по двум полям с весами</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+showcase.<span class="f">drop_index</span>(<span class="s">"title_text"</span>)
+showcase.<span class="f">create_index</span>([(<span class="s">"title"</span>, <span class="s">"text"</span>), (<span class="s">"category"</span>, <span class="s">"text"</span>)],
+                      weights={<span class="s">"title"</span>: <span class="n">10</span>, <span class="s">"category"</span>: <span class="n">1</span>}, default_language=<span class="s">"russian"</span>, name=<span class="s">"poisk"</span>)
+
+cursor = showcase.<span class="f">find</span>({<span class="s">"$text"</span>: {<span class="s">"$search"</span>: <span class="s">"смартфоны"</span>}},
+                       {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"score"</span>: {<span class="s">"$meta"</span>: <span class="s">"textScore"</span>}})
+<span class="k">for</span> doc <span class="k">in</span> cursor.<span class="f">sort</span>([(<span class="s">"score"</span>, {<span class="s">"$meta"</span>: <span class="s">"textScore"</span>}), (<span class="s">"title"</span>, <span class="n">1</span>)]):
+    <span class="f">print</span>(f<span class="s">"{doc['score']:.3f}"</span>, doc[<span class="s">"title"</span>])
+
+<span class="k">try</span>:
+    showcase.<span class="f">create_index</span>([(<span class="s">"brand"</span>, <span class="s">"text"</span>)])
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"второй текстовый индекс не создан, код"</span>, e.code)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>индекс по двум полям с весами</span></figcaption>
+<pre>showcase.<span class="f">indexes</span>().<span class="f">drop_one</span>(<span class="s">"title_text"</span>);
+<span class="k">auto</span> weights = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">10</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="n">1</span>));
+mongocxx::options::index poisk;
+poisk.<span class="f">weights</span>(weights.<span class="f">view</span>());
+poisk.<span class="f">default_language</span>(<span class="s">"russian"</span>);
+poisk.<span class="f">name</span>(<span class="s">"poisk"</span>);
+showcase.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"text"</span>), <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"text"</span>)), poisk);
+
+mongocxx::options::find by_score;
+by_score.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"score"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$meta"</span>, <span class="s">"textScore"</span>)))));
+by_score.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"score"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$meta"</span>, <span class="s">"textScore"</span>))), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : showcase.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$text"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$search"</span>, <span class="s">"смартфоны"</span>)))), by_score)) {
+    std::cout &lt;&lt; std::fixed &lt;&lt; std::<span class="f">setprecision</span>(<span class="n">3</span>) &lt;&lt; doc[<span class="s">"score"</span>].<span class="f">get_double</span>().value &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; doc[<span class="s">"title"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}
+
+<span class="k">try</span> {
+    showcase.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"brand"</span>, <span class="s">"text"</span>)));
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"второй текстовый индекс не создан, код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>индекс по двум полям с весами</span></figcaption>
+<pre>showcase.<span class="f">Indexes</span>().<span class="f">DropOne</span>(ctx, <span class="s">"title_text"</span>)
+showcase.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: <span class="s">"title"</span>, Value: <span class="s">"text"</span>}, {Key: <span class="s">"category"</span>, Value: <span class="s">"text"</span>}},
+    Options: options.<span class="f">Index</span>().
+        <span class="f">SetWeights</span>(bson.D{{Key: <span class="s">"title"</span>, Value: <span class="n">10</span>}, {Key: <span class="s">"category"</span>, Value: <span class="n">1</span>}}).
+        <span class="f">SetDefaultLanguage</span>(<span class="s">"russian"</span>).
+        <span class="f">SetName</span>(<span class="s">"poisk"</span>)})
+
+cursor, _ := showcase.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"$text"</span>, Value: bson.D{{Key: <span class="s">"$search"</span>, Value: <span class="s">"смартфоны"</span>}}}},
+    options.<span class="f">Find</span>().
+        <span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"score"</span>, Value: bson.D{{Key: <span class="s">"$meta"</span>, Value: <span class="s">"textScore"</span>}}}}).
+        <span class="f">SetSort</span>(bson.D{{Key: <span class="s">"score"</span>, Value: bson.D{{Key: <span class="s">"$meta"</span>, Value: <span class="s">"textScore"</span>}}}, {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    fmt.<span class="f">Printf</span>(<span class="s">"%.3f %s\n"</span>, cursor.Current.<span class="f">Lookup</span>(<span class="s">"score"</span>).<span class="f">Double</span>(), cursor.Current.<span class="f">Lookup</span>(<span class="s">"title"</span>).<span class="f">StringValue</span>())
+}
+
+_, err := showcase.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"brand"</span>, Value: <span class="s">"text"</span>}}})
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"второй текстовый индекс не создан, код"</span>, ce.Code)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>индекс по двум полям с весами</span></figcaption>
+<pre>showcase.indexes.<span class="f">drop_one</span>(<span class="s">"title_text"</span>)
+showcase.indexes.<span class="f">create_one</span>({ <span class="s">"title"</span> =&gt; <span class="s">"text"</span>, <span class="s">"category"</span> =&gt; <span class="s">"text"</span> },
+                            weights: { <span class="s">"title"</span> =&gt; <span class="n">10</span>, <span class="s">"category"</span> =&gt; <span class="n">1</span> }, default_language: <span class="s">"russian"</span>, name: <span class="s">"poisk"</span>)
+
+showcase.<span class="f">find</span>({ <span class="s">"$text"</span> =&gt; { <span class="s">"$search"</span> =&gt; <span class="s">"смартфоны"</span> } },
+              projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"score"</span> =&gt; { <span class="s">"$meta"</span> =&gt; <span class="s">"textScore"</span> } })
+        .<span class="f">sort</span>({ <span class="s">"score"</span> =&gt; { <span class="s">"$meta"</span> =&gt; <span class="s">"textScore"</span> }, <span class="s">"title"</span> =&gt; <span class="n">1</span> })
+        .each { |doc| <span class="k">puts</span> <span class="f">format</span>(<span class="s">"%.3f"</span>, doc[<span class="s">"score"</span>]) + <span class="s">" "</span> + doc[<span class="s">"title"</span>] }
+
+<span class="k">begin</span>
+  showcase.indexes.<span class="f">create_one</span>({ <span class="s">"brand"</span> =&gt; <span class="s">"text"</span> })
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"второй текстовый индекс не создан, код #{e.code}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>7.250 Смартфон Apple iPhone 15
+7.250 Смартфон Samsung Galaxy A55
+7.250 Смартфон realme 12 Pro
+7.000 Смартфон Xiaomi Redmi Note 13
+второй текстовый индекс не создан, код 85</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>7.250 Смартфон Apple iPhone 15
+7.250 Смартфон Samsung Galaxy A55
+7.250 Смартфон realme 12 Pro
+7.000 Смартфон Xiaomi Redmi Note 13
+второй текстовый индекс не создан, код 85</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>7.250 Смартфон Apple iPhone 15
+7.250 Смартфон Samsung Galaxy A55
+7.250 Смартфон realme 12 Pro
+7.000 Смартфон Xiaomi Redmi Note 13
+второй текстовый индекс не создан, код 85</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>7.250 Смартфон Apple iPhone 15
+7.250 Смартфон Samsung Galaxy A55
+7.250 Смартфон realme 12 Pro
+7.000 Смартфон Xiaomi Redmi Note 13
+второй текстовый индекс не создан, код 85</pre>
+        </figure>
+        <p>Найдены четыре смартфона. Слово «смартфон» есть и в названии, и в категории «смартфоны», и оценка сложилась из двух частей: совпадение в названии, умноженное на 10, и совпадение в категории. У «Смартфон Xiaomi Redmi Note 13» оценка ниже, 7,0: название длиннее, и совпавшее слово составляет меньшую долю. Второй текстовый индекс не создан, код 85 — <code>IndexOptionsConflict</code>: все текстовые индексы коллекции хранятся под одним ключом <code>_fts</code>, и сервер считает новый индекс конфликтующим с существующим. Чтобы искать ещё и по бренду, поле <code>brand</code> добавляют в тот же индекс.</p>
+        <figure class="shot">
+          <img src="../../shots/135-showcase-poisk.png" alt="Compass, вкладка Indexes коллекции sandbox.showcase: индекс poisk типа TEXT со свойством COMPOUND">
+          <figcaption>Compass · <code>sandbox.showcase</code>, вкладка <b>Indexes</b> после замены индекса</figcaption>
+        </figure>
+        <p>У индекса <code>poisk</code> тип <code>TEXT</code> — текстовый, свойство <code>COMPOUND</code> — он построен по двум полям. Стрелка у имени раскрывает поля индекса и их веса.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Текстовый поиск в плане запроса</h2>
+        <p>Оператор <code>$text</code> работает только с текстовым индексом. На коллекции без текстового индекса запрос с <code>$text</code> завершается ошибкой с кодом 27 — <code>IndexNotFound</code>, «text index required for $text query»; просмотром коллекции сервер его не выполняет.</p>
+        <p>В плане такого запроса (глава 3.3) три стадии: <code>IXSCAN</code> читает записи текстового индекса для слов запроса, <code>FETCH</code> читает найденные документы, <code>TEXT_MATCH</code> проверяет условия, которые индекс проверить не может, — фразы и исключённые слова. Запрос «ноутбук» по индексу <code>title_text</code> прочитал 6 записей индекса и 6 документов и вернул 6.</p>
+        <figure class="shot">
+          <img src="../../shots/136-showcase-explain.png" alt="Compass, окно Explain Plan для $text ноутбук: стадии TEXT_MATCH, FETCH, IXSCAN по title_text, по 6 на каждой стадии, Multi Key Index yes, поля индекса _fts и _ftsx">
+          <figcaption>Compass · <b>Explain</b> для <code>{ $text: { $search: "ноутбук" } }</code></figcaption>
+        </figure>
+        <p>Три стадии по 6 документов: <code>IXSCAN</code> по <code>title_text</code>, <code>FETCH</code>, <code>TEXT_MATCH</code>. У индекса <b>Multi Key Index: yes</b>: из одного названия в индекс попадает несколько слов, как из массива в многоключевом индексе (глава 3.2, §8). В сводке поля индекса — служебные <code>_fts</code> и <code>_ftsx</code>, под которыми сервер хранит слова и их веса.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Текстовый поиск в Compass</h2>
+        <p>Кадры в разделах выше сняты на тех же запросах, что и примеры. Оператор <code>$text</code> пишется в поле фильтра вкладки <b>Documents</b> так же, как в коде; оценка совпадения добавляется в поле проекции (<b>Project</b>) как <code>score: { $meta: "textScore" }</code>, и то же выражение ставится в поле сортировки (<b>Sort</b>). Кавычки фразы внутри строки поиска экранируются обратной косой чертой.</p>
+        <p>Текстовый индекс создаётся в окне <b>Create Index</b> на вкладке <b>Indexes</b> (глава 3.2, §9): в списке типа поля выбирается <code>text</code> вместо направления <code>1</code> или <code>-1</code>. В таблице индексов у него тип <code>TEXT</code>.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$text": {"$search": "ноутбук"}}</code> на коллекции без текстового индекса</td><td>Ошибка 27 <code>IndexNotFound</code>: text index required for $text query</td><td>Создать текстовый индекс по нужным полям</td></tr>
+              <tr><td><code>{"title": {"$text": {"$search": "…"}}}</code></td><td>Ошибка: <code>$text</code> не ставится внутрь поля</td><td><code>$text</code> — на месте имени поля: <code>{"$text": {"$search": "…"}}</code></td></tr>
+              <tr><td>Второй текстовый индекс на ту же коллекцию</td><td>Ошибка 85 <code>IndexOptionsConflict</code>: текстовый индекс у коллекции один</td><td>Добавить поле в существующий текстовый индекс</td></tr>
+              <tr><td>Поиск по началу слова: «ноут»</td><td>Ничего не найдено: индекс хранит слова целиком</td><td>Целое слово в любой форме или <code>$regex</code> с <code>^</code></td></tr>
+              <tr><td>Индекс построен без <code>default_language</code> по русским названиям</td><td>Язык индекса — английский: «ноутбуки» не находит ничего, «ноутбук» — 5 товаров из 6 без «ноутбука», служебное «для» ищется</td><td><code>default_language="russian"</code> при создании индекса</td></tr>
+              <tr><td>Сортировка по оценке без <code>$meta</code> в сортировке</td><td>Порядок не по оценке: поле <code>score</code> в проекции само по себе порядок не задаёт</td><td><code>sort({"score": {"$meta": "textScore"}})</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$text": {"$search": "ноутбук"}}</code> на коллекции без текстового индекса</td><td>Ошибка 27 <code>IndexNotFound</code>: text index required for $text query</td><td>Создать текстовый индекс по нужным полям</td></tr>
+              <tr><td><code>{"title": {"$text": {"$search": "…"}}}</code></td><td>Ошибка: <code>$text</code> не ставится внутрь поля</td><td><code>$text</code> — на месте имени поля: <code>{"$text": {"$search": "…"}}</code></td></tr>
+              <tr><td>Второй текстовый индекс на ту же коллекцию</td><td>Ошибка 85 <code>IndexOptionsConflict</code>: текстовый индекс у коллекции один</td><td>Добавить поле в существующий текстовый индекс</td></tr>
+              <tr><td>Поиск по началу слова: «ноут»</td><td>Ничего не найдено: индекс хранит слова целиком</td><td>Целое слово в любой форме или <code>$regex</code> с <code>^</code></td></tr>
+              <tr><td>Индекс построен без <code>default_language</code> по русским названиям</td><td>Язык индекса — английский: «ноутбуки» не находит ничего, «ноутбук» — 5 товаров из 6 без «ноутбука», служебное «для» ищется</td><td><code>default_language="russian"</code> при создании индекса</td></tr>
+              <tr><td>Сортировка по оценке без <code>$meta</code> в сортировке</td><td>Порядок не по оценке: поле <code>score</code> в проекции само по себе порядок не задаёт</td><td><code>sort({"score": {"$meta": "textScore"}})</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$text": {"$search": "ноутбук"}}</code> на коллекции без текстового индекса</td><td>Ошибка 27 <code>IndexNotFound</code>: text index required for $text query</td><td>Создать текстовый индекс по нужным полям</td></tr>
+              <tr><td><code>{"title": {"$text": {"$search": "…"}}}</code></td><td>Ошибка: <code>$text</code> не ставится внутрь поля</td><td><code>$text</code> — на месте имени поля: <code>{"$text": {"$search": "…"}}</code></td></tr>
+              <tr><td>Второй текстовый индекс на ту же коллекцию</td><td>Ошибка 85 <code>IndexOptionsConflict</code>: текстовый индекс у коллекции один</td><td>Добавить поле в существующий текстовый индекс</td></tr>
+              <tr><td>Поиск по началу слова: «ноут»</td><td>Ничего не найдено: индекс хранит слова целиком</td><td>Целое слово в любой форме или <code>$regex</code> с <code>^</code></td></tr>
+              <tr><td>Индекс построен без <code>default_language</code> по русским названиям</td><td>Язык индекса — английский: «ноутбуки» не находит ничего, «ноутбук» — 5 товаров из 6 без «ноутбука», служебное «для» ищется</td><td><code>default_language="russian"</code> при создании индекса</td></tr>
+              <tr><td>Сортировка по оценке без <code>$meta</code> в сортировке</td><td>Порядок не по оценке: поле <code>score</code> в проекции само по себе порядок не задаёт</td><td><code>sort({"score": {"$meta": "textScore"}})</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$text": {"$search": "ноутбук"}}</code> на коллекции без текстового индекса</td><td>Ошибка 27 <code>IndexNotFound</code>: text index required for $text query</td><td>Создать текстовый индекс по нужным полям</td></tr>
+              <tr><td><code>{"title": {"$text": {"$search": "…"}}}</code></td><td>Ошибка: <code>$text</code> не ставится внутрь поля</td><td><code>$text</code> — на месте имени поля: <code>{"$text": {"$search": "…"}}</code></td></tr>
+              <tr><td>Второй текстовый индекс на ту же коллекцию</td><td>Ошибка 85 <code>IndexOptionsConflict</code>: текстовый индекс у коллекции один</td><td>Добавить поле в существующий текстовый индекс</td></tr>
+              <tr><td>Поиск по началу слова: «ноут»</td><td>Ничего не найдено: индекс хранит слова целиком</td><td>Целое слово в любой форме или <code>$regex</code> с <code>^</code></td></tr>
+              <tr><td>Индекс построен без <code>default_language</code> по русским названиям</td><td>Язык индекса — английский: «ноутбуки» не находит ничего, «ноутбук» — 5 товаров из 6 без «ноутбука», служебное «для» ищется</td><td><code>default_language="russian"</code> при создании индекса</td></tr>
+              <tr><td>Сортировка по оценке без <code>$meta</code> в сортировке</td><td>Порядок не по оценке: поле <code>score</code> в проекции само по себе порядок не задаёт</td><td><code>sort({"score": {"$meta": "textScore"}})</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему шаблон <code>ноутбуки</code> не находит «Ноутбук Lenovo IdeaPad 3», а <code>$text</code> находит?</summary>
+          <p>Шаблон ищет точную последовательность символов, а в названии стоит «Ноутбук» с заглавной буквы и без «и» на конце. Текстовый индекс хранит основу слова в нижнем регистре, и слово запроса приводится к той же основе.</p>
+        </details>
+        <details>
+          <summary>Что найдёт <code>{"$text": {"$search": "мышь клавиатура"}}</code> — товары с обоими словами или с любым из них?</summary>
+          <p>С любым из них: слова через пробел соединяются по «или». Документы с обоими словами получат более высокую оценку совпадения.</p>
+        </details>
+        <details>
+          <summary>Как найти товары, где слова «для ноутбука» стоят подряд в этом порядке?</summary>
+          <p>Записать слова фразой в двойных кавычках внутри строки поиска: <code>"\"для ноутбука\""</code>. Фразу проверяет стадия <code>TEXT_MATCH</code> по прочитанным документам.</p>
+        </details>
+        <details>
+          <summary>Почему поиск «ноут» ничего не находит?</summary>
+          <p>Текстовый индекс хранит слова целиком, в виде основы. Начало слова по нему не ищется. Для поиска по началу строки остаётся шаблон <code>$regex</code> с <code>^</code>.</p>
+        </details>
+        <details>
+          <summary>Зачем полю названия вес 10, а полю категории — 1?</summary>
+          <p>Чтобы совпадение в названии давало большую оценку, чем совпадение в категории. При сортировке по оценке товары, у которых слово стоит в названии, окажутся выше.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch3_4</code>. Нужна копия резюме из базы <code>hh</code> в песочнице — коллекция <code>sandbox.resumes_text</code> с документами <code>hh.resumes</code>; база <code>hh</code> открывается так же, как в главах модуля 2. В резюме два текстовых поля: <code>position</code> — должность и <code>skills</code> — массив навыков; текстовый индекс по массиву строк индексирует каждую строку.</p>
+        <ol class="steps">
+          <li><b>Создать индекс</b>Текстовый индекс по <code>position</code> (вес 5) и <code>skills</code> (вес 1) на русском языке с именем <code>resume_search</code>.</li>
+          <li><b>Искать по должности</b>Найти «аналитики» и вывести ФИО (<code>fio</code>), должность и оценку, лучшие совпадения первыми.</li>
+          <li><b>Сравнить фразу и слово</b>Найти <code>python</code> и фразу <code>"junior python"</code>. Объяснить, почему результатов разное число и почему у троих оценка выше, чем у остальных.</li>
+          <li><b>Исключить слово</b>Найти <code>python</code> без резюме со словом <code>junior</code>.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>«аналитики» находит двоих — Алину Дроздову и Ольгу Пирогову, «Аналитик данных», оценка 3,750 у обеих. <code>python</code> находит шестерых: трёх «Junior Python-разработчиков» с оценкой 4,433 — слово есть и в должности с весом 5, и в навыках — и Алину Дроздову, Ксению Лапину, Ольгу Пирогову с оценкой 1,100 — только в навыках. Должность «Python-разработчик» индекс делит по дефису на два слова. Фраза <code>"junior python"</code> находит только трёх Junior Python-разработчиков (оценка 7,767): у остальных этих слов подряд нет. <code>python -junior</code> оставляет троих: Дроздову, Лапину и Пирогову.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Текстовый индекс</b>
+            <code>coll.create_index([("title", "text")],</code>
+            <code>    default_language="russian")</code>
+          </div>
+          <div>
+            <b>Поиск</b>
+            <code>{"$text": {"$search": "ноутбуки"}}</code>
+          </div>
+          <div>
+            <b>Строка поиска</b>
+            <code>"мышь клавиатура" — любое слово</code>
+            <code>"\"для ноутбука\"" — фраза</code>
+            <code>"ноутбук -рюкзак" — без слова</code>
+          </div>
+          <div>
+            <b>Оценка совпадения</b>
+            <code>{"score": {"$meta": "textScore"}}  # проекция и сортировка</code>
+          </div>
+          <div>
+            <b>Несколько полей с весами</b>
+            <code>coll.create_index([("title", "text"), ("category", "text")],</code>
+            <code>    weights={"title": 10, "category": 1})</code>
+          </div>
+          <div>
+            <b>Язык запроса</b>
+            <code>{"$text": {"$search": "…", "$language": "none"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Текстовый индекс</b>
+            <code>o.default_language("russian");</code>
+            <code>coll.create_index(make_document(kvp("title", "text")), o);</code>
+          </div>
+          <div>
+            <b>Поиск</b>
+            <code>{"$text": {"$search": "ноутбуки"}}</code>
+          </div>
+          <div>
+            <b>Строка поиска</b>
+            <code>"мышь клавиатура" — любое слово</code>
+            <code>"\"для ноутбука\"" — фраза</code>
+            <code>"ноутбук -рюкзак" — без слова</code>
+          </div>
+          <div>
+            <b>Оценка совпадения</b>
+            <code>make_document(kvp("score", make_document(kvp("$meta", "textScore"))))</code>
+          </div>
+          <div>
+            <b>Несколько полей с весами</b>
+            <code>o.weights(weights.view());</code>
+          </div>
+          <div>
+            <b>Язык запроса</b>
+            <code>{"$text": {"$search": "…", "$language": "none"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Текстовый индекс</b>
+            <code>Keys: bson.D{{Key: "title", Value: "text"}},</code>
+            <code>Options: options.Index().SetDefaultLanguage("russian")</code>
+          </div>
+          <div>
+            <b>Поиск</b>
+            <code>{"$text": {"$search": "ноутбуки"}}</code>
+          </div>
+          <div>
+            <b>Строка поиска</b>
+            <code>"мышь клавиатура" — любое слово</code>
+            <code>"\"для ноутбука\"" — фраза</code>
+            <code>"ноутбук -рюкзак" — без слова</code>
+          </div>
+          <div>
+            <b>Оценка совпадения</b>
+            <code>bson.D{{Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}}</code>
+          </div>
+          <div>
+            <b>Несколько полей с весами</b>
+            <code>options.Index().SetWeights(bson.D{</code>
+            <code>  {Key: "title", Value: 10}, {Key: "category", Value: 1}})</code>
+          </div>
+          <div>
+            <b>Язык запроса</b>
+            <code>{"$text": {"$search": "…", "$language": "none"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Текстовый индекс</b>
+            <code>coll.indexes.create_one({ "title" =&gt; "text" },</code>
+            <code>  default_language: "russian")</code>
+          </div>
+          <div>
+            <b>Поиск</b>
+            <code>{"$text": {"$search": "ноутбуки"}}</code>
+          </div>
+          <div>
+            <b>Строка поиска</b>
+            <code>"мышь клавиатура" — любое слово</code>
+            <code>"\"для ноутбука\"" — фраза</code>
+            <code>"ноутбук -рюкзак" — без слова</code>
+          </div>
+          <div>
+            <b>Оценка совпадения</b>
+            <code>{ "score" =&gt; { "$meta" =&gt; "textScore" } }</code>
+          </div>
+          <div>
+            <b>Несколько полей с весами</b>
+            <code>coll.indexes.create_one({ "title" =&gt; "text", "category" =&gt; "text" },</code>
+            <code>  weights: { "title" =&gt; 10, "category" =&gt; 1 })</code>
+          </div>
+          <div>
+            <b>Язык запроса</b>
+            <code>{"$text": {"$search": "…", "$language": "none"}}</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Текстовый индекс делит строки на слова, переводит их в нижний регистр, отбрасывает служебные слова и приводит слова к основе по правилам языка, заданного при создании (<code>default_language</code>). Оператор <code>$text</code> с параметром <code>$search</code> ищет по этому индексу: слова через пробел соединяются по «или», слова в кавычках — фраза, минус перед словом исключает его; начало слова не ищется. Оценку совпадения возвращает <code>{"$meta": "textScore"}</code>, по ней же сортируют результат. Текстовый индекс у коллекции один, но может охватывать несколько полей с весами; без него <code>$text</code> завершается ошибкой 27. В плане запроса текстовый поиск — стадии <code>IXSCAN</code>, <code>FETCH</code> и <code>TEXT_MATCH</code>.</p>
+
+        <div class="pager"><a href="../21-explain/index.html">← 3.3 Как читать explain</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 3.4 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
