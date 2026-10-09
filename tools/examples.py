@@ -47,6 +47,7 @@ CHAPTERS = {
     "2.9": ("18-skript-podbor", "Скрипт целиком: подбор кандидатов", False),
     "3.1": ("19-jsonschema", "Правила на уровне базы: $jsonSchema", True),
     "3.2": ("20-indeksy", "Индексы: одиночные, составные, уникальные", True),
+    "3.3": ("21-explain", "Как читать explain: COLLSCAN против IXSCAN", True),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -499,6 +500,49 @@ EXTRAS[("3.2", "cpp")] = """
     auto clients = sandbox["customers"];   // копия покупателей: уникальный индекс, §5–§7
 """
 
+# Глава 3.3: копия журнала и функция summary — план и счётчики explain одной строкой.
+EXTRAS[("3.3", "python")] = """
+journal = sandbox["events"]       # копия журнала: на ней строятся индексы главы
+
+
+def summary(coll, **find):
+    \"\"\"План и счётчики explain одной строкой: стадии | вернул | ключей | документов.\"\"\"
+    info = coll.database.command("explain", {"find": coll.name, **find}, verbosity="executionStats")
+    stage = info["queryPlanner"]["winningPlan"]
+    stage = stage.get("queryPlan", stage)     # MongoDB 7 кладёт план во вложенное поле
+    steps = []
+    while stage:
+        steps.append(stage["stage"] + (" " + stage["indexName"] if "indexName" in stage else ""))
+        stage = stage.get("inputStage")
+    stats = info["executionStats"]
+    return (" → ".join(steps) + f" | вернул {stats['nReturned']}"
+            + f" | ключей {stats['totalKeysExamined']} | документов {stats['totalDocsExamined']}")
+"""
+EXTRAS[("3.3", "ruby")] = """
+journal = sandbox[:events]        # копия журнала: на ней строятся индексы главы
+
+# План и счётчики explain одной строкой: стадии | вернул | ключей | документов.
+def summary(coll, find)
+  info = coll.database.command(explain: { find: coll.name }.merge(find), verbosity: "executionStats").first
+  stage = info["queryPlanner"]["winningPlan"]
+  stage = stage["queryPlan"] || stage     # MongoDB 7 кладёт план во вложенное поле
+  steps = []
+  while stage
+    steps << stage["stage"] + (stage["indexName"] ? " " + stage["indexName"] : "")
+    stage = stage["inputStage"]
+  end
+  stats = info["executionStats"]
+  steps.join(" → ") + " | вернул #{stats["nReturned"]}" +
+    " | ключей #{stats["totalKeysExamined"]} | документов #{stats["totalDocsExamined"]}"
+end
+"""
+EXTRAS[("3.3", "go")] = """
+\tjournal := sandbox.Collection("events") // копия журнала: на ней строятся индексы главы
+"""
+EXTRAS[("3.3", "cpp")] = """
+    auto journal = sandbox["events"];      // копия журнала: на ней строятся индексы главы
+"""
+
 GO_IMPORTS = ["context", "errors", "fmt", "log", "os", "sort", "strings", "time"]
 GO_MONGO = {
     "bson": '"go.mongodb.org/mongo-driver/v2/bson"',
@@ -538,6 +582,61 @@ type Product struct {
 '''
 TOP_EXTRAS = {("1.4", "go"): GO_PRODUCT, ("1.5", "go"): GO_PRODUCT, ("1.6", "go"): GO_PRODUCT,
               ("1.7", "go"): GO_PRODUCT, ("1.8", "go"): GO_PRODUCT}
+
+TOP_EXTRAS[("3.3", "go")] = """// summary — план и счётчики explain одной строкой: стадии | вернул | ключей | документов.
+func summary(coll *mongo.Collection, find bson.D) string {
+\tcmd := append(bson.D{{Key: "find", Value: coll.Name()}}, find...)
+\tvar res bson.Raw
+\tcoll.Database().RunCommand(context.Background(),
+\t\tbson.D{{Key: "explain", Value: cmd}, {Key: "verbosity", Value: "executionStats"}}).Decode(&res)
+\tstage := res.Lookup("queryPlanner", "winningPlan").Document()
+\tif inner, ok := stage.Lookup("queryPlan").DocumentOK(); ok { // MongoDB 7 кладёт план во вложенное поле
+\t\tstage = inner
+\t}
+\tsteps := []string{}
+\tfor {
+\t\tstep := stage.Lookup("stage").StringValue()
+\t\tif name, ok := stage.Lookup("indexName").StringValueOK(); ok {
+\t\t\tstep += " " + name
+\t\t}
+\t\tsteps = append(steps, step)
+\t\tnext, ok := stage.Lookup("inputStage").DocumentOK()
+\t\tif !ok {
+\t\t\tbreak
+\t\t}
+\t\tstage = next
+\t}
+\tstats := res.Lookup("executionStats").Document()
+\treturn fmt.Sprintf("%s | вернул %d | ключей %d | документов %d", strings.Join(steps, " → "),
+\t\tstats.Lookup("nReturned").AsInt64(), stats.Lookup("totalKeysExamined").AsInt64(),
+\t\tstats.Lookup("totalDocsExamined").AsInt64())
+}
+"""
+TOP_EXTRAS[("3.3", "cpp")] = """// summary — план и счётчики explain одной строкой: стадии | вернул | ключей | документов.
+std::string summary(mongocxx::database& db, const std::string& coll, bsoncxx::document::view find) {
+    bsoncxx::builder::basic::document cmd;
+    cmd.append(kvp("find", coll));
+    for (auto&& field : find) cmd.append(kvp(field.key(), field.get_value()));
+    auto res = db.run_command(make_document(kvp("explain", cmd.view()), kvp("verbosity", "executionStats")));
+    auto stage = res.view()["queryPlanner"]["winningPlan"].get_document().value;
+    if (stage["queryPlan"]) stage = stage["queryPlan"].get_document().value;   // MongoDB 7 кладёт план во вложенное поле
+    std::string steps;
+    while (true) {
+        steps += std::string{stage["stage"].get_string().value};
+        if (stage["indexName"]) steps += " " + std::string{stage["indexName"].get_string().value};
+        if (!stage["inputStage"]) break;
+        steps += " → ";
+        stage = stage["inputStage"].get_document().value;
+    }
+    auto stats = res.view()["executionStats"].get_document().value;
+    auto number = [&](const char* name) {
+        auto value = stats[name];
+        return std::to_string(value.type() == bsoncxx::type::k_int64 ? value.get_int64().value : value.get_int32().value);
+    };
+    return steps + " | вернул " + number("nReturned") + " | ключей " + number("totalKeysExamined")
+         + " | документов " + number("totalDocsExamined");
+}
+"""
 
 TOP_EXTRAS[("3.2", "go")] = """// plan — стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.
 func plan(coll *mongo.Collection, filtr bson.D, sort bson.D) string {

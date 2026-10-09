@@ -1318,3 +1318,360 @@ CHEATS["3.2"] = [
         "go": ['errors.As(err, &we)', 'we.WriteErrors[0].Raw.Lookup("keyValue")'],
         "cpp": ['catch (const mongocxx::operation_exception& e)', '  e.raw_server_error()->view()["writeErrors"][0]["keyValue"]']}),
 ]
+
+# ── 3.3 Как читать explain ─────────────────────────────────────────────────
+#
+# Заготовка главы открывает journal = sandbox.events и объявляет summary —
+# стадии выбранного плана и три счётчика executionStats одной строкой.
+
+EXAMPLES["3.3"] = {}
+
+# разделы ответа; COLLSCAN; 42 / 0 / 1200
+EXAMPLES["3.3"]["document"] = {"caption": "документ explain", "plain": {
+    "python": '''
+journal.drop()
+journal.insert_many(events.find())
+
+info = journal.find({"service": "payments", "status": {"$gte": 500}}).explain()
+print("разделы ответа:", list(info))
+print("выбранный план:", info["queryPlanner"]["winningPlan"]["stage"])
+
+stats = info["executionStats"]
+print("nReturned:        ", stats["nReturned"])
+print("totalKeysExamined:", stats["totalKeysExamined"])
+print("totalDocsExamined:", stats["totalDocsExamined"])
+''',
+    "ruby": '''
+journal.drop
+journal.insert_many(events.find.to_a)
+
+info = journal.find({ "service" => "payments", "status" => { "$gte" => 500 } }).explain
+puts "разделы ответа: " + info.keys.to_s
+puts "выбранный план: " + info["queryPlanner"]["winningPlan"]["stage"]
+
+stats = info["executionStats"]
+puts "nReturned:         #{stats["nReturned"]}"
+puts "totalKeysExamined: #{stats["totalKeysExamined"]}"
+puts "totalDocsExamined: #{stats["totalDocsExamined"]}"
+''',
+    "go": '''
+journal.Drop(ctx)
+var all []bson.D
+cursor, _ := events.Find(ctx, bson.D{})
+cursor.All(ctx, &all)
+docs := make([]any, len(all))
+for i := range all {
+    docs[i] = all[i]
+}
+journal.InsertMany(ctx, docs)
+
+var info bson.Raw
+sandbox.RunCommand(ctx, bson.D{
+    {Key: "explain", Value: bson.D{
+        {Key: "find", Value: "events"},
+        {Key: "filter", Value: bson.D{{Key: "service", Value: "payments"}, {Key: "status", Value: bson.D{{Key: "$gte", Value: 500}}}}}}},
+    {Key: "verbosity", Value: "executionStats"}}).Decode(&info)
+
+elements, _ := info.Elements()
+keys := []string{}
+for _, el := range elements {
+    keys = append(keys, el.Key())
+}
+fmt.Println("разделы ответа:", keys)
+fmt.Println("выбранный план:", info.Lookup("queryPlanner", "winningPlan", "stage").StringValue())
+
+stats := info.Lookup("executionStats").Document()
+fmt.Println("nReturned:        ", stats.Lookup("nReturned").AsInt64())
+fmt.Println("totalKeysExamined:", stats.Lookup("totalKeysExamined").AsInt64())
+fmt.Println("totalDocsExamined:", stats.Lookup("totalDocsExamined").AsInt64())
+''',
+    "cpp": '''
+journal.drop();
+std::vector<bsoncxx::document::value> all;
+for (auto&& doc : events.find(make_document())) all.emplace_back(doc);
+journal.insert_many(all);
+
+auto info = sandbox.run_command(make_document(
+    kvp("explain", make_document(
+        kvp("find", "events"),
+        kvp("filter", make_document(kvp("service", "payments"), kvp("status", make_document(kvp("$gte", 500))))))),
+    kvp("verbosity", "executionStats")));
+
+std::cout << "разделы ответа:";
+for (auto&& field : info.view()) std::cout << " " << field.key();
+std::cout << std::endl;
+std::cout << "выбранный план: " << info.view()["queryPlanner"]["winningPlan"]["stage"].get_string().value << std::endl;
+
+auto stats = info.view()["executionStats"];
+std::cout << "nReturned:         " << stats["nReturned"].get_int32().value << std::endl;
+std::cout << "totalKeysExamined: " << stats["totalKeysExamined"].get_int32().value << std::endl;
+std::cout << "totalDocsExamined: " << stats["totalDocsExamined"].get_int32().value << std::endl;
+''',
+}}
+
+# два индекса; выбран составной 42/42/42; отклонён service_1
+EXAMPLES["3.3"]["planner"] = {"caption": "выбранный и отклонённый планы", "plain": {
+    "python": '''
+journal.create_index("service")
+journal.create_index([("service", 1), ("status", 1)])
+
+filtr = {"service": "payments", "status": {"$gte": 500}}
+print("выбран:", summary(journal, filter=filtr))
+
+info = journal.find(filtr).explain()
+for rejected in info["queryPlanner"]["rejectedPlans"]:
+    stage = rejected.get("queryPlan", rejected)
+    while "inputStage" in stage:
+        stage = stage["inputStage"]
+    print("отклонён план по индексу", stage["indexName"])
+''',
+    "ruby": '''
+journal.indexes.create_one({ "service" => 1 })
+journal.indexes.create_one({ "service" => 1, "status" => 1 })
+
+filtr = { "service" => "payments", "status" => { "$gte" => 500 } }
+puts "выбран: " + summary(journal, filter: filtr)
+
+info = journal.find(filtr).explain
+info["queryPlanner"]["rejectedPlans"].each do |rejected|
+  stage = rejected["queryPlan"] || rejected
+  stage = stage["inputStage"] while stage["inputStage"]
+  puts "отклонён план по индексу " + stage["indexName"]
+end
+''',
+    "go": '''
+journal.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "service", Value: 1}}})
+journal.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "service", Value: 1}, {Key: "status", Value: 1}}})
+
+filtr := bson.D{{Key: "service", Value: "payments"}, {Key: "status", Value: bson.D{{Key: "$gte", Value: 500}}}}
+fmt.Println("выбран:", summary(journal, bson.D{{Key: "filter", Value: filtr}}))
+
+var info bson.Raw
+sandbox.RunCommand(ctx, bson.D{
+    {Key: "explain", Value: bson.D{{Key: "find", Value: "events"}, {Key: "filter", Value: filtr}}},
+    {Key: "verbosity", Value: "executionStats"}}).Decode(&info)
+rejected, _ := info.Lookup("queryPlanner", "rejectedPlans").Array().Values()
+for _, plan := range rejected {
+    stage := plan.Document()
+    if inner, ok := stage.Lookup("queryPlan").DocumentOK(); ok {
+        stage = inner
+    }
+    for {
+        next, ok := stage.Lookup("inputStage").DocumentOK()
+        if !ok {
+            break
+        }
+        stage = next
+    }
+    fmt.Println("отклонён план по индексу", stage.Lookup("indexName").StringValue())
+}
+''',
+    "cpp": '''
+journal.create_index(make_document(kvp("service", 1)));
+journal.create_index(make_document(kvp("service", 1), kvp("status", 1)));
+
+auto filtr = make_document(kvp("service", "payments"), kvp("status", make_document(kvp("$gte", 500))));
+std::cout << "выбран: " << summary(sandbox, "events", make_document(kvp("filter", filtr.view()))) << std::endl;
+
+auto info = sandbox.run_command(make_document(
+    kvp("explain", make_document(kvp("find", "events"), kvp("filter", filtr.view()))),
+    kvp("verbosity", "executionStats")));
+for (auto&& plan : info.view()["queryPlanner"]["rejectedPlans"].get_array().value) {
+    auto stage = plan.get_document().value;
+    if (stage["queryPlan"]) stage = stage["queryPlan"].get_document().value;
+    while (stage["inputStage"]) stage = stage["inputStage"].get_document().value;
+    std::cout << "отклонён план по индексу " << stage["indexName"].get_string().value << std::endl;
+}
+''',
+}}
+
+# hint: составной 42/42/42, service_1 42/232/232, $natural 42/0/1200
+EXAMPLES["3.3"]["hint"] = {"caption": "один запрос, три индекса", "plain": {
+    "python": '''
+filtr = {"service": "payments", "status": {"$gte": 500}}
+print("service_1_status_1:", summary(journal, filter=filtr, hint="service_1_status_1"))
+print("service_1:         ", summary(journal, filter=filtr, hint="service_1"))
+print("без индекса:       ", summary(journal, filter=filtr, hint={"$natural": 1}))
+''',
+    "ruby": '''
+filtr = { "service" => "payments", "status" => { "$gte" => 500 } }
+puts "service_1_status_1: " + summary(journal, filter: filtr, hint: "service_1_status_1")
+puts "service_1:          " + summary(journal, filter: filtr, hint: "service_1")
+puts "без индекса:        " + summary(journal, filter: filtr, hint: { "$natural" => 1 })
+''',
+    "go": '''
+filtr := bson.D{{Key: "service", Value: "payments"}, {Key: "status", Value: bson.D{{Key: "$gte", Value: 500}}}}
+fmt.Println("service_1_status_1:", summary(journal, bson.D{{Key: "filter", Value: filtr}, {Key: "hint", Value: "service_1_status_1"}}))
+fmt.Println("service_1:         ", summary(journal, bson.D{{Key: "filter", Value: filtr}, {Key: "hint", Value: "service_1"}}))
+fmt.Println("без индекса:       ", summary(journal, bson.D{{Key: "filter", Value: filtr}, {Key: "hint", Value: bson.D{{Key: "$natural", Value: 1}}}}))
+''',
+    "cpp": '''
+auto filtr = make_document(kvp("service", "payments"), kvp("status", make_document(kvp("$gte", 500))));
+std::cout << "service_1_status_1: "
+          << summary(sandbox, "events", make_document(kvp("filter", filtr.view()), kvp("hint", "service_1_status_1"))) << std::endl;
+std::cout << "service_1:          "
+          << summary(sandbox, "events", make_document(kvp("filter", filtr.view()), kvp("hint", "service_1"))) << std::endl;
+std::cout << "без индекса:        "
+          << summary(sandbox, "events", make_document(kvp("filter", filtr.view()), kvp("hint", make_document(kvp("$natural", 1))))) << std::endl;
+''',
+}}
+
+# покрывающий: PROJECTION_COVERED, документов 0
+EXAMPLES["3.3"]["covered"] = {"caption": "покрывающий запрос", "plain": {
+    "python": '''
+filtr = {"service": "payments", "status": {"$gte": 500}}
+print("все поля:        ", summary(journal, filter=filtr))
+print("service и status:", summary(journal, filter=filtr, projection={"_id": 0, "service": 1, "status": 1}))
+print("и ещё ts:        ", summary(journal, filter=filtr, projection={"_id": 0, "service": 1, "status": 1, "ts": 1}))
+''',
+    "ruby": '''
+filtr = { "service" => "payments", "status" => { "$gte" => 500 } }
+puts "все поля:         " + summary(journal, filter: filtr)
+puts "service и status: " + summary(journal, filter: filtr, projection: { "_id" => 0, "service" => 1, "status" => 1 })
+puts "и ещё ts:         " + summary(journal, filter: filtr, projection: { "_id" => 0, "service" => 1, "status" => 1, "ts" => 1 })
+''',
+    "go": '''
+filtr := bson.D{{Key: "service", Value: "payments"}, {Key: "status", Value: bson.D{{Key: "$gte", Value: 500}}}}
+fmt.Println("все поля:        ", summary(journal, bson.D{{Key: "filter", Value: filtr}}))
+fmt.Println("service и status:", summary(journal, bson.D{{Key: "filter", Value: filtr},
+    {Key: "projection", Value: bson.D{{Key: "_id", Value: 0}, {Key: "service", Value: 1}, {Key: "status", Value: 1}}}}))
+fmt.Println("и ещё ts:        ", summary(journal, bson.D{{Key: "filter", Value: filtr},
+    {Key: "projection", Value: bson.D{{Key: "_id", Value: 0}, {Key: "service", Value: 1}, {Key: "status", Value: 1}, {Key: "ts", Value: 1}}}}))
+''',
+    "cpp": '''
+auto filtr = make_document(kvp("service", "payments"), kvp("status", make_document(kvp("$gte", 500))));
+std::cout << "все поля:         " << summary(sandbox, "events", make_document(kvp("filter", filtr.view()))) << std::endl;
+std::cout << "service и status: "
+          << summary(sandbox, "events", make_document(kvp("filter", filtr.view()),
+                     kvp("projection", make_document(kvp("_id", 0), kvp("service", 1), kvp("status", 1))))) << std::endl;
+std::cout << "и ещё ts:         "
+          << summary(sandbox, "events", make_document(kvp("filter", filtr.view()),
+                     kvp("projection", make_document(kvp("_id", 0), kvp("service", 1), kvp("status", 1), kvp("ts", 1))))) << std::endl;
+''',
+}}
+
+# SORT 10/232/232 → индекс service_1_ts_-1 → LIMIT 10/10/10
+EXAMPLES["3.3"]["sort"] = {"caption": "сортировка в памяти и по индексу", "plain": {
+    "python": '''
+journal.drop_index("service_1")
+last = {"filter": {"service": "payments"}, "sort": {"ts": -1}, "limit": 10}
+print("до индекса по ts:   ", summary(journal, **last))
+
+print("создан индекс:", journal.create_index([("service", 1), ("ts", -1)]))
+print("после индекса по ts:", summary(journal, **last))
+''',
+    "ruby": '''
+journal.indexes.drop_one("service_1")
+last = { filter: { "service" => "payments" }, sort: { "ts" => -1 }, limit: 10 }
+puts "до индекса по ts:    " + summary(journal, last)
+
+journal.indexes.create_one({ "service" => 1, "ts" => -1 })
+puts "создан индекс: " + journal.indexes.get({ "service" => 1, "ts" => -1 })["name"]
+puts "после индекса по ts: " + summary(journal, last)
+''',
+    "go": '''
+journal.Indexes().DropOne(ctx, "service_1")
+last := bson.D{
+    {Key: "filter", Value: bson.D{{Key: "service", Value: "payments"}}},
+    {Key: "sort", Value: bson.D{{Key: "ts", Value: -1}}},
+    {Key: "limit", Value: 10}}
+fmt.Println("до индекса по ts:   ", summary(journal, last))
+
+name, _ := journal.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "service", Value: 1}, {Key: "ts", Value: -1}}})
+fmt.Println("создан индекс:", name)
+fmt.Println("после индекса по ts:", summary(journal, last))
+''',
+    "cpp": '''
+journal.indexes().drop_one("service_1");
+auto last = make_document(
+    kvp("filter", make_document(kvp("service", "payments"))),
+    kvp("sort", make_document(kvp("ts", -1))),
+    kvp("limit", 10));
+std::cout << "до индекса по ts:    " << summary(sandbox, "events", last.view()) << std::endl;
+
+auto created = journal.create_index(make_document(kvp("service", 1), kvp("ts", -1)));
+std::cout << "создан индекс: " << created.view()["name"].get_string().value << std::endl;
+std::cout << "после индекса по ts: " << summary(sandbox, "events", last.view()) << std::endl;
+''',
+}}
+
+# ESR: составной SORT 5/42/42; service_1_ts_-1 5/18/18; service_1_ts_-1_status_1 5/18/5
+EXAMPLES["3.3"]["esr"] = {"caption": "порядок полей: равенство, сортировка, диапазон", "plain": {
+    "python": '''
+journal.create_index([("service", 1), ("ts", -1), ("status", 1)])
+errors_last = {"filter": {"service": "payments", "status": {"$gte": 500}}, "sort": {"ts": -1}, "limit": 5}
+
+for name in ["service_1_status_1", "service_1_ts_-1", "service_1_ts_-1_status_1"]:
+    print(name.ljust(24), summary(journal, **errors_last, hint=name))
+''',
+    "ruby": '''
+journal.indexes.create_one({ "service" => 1, "ts" => -1, "status" => 1 })
+errors_last = { filter: { "service" => "payments", "status" => { "$gte" => 500 } }, sort: { "ts" => -1 }, limit: 5 }
+
+["service_1_status_1", "service_1_ts_-1", "service_1_ts_-1_status_1"].each do |name|
+  puts name.ljust(24) + " " + summary(journal, errors_last.merge(hint: name))
+end
+''',
+    "go": '''
+journal.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: "service", Value: 1}, {Key: "ts", Value: -1}, {Key: "status", Value: 1}}})
+errorsLast := bson.D{
+    {Key: "filter", Value: bson.D{{Key: "service", Value: "payments"}, {Key: "status", Value: bson.D{{Key: "$gte", Value: 500}}}}},
+    {Key: "sort", Value: bson.D{{Key: "ts", Value: -1}}},
+    {Key: "limit", Value: 5}}
+
+for _, name := range []string{"service_1_status_1", "service_1_ts_-1", "service_1_ts_-1_status_1"} {
+    find := append(bson.D{{Key: "hint", Value: name}}, errorsLast...)
+    fmt.Printf("%-24s %s\\n", name, summary(journal, find))
+}
+''',
+    "cpp": '''
+journal.create_index(make_document(kvp("service", 1), kvp("ts", -1), kvp("status", 1)));
+
+for (std::string name : {"service_1_status_1", "service_1_ts_-1", "service_1_ts_-1_status_1"}) {
+    auto find = make_document(
+        kvp("filter", make_document(kvp("service", "payments"), kvp("status", make_document(kvp("$gte", 500))))),
+        kvp("sort", make_document(kvp("ts", -1))),
+        kvp("limit", 5),
+        kvp("hint", name));
+    std::cout << name << std::string(25 - name.size(), ' ') << summary(sandbox, "events", find.view()) << std::endl;
+}
+''',
+}}
+
+ERRORS["3.3"] = [
+    ("Отчёт снят для фильтра без сортировки и предела, а программа их использует",
+     "План другой: в отчёте нет стадии <code>SORT</code>, которая есть в настоящем запросе",
+     "Снимать <code>explain</code> с теми же фильтром, сортировкой, проекцией и пределом"),
+    ("Запросы сравниваются по <code>executionTimeMillis</code>",
+     "Время меняется от запуска к запуску: на копии журнала один запрос показывал 1 и 7 мс",
+     "Сравнивать <code>totalKeysExamined</code> и <code>totalDocsExamined</code> с <code>nReturned</code>"),
+    ("Счётчики отклонённого плана ищут в <code>executionStats</code>",
+     "Там только выбранный план",
+     "Задать индекс параметром <code>hint</code> и снять отчёт ещё раз"),
+    ("Проекция на поля индекса без <code>\"_id\": 0</code>",
+     "Запрос не покрывающий: <code>_id</code> нет в индексе, документы читаются",
+     "Исключить <code>_id</code> в проекции"),
+    ("Индекс «равенство, диапазон» для запроса с сортировкой",
+     "Стадия <code>SORT</code>: подходящие документы сортируются в памяти",
+     "Порядок по правилу ESR: равенство, сортировка, диапазон"),
+    ("<code>hint</code> оставлен в рабочем запросе после сравнения",
+     "Сервер не выберет лучший индекс, если он появится; удаление индекса из <code>hint</code> ломает запрос",
+     "Убрать <code>hint</code> после сравнения планов"),
+]
+
+CHEATS["3.3"] = [
+    ("Отчёт о запросе", {
+        "python": ['coll.find(filtr).explain()'],
+        "ruby": ['coll.find(filtr).explain'],
+        "go": ['db.RunCommand(ctx, bson.D{{Key: "explain", Value: find},', '  {Key: "verbosity", Value: "executionStats"}})'],
+        "cpp": ['db.run_command(make_document(kvp("explain", find),', '  kvp("verbosity", "executionStats")));']}),
+    ("Где что лежит", {"all": ['queryPlanner.winningPlan — выбранный план', 'queryPlanner.rejectedPlans — отклонённые', 'executionStats.nReturned / totalKeysExamined / totalDocsExamined']}),
+    ("Задать индекс", {
+        "python": ['coll.find(filtr).hint("service_1_status_1")', 'coll.find(filtr).hint([("$natural", 1)])'],
+        "ruby": ['coll.find(filtr).hint("service_1_status_1")'],
+        "go": ['options.Find().SetHint("service_1_status_1")'],
+        "cpp": ['mongocxx::options::find o;', 'o.hint(mongocxx::hint{"service_1_status_1"});']}),
+    ("Стадии плана", {"all": ['COLLSCAN — вся коллекция', 'IXSCAN — индекс, FETCH — документы по ссылкам', 'SORT — сортировка в памяти', 'PROJECTION_COVERED — без чтения документов']}),
+    ("Правило ESR", {"all": ['равенство → сортировка → диапазон', '{service: 1, ts: -1, status: 1}']}),
+]

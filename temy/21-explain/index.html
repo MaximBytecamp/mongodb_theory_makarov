@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>3.3 Как читать explain: COLLSCAN против IXSCAN · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Форма данных и скорость</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · форма данных и скорость</p>
+          <p class="running__folio">3.3</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">3.3</span>
+          <h1>Как читать explain:<br>COLLSCAN против IXSCAN</h1>
+          <p class="lead">В этой главе разобран документ, который возвращает explain, — отчёт сервера о том, как выполнен запрос. Из раздела queryPlanner видно, какой план сервер выбрал и какие отклонил, из раздела executionStats — сколько ключей индекса и документов он прочитал ради результата. По этим числам сравниваются индексы для одного запроса, находятся сортировка в памяти и лишнее чтение документов, и подбирается порядок полей составного индекса.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Форма данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Индексы (глава 3.2), проекция (глава 1.5), сортировка и предел (глава 1.6), практикум «Онлайн-разбор запроса»</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Проверять, использует ли запрос индекс и сколько лишнего читает сервер</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-3.3-python.zip" download><code>mongodb-glava-3.3-python.zip</code></a>, 63 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-3.3-ruby.zip" download><code>mongodb-glava-3.3-ruby.zip</code></a>, 62 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-3.3-go.zip" download><code>mongodb-glava-3.3-go.zip</code></a>, 68 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-3.3-cpp.zip" download><code>mongodb-glava-3.3-cpp.zip</code></a>, 67 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch3_3.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch3_3.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch3_3.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch3_3.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch3_3.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch3_3.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch3_3.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch3_3.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch3_3.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch3_3.go</code> · в Docker: <code>docker compose run --rm go lessons/ch3_3.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch3_3.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch3_3.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Документ explain</a></li>
+            <li><a href="#s2">queryPlanner: какой план выбран</a></li>
+            <li><a href="#s3">executionStats: сколько прочитано</a></li>
+            <li><a href="#s4">Покрывающий запрос</a></li>
+            <li><a href="#s5">Сортировка в памяти</a></li>
+            <li><a href="#s6">Порядок полей в индексе: равенство, сортировка, диапазон</a></li>
+            <li><a href="#s7">Порядок разбора медленного запроса</a></li>
+            <li><a href="#s8">explain в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Самостоятельная работа</a></li>
+            <li><a href="#s12">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Документ explain</h2>
+        <p>В главе 3.2 из плана запроса брались только названия стадий. Сервер сообщает о выполнении запроса гораздо больше: какие планы он рассматривал, какой выбрал, сколько записей индекса и сколько документов прочитал, сколько вернул. Всё это лежит в документе, который возвращает <span class="term">explain</span> — команда «объясни, как выполнен запрос». В подробных режимах отчёта сервер выполняет запрос как обычно, но вместо документов программа получает отчёт о выполнении.</p>
+        <p>Глава снова работает на копии журнала <code>journal</code> (<code>sandbox.events</code>) из заготовки. Первый пример пересоздаёт копию без индексов, кроме <code>_id_</code>, и запрашивает отчёт по запросу дежурного из главы 3.2: события платёжного сервиса со статусом от 500.</p>
+        <p data-lang="python">Отчёт возвращает метод курсора <code>explain()</code>: <code>find</code> строит курсор, <code>explain</code> вместо документов возвращает словарь отчёта.</p>
+        <p data-lang="ruby">Отчёт возвращает метод <code>explain</code> у результата <code>find</code>; он возвращает хеш отчёта вместо документов.</p>
+        <p data-lang="go">У курсора Go метода <code>explain</code> нет, поэтому отчёт запрашивается командой сервера <code>explain</code> через <code>RunCommand</code>. Внутри команды — описание запроса в той же форме, в какой его отправляет <code>Find</code>: имя коллекции под ключом <code>find</code> и фильтр под ключом <code>filter</code>. Параметр <code>verbosity</code> задаёт подробность отчёта.</p>
+        <p data-lang="cpp">У курсора mongocxx метода <code>explain</code> нет, поэтому отчёт запрашивается командой сервера <code>explain</code> через <code>run_command</code>. Внутри команды — описание запроса: имя коллекции под ключом <code>find</code> и фильтр под ключом <code>filter</code>. Параметр <code>verbosity</code> задаёт подробность отчёта.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>документ explain</span></figcaption>
+<pre>journal.<span class="f">drop</span>()
+journal.<span class="f">insert_many</span>(events.<span class="f">find</span>())
+
+info = journal.<span class="f">find</span>({<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}}).<span class="f">explain</span>()
+<span class="f">print</span>(<span class="s">"разделы ответа:"</span>, <span class="f">list</span>(info))
+<span class="f">print</span>(<span class="s">"выбранный план:"</span>, info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>][<span class="s">"stage"</span>])
+
+stats = info[<span class="s">"executionStats"</span>]
+<span class="f">print</span>(<span class="s">"nReturned:        "</span>, stats[<span class="s">"nReturned"</span>])
+<span class="f">print</span>(<span class="s">"totalKeysExamined:"</span>, stats[<span class="s">"totalKeysExamined"</span>])
+<span class="f">print</span>(<span class="s">"totalDocsExamined:"</span>, stats[<span class="s">"totalDocsExamined"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>документ explain</span></figcaption>
+<pre>journal.<span class="f">drop</span>();
+std::vector&lt;bsoncxx::document::value&gt; all;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : events.<span class="f">find</span>(<span class="f">make_document</span>())) all.<span class="f">emplace_back</span>(doc);
+journal.<span class="f">insert_many</span>(all);
+
+<span class="k">auto</span> info = sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"explain"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"find"</span>, <span class="s">"events"</span>),
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))))))),
+    <span class="f">kvp</span>(<span class="s">"verbosity"</span>, <span class="s">"executionStats"</span>)));
+
+std::cout &lt;&lt; <span class="s">"разделы ответа:"</span>;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : info.<span class="f">view</span>()) std::cout &lt;&lt; <span class="s">" "</span> &lt;&lt; field.<span class="f">key</span>();
+std::cout &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"выбранный план: "</span> &lt;&lt; info.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>][<span class="s">"stage"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+
+<span class="k">auto</span> stats = info.<span class="f">view</span>()[<span class="s">"executionStats"</span>];
+std::cout &lt;&lt; <span class="s">"nReturned:         "</span> &lt;&lt; stats[<span class="s">"nReturned"</span>].<span class="f">get_int32</span>().value &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"totalKeysExamined: "</span> &lt;&lt; stats[<span class="s">"totalKeysExamined"</span>].<span class="f">get_int32</span>().value &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"totalDocsExamined: "</span> &lt;&lt; stats[<span class="s">"totalDocsExamined"</span>].<span class="f">get_int32</span>().value &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>документ explain</span></figcaption>
+<pre>journal.<span class="f">Drop</span>(ctx)
+<span class="k">var</span> all []bson.D
+cursor, _ := events.<span class="f">Find</span>(ctx, bson.D{})
+cursor.<span class="f">All</span>(ctx, &amp;all)
+docs := <span class="f">make</span>([]<span class="k">any</span>, <span class="f">len</span>(all))
+<span class="k">for</span> i := <span class="k">range</span> all {
+    docs[i] = all[i]
+}
+journal.<span class="f">InsertMany</span>(ctx, docs)
+
+<span class="k">var</span> info bson.Raw
+sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+    {Key: <span class="s">"explain"</span>, Value: bson.D{
+        {Key: <span class="s">"find"</span>, Value: <span class="s">"events"</span>},
+        {Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}}}},
+    {Key: <span class="s">"verbosity"</span>, Value: <span class="s">"executionStats"</span>}}).<span class="f">Decode</span>(&amp;info)
+
+elements, _ := info.<span class="f">Elements</span>()
+keys := []<span class="k">string</span>{}
+<span class="k">for</span> _, el := <span class="k">range</span> elements {
+    keys = <span class="f">append</span>(keys, el.<span class="f">Key</span>())
+}
+fmt.<span class="f">Println</span>(<span class="s">"разделы ответа:"</span>, keys)
+fmt.<span class="f">Println</span>(<span class="s">"выбранный план:"</span>, info.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"winningPlan"</span>, <span class="s">"stage"</span>).<span class="f">StringValue</span>())
+
+stats := info.<span class="f">Lookup</span>(<span class="s">"executionStats"</span>).<span class="f">Document</span>()
+fmt.<span class="f">Println</span>(<span class="s">"nReturned:        "</span>, stats.<span class="f">Lookup</span>(<span class="s">"nReturned"</span>).<span class="f">AsInt64</span>())
+fmt.<span class="f">Println</span>(<span class="s">"totalKeysExamined:"</span>, stats.<span class="f">Lookup</span>(<span class="s">"totalKeysExamined"</span>).<span class="f">AsInt64</span>())
+fmt.<span class="f">Println</span>(<span class="s">"totalDocsExamined:"</span>, stats.<span class="f">Lookup</span>(<span class="s">"totalDocsExamined"</span>).<span class="f">AsInt64</span>())</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>документ explain</span></figcaption>
+<pre>journal.drop
+journal.<span class="f">insert_many</span>(events.find.to_a)
+
+info = journal.<span class="f">find</span>({ <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } }).explain
+<span class="k">puts</span> <span class="s">"разделы ответа: "</span> + info.keys.to_s
+<span class="k">puts</span> <span class="s">"выбранный план: "</span> + info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>][<span class="s">"stage"</span>]
+
+stats = info[<span class="s">"executionStats"</span>]
+<span class="k">puts</span> <span class="s">"nReturned:         #{stats["</span>nReturned<span class="s">"]}"</span>
+<span class="k">puts</span> <span class="s">"totalKeysExamined: #{stats["</span>totalKeysExamined<span class="s">"]}"</span>
+<span class="k">puts</span> <span class="s">"totalDocsExamined: #{stats["</span>totalDocsExamined<span class="s">"]}"</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>разделы ответа: ['explainVersion', 'queryPlanner', 'executionStats', 'command', 'serverInfo', 'serverParameters', 'ok']
+выбранный план: COLLSCAN
+nReturned:         42
+totalKeysExamined: 0
+totalDocsExamined: 1200</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>разделы ответа: explainVersion queryPlanner executionStats command serverInfo serverParameters ok
+выбранный план: COLLSCAN
+nReturned:         42
+totalKeysExamined: 0
+totalDocsExamined: 1200</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>разделы ответа: [explainVersion queryPlanner executionStats command serverInfo serverParameters ok]
+выбранный план: COLLSCAN
+nReturned:         42
+totalKeysExamined: 0
+totalDocsExamined: 1200</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>разделы ответа: ["explainVersion", "queryPlanner", "executionStats", "command", "serverInfo", "serverParameters", "ok"]
+выбранный план: COLLSCAN
+nReturned:         42
+totalKeysExamined: 0
+totalDocsExamined: 1200</pre>
+        </figure>
+        <p>В отчёте семь разделов. Для разбора запроса нужны два: <code>queryPlanner</code> — какой план выбран, и <code>executionStats</code> — как он выполнился. Остальные служебные: <code>command</code> повторяет запрос, <code>serverInfo</code> и <code>serverParameters</code> описывают сервер, <code>explainVersion</code> — версию формата отчёта.</p>
+        <p>Выбранный план — <code>COLLSCAN</code>: индекса под запрос нет. Три числа из <code>executionStats</code> описывают работу сервера:</p>
+        <ul>
+          <li><code>nReturned</code> — сколько документов вернул запрос: 42;</li>
+          <li><code>totalKeysExamined</code> — сколько записей индекса прочитано: 0, индекс не использовался;</li>
+          <li><code>totalDocsExamined</code> — сколько документов прочитано: 1200, вся коллекция.</li>
+        </ul>
+        <p>Ради 42 документов сервер прочитал 1200. Когда прочитано намного больше, чем возвращено, запросу нужен индекс. У запроса, который хорошо обслужен индексом, все три числа близки.</p>
+        <p>Подробность отчёта задаёт режим. <code>queryPlanner</code> — только выбранный план, запрос не выполняется; <code>executionStats</code> — план и счётчики выполнения; <code>allPlansExecution</code> — то же и счётчики пробного выполнения отклонённых планов. В примерах на Go и C++ режим задан явно, <code>executionStats</code>. Методы курсора в Python и Ruby режим не передают, и сервер выполняет отчёт в режиме <code>allPlansExecution</code>; разделы и счётчики, разобранные здесь, в нём те же.</p>
+        <figure class="shot">
+          <img src="../../shots/124-explain-collscan.png" alt="Compass, окно Explain Plan для запроса service payments и status от 500 без индексов: стадия COLLSCAN, Documents Examined 1200, сводка 42 документа возвращено, 1200 прочитано, No index available for this query">
+          <figcaption>Compass · <b>Explain</b> для запроса дежурного на копии без индексов</figcaption>
+        </figure>
+        <p>Окно <b>Explain Plan</b> открывается кнопкой <b>Explain</b> на вкладке <b>Documents</b> и строит отчёт для запроса из поля фильтра. Слева — дерево стадий: одна стадия <code>COLLSCAN</code>, она вернула 42 документа, прочитав 1200 (<b>Documents Examined</b>). Справа — сводка <b>Query Performance Summary</b>: <b>documents returned</b> — <code>nReturned</code>, <b>documents examined</b> — <code>totalDocsExamined</code>, <b>index keys examined</b> — <code>totalKeysExamined</code>, <b>execution time</b> — <code>executionTimeMillis</code>, <b>sorted in memory</b> — есть ли стадия <code>SORT</code>. Предупреждение <b>No index available for this query</b> — индекса под запрос нет.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>queryPlanner: какой план выбран</h2>
+        <p>Когда под запрос подходит несколько индексов, сервер составляет по плану на каждый, пробует их на начале запроса и оставляет тот, который быстрее дал результат. Выбранный план лежит в <code>queryPlanner.winningPlan</code>, остальные — в списке <code>queryPlanner.rejectedPlans</code>. Выбор сервер запоминает в кэше планов и для следующих запросов той же формы использует его снова.</p>
+        <p>Чтобы не разбирать отчёт целиком в каждом примере, в заготовке главы объявлена функция <code>summary</code>. Она отправляет команду <code>explain</code> для запроса, описанного её аргументами, и возвращает одной строкой стадии выбранного плана сверху вниз и три счётчика: сколько документов вернул запрос, сколько ключей индекса и сколько документов прочитано. Аргументы — части команды <code>find</code>: <code>filter</code>, <code>sort</code>, <code>projection</code>, <code>limit</code>, <code>hint</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>функция summary из заготовки главы</span></figcaption>
+<pre><span class="k">def</span> <span class="f">summary</span>(coll, **find):
+    <span class="s">""</span><span class="s">"План и счётчики explain одной строкой: стадии | вернул | ключей | документов."</span><span class="s">""</span>
+    info = coll.database.<span class="f">command</span>(<span class="s">"explain"</span>, {<span class="s">"find"</span>: coll.name, **find}, verbosity=<span class="s">"executionStats"</span>)
+    stage = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+    stage = stage.<span class="f">get</span>(<span class="s">"queryPlan"</span>, stage)     <span class="c"># MongoDB 7 кладёт план во вложенное поле</span>
+    steps = []
+    <span class="k">while</span> stage:
+        steps.<span class="f">append</span>(stage[<span class="s">"stage"</span>] + (<span class="s">" "</span> + stage[<span class="s">"indexName"</span>] <span class="k">if</span> <span class="s">"indexName"</span> <span class="k">in</span> stage <span class="k">else</span> <span class="s">""</span>))
+        stage = stage.<span class="f">get</span>(<span class="s">"inputStage"</span>)
+    stats = info[<span class="s">"executionStats"</span>]
+    <span class="k">return</span> (<span class="s">" → "</span>.<span class="f">join</span>(steps) + f<span class="s">" | вернул {stats['nReturned']}"</span>
+            + f<span class="s">" | ключей {stats['totalKeysExamined']} | документов {stats['totalDocsExamined']}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>функция summary из заготовки главы</span></figcaption>
+<pre><span class="c">// summary — план и счётчики explain одной строкой: стадии | вернул | ключей | документов.</span>
+std::string <span class="f">summary</span>(mongocxx::database&amp; db, <span class="k">const</span> std::string&amp; coll, bsoncxx::document::view find) {
+    bsoncxx::builder::basic::document cmd;
+    cmd.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"find"</span>, coll));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; field : find) cmd.<span class="f">append</span>(<span class="f">kvp</span>(field.<span class="f">key</span>(), field.<span class="f">get_value</span>()));
+    <span class="k">auto</span> res = db.<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"explain"</span>, cmd.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"verbosity"</span>, <span class="s">"executionStats"</span>)));
+    <span class="k">auto</span> stage = res.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>].<span class="f">get_document</span>().value;
+    <span class="k">if</span> (stage[<span class="s">"queryPlan"</span>]) stage = stage[<span class="s">"queryPlan"</span>].<span class="f">get_document</span>().value;   <span class="c">// MongoDB 7 кладёт план во вложенное поле</span>
+    std::string steps;
+    while (<span class="k">true</span>) {
+        steps += std::string{stage[<span class="s">"stage"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (stage[<span class="s">"indexName"</span>]) steps += <span class="s">" "</span> + std::string{stage[<span class="s">"indexName"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (!stage[<span class="s">"inputStage"</span>]) break;
+        steps += <span class="s">" → "</span>;
+        stage = stage[<span class="s">"inputStage"</span>].<span class="f">get_document</span>().value;
+    }
+    <span class="k">auto</span> stats = res.<span class="f">view</span>()[<span class="s">"executionStats"</span>].<span class="f">get_document</span>().value;
+    <span class="k">auto</span> number = [&amp;](<span class="k">const</span> char* name) {
+        <span class="k">auto</span> value = stats[name];
+        <span class="k">return</span> std::<span class="f">to_string</span>(value.<span class="f">type</span>() == bsoncxx::type::k_int64 ? value.<span class="f">get_int64</span>().value : value.<span class="f">get_int32</span>().value);
+    };
+    <span class="k">return</span> steps + <span class="s">" | вернул "</span> + <span class="f">number</span>(<span class="s">"nReturned"</span>) + <span class="s">" | ключей "</span> + <span class="f">number</span>(<span class="s">"totalKeysExamined"</span>)
+         + <span class="s">" | документов "</span> + <span class="f">number</span>(<span class="s">"totalDocsExamined"</span>);
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>функция summary из заготовки главы</span></figcaption>
+<pre><span class="c">// summary — план и счётчики explain одной строкой: стадии | вернул | ключей | документов.</span>
+<span class="k">func</span> <span class="f">summary</span>(coll *mongo.Collection, find bson.D) <span class="k">string</span> {
+    cmd := <span class="f">append</span>(bson.D{{Key: <span class="s">"find"</span>, Value: coll.<span class="f">Name</span>()}}, find...)
+    <span class="k">var</span> res bson.Raw
+    coll.<span class="f">Database</span>().<span class="f">RunCommand</span>(context.<span class="f">Background</span>(),
+        bson.D{{Key: <span class="s">"explain"</span>, Value: cmd}, {Key: <span class="s">"verbosity"</span>, Value: <span class="s">"executionStats"</span>}}).<span class="f">Decode</span>(&amp;res)
+    stage := res.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"winningPlan"</span>).<span class="f">Document</span>()
+    <span class="k">if</span> inner, ok := stage.<span class="f">Lookup</span>(<span class="s">"queryPlan"</span>).<span class="f">DocumentOK</span>(); ok { <span class="c">// MongoDB 7 кладёт план во вложенное поле</span>
+        stage = inner
+    }
+    steps := []<span class="k">string</span>{}
+    <span class="k">for</span> {
+        step := stage.<span class="f">Lookup</span>(<span class="s">"stage"</span>).<span class="f">StringValue</span>()
+        <span class="k">if</span> name, ok := stage.<span class="f">Lookup</span>(<span class="s">"indexName"</span>).<span class="f">StringValueOK</span>(); ok {
+            step += <span class="s">" "</span> + name
+        }
+        steps = <span class="f">append</span>(steps, step)
+        next, ok := stage.<span class="f">Lookup</span>(<span class="s">"inputStage"</span>).<span class="f">DocumentOK</span>()
+        <span class="k">if</span> !ok {
+            <span class="k">break</span>
+        }
+        stage = next
+    }
+    stats := res.<span class="f">Lookup</span>(<span class="s">"executionStats"</span>).<span class="f">Document</span>()
+    <span class="k">return</span> fmt.<span class="f">Sprintf</span>(<span class="s">"%s | вернул %d | ключей %d | документов %d"</span>, strings.<span class="f">Join</span>(steps, <span class="s">" → "</span>),
+        stats.<span class="f">Lookup</span>(<span class="s">"nReturned"</span>).<span class="f">AsInt64</span>(), stats.<span class="f">Lookup</span>(<span class="s">"totalKeysExamined"</span>).<span class="f">AsInt64</span>(),
+        stats.<span class="f">Lookup</span>(<span class="s">"totalDocsExamined"</span>).<span class="f">AsInt64</span>())
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>функция summary из заготовки главы</span></figcaption>
+<pre><span class="c"># План и счётчики explain одной строкой: стадии | вернул | ключей | документов.</span>
+<span class="k">def</span> <span class="f">summary</span>(coll, find)
+  info = coll.database.<span class="f">command</span>(explain: { find: coll.name }.<span class="f">merge</span>(find), verbosity: <span class="s">"executionStats"</span>).first
+  stage = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+  stage = stage[<span class="s">"queryPlan"</span>] || stage     <span class="c"># MongoDB 7 кладёт план во вложенное поле</span>
+  steps = []
+  while stage
+    steps &lt;&lt; stage[<span class="s">"stage"</span>] + (stage[<span class="s">"indexName"</span>] ? <span class="s">" "</span> + stage[<span class="s">"indexName"</span>] : <span class="s">""</span>)
+    stage = stage[<span class="s">"inputStage"</span>]
+  <span class="k">end</span>
+  stats = info[<span class="s">"executionStats"</span>]
+  steps.<span class="f">join</span>(<span class="s">" → "</span>) + <span class="s">" | вернул #{stats["</span>nReturned<span class="s">"]}"</span> +
+    <span class="s">" | ключей #{stats["</span>totalKeysExamined<span class="s">"]} | документов #{stats["</span>totalDocsExamined<span class="s">"]}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Пример создаёт два индекса из главы 3.2 — <code>service_1</code> и <code>service_1_status_1</code> — и смотрит, какой из них сервер выберет для запроса дежурного. Отклонённые планы перебираются в цикле: у каждого пример спускается по <code>inputStage</code> до нижней стадии и печатает имя её индекса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>выбранный и отклонённый планы</span></figcaption>
+<pre>journal.<span class="f">create_index</span>(<span class="s">"service"</span>)
+journal.<span class="f">create_index</span>([(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"status"</span>, <span class="n">1</span>)])
+
+filtr = {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}}
+<span class="f">print</span>(<span class="s">"выбран:"</span>, <span class="f">summary</span>(journal, filter=filtr))
+
+info = journal.<span class="f">find</span>(filtr).<span class="f">explain</span>()
+<span class="k">for</span> rejected <span class="k">in</span> info[<span class="s">"queryPlanner"</span>][<span class="s">"rejectedPlans"</span>]:
+    stage = rejected.<span class="f">get</span>(<span class="s">"queryPlan"</span>, rejected)
+    <span class="k">while</span> <span class="s">"inputStage"</span> <span class="k">in</span> stage:
+        stage = stage[<span class="s">"inputStage"</span>]
+    <span class="f">print</span>(<span class="s">"отклонён план по индексу"</span>, stage[<span class="s">"indexName"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>выбранный и отклонённый планы</span></figcaption>
+<pre>journal.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>)));
+journal.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)));
+
+<span class="k">auto</span> filtr = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))));
+std::cout &lt;&lt; <span class="s">"выбран: "</span> &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()))) &lt;&lt; std::endl;
+
+<span class="k">auto</span> info = sandbox.<span class="f">run_command</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"explain"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"find"</span>, <span class="s">"events"</span>), <span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()))),
+    <span class="f">kvp</span>(<span class="s">"verbosity"</span>, <span class="s">"executionStats"</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; plan : info.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"rejectedPlans"</span>].<span class="f">get_array</span>().value) {
+    <span class="k">auto</span> stage = plan.<span class="f">get_document</span>().value;
+    <span class="k">if</span> (stage[<span class="s">"queryPlan"</span>]) stage = stage[<span class="s">"queryPlan"</span>].<span class="f">get_document</span>().value;
+    while (stage[<span class="s">"inputStage"</span>]) stage = stage[<span class="s">"inputStage"</span>].<span class="f">get_document</span>().value;
+    std::cout &lt;&lt; <span class="s">"отклонён план по индексу "</span> &lt;&lt; stage[<span class="s">"indexName"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>выбранный и отклонённый планы</span></figcaption>
+<pre>journal.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}}})
+journal.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}})
+
+filtr := bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}
+fmt.<span class="f">Println</span>(<span class="s">"выбран:"</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr}}))
+
+<span class="k">var</span> info bson.Raw
+sandbox.<span class="f">RunCommand</span>(ctx, bson.D{
+    {Key: <span class="s">"explain"</span>, Value: bson.D{{Key: <span class="s">"find"</span>, Value: <span class="s">"events"</span>}, {Key: <span class="s">"filter"</span>, Value: filtr}}},
+    {Key: <span class="s">"verbosity"</span>, Value: <span class="s">"executionStats"</span>}}).<span class="f">Decode</span>(&amp;info)
+rejected, _ := info.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"rejectedPlans"</span>).<span class="f">Array</span>().<span class="f">Values</span>()
+<span class="k">for</span> _, plan := <span class="k">range</span> rejected {
+    stage := plan.<span class="f">Document</span>()
+    <span class="k">if</span> inner, ok := stage.<span class="f">Lookup</span>(<span class="s">"queryPlan"</span>).<span class="f">DocumentOK</span>(); ok {
+        stage = inner
+    }
+    <span class="k">for</span> {
+        next, ok := stage.<span class="f">Lookup</span>(<span class="s">"inputStage"</span>).<span class="f">DocumentOK</span>()
+        <span class="k">if</span> !ok {
+            <span class="k">break</span>
+        }
+        stage = next
+    }
+    fmt.<span class="f">Println</span>(<span class="s">"отклонён план по индексу"</span>, stage.<span class="f">Lookup</span>(<span class="s">"indexName"</span>).<span class="f">StringValue</span>())
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>выбранный и отклонённый планы</span></figcaption>
+<pre>journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span> })
+journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> })
+
+filtr = { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } }
+<span class="k">puts</span> <span class="s">"выбран: "</span> + <span class="f">summary</span>(journal, filter: filtr)
+
+info = journal.<span class="f">find</span>(filtr).explain
+info[<span class="s">"queryPlanner"</span>][<span class="s">"rejectedPlans"</span>].each <span class="k">do</span> |rejected|
+  stage = rejected[<span class="s">"queryPlan"</span>] || rejected
+  stage = stage[<span class="s">"inputStage"</span>] while stage[<span class="s">"inputStage"</span>]
+  <span class="k">puts</span> <span class="s">"отклонён план по индексу "</span> + stage[<span class="s">"indexName"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>выбран: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+отклонён план по индексу service_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>выбран: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+отклонён план по индексу service_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>выбран: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+отклонён план по индексу service_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>выбран: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+отклонён план по индексу service_1</pre>
+        </figure>
+        <p>Выбран план по составному индексу: 42 ключа, 42 документа, 42 результата. План по <code>service_1</code> отклонён. По нему сервер прочитал бы все 232 события <code>payments</code> и у каждого проверил статус, а по составному индексу читаются только записи со статусом от 500.</p>
+        <figure class="shot">
+          <img src="../../shots/125-explain-compound.png" alt="Compass, окно Explain Plan при двух индексах: FETCH и IXSCAN по service_1_status_1, 42 документа, 42 ключа">
+          <figcaption>Compass · тот же запрос при индексах <code>service_1</code> и <code>service_1_status_1</code></figcaption>
+        </figure>
+        <p>Compass показывает только выбранный план: <code>IXSCAN</code> по <code>service_1_status_1</code> и <code>FETCH</code>, по 42 на каждой стадии. В сводке под строкой <b>Query used the following index</b> — поля индекса со стрелками направления. Отклонённый план по <code>service_1</code> на схеме не виден; он есть на вкладке <b>Raw Output</b>, в <code>rejectedPlans</code>.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>executionStats: сколько прочитано</h2>
+        <p>Отклонённый план в <code>executionStats</code> не попадает: счётчики описывают только выбранный. Чтобы увидеть числа другого плана, индекс задают запросу явно параметром <span class="term">hint</span> — «подсказка». Значение — имя индекса или его ключ; специальное значение <code>{"$natural": 1}</code> велит читать коллекцию подряд, без индекса. В рабочих запросах подсказку ставят редко: сервер обычно выбирает план сам. Для сравнения индексов она удобна, потому что задаёт план явно.</p>
+        <p>Пример выполняет один и тот же запрос дежурного по составному индексу, по индексу <code>service_1</code> и без индекса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>один запрос, три индекса</span></figcaption>
+<pre>filtr = {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}}
+<span class="f">print</span>(<span class="s">"service_1_status_1:"</span>, <span class="f">summary</span>(journal, filter=filtr, hint=<span class="s">"service_1_status_1"</span>))
+<span class="f">print</span>(<span class="s">"service_1:         "</span>, <span class="f">summary</span>(journal, filter=filtr, hint=<span class="s">"service_1"</span>))
+<span class="f">print</span>(<span class="s">"без индекса:       "</span>, <span class="f">summary</span>(journal, filter=filtr, hint={<span class="s">"$natural"</span>: <span class="n">1</span>}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>один запрос, три индекса</span></figcaption>
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))));
+std::cout &lt;&lt; <span class="s">"service_1_status_1: "</span>
+          &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"hint"</span>, <span class="s">"service_1_status_1"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"service_1:          "</span>
+          &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"hint"</span>, <span class="s">"service_1"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"без индекса:        "</span>
+          &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"hint"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$natural"</span>, <span class="n">1</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>один запрос, три индекса</span></figcaption>
+<pre>filtr := bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}
+fmt.<span class="f">Println</span>(<span class="s">"service_1_status_1:"</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr}, {Key: <span class="s">"hint"</span>, Value: <span class="s">"service_1_status_1"</span>}}))
+fmt.<span class="f">Println</span>(<span class="s">"service_1:         "</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr}, {Key: <span class="s">"hint"</span>, Value: <span class="s">"service_1"</span>}}))
+fmt.<span class="f">Println</span>(<span class="s">"без индекса:       "</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr}, {Key: <span class="s">"hint"</span>, Value: bson.D{{Key: <span class="s">"$natural"</span>, Value: <span class="n">1</span>}}}}))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>один запрос, три индекса</span></figcaption>
+<pre>filtr = { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } }
+<span class="k">puts</span> <span class="s">"service_1_status_1: "</span> + <span class="f">summary</span>(journal, filter: filtr, hint: <span class="s">"service_1_status_1"</span>)
+<span class="k">puts</span> <span class="s">"service_1:          "</span> + <span class="f">summary</span>(journal, filter: filtr, hint: <span class="s">"service_1"</span>)
+<span class="k">puts</span> <span class="s">"без индекса:        "</span> + <span class="f">summary</span>(journal, filter: filtr, hint: { <span class="s">"$natural"</span> =&gt; <span class="n">1</span> })</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 232 | документов 232
+без индекса:        COLLSCAN | вернул 42 | ключей 0 | документов 1200</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 232 | документов 232
+без индекса:        COLLSCAN | вернул 42 | ключей 0 | документов 1200</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 232 | документов 232
+без индекса:        COLLSCAN | вернул 42 | ключей 0 | документов 1200</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1: FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 232 | документов 232
+без индекса:        COLLSCAN | вернул 42 | ключей 0 | документов 1200</pre>
+        </figure>
+        <p>Результат везде одинаковый — 42 документа. Различается работа:</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>План</th><th><code>nReturned</code></th><th><code>totalKeysExamined</code></th><th><code>totalDocsExamined</code></th><th>Прочитано лишнего</th></tr></thead>
+            <tbody>
+              <tr><td><code>IXSCAN service_1_status_1</code></td><td>42</td><td>42</td><td>42</td><td>ничего</td></tr>
+              <tr><td><code>IXSCAN service_1</code></td><td>42</td><td>232</td><td>232</td><td>190 документов с другими статусами</td></tr>
+              <tr><td><code>COLLSCAN</code></td><td>42</td><td>0</td><td>1200</td><td>1158 документов</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>По индексу <code>service_1</code> сервер находит все события платёжного сервиса и только после чтения документа проверяет статус: условие на <code>status</code> в этот индекс не входит. Без индекса читается вся коллекция. Время выполнения в отчёте тоже есть — поле <code>executionTimeMillis</code>, в миллисекундах. На копии журнала оно колеблется от нуля до полутора десятков миллисекунд и меняется от запуска к запуску: на кадрах §1 и §8 один и тот же запрос без индекса выполнен за 1 и за 7 мс. Время зависит от нагрузки на сервер и от того, что уже лежит в памяти, а число прочитанных ключей и документов при тех же данных повторяется. Поэтому запросы сравнивают по счётчикам.</p>
+        <figure class="shot">
+          <img src="../../shots/126-explain-hint-service.png" alt="Compass, окно Explain Plan с подсказкой индекса service_1: IXSCAN вернул 232, FETCH вернул 42, прочитано 232 документа">
+          <figcaption>Compass · тот же запрос с <b>Index Hint</b> <code>"service_1"</code></figcaption>
+        </figure>
+        <p>Подсказка в Compass задаётся полем <b>Index Hint</b> в параметрах запроса (<b>Options</b>), значение — имя индекса в кавычках. На схеме видно, где теряется работа: <code>IXSCAN</code> вернул 232 ссылки, а <code>FETCH</code> после проверки статуса оставил 42. Прочитано 232 документа.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Покрывающий запрос</h2>
+        <p>Стадия <code>FETCH</code> читает документы по ссылкам из индекса. Если все поля, которые запрос проверяет и возвращает, есть в индексе, документы читать не нужно: значения берутся из записей индекса. Такой запрос называется <span class="term">покрывающим</span> — индекс покрывает его целиком. Для этого проекция (глава 1.5) должна оставить только поля индекса и исключить <code>_id</code>, если его нет в индексе.</p>
+        <p>Пример выполняет запрос дежурного трижды: без проекции, с проекцией на <code>service</code> и <code>status</code> и с проекцией, где добавлено поле <code>ts</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>покрывающий запрос</span></figcaption>
+<pre>filtr = {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}}
+<span class="f">print</span>(<span class="s">"все поля:        "</span>, <span class="f">summary</span>(journal, filter=filtr))
+<span class="f">print</span>(<span class="s">"service и status:"</span>, <span class="f">summary</span>(journal, filter=filtr, projection={<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"service"</span>: <span class="n">1</span>, <span class="s">"status"</span>: <span class="n">1</span>}))
+<span class="f">print</span>(<span class="s">"и ещё ts:        "</span>, <span class="f">summary</span>(journal, filter=filtr, projection={<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"service"</span>: <span class="n">1</span>, <span class="s">"status"</span>: <span class="n">1</span>, <span class="s">"ts"</span>: <span class="n">1</span>}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>покрывающий запрос</span></figcaption>
+<pre><span class="k">auto</span> filtr = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))));
+std::cout &lt;&lt; <span class="s">"все поля:         "</span> &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"service и status: "</span>
+          &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()),
+                     <span class="f">kvp</span>(<span class="s">"projection"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>))))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"и ещё ts:         "</span>
+          &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"filter"</span>, filtr.<span class="f">view</span>()),
+                     <span class="f">kvp</span>(<span class="s">"projection"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, <span class="n">1</span>))))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>покрывающий запрос</span></figcaption>
+<pre>filtr := bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}
+fmt.<span class="f">Println</span>(<span class="s">"все поля:        "</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr}}))
+fmt.<span class="f">Println</span>(<span class="s">"service и status:"</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr},
+    {Key: <span class="s">"projection"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}}}))
+fmt.<span class="f">Println</span>(<span class="s">"и ещё ts:        "</span>, <span class="f">summary</span>(journal, bson.D{{Key: <span class="s">"filter"</span>, Value: filtr},
+    {Key: <span class="s">"projection"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}, {Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: <span class="n">1</span>}}}}))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>покрывающий запрос</span></figcaption>
+<pre>filtr = { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } }
+<span class="k">puts</span> <span class="s">"все поля:         "</span> + <span class="f">summary</span>(journal, filter: filtr)
+<span class="k">puts</span> <span class="s">"service и status: "</span> + <span class="f">summary</span>(journal, filter: filtr, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> })
+<span class="k">puts</span> <span class="s">"и ещё ts:         "</span> + <span class="f">summary</span>(journal, filter: filtr, projection: { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; <span class="n">1</span> })</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>все поля:         FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service и status: PROJECTION_COVERED → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 0
+и ещё ts:         PROJECTION_SIMPLE → FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>все поля:         FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service и status: PROJECTION_COVERED → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 0
+и ещё ts:         PROJECTION_SIMPLE → FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>все поля:         FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service и status: PROJECTION_COVERED → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 0
+и ещё ts:         PROJECTION_SIMPLE → FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>все поля:         FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42
+service и status: PROJECTION_COVERED → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 0
+и ещё ts:         PROJECTION_SIMPLE → FETCH → IXSCAN service_1_status_1 | вернул 42 | ключей 42 | документов 42</pre>
+        </figure>
+        <p>Без проекции план прежний, 42 документа прочитаны. С проекцией на два поля индекса вместо <code>FETCH</code> стоит стадия <code>PROJECTION_COVERED</code>, и <code>totalDocsExamined</code> — 0: сервер прочитал только 42 записи индекса. Поле <code>ts</code> в индекс не входит, поэтому в третьем запросе документы снова читаются: стадия <code>FETCH</code> вернулась, а над ней <code>PROJECTION_SIMPLE</code> — проекция, которая отбирает поля из прочитанного документа.</p>
+        <figure class="shot">
+          <img src="../../shots/127-explain-covered.png" alt="Compass, окно Explain Plan для покрывающего запроса: PROJECTION_COVERED над IXSCAN, 0 documents examined, Query covered by index service и status">
+          <figcaption>Compass · запрос дежурного с проекцией <code>{ _id: 0, service: 1, status: 1 }</code></figcaption>
+        </figure>
+        <p>Верхняя стадия — <code>PROJECTION_COVERED</code>, стадии <code>FETCH</code> нет. В сводке <b>0 documents examined</b> и строка <b>Query covered by index</b> вместо <b>Query used the following index</b>: запрос обслужен одним индексом.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Сортировка в памяти</h2>
+        <p>Стадия <code>SORT</code> означает, что сервер прочитал подходящие документы и отсортировал их в памяти. Пока сортировка не закончена, сервер не может вернуть ни одного документа: первым в результате может оказаться последний прочитанный. Поэтому <code>SORT</code> в плане запроса с пределом <code>limit</code> особенно заметна — ради нескольких документов сервер читает и сортирует все подходящие. Память на одну сортировку ограничена: на стенде — 100 МБ (параметр сервера <code>internalQueryMaxBlockingSortMemoryUsageBytes</code>). Если подходящих данных больше, сервер пишет промежуточные части на диск, и запрос замедляется сильнее.</p>
+        <p>Пример ищет десять последних событий платёжного сервиса — запрос с сортировкой по <code>ts</code> по убыванию и пределом 10 — до и после индекса по <code>service</code> и <code>ts</code>. Перед этим он удаляет <code>service_1</code>: с ним сервер выбирал бы между двумя индексами с одинаковой работой, и выбор мог бы меняться от запуска к запуску.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>сортировка в памяти и по индексу</span></figcaption>
+<pre>journal.<span class="f">drop_index</span>(<span class="s">"service_1"</span>)
+last = {<span class="s">"filter"</span>: {<span class="s">"service"</span>: <span class="s">"payments"</span>}, <span class="s">"sort"</span>: {<span class="s">"ts"</span>: -<span class="n">1</span>}, <span class="s">"limit"</span>: <span class="n">10</span>}
+<span class="f">print</span>(<span class="s">"до индекса по ts:   "</span>, <span class="f">summary</span>(journal, **last))
+
+<span class="f">print</span>(<span class="s">"создан индекс:"</span>, journal.<span class="f">create_index</span>([(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"ts"</span>, -<span class="n">1</span>)]))
+<span class="f">print</span>(<span class="s">"после индекса по ts:"</span>, <span class="f">summary</span>(journal, **last))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>сортировка в памяти и по индексу</span></figcaption>
+<pre>journal.<span class="f">indexes</span>().<span class="f">drop_one</span>(<span class="s">"service_1"</span>);
+<span class="k">auto</span> last = <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>))),
+    <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">10</span>));
+std::cout &lt;&lt; <span class="s">"до индекса по ts:    "</span> &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, last.<span class="f">view</span>()) &lt;&lt; std::endl;
+
+<span class="k">auto</span> created = journal.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)));
+std::cout &lt;&lt; <span class="s">"создан индекс: "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"после индекса по ts: "</span> &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, last.<span class="f">view</span>()) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>сортировка в памяти и по индексу</span></figcaption>
+<pre>journal.<span class="f">Indexes</span>().<span class="f">DropOne</span>(ctx, <span class="s">"service_1"</span>)
+last := bson.D{
+    {Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}}},
+    {Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}},
+    {Key: <span class="s">"limit"</span>, Value: <span class="n">10</span>}}
+fmt.<span class="f">Println</span>(<span class="s">"до индекса по ts:   "</span>, <span class="f">summary</span>(journal, last))
+
+name, _ := journal.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}})
+fmt.<span class="f">Println</span>(<span class="s">"создан индекс:"</span>, name)
+fmt.<span class="f">Println</span>(<span class="s">"после индекса по ts:"</span>, <span class="f">summary</span>(journal, last))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>сортировка в памяти и по индексу</span></figcaption>
+<pre>journal.indexes.<span class="f">drop_one</span>(<span class="s">"service_1"</span>)
+last = { filter: { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> }, sort: { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }, limit: <span class="n">10</span> }
+<span class="k">puts</span> <span class="s">"до индекса по ts:    "</span> + <span class="f">summary</span>(journal, last)
+
+journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span> })
+<span class="k">puts</span> <span class="s">"создан индекс: "</span> + journal.indexes.<span class="f">get</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span> })[<span class="s">"name"</span>]
+<span class="k">puts</span> <span class="s">"после индекса по ts: "</span> + <span class="f">summary</span>(journal, last)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса по ts:    SORT → FETCH → IXSCAN service_1_status_1 | вернул 10 | ключей 232 | документов 232
+создан индекс: service_1_ts_-1
+после индекса по ts: LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 10 | ключей 10 | документов 10</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса по ts:    SORT → FETCH → IXSCAN service_1_status_1 | вернул 10 | ключей 232 | документов 232
+создан индекс: service_1_ts_-1
+после индекса по ts: LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 10 | ключей 10 | документов 10</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса по ts:    SORT → FETCH → IXSCAN service_1_status_1 | вернул 10 | ключей 232 | документов 232
+создан индекс: service_1_ts_-1
+после индекса по ts: LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 10 | ключей 10 | документов 10</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса по ts:    SORT → FETCH → IXSCAN service_1_status_1 | вернул 10 | ключей 232 | документов 232
+создан индекс: service_1_ts_-1
+после индекса по ts: LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 10 | ключей 10 | документов 10</pre>
+        </figure>
+        <p>До нового индекса план — <code>SORT → FETCH → IXSCAN</code>: прочитаны все 232 события <code>payments</code>, отсортированы в памяти, возвращены десять. По индексу <code>service_1_ts_-1</code> записи <code>payments</code> уже упорядочены по времени от новых к старым, и сервер читает их по порядку, пока не наберёт десять. Стадия <code>LIMIT</code> останавливает чтение на десятом документе: прочитано 10 ключей и 10 документов.</p>
+        <figure class="shot">
+          <img src="../../shots/128-explain-sort.png" alt="Compass, окно Explain Plan для запроса payments с сортировкой по ts и пределом 10: SORT вернул 10, FETCH и IXSCAN по 232, Is sorted in memory">
+          <figcaption>Compass · <code>{ service: "payments" }</code>, сортировка <code>{ ts: -1 }</code>, предел 10</figcaption>
+        </figure>
+        <p>Три стадии: <code>IXSCAN</code> и <code>FETCH</code> вернули по 232, <code>SORT</code> — 10. В сводке <b>Is sorted in memory</b> — сортировка в памяти; при её отсутствии там написано <b>Is not sorted in memory</b>, как на кадрах выше.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Порядок полей в индексе: равенство, сортировка, диапазон</h2>
+        <p>Запрос, в котором есть и условие на равенство, и диапазон, и сортировка, — например, пять последних ошибок платёжного сервиса: <code>service</code> равен <code>payments</code>, <code>status</code> от 500, сортировка по <code>ts</code> — обслуживается индексами с разным порядком полей по-разному. Порядок подбирают по правилу <span class="term">ESR</span> (Equality, Sort, Range): сначала поля условий на равенство, затем поля сортировки, затем поля условий-диапазонов. Правило разобрано по шагам в практикуме «Онлайн-разбор запроса», §5; здесь оно проверяется счётчиками.</p>
+        <p>Пример создаёт индекс по правилу ESR — <code>service</code>, <code>ts</code>, <code>status</code> — и выполняет запрос по трём индексам через <code>hint</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>порядок полей: равенство, сортировка, диапазон</span></figcaption>
+<pre>journal.<span class="f">create_index</span>([(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"ts"</span>, -<span class="n">1</span>), (<span class="s">"status"</span>, <span class="n">1</span>)])
+errors_last = {<span class="s">"filter"</span>: {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}}, <span class="s">"sort"</span>: {<span class="s">"ts"</span>: -<span class="n">1</span>}, <span class="s">"limit"</span>: <span class="n">5</span>}
+
+<span class="k">for</span> name <span class="k">in</span> [<span class="s">"service_1_status_1"</span>, <span class="s">"service_1_ts_-1"</span>, <span class="s">"service_1_ts_-1_status_1"</span>]:
+    <span class="f">print</span>(name.<span class="f">ljust</span>(<span class="n">24</span>), <span class="f">summary</span>(journal, **errors_last, hint=name))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>порядок полей: равенство, сортировка, диапазон</span></figcaption>
+<pre>journal.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (std::string name : {<span class="s">"service_1_status_1"</span>, <span class="s">"service_1_ts_-1"</span>, <span class="s">"service_1_ts_-1_status_1"</span>}) {
+    <span class="k">auto</span> find = <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>))))),
+        <span class="f">kvp</span>(<span class="s">"sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">5</span>),
+        <span class="f">kvp</span>(<span class="s">"hint"</span>, name));
+    std::cout &lt;&lt; name &lt;&lt; std::<span class="f">string</span>(<span class="n">25</span> - name.<span class="f">size</span>(), <span class="s">' '</span>) &lt;&lt; <span class="f">summary</span>(sandbox, <span class="s">"events"</span>, find.<span class="f">view</span>()) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>порядок полей: равенство, сортировка, диапазон</span></figcaption>
+<pre>journal.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}})
+errorsLast := bson.D{
+    {Key: <span class="s">"filter"</span>, Value: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}},
+    {Key: <span class="s">"sort"</span>, Value: bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}},
+    {Key: <span class="s">"limit"</span>, Value: <span class="n">5</span>}}
+
+<span class="k">for</span> _, name := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"service_1_status_1"</span>, <span class="s">"service_1_ts_-1"</span>, <span class="s">"service_1_ts_-1_status_1"</span>} {
+    find := <span class="f">append</span>(bson.D{{Key: <span class="s">"hint"</span>, Value: name}}, errorsLast...)
+    fmt.<span class="f">Printf</span>(<span class="s">"%-24s %s\n"</span>, name, <span class="f">summary</span>(journal, find))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>порядок полей: равенство, сортировка, диапазон</span></figcaption>
+<pre>journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"ts"</span> =&gt; -<span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> })
+errors_last = { filter: { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } }, sort: { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> }, limit: <span class="n">5</span> }
+
+[<span class="s">"service_1_status_1"</span>, <span class="s">"service_1_ts_-1"</span>, <span class="s">"service_1_ts_-1_status_1"</span>].each <span class="k">do</span> |name|
+  <span class="k">puts</span> name.<span class="f">ljust</span>(<span class="n">24</span>) + <span class="s">" "</span> + <span class="f">summary</span>(journal, errors_last.<span class="f">merge</span>(hint: name))
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1       SORT → FETCH → IXSCAN service_1_status_1 | вернул 5 | ключей 42 | документов 42
+service_1_ts_-1          LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 5 | ключей 18 | документов 18
+service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | вернул 5 | ключей 18 | документов 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1       SORT → FETCH → IXSCAN service_1_status_1 | вернул 5 | ключей 42 | документов 42
+service_1_ts_-1          LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 5 | ключей 18 | документов 18
+service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | вернул 5 | ключей 18 | документов 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1       SORT → FETCH → IXSCAN service_1_status_1 | вернул 5 | ключей 42 | документов 42
+service_1_ts_-1          LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 5 | ключей 18 | документов 18
+service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | вернул 5 | ключей 18 | документов 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>service_1_status_1       SORT → FETCH → IXSCAN service_1_status_1 | вернул 5 | ключей 42 | документов 42
+service_1_ts_-1          LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 5 | ключей 18 | документов 18
+service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | вернул 5 | ключей 18 | документов 5</pre>
+        </figure>
+        <p>Результат — пять документов во всех трёх случаях, работа разная:</p>
+        <ul>
+          <li><code>service_1_status_1</code> — порядок «равенство, диапазон»: индекс сразу даёт 42 подходящих события, но не по времени, и в плане стадия <code>SORT</code>. Прочитаны 42 документа, чтобы вернуть 5.</li>
+          <li><code>service_1_ts_-1</code> — «равенство, сортировка»: сортировки в памяти нет, сервер идёт по событиям <code>payments</code> от новых к старым. Статуса в индексе нет, поэтому каждое событие приходится читать целиком, чтобы проверить статус: прочитано 18 записей индекса и 18 документов, пока не нашлось 5 подходящих.</li>
+          <li><code>service_1_ts_-1_status_1</code> — «равенство, сортировка, диапазон»: порядок тот же, 18 записей индекса, но статус проверяется по записи индекса, и читаются только 5 подходящих документов.</li>
+        </ul>
+        <p>Индекс по правилу ESR дал наименьшую работу: ни сортировки в памяти, ни чтения лишних документов.</p>
+        <figure class="shot">
+          <img src="../../shots/129-explain-esr.png" alt="Compass, окно Explain Plan для запроса по индексу service_1_ts_-1_status_1: LIMIT, FETCH и IXSCAN по 5, 18 ключей, 5 документов">
+          <figcaption>Compass · пять последних ошибок с <b>Index Hint</b> <code>"service_1_ts_-1_status_1"</code></figcaption>
+        </figure>
+        <p>Все три стадии вернули по 5 документов, в сводке — 18 ключей индекса и 5 документов, <b>Is not sorted in memory</b>. Стрелки у полей индекса показывают направление: у <code>ts</code> — по убыванию.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Порядок разбора медленного запроса</h2>
+        <p>Числа из §1–§6 складываются в порядок, которым разбирают запрос, вызывающий подозрение:</p>
+        <ol class="steps">
+          <li><b>Получить отчёт</b><code>explain</code> для того же фильтра, сортировки, проекции и предела, с которыми запрос выполняет программа. Другие параметры дадут другой план.</li>
+          <li><b>Найти стадию чтения</b>Нижняя стадия <code>COLLSCAN</code> — индекса под запрос нет. <code>IXSCAN</code> — индекс есть, имя индекса указано рядом.</li>
+          <li><b>Сравнить счётчики</b>Если <code>totalDocsExamined</code> намного больше <code>nReturned</code>, часть условий сервер проверяет по прочитанным документам: поля этих условий нет в индексе или они стоят в нём не на своём месте.</li>
+          <li><b>Проверить сортировку</b>Стадия <code>SORT</code> — сортировка в памяти. Поле сортировки добавляют в индекс сразу после полей равенства.</li>
+          <li><b>Построить индекс и повторить отчёт</b>Порядок полей — по правилу ESR (§6). После создания индекса отчёт снимают заново и сравнивают счётчики с прежними. Индексы, которые после этого стали лишними, удаляют (глава 3.2, §4).</li>
+        </ol>
+
+        <h2 id="s8"><span class="sec">§8</span>explain в Compass</h2>
+        <p>Кадры в разделах выше сняты в окне <b>Explain Plan</b> на тех же запросах, что и примеры. Запрос набирается на вкладке <b>Documents</b>: фильтр — в верхнем поле, проекция, сортировка, предел и подсказка индекса — в параметрах <b>Options</b>. Кнопка <b>Explain</b> строит отчёт для этого запроса.</p>
+        <p>Вкладка <b>Visual Tree</b> показывает стадии выбранного плана схемой: нижняя стадия передаёт результат верхней, у каждой — счётчик <b>Returned</b>. Щелчок по названию стадии раскрывает её часть отчёта — условие, направление чтения, имя индекса. Вкладка <b>Raw Output</b> показывает отчёт целиком, тот же документ, что возвращает <code>explain</code> в коде.</p>
+        <figure class="shot">
+          <img src="../../shots/130-explain-raw.png" alt="Compass, вкладка Raw Output окна Explain Plan: документ отчёта с explainVersion, queryPlanner с winningPlan COLLSCAN и пустым rejectedPlans, executionStats с nReturned 42, executionTimeMillis 7, totalKeysExamined 0, totalDocsExamined 1200">
+          <figcaption>Compass · вкладка <b>Raw Output</b> для запроса без индексов</figcaption>
+        </figure>
+        <p>Сверху вниз видны разделы, разобранные в §1–§3: <code>explainVersion</code>, <code>queryPlanner</code> с <code>winningPlan</code> (<code>COLLSCAN</code>) и пустым <code>rejectedPlans</code>, затем <code>executionStats</code> со счётчиками 42, 0 и 1200. Поле <code>executionTimeMillis</code> на этом кадре — 7, на кадре §1 тот же запрос показал 1 мс. Ниже идёт <code>executionStages</code> — те же стадии со счётчиками каждой. Отчёт копируется из этой вкладки и разбирается на сайтах из практикума «Онлайн-разбор запроса».</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Отчёт снят для фильтра без сортировки и предела, а программа их использует</td><td>План другой: в отчёте нет стадии <code>SORT</code>, которая есть в настоящем запросе</td><td>Снимать <code>explain</code> с теми же фильтром, сортировкой, проекцией и пределом</td></tr>
+              <tr><td>Запросы сравниваются по <code>executionTimeMillis</code></td><td>Время меняется от запуска к запуску: на копии журнала один запрос показывал 1 и 7 мс</td><td>Сравнивать <code>totalKeysExamined</code> и <code>totalDocsExamined</code> с <code>nReturned</code></td></tr>
+              <tr><td>Счётчики отклонённого плана ищут в <code>executionStats</code></td><td>Там только выбранный план</td><td>Задать индекс параметром <code>hint</code> и снять отчёт ещё раз</td></tr>
+              <tr><td>Проекция на поля индекса без <code>"_id": 0</code></td><td>Запрос не покрывающий: <code>_id</code> нет в индексе, документы читаются</td><td>Исключить <code>_id</code> в проекции</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой</td><td>Стадия <code>SORT</code>: подходящие документы сортируются в памяти</td><td>Порядок по правилу ESR: равенство, сортировка, диапазон</td></tr>
+              <tr><td><code>hint</code> оставлен в рабочем запросе после сравнения</td><td>Сервер не выберет лучший индекс, если он появится; удаление индекса из <code>hint</code> ломает запрос</td><td>Убрать <code>hint</code> после сравнения планов</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Отчёт снят для фильтра без сортировки и предела, а программа их использует</td><td>План другой: в отчёте нет стадии <code>SORT</code>, которая есть в настоящем запросе</td><td>Снимать <code>explain</code> с теми же фильтром, сортировкой, проекцией и пределом</td></tr>
+              <tr><td>Запросы сравниваются по <code>executionTimeMillis</code></td><td>Время меняется от запуска к запуску: на копии журнала один запрос показывал 1 и 7 мс</td><td>Сравнивать <code>totalKeysExamined</code> и <code>totalDocsExamined</code> с <code>nReturned</code></td></tr>
+              <tr><td>Счётчики отклонённого плана ищут в <code>executionStats</code></td><td>Там только выбранный план</td><td>Задать индекс параметром <code>hint</code> и снять отчёт ещё раз</td></tr>
+              <tr><td>Проекция на поля индекса без <code>"_id": 0</code></td><td>Запрос не покрывающий: <code>_id</code> нет в индексе, документы читаются</td><td>Исключить <code>_id</code> в проекции</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой</td><td>Стадия <code>SORT</code>: подходящие документы сортируются в памяти</td><td>Порядок по правилу ESR: равенство, сортировка, диапазон</td></tr>
+              <tr><td><code>hint</code> оставлен в рабочем запросе после сравнения</td><td>Сервер не выберет лучший индекс, если он появится; удаление индекса из <code>hint</code> ломает запрос</td><td>Убрать <code>hint</code> после сравнения планов</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Отчёт снят для фильтра без сортировки и предела, а программа их использует</td><td>План другой: в отчёте нет стадии <code>SORT</code>, которая есть в настоящем запросе</td><td>Снимать <code>explain</code> с теми же фильтром, сортировкой, проекцией и пределом</td></tr>
+              <tr><td>Запросы сравниваются по <code>executionTimeMillis</code></td><td>Время меняется от запуска к запуску: на копии журнала один запрос показывал 1 и 7 мс</td><td>Сравнивать <code>totalKeysExamined</code> и <code>totalDocsExamined</code> с <code>nReturned</code></td></tr>
+              <tr><td>Счётчики отклонённого плана ищут в <code>executionStats</code></td><td>Там только выбранный план</td><td>Задать индекс параметром <code>hint</code> и снять отчёт ещё раз</td></tr>
+              <tr><td>Проекция на поля индекса без <code>"_id": 0</code></td><td>Запрос не покрывающий: <code>_id</code> нет в индексе, документы читаются</td><td>Исключить <code>_id</code> в проекции</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой</td><td>Стадия <code>SORT</code>: подходящие документы сортируются в памяти</td><td>Порядок по правилу ESR: равенство, сортировка, диапазон</td></tr>
+              <tr><td><code>hint</code> оставлен в рабочем запросе после сравнения</td><td>Сервер не выберет лучший индекс, если он появится; удаление индекса из <code>hint</code> ломает запрос</td><td>Убрать <code>hint</code> после сравнения планов</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Отчёт снят для фильтра без сортировки и предела, а программа их использует</td><td>План другой: в отчёте нет стадии <code>SORT</code>, которая есть в настоящем запросе</td><td>Снимать <code>explain</code> с теми же фильтром, сортировкой, проекцией и пределом</td></tr>
+              <tr><td>Запросы сравниваются по <code>executionTimeMillis</code></td><td>Время меняется от запуска к запуску: на копии журнала один запрос показывал 1 и 7 мс</td><td>Сравнивать <code>totalKeysExamined</code> и <code>totalDocsExamined</code> с <code>nReturned</code></td></tr>
+              <tr><td>Счётчики отклонённого плана ищут в <code>executionStats</code></td><td>Там только выбранный план</td><td>Задать индекс параметром <code>hint</code> и снять отчёт ещё раз</td></tr>
+              <tr><td>Проекция на поля индекса без <code>"_id": 0</code></td><td>Запрос не покрывающий: <code>_id</code> нет в индексе, документы читаются</td><td>Исключить <code>_id</code> в проекции</td></tr>
+              <tr><td>Индекс «равенство, диапазон» для запроса с сортировкой</td><td>Стадия <code>SORT</code>: подходящие документы сортируются в памяти</td><td>Порядок по правилу ESR: равенство, сортировка, диапазон</td></tr>
+              <tr><td><code>hint</code> оставлен в рабочем запросе после сравнения</td><td>Сервер не выберет лучший индекс, если он появится; удаление индекса из <code>hint</code> ломает запрос</td><td>Убрать <code>hint</code> после сравнения планов</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>В отчёте <code>nReturned</code> — 42, <code>totalDocsExamined</code> — 1200. Что это значит?</summary>
+          <p>Чтобы вернуть 42 документа, сервер прочитал 1200 — всю коллекцию. Индекса под запрос нет или он не подходит; нижняя стадия плана — <code>COLLSCAN</code>.</p>
+        </details>
+        <details>
+          <summary>Где в отчёте найти план, который сервер не выбрал, и почему у него нет счётчиков <code>executionStats</code>?</summary>
+          <p>В списке <code>queryPlanner.rejectedPlans</code>. Счётчики <code>executionStats</code> описывают выполнение выбранного плана. Чтобы получить счётчики другого плана, его индекс задают параметром <code>hint</code>.</p>
+        </details>
+        <details>
+          <summary>Почему у покрывающего запроса <code>totalDocsExamined</code> равен нулю?</summary>
+          <p>Все поля условия и проекции есть в индексе, а <code>_id</code> исключён проекцией. Сервер берёт значения из записей индекса и документы не читает; в плане вместо <code>FETCH</code> стоит <code>PROJECTION_COVERED</code>.</p>
+        </details>
+        <details>
+          <summary>Запрос с <code>limit(5)</code> читает 232 документа. Какую стадию искать в плане?</summary>
+          <p>Стадию <code>SORT</code>: сервер читает все подходящие документы, сортирует их в памяти и только потом возвращает первые пять. Индекс, в котором после полей равенства идёт поле сортировки, убирает эту стадию.</p>
+        </details>
+        <details>
+          <summary>В каком порядке поставить поля индекса для запроса «<code>service</code> равен значению, <code>status</code> от 500, сортировка по <code>ts</code>»?</summary>
+          <p>По правилу ESR: <code>service</code> — равенство, <code>ts</code> — сортировка, <code>status</code> — диапазон. Индекс <code>{service: 1, ts: -1, status: 1}</code> обходится без сортировки в памяти и читает только подходящие документы.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch3_3</code> с функцией <code>summary</code>. Нужна копия заказов магазина в песочнице — коллекция <code>sandbox.orders_plan</code> с документами <code>shop.orders</code>, как копия журнала в §1. Запрос менеджера: три последних доставленных заказа на сумму от 50 000 — фильтр <code>{"status": "доставлен", "total": {"$gte": 50000}}</code>, сортировка по <code>created</code> по убыванию, предел 3.</p>
+        <ol class="steps">
+          <li><b>Снять отчёт без индекса</b>Вывести <code>summary</code> для запроса менеджера и выписать стадии и три счётчика.</li>
+          <li><b>Индекс «равенство, диапазон»</b>Создать индекс по <code>status</code> и <code>total</code> и вывести <code>summary</code> с <code>hint</code> на него.</li>
+          <li><b>Индекс по правилу ESR</b>Определить порядок полей по правилу ESR, создать индекс и вывести <code>summary</code> с <code>hint</code> на него. Объяснить, почему прочитано меньше документов, чем в шаге 2.</li>
+          <li><b>Покрывающий запрос</b>Для фильтра менеджера без сортировки и предела подобрать проекцию, при которой запрос по индексу из шага 2 не читает документов.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Доставленных заказов 69, из них на сумму от 50 000 — 45. Без индекса: <code>SORT → COLLSCAN</code>, вернул 3, ключей 0, документов 120. Индекс <code>status_1_total_1</code>: <code>SORT → FETCH → IXSCAN status_1_total_1</code>, вернул 3, ключей 45, документов 45 — подходящие заказы найдены по индексу, но отсортированы в памяти. По правилу ESR порядок — <code>status</code>, <code>created</code> (по убыванию), <code>total</code>; индекс <code>status_1_created_-1_total_1</code>: <code>LIMIT → FETCH → IXSCAN</code>, вернул 3, ключей 4, документов 3 — сортировки в памяти нет, сумма проверена по индексу. Покрывающая проекция — <code>{"_id": 0, "status": 1, "total": 1}</code>: <code>PROJECTION_COVERED → IXSCAN status_1_total_1</code>, вернул 45, ключей 45, документов 0.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>coll.find(filtr).explain()</code>
+          </div>
+          <div>
+            <b>Где что лежит</b>
+            <code>queryPlanner.winningPlan — выбранный план</code>
+            <code>queryPlanner.rejectedPlans — отклонённые</code>
+            <code>executionStats.nReturned / totalKeysExamined / totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Задать индекс</b>
+            <code>coll.find(filtr).hint("service_1_status_1")</code>
+            <code>coll.find(filtr).hint([("$natural", 1)])</code>
+          </div>
+          <div>
+            <b>Стадии плана</b>
+            <code>COLLSCAN — вся коллекция</code>
+            <code>IXSCAN — индекс, FETCH — документы по ссылкам</code>
+            <code>SORT — сортировка в памяти</code>
+            <code>PROJECTION_COVERED — без чтения документов</code>
+          </div>
+          <div>
+            <b>Правило ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>db.run_command(make_document(kvp("explain", find),</code>
+            <code>  kvp("verbosity", "executionStats")));</code>
+          </div>
+          <div>
+            <b>Где что лежит</b>
+            <code>queryPlanner.winningPlan — выбранный план</code>
+            <code>queryPlanner.rejectedPlans — отклонённые</code>
+            <code>executionStats.nReturned / totalKeysExamined / totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Задать индекс</b>
+            <code>mongocxx::options::find o;</code>
+            <code>o.hint(mongocxx::hint{"service_1_status_1"});</code>
+          </div>
+          <div>
+            <b>Стадии плана</b>
+            <code>COLLSCAN — вся коллекция</code>
+            <code>IXSCAN — индекс, FETCH — документы по ссылкам</code>
+            <code>SORT — сортировка в памяти</code>
+            <code>PROJECTION_COVERED — без чтения документов</code>
+          </div>
+          <div>
+            <b>Правило ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>db.RunCommand(ctx, bson.D{{Key: "explain", Value: find},</code>
+            <code>  {Key: "verbosity", Value: "executionStats"}})</code>
+          </div>
+          <div>
+            <b>Где что лежит</b>
+            <code>queryPlanner.winningPlan — выбранный план</code>
+            <code>queryPlanner.rejectedPlans — отклонённые</code>
+            <code>executionStats.nReturned / totalKeysExamined / totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Задать индекс</b>
+            <code>options.Find().SetHint("service_1_status_1")</code>
+          </div>
+          <div>
+            <b>Стадии плана</b>
+            <code>COLLSCAN — вся коллекция</code>
+            <code>IXSCAN — индекс, FETCH — документы по ссылкам</code>
+            <code>SORT — сортировка в памяти</code>
+            <code>PROJECTION_COVERED — без чтения документов</code>
+          </div>
+          <div>
+            <b>Правило ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Отчёт о запросе</b>
+            <code>coll.find(filtr).explain</code>
+          </div>
+          <div>
+            <b>Где что лежит</b>
+            <code>queryPlanner.winningPlan — выбранный план</code>
+            <code>queryPlanner.rejectedPlans — отклонённые</code>
+            <code>executionStats.nReturned / totalKeysExamined / totalDocsExamined</code>
+          </div>
+          <div>
+            <b>Задать индекс</b>
+            <code>coll.find(filtr).hint("service_1_status_1")</code>
+          </div>
+          <div>
+            <b>Стадии плана</b>
+            <code>COLLSCAN — вся коллекция</code>
+            <code>IXSCAN — индекс, FETCH — документы по ссылкам</code>
+            <code>SORT — сортировка в памяти</code>
+            <code>PROJECTION_COVERED — без чтения документов</code>
+          </div>
+          <div>
+            <b>Правило ESR</b>
+            <code>равенство → сортировка → диапазон</code>
+            <code>{service: 1, ts: -1, status: 1}</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>explain</code> возвращает отчёт о выполнении запроса. В разделе <code>queryPlanner</code> лежат выбранный план (<code>winningPlan</code>) и отклонённые (<code>rejectedPlans</code>), в разделе <code>executionStats</code> — счётчики выбранного плана: <code>nReturned</code>, <code>totalKeysExamined</code>, <code>totalDocsExamined</code>. У хорошо обслуженного запроса три счётчика близки; если прочитано намного больше, чем возвращено, индекса нет или он не подходит. Индекс для сравнения задаётся параметром <code>hint</code>, <code>{"$natural": 1}</code> — чтение без индекса. Покрывающий запрос берёт поля из индекса и не читает документы, стадия <code>SORT</code> означает сортировку в памяти, а порядок полей составного индекса подбирается по правилу ESR: равенство, сортировка, диапазон. Время выполнения меняется от запуска к запуску, поэтому планы сравнивают по счётчикам.</p>
+
+        <div class="pager"><a href="../20-indeksy/index.html">← 3.2 Индексы</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 3.3 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

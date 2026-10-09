@@ -184,7 +184,7 @@ await withCompass(async page => {
     }
   };
 
-  const setQuery = async ({ filter = '', project = '', sort = '', limit = '', skip = '' } = {}) => {
+  const setQuery = async ({ filter = '', project = '', sort = '', limit = '', skip = '', hint = '' } = {}) => {
     const toggle = page.locator('[data-testid="query-bar-options-toggle"]');
     if (await toggle.getAttribute('aria-expanded') !== 'true') { await toggle.click(); await settle(700); }
 
@@ -233,6 +233,7 @@ await withCompass(async page => {
     await fill('query-bar-option-sort-input', sort, true);
     await fill('query-bar-option-skip-input', skip, false);
     await fill('query-bar-option-limit-input', limit, false);
+    await fill('query-bar-option-hint-input', hint, true);
     await fill('query-bar-option-filter-input', filter, true);
 
     await page.keyboard.press('Escape');
@@ -495,4 +496,39 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     await page.getByRole('button', { name: /^cancel$/i }).first().click({ force: true }).catch(() => {});
     await settle(800);
   }
+
+  // ── Глава 3.3: окно Explain Plan на копии журнала ─────────────────────
+  const EX = {
+    bare: `${EV} db.events.getIndexes().length`,
+    two: `${EV} db.events.createIndex({ service: 1 }); db.events.createIndex({ service: 1, status: 1 }); db.events.getIndexes().length`,
+    sort: `${EV} db.events.createIndex({ service: 1, status: 1 }); db.events.getIndexes().length`,
+    esr: `${EV} db.events.createIndex({ service: 1, status: 1 }); db.events.createIndex({ service: 1, ts: -1 });
+      db.events.createIndex({ service: 1, ts: -1, status: 1 }); db.events.getIndexes().length`,
+  };
+  const ERR = '{ service: "payments", status: { $gte: 500 } }';
+  const explainShot = async (name, state, want, query, raw = false) => {
+    if (!need(name)) return;
+    const got = mongoIn('sandbox', EX[state]).split('\n').pop();
+    if (got !== String(want)) throw new Error(`подготовка ${state}: ждали ${want}, получили ${got}`);
+    console.log('  подготовка', state, '→ индексов', got);
+    await freshOpen('events');
+    await openTab('Documents');
+    await setQuery(query);
+    await collapseOptions();
+    await page.locator('[data-testid="query-bar-explain-button"], button:has-text("Explain")').first().click({ force: true });
+    await settle(4000);
+    if (raw) { await page.getByText('Raw Output', { exact: true }).first().click({ force: true }); await settle(1500); }
+    await page.screenshot({ path: `${OUT}/${name}.png`, clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', name);
+    const close = page.getByRole('button', { name: /^close$/i }).first();
+    if (await close.count()) await close.click({ force: true }).catch(() => {});
+    await settle(800);
+  };
+  await explainShot('124-explain-collscan', 'bare', 1, { filter: ERR });
+  await explainShot('125-explain-compound', 'two', 3, { filter: ERR });
+  await explainShot('126-explain-hint-service', 'two', 3, { filter: ERR, hint: '"service_1"' });
+  await explainShot('127-explain-covered', 'two', 3, { filter: ERR, project: '{ _id: 0, service: 1, status: 1 }' });
+  await explainShot('128-explain-sort', 'sort', 2, { filter: '{ service: "payments" }', sort: '{ ts: -1 }', limit: '10' });
+  await explainShot('129-explain-esr', 'esr', 4, { filter: ERR, sort: '{ ts: -1 }', limit: '5', hint: '"service_1_ts_-1_status_1"' });
+  await explainShot('130-explain-raw', 'bare', 1, { filter: ERR }, true);
 });
