@@ -46,6 +46,7 @@ CHAPTERS = {
     "2.8": ("16-expr", "Сравнение полей между собой: $expr", True),
     "2.9": ("18-skript-podbor", "Скрипт целиком: подбор кандидатов", False),
     "3.1": ("19-jsonschema", "Правила на уровне базы: $jsonSchema", True),
+    "3.2": ("20-indeksy", "Индексы: одиночные, составные, уникальные", True),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -451,6 +452,53 @@ EXTRAS[("3.1", "cpp")] = '''
             kvp("price", make_document(kvp("bsonType", "number"), kvp("minimum", 1))))));
 '''
 
+# Глава 3.2: индексы строятся на копиях в песочнице — logs и shop остаются
+# без новых индексов. Функция plan показывает стадии плана, который выбрал сервер.
+EXTRAS[("3.2", "python")] = """
+journal = sandbox["events"]       # копия журнала: на ней строятся индексы главы
+clients = sandbox["customers"]    # копия покупателей: уникальный индекс, §5–§7
+
+
+def plan(coll, filtr, sort=None):
+    \"\"\"Стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.\"\"\"
+    cursor = coll.find(filtr)
+    if sort:
+        cursor = cursor.sort(sort)
+    stage = cursor.explain()["queryPlanner"]["winningPlan"]
+    stage = stage.get("queryPlan", stage)     # MongoDB 7 кладёт план во вложенное поле
+    steps = []
+    while stage:
+        steps.append(stage["stage"] + (" " + stage["indexName"] if "indexName" in stage else ""))
+        stage = stage.get("inputStage")
+    return " → ".join(steps)
+"""
+EXTRAS[("3.2", "ruby")] = """
+journal = sandbox[:events]        # копия журнала: на ней строятся индексы главы
+clients = sandbox[:customers]     # копия покупателей: уникальный индекс, §5–§7
+
+# Стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.
+def plan(coll, filtr, sort = nil)
+  view = coll.find(filtr)
+  view = view.sort(sort) if sort
+  stage = view.explain["queryPlanner"]["winningPlan"]
+  stage = stage["queryPlan"] || stage     # MongoDB 7 кладёт план во вложенное поле
+  steps = []
+  while stage
+    steps << stage["stage"] + (stage["indexName"] ? " " + stage["indexName"] : "")
+    stage = stage["inputStage"]
+  end
+  steps.join(" → ")
+end
+"""
+EXTRAS[("3.2", "go")] = """
+\tjournal := sandbox.Collection("events")    // копия журнала: на ней строятся индексы главы
+\tclients := sandbox.Collection("customers") // копия покупателей: уникальный индекс, §5–§7
+"""
+EXTRAS[("3.2", "cpp")] = """
+    auto journal = sandbox["events"];      // копия журнала: на ней строятся индексы главы
+    auto clients = sandbox["customers"];   // копия покупателей: уникальный индекс, §5–§7
+"""
+
 GO_IMPORTS = ["context", "errors", "fmt", "log", "os", "sort", "strings", "time"]
 GO_MONGO = {
     "bson": '"go.mongodb.org/mongo-driver/v2/bson"',
@@ -491,6 +539,55 @@ type Product struct {
 TOP_EXTRAS = {("1.4", "go"): GO_PRODUCT, ("1.5", "go"): GO_PRODUCT, ("1.6", "go"): GO_PRODUCT,
               ("1.7", "go"): GO_PRODUCT, ("1.8", "go"): GO_PRODUCT}
 
+TOP_EXTRAS[("3.2", "go")] = """// plan — стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.
+func plan(coll *mongo.Collection, filtr bson.D, sort bson.D) string {
+\tcmd := bson.D{{Key: "find", Value: coll.Name()}, {Key: "filter", Value: filtr}}
+\tif sort != nil {
+\t\tcmd = append(cmd, bson.E{Key: "sort", Value: sort})
+\t}
+\tvar res bson.Raw
+\tcoll.Database().RunCommand(context.Background(), bson.D{{Key: "explain", Value: cmd}}).Decode(&res)
+\tstage := res.Lookup("queryPlanner", "winningPlan").Document()
+\tif inner, ok := stage.Lookup("queryPlan").DocumentOK(); ok { // MongoDB 7 кладёт план во вложенное поле
+\t\tstage = inner
+\t}
+\tsteps := []string{}
+\tfor {
+\t\tstep := stage.Lookup("stage").StringValue()
+\t\tif name, ok := stage.Lookup("indexName").StringValueOK(); ok {
+\t\t\tstep += " " + name
+\t\t}
+\t\tsteps = append(steps, step)
+\t\tnext, ok := stage.Lookup("inputStage").DocumentOK()
+\t\tif !ok {
+\t\t\tbreak
+\t\t}
+\t\tstage = next
+\t}
+\treturn strings.Join(steps, " → ")
+}
+"""
+TOP_EXTRAS[("3.2", "cpp")] = """// plan — стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.
+std::string plan(mongocxx::database& db, const std::string& coll, bsoncxx::document::view filtr,
+                 bsoncxx::document::view sort = bsoncxx::document::view{}) {
+    bsoncxx::builder::basic::document cmd;
+    cmd.append(kvp("find", coll), kvp("filter", filtr));
+    if (!sort.empty()) cmd.append(kvp("sort", sort));
+    auto res = db.run_command(make_document(kvp("explain", cmd.view())));
+    auto stage = res.view()["queryPlanner"]["winningPlan"].get_document().value;
+    if (stage["queryPlan"]) stage = stage["queryPlan"].get_document().value;   // MongoDB 7 кладёт план во вложенное поле
+    std::string steps;
+    while (true) {
+        steps += std::string{stage["stage"].get_string().value};
+        if (stage["indexName"]) steps += " " + std::string{stage["indexName"].get_string().value};
+        if (!stage["inputStage"]) break;
+        steps += " → ";
+        stage = stage["inputStage"].get_document().value;
+    }
+    return steps;
+}
+"""
+
 
 def starter(chapter: str, lang: str, snippets: list[str]) -> str:
     head, _, tail = base(chapter, lang)
@@ -498,13 +595,14 @@ def starter(chapter: str, lang: str, snippets: list[str]) -> str:
         head = head.replace("@@TOP@@", TOP_EXTRAS[(chapter, lang)] + "\n@@TOP@@")
     extra = EXTRAS.get((chapter, lang), "")
     if lang == "go":
-        imports, blanks = go_imports(snippets + [extra])
+        imports, blanks = go_imports(snippets + [extra, TOP_EXTRAS.get((chapter, lang), "")])
         head = head.replace("@@IMPORTS@@", imports).replace("@@BLANKS@@", blanks)
         # Гасим «declared and not used» по тем коллекциям, которые открыла заготовка.
         names = re.findall(r"^\t(\w+) :=", scope(chapter, lang), re.M)
         head += "\t" + ", ".join("_" for _ in names) + " = " + ", ".join(names) + "\n"
         used = [v for v in ("col", "lastSeenID", "ordersBox", "stats", "today", "catalog", "schema")
                 if re.search(r"\b%s :=" % v, extra)]
+        used += [v for v in ("journal", "clients") if re.search(r"\b%s :=" % v, extra)]
         if used:
             extra += "\t" + ", ".join("_" for _ in used) + " = " + ", ".join(used) + "\n"
     if lang == "cpp":

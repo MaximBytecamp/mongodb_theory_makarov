@@ -1659,7 +1659,7 @@ validationAction: warn</pre>
         <h3>Итог главы</h3>
         <p>Правило для документов коллекции записывается оператором <code>$jsonSchema</code>: <code>required</code> перечисляет обязательные поля, <code>properties</code> задаёт правила для значений полей — тип через <code>bsonType</code>, границы через <code>minimum</code>, <code>minLength</code>, <code>pattern</code>, <code>enum</code>, правило элементов массива через <code>items</code>. В фильтре запроса правило отбирает документы, которые ему соответствуют, и так проверяют уже записанные данные. Переданное серверу как валидатор коллекции, правило проверяется при каждой вставке и каждом обновлении; отказ приходит ошибкой с кодом 121, а причины — в поле <code>errInfo</code>. Существующей коллекции правило добавляет команда <code>collMod</code>; старые документы при этом не перепроверяются, <code>validationLevel</code> задаёт, проверять ли их обновления, а <code>validationAction</code> — отклонять ли запись или только предупреждать в журнале сервера.</p>
 
-        <div class="pager"><a href="../18-skript-podbor/index.html">← 2.9 Скрипт целиком</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../18-skript-podbor/index.html">← 2.9 Скрипт целиком</a><a href="../20-indeksy/index.html">3.2 Индексы →</a></div>
 
         <div class="colophon">
           <span>Глава 3.1 · Справочник по MongoDB</span>

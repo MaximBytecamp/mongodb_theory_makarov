@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>3.2 Индексы: одиночные, составные, уникальные · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .doc__body .ok { color: var(--leaf); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Форма данных и скорость</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · форма данных и скорость</p>
+          <p class="running__folio">3.2</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">3.2</span>
+          <h1>Индексы: одиночные,<br>составные, уникальные</h1>
+          <p class="lead">В этой главе разобрано, что такое индекс и как он меняет способ, которым сервер ищет документы. На копии журнала событий строятся индекс по одному полю и составной индекс по двум полям; по стадиям плана видно, когда сервер читает индекс, а когда — всю коллекцию. Отдельно разобраны уникальный индекс, который не пускает в коллекцию повторы, и частичный индекс для документов, в которых нужного поля нет.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Форма данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Фильтр и точечная нотация (глава 2.1), сортировка (глава 1.6), <code>$exists</code> (глава 2.5), правила <code>$jsonSchema</code> (глава 3.1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Находить документы, не читая всю коллекцию, и запрещать повторы значений на уровне базы</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-3.2-python.zip" download><code>mongodb-glava-3.2-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-3.2-ruby.zip" download><code>mongodb-glava-3.2-ruby.zip</code></a>, 64 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-3.2-go.zip" download><code>mongodb-glava-3.2-go.zip</code></a>, 71 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-3.2-cpp.zip" download><code>mongodb-glava-3.2-cpp.zip</code></a>, 68 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch3_2.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch3_2.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch3_2.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch3_2.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch3_2.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch3_2.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch3_2.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch3_2.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch3_2.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch3_2.go</code> · в Docker: <code>docker compose run --rm go lessons/ch3_2.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch3_2.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch3_2.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Как сервер ищет без индекса</a></li>
+            <li><a href="#s2">Индекс по одному полю</a></li>
+            <li><a href="#s3">Составной индекс и порядок полей</a></li>
+            <li><a href="#s4">Удаление индекса</a></li>
+            <li><a href="#s5">Уникальный индекс</a></li>
+            <li><a href="#s6">Уникальный индекс на данных с повторами</a></li>
+            <li><a href="#s7">Документ без поля и частичный индекс</a></li>
+            <li><a href="#s8">Какие поля индексировать</a></li>
+            <li><a href="#s9">Индексы в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Как сервер ищет без индекса</h2>
+        <p>Запрос <code>{"service": "payments"}</code> к журналу событий находит 232 документа из 1200. Чтобы их найти, сервер читает все 1200 документов по порядку и проверяет у каждого поле <code>service</code>. Такой способ называется <span class="term">просмотром коллекции</span> (collection scan, в плане запроса — стадия <code>COLLSCAN</code>). На 1200 документах он занимает доли миллисекунды, на десяти миллионах — секунды, и время растёт вместе с коллекцией.</p>
+        <p><span class="term">Индекс</span> — отдельная структура, в которой значения одного или нескольких полей коллекции хранятся упорядоченно, и при каждом значении записана ссылка на документ. Так устроен предметный указатель в конце книги: слова по алфавиту, при каждом — номера страниц. Чтобы найти события <code>payments</code>, сервер находит это значение в упорядоченном списке и сразу получает ссылки на 232 документа, остальные 968 не читаются.</p>
+        <div class="doc">
+          <div class="doc__bar"><span>Индекс по полю service</span><span>1200 записей</span></div>
+          <div class="doc__body">
+            <div><span class="fld">"api-gateway"</span> — 239 ссылок</div>
+            <div><span class="fld">"notifier"</span> — 247 ссылок</div>
+            <div><span class="fld">"orders"</span> — 233 ссылки</div>
+            <div class="ok"><span class="fld">"payments"</span> — 232 ссылки: e-00018, e-00026, e-00030, …</div>
+            <div><span class="fld">"search"</span> — 249 ссылок</div>
+          </div>
+        </div>
+        <p>Один индекс у каждой коллекции есть всегда — по полю <code>_id</code>, его создаёт сервер вместе с коллекцией. Поэтому поиск по <code>_id</code> быстрый с самого начала, а по остальным полям — только после того, как для них создан индекс.</p>
+        <p>Индексы главы строятся на копии журнала в песочнице: база <code>logs</code> остаётся без новых индексов, и примеры других глав работают с ней в исходном виде. Коллекция <code>journal</code> (<code>sandbox.events</code>) открыта в заготовке главы. Пример удаляет её — вместе с коллекцией удаляются и все её индексы, — копирует в неё события из <code>logs.events</code> и выводит список индексов.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>копия журнала и её индексы</span></figcaption>
+<pre>journal.<span class="f">drop</span>()
+journal.<span class="f">insert_many</span>(events.<span class="f">find</span>())
+<span class="f">print</span>(<span class="s">"событий в копии:"</span>, journal.<span class="f">count_documents</span>({}))
+
+<span class="k">for</span> ix <span class="k">in</span> journal.<span class="f">list_indexes</span>():
+    <span class="f">print</span>(<span class="s">"индекс"</span>, ix[<span class="s">"name"</span>], <span class="f">dict</span>(ix[<span class="s">"key"</span>]))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>копия журнала и её индексы</span></figcaption>
+<pre>journal.<span class="f">drop</span>();
+std::vector&lt;bsoncxx::document::value&gt; all;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : events.<span class="f">find</span>(<span class="f">make_document</span>())) all.<span class="f">emplace_back</span>(doc);
+journal.<span class="f">insert_many</span>(all);
+std::cout &lt;&lt; <span class="s">"событий в копии: "</span> &lt;&lt; journal.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; ix : journal.<span class="f">list_indexes</span>()) {
+    std::cout &lt;&lt; <span class="s">"индекс "</span> &lt;&lt; ix[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; bsoncxx::<span class="f">to_json</span>(ix[<span class="s">"key"</span>].<span class="f">get_document</span>().value, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>копия журнала и её индексы</span></figcaption>
+<pre>journal.<span class="f">Drop</span>(ctx)
+<span class="k">var</span> all []bson.D
+cursor, _ := events.<span class="f">Find</span>(ctx, bson.D{})
+cursor.<span class="f">All</span>(ctx, &amp;all)
+docs := <span class="f">make</span>([]<span class="k">any</span>, <span class="f">len</span>(all))
+<span class="k">for</span> i := <span class="k">range</span> all {
+    docs[i] = all[i]
+}
+journal.<span class="f">InsertMany</span>(ctx, docs)
+n, _ := journal.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"событий в копии:"</span>, n)
+
+list, _ := journal.<span class="f">Indexes</span>().<span class="f">List</span>(ctx)
+<span class="k">for</span> list.<span class="f">Next</span>(ctx) {
+    key, _ := bson.<span class="f">MarshalExtJSON</span>(list.Current.<span class="f">Lookup</span>(<span class="s">"key"</span>).<span class="f">Document</span>(), <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="s">"индекс"</span>, list.Current.<span class="f">Lookup</span>(<span class="s">"name"</span>).<span class="f">StringValue</span>(), <span class="k">string</span>(key))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>копия журнала и её индексы</span></figcaption>
+<pre>journal.drop
+journal.<span class="f">insert_many</span>(events.find.to_a)
+<span class="k">puts</span> <span class="s">"событий в копии: "</span> + journal.<span class="f">count_documents</span>({}).to_s
+
+journal.indexes.each { |ix| <span class="k">puts</span> <span class="s">"индекс "</span> + ix[<span class="s">"name"</span>] + <span class="s">" "</span> + ix[<span class="s">"key"</span>].to_s }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>событий в копии: 1200
+индекс _id_ {'_id': 1}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>событий в копии: 1200
+индекс _id_ { "_id" : 1 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>событий в копии: 1200
+индекс _id_ {"_id":1}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>событий в копии: 1200
+индекс _id_ {"_id"=&gt;1}</pre>
+        </figure>
+        <p>В копии 1200 событий и один индекс — <code>_id_</code>. Имя индекса сервер составляет из имени поля и направления через подчёркивание; у индекса <code>_id</code> имя особое, с подчёркиванием на конце. Ключ индекса <code>{"_id": 1}</code> — поле и направление: <code>1</code> — по возрастанию, <code>-1</code> — по убыванию.</p>
+        <figure class="shot">
+          <img src="../../shots/117-sandbox-events-indexes.png" alt="Compass, вкладка Indexes коллекции sandbox.events: один индекс _id_, тип REGULAR, свойство UNIQUE, статус READY">
+          <figcaption>Compass · <code>sandbox.events</code>, вкладка <b>Indexes</b> после копирования</figcaption>
+        </figure>
+        <p>Индексы коллекции показывает вкладка <b>Indexes</b>, её счётчик — <code>1</code>. В таблице одна строка, <code>_id_</code>. Столбцы: <b>Name &amp; Definition</b> — имя, стрелка раскрывает ключ; <b>Type</b> — вид индекса, <code>REGULAR</code> — обычный; <b>Size</b> — место на диске; <b>Usage</b> — сколько раз индекс использовался в запросах с указанной даты; <b>Properties</b> — свойства: индекс по <code>_id</code> всегда <code>UNIQUE</code>, двух документов с одним <code>_id</code> быть не может; <b>Status</b> — <code>READY</code>, индекс построен.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Индекс по одному полю</h2>
+        <p>Использует ли сервер индекс, видно по <span class="term">плану запроса</span> — описанию шагов, которыми сервер выполняет запрос. План возвращает метод <code>explain</code>; подробно он разобран в главе 3.3. В этой главе из плана берутся только названия стадий, и делает это функция <code>plan</code> из заготовки главы. Она возвращает стадии сверху вниз: верхняя стадия отдаёт документы программе, нижняя — первой получает их из коллекции или индекса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>функция plan из заготовки главы</span></figcaption>
+<pre><span class="k">def</span> <span class="f">plan</span>(coll, filtr, sort=<span class="k">None</span>):
+    <span class="s">""</span><span class="s">"Стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1."</span><span class="s">""</span>
+    cursor = coll.<span class="f">find</span>(filtr)
+    <span class="k">if</span> sort:
+        cursor = cursor.<span class="f">sort</span>(sort)
+    stage = cursor.<span class="f">explain</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+    stage = stage.<span class="f">get</span>(<span class="s">"queryPlan"</span>, stage)     <span class="c"># MongoDB 7 кладёт план во вложенное поле</span>
+    steps = []
+    <span class="k">while</span> stage:
+        steps.<span class="f">append</span>(stage[<span class="s">"stage"</span>] + (<span class="s">" "</span> + stage[<span class="s">"indexName"</span>] <span class="k">if</span> <span class="s">"indexName"</span> <span class="k">in</span> stage <span class="k">else</span> <span class="s">""</span>))
+        stage = stage.<span class="f">get</span>(<span class="s">"inputStage"</span>)
+    <span class="k">return</span> <span class="s">" → "</span>.<span class="f">join</span>(steps)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>функция plan из заготовки главы</span></figcaption>
+<pre><span class="c">// plan — стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.</span>
+std::string <span class="f">plan</span>(mongocxx::database&amp; db, <span class="k">const</span> std::string&amp; coll, bsoncxx::document::view filtr,
+                 bsoncxx::document::view sort = bsoncxx::document::view{}) {
+    bsoncxx::builder::basic::document cmd;
+    cmd.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"find"</span>, coll), <span class="f">kvp</span>(<span class="s">"filter"</span>, filtr));
+    <span class="k">if</span> (!sort.<span class="f">empty</span>()) cmd.<span class="f">append</span>(<span class="f">kvp</span>(<span class="s">"sort"</span>, sort));
+    <span class="k">auto</span> res = db.<span class="f">run_command</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"explain"</span>, cmd.<span class="f">view</span>())));
+    <span class="k">auto</span> stage = res.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>].<span class="f">get_document</span>().value;
+    <span class="k">if</span> (stage[<span class="s">"queryPlan"</span>]) stage = stage[<span class="s">"queryPlan"</span>].<span class="f">get_document</span>().value;   <span class="c">// MongoDB 7 кладёт план во вложенное поле</span>
+    std::string steps;
+    while (<span class="k">true</span>) {
+        steps += std::string{stage[<span class="s">"stage"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (stage[<span class="s">"indexName"</span>]) steps += <span class="s">" "</span> + std::string{stage[<span class="s">"indexName"</span>].<span class="f">get_string</span>().value};
+        <span class="k">if</span> (!stage[<span class="s">"inputStage"</span>]) break;
+        steps += <span class="s">" → "</span>;
+        stage = stage[<span class="s">"inputStage"</span>].<span class="f">get_document</span>().value;
+    }
+    <span class="k">return</span> steps;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>функция plan из заготовки главы</span></figcaption>
+<pre><span class="c">// plan — стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.</span>
+<span class="k">func</span> <span class="f">plan</span>(coll *mongo.Collection, filtr bson.D, sort bson.D) <span class="k">string</span> {
+    cmd := bson.D{{Key: <span class="s">"find"</span>, Value: coll.<span class="f">Name</span>()}, {Key: <span class="s">"filter"</span>, Value: filtr}}
+    <span class="k">if</span> sort != <span class="k">nil</span> {
+        cmd = <span class="f">append</span>(cmd, bson.E{Key: <span class="s">"sort"</span>, Value: sort})
+    }
+    <span class="k">var</span> res bson.Raw
+    coll.<span class="f">Database</span>().<span class="f">RunCommand</span>(context.<span class="f">Background</span>(), bson.D{{Key: <span class="s">"explain"</span>, Value: cmd}}).<span class="f">Decode</span>(&amp;res)
+    stage := res.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"winningPlan"</span>).<span class="f">Document</span>()
+    <span class="k">if</span> inner, ok := stage.<span class="f">Lookup</span>(<span class="s">"queryPlan"</span>).<span class="f">DocumentOK</span>(); ok { <span class="c">// MongoDB 7 кладёт план во вложенное поле</span>
+        stage = inner
+    }
+    steps := []<span class="k">string</span>{}
+    <span class="k">for</span> {
+        step := stage.<span class="f">Lookup</span>(<span class="s">"stage"</span>).<span class="f">StringValue</span>()
+        <span class="k">if</span> name, ok := stage.<span class="f">Lookup</span>(<span class="s">"indexName"</span>).<span class="f">StringValueOK</span>(); ok {
+            step += <span class="s">" "</span> + name
+        }
+        steps = <span class="f">append</span>(steps, step)
+        next, ok := stage.<span class="f">Lookup</span>(<span class="s">"inputStage"</span>).<span class="f">DocumentOK</span>()
+        <span class="k">if</span> !ok {
+            <span class="k">break</span>
+        }
+        stage = next
+    }
+    <span class="k">return</span> strings.<span class="f">Join</span>(steps, <span class="s">" → "</span>)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>функция plan из заготовки главы</span></figcaption>
+<pre><span class="c"># Стадии плана, который выбрал сервер, сверху вниз: FETCH → IXSCAN service_1.</span>
+<span class="k">def</span> <span class="f">plan</span>(coll, filtr, sort = <span class="k">nil</span>)
+  view = coll.<span class="f">find</span>(filtr)
+  view = view.<span class="f">sort</span>(sort) <span class="k">if</span> sort
+  stage = view.explain[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+  stage = stage[<span class="s">"queryPlan"</span>] || stage     <span class="c"># MongoDB 7 кладёт план во вложенное поле</span>
+  steps = []
+  while stage
+    steps &lt;&lt; stage[<span class="s">"stage"</span>] + (stage[<span class="s">"indexName"</span>] ? <span class="s">" "</span> + stage[<span class="s">"indexName"</span>] : <span class="s">""</span>)
+    stage = stage[<span class="s">"inputStage"</span>]
+  <span class="k">end</span>
+  steps.<span class="f">join</span>(<span class="s">" → "</span>)
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Стадии, которые встретятся в главе:</p>
+        <ul>
+          <li><code>COLLSCAN</code> — просмотр всей коллекции;</li>
+          <li><code>IXSCAN service_1</code> — чтение индекса с указанным именем: сервер находит в нём нужные значения и получает ссылки на документы;</li>
+          <li><code>FETCH</code> — чтение документов по ссылкам, которые дала стадия ниже;</li>
+          <li><code>SORT</code> — сортировка документов в памяти сервера после того, как они прочитаны.</li>
+        </ul>
+        <p>Пример выводит план запроса <code>{"service": "payments"}</code>, создаёт индекс по полю <code>service</code> и выводит план того же запроса ещё раз.</p>
+        <p data-lang="python">Индекс создаёт метод коллекции <code>create_index</code>. Одно поле можно передать строкой, направление тогда — по возрастанию. Метод возвращает имя созданного индекса.</p>
+        <p data-lang="ruby">Индексами коллекции управляет объект <code>indexes</code>; метод <code>create_one</code> создаёт индекс по документу ключа <code>{ "service" =&gt; 1 }</code>. Он возвращает ответ сервера; имя индекса берётся методом <code>indexes.get</code> по тому же ключу.</p>
+        <p data-lang="go">Индексами коллекции управляет <code>Indexes()</code>; метод <code>CreateOne</code> принимает <code>mongo.IndexModel</code>, где в поле <code>Keys</code> записан ключ индекса, и возвращает имя созданного индекса.</p>
+        <p data-lang="cpp">Метод коллекции <code>create_index</code> принимает документ ключа и возвращает документ ответа, в котором имя индекса лежит в поле <code>name</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>индекс по одному полю</span></figcaption>
+<pre><span class="f">print</span>(<span class="s">"до индекса:   "</span>, <span class="f">plan</span>(journal, {<span class="s">"service"</span>: <span class="s">"payments"</span>}))
+
+name = journal.<span class="f">create_index</span>(<span class="s">"service"</span>)
+<span class="f">print</span>(<span class="s">"создан индекс:"</span>, name)
+
+<span class="f">print</span>(<span class="s">"после индекса:"</span>, <span class="f">plan</span>(journal, {<span class="s">"service"</span>: <span class="s">"payments"</span>}))
+<span class="f">print</span>(<span class="s">"событий payments:"</span>, journal.<span class="f">count_documents</span>({<span class="s">"service"</span>: <span class="s">"payments"</span>}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>индекс по одному полю</span></figcaption>
+<pre>std::cout &lt;&lt; <span class="s">"до индекса:    "</span> &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>))) &lt;&lt; std::endl;
+
+<span class="k">auto</span> created = journal.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>)));
+std::cout &lt;&lt; <span class="s">"создан индекс: "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+
+std::cout &lt;&lt; <span class="s">"после индекса: "</span> &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"событий payments: "</span> &lt;&lt; journal.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>индекс по одному полю</span></figcaption>
+<pre>fmt.<span class="f">Println</span>(<span class="s">"до индекса:   "</span>, <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}}, <span class="k">nil</span>))
+
+name, _ := journal.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}}})
+fmt.<span class="f">Println</span>(<span class="s">"создан индекс:"</span>, name)
+
+fmt.<span class="f">Println</span>(<span class="s">"после индекса:"</span>, <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}}, <span class="k">nil</span>))
+n, _ := journal.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"событий payments:"</span>, n)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>индекс по одному полю</span></figcaption>
+<pre><span class="k">puts</span> <span class="s">"до индекса:    "</span> + <span class="f">plan</span>(journal, { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> })
+
+journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span> })
+<span class="k">puts</span> <span class="s">"создан индекс: "</span> + journal.indexes.<span class="f">get</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span> })[<span class="s">"name"</span>]
+
+<span class="k">puts</span> <span class="s">"после индекса: "</span> + <span class="f">plan</span>(journal, { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> })
+<span class="k">puts</span> <span class="s">"событий payments: "</span> + journal.<span class="f">count_documents</span>({ <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> }).to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса:    COLLSCAN
+создан индекс: service_1
+после индекса: FETCH → IXSCAN service_1
+событий payments: 232</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса:    COLLSCAN
+создан индекс: service_1
+после индекса: FETCH → IXSCAN service_1
+событий payments: 232</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса:    COLLSCAN
+создан индекс: service_1
+после индекса: FETCH → IXSCAN service_1
+событий payments: 232</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до индекса:    COLLSCAN
+создан индекс: service_1
+после индекса: FETCH → IXSCAN service_1
+событий payments: 232</pre>
+        </figure>
+        <p>До индекса план состоял из одной стадии <code>COLLSCAN</code>. Индекс получил имя <code>service_1</code>. После этого план того же запроса — две стадии: <code>IXSCAN service_1</code> находит в индексе значение <code>payments</code> и передаёт ссылки на 232 документа, <code>FETCH</code> читает эти документы. Найдено столько же документов, сколько без индекса: индекс меняет способ поиска, результат запроса остаётся прежним.</p>
+        <figure class="shot">
+          <img src="../../shots/118-sandbox-events-service.png" alt="Compass, вкладка Indexes коллекции sandbox.events: индексы _id_ и service_1">
+          <figcaption>Compass · <code>sandbox.events</code> после <code>create_index</code></figcaption>
+        </figure>
+        <p>Счётчик вкладки — <code>2</code>, вторая строка — <code>service_1</code>, тип <code>REGULAR</code>, свойств у него нет: индекс не уникальный и не составной.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Составной индекс и порядок полей</h2>
+        <p>Дежурный ищет ошибки сервера в платёжном сервисе: <code>{"service": "payments", "status": {"$gte": 500}}</code>. Индекс по <code>service</code> отбирает 232 события, и у каждого сервер проверяет статус. <span class="term">Составной индекс</span> хранит значения нескольких полей сразу и упорядочен сначала по первому полю, а внутри одинаковых значений первого — по второму. В индексе по <code>service</code> и <code>status</code> записи идут так:</p>
+        <div class="doc">
+          <div class="doc__bar"><span>Индекс по service и status</span><span>фрагмент</span></div>
+          <div class="doc__body">
+            <div>… "orders", 503 — 9 ссылок</div>
+            <div>"payments", 200 — 148 · 301 — 8 · 400 — 9 · 404 — 13 · 429 — 12</div>
+            <div class="ok">"payments", 500 — 13 · 502 — 9 · 503 — 20 <b>← 42 записи подряд</b></div>
+            <div>"search", 200 — 149 · 301 — 16 · … · 503 — 21</div>
+          </div>
+        </div>
+        <p>Все события <code>payments</code> со статусом от 500 стоят в индексе подряд, и сервер читает ровно 42 записи. События со статусом 503 есть у всех пяти сервисов, и в этом индексе они разбросаны по пяти местам: по второму полю без первого записи не упорядочены. Поэтому составной индекс помогает запросам по первому полю, по первому и второму вместе, но не по второму полю отдельно. Первые поля составного индекса называются его <span class="term">префиксом</span>: индекс по <code>service</code> и <code>status</code> работает для запроса, условия которого начинаются с префикса.</p>
+        <p data-lang="python">Составной индекс задаётся списком пар «поле, направление». Порядок пар в списке и есть порядок полей в индексе.</p>
+        <p data-lang="ruby">Составной индекс задаётся хешем из нескольких полей. Хеш Ruby сохраняет порядок ключей, и порядок полей в нём — порядок полей в индексе.</p>
+        <p data-lang="go">Составной индекс задаётся в <code>Keys</code> документом <code>bson.D</code> из нескольких полей. <code>bson.D</code> сохраняет порядок, и он становится порядком полей в индексе.</p>
+        <p data-lang="cpp">Составной индекс задаётся документом из нескольких полей; порядок полей в документе — порядок полей в индексе.</p>
+        <p>Пример создаёт индекс по <code>service</code> и <code>status</code> и выводит планы трёх запросов: по обоим полям, только по <code>status</code> и по <code>service</code> с сортировкой по <code>status</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>составной индекс</span></figcaption>
+<pre>name = journal.<span class="f">create_index</span>([(<span class="s">"service"</span>, <span class="n">1</span>), (<span class="s">"status"</span>, <span class="n">1</span>)])
+<span class="f">print</span>(<span class="s">"создан индекс:"</span>, name)
+
+<span class="f">print</span>(<span class="s">"service и status:          "</span>, <span class="f">plan</span>(journal, {<span class="s">"service"</span>: <span class="s">"payments"</span>, <span class="s">"status"</span>: {<span class="s">"$gte"</span>: <span class="n">500</span>}}))
+<span class="f">print</span>(<span class="s">"только status:             "</span>, <span class="f">plan</span>(journal, {<span class="s">"status"</span>: <span class="n">503</span>}))
+<span class="f">print</span>(<span class="s">"service, порядок по status:"</span>, <span class="f">plan</span>(journal, {<span class="s">"service"</span>: <span class="s">"payments"</span>}, [(<span class="s">"status"</span>, <span class="n">1</span>)]))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>составной индекс</span></figcaption>
+<pre><span class="k">auto</span> created = journal.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)));
+std::cout &lt;&lt; <span class="s">"создан индекс: "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+
+std::cout &lt;&lt; <span class="s">"service и status:           "</span>
+          &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>), <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">500</span>)))))
+          &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"только status:              "</span> &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">503</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"service, порядок по status: "</span>
+          &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>)), <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="n">1</span>)))
+          &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>составной индекс</span></figcaption>
+<pre>name, _ := journal.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: <span class="s">"service"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}})
+fmt.<span class="f">Println</span>(<span class="s">"создан индекс:"</span>, name)
+
+fmt.<span class="f">Println</span>(<span class="s">"service и status:          "</span>,
+    <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}, {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">500</span>}}}}, <span class="k">nil</span>))
+fmt.<span class="f">Println</span>(<span class="s">"только status:             "</span>, <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"status"</span>, Value: <span class="n">503</span>}}, <span class="k">nil</span>))
+fmt.<span class="f">Println</span>(<span class="s">"service, порядок по status:"</span>,
+    <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}}, bson.D{{Key: <span class="s">"status"</span>, Value: <span class="n">1</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>составной индекс</span></figcaption>
+<pre>journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> })
+<span class="k">puts</span> <span class="s">"создан индекс: "</span> + journal.indexes.<span class="f">get</span>({ <span class="s">"service"</span> =&gt; <span class="n">1</span>, <span class="s">"status"</span> =&gt; <span class="n">1</span> })[<span class="s">"name"</span>]
+
+<span class="k">puts</span> <span class="s">"service и status:           "</span> + <span class="f">plan</span>(journal, { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span>, <span class="s">"status"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">500</span> } })
+<span class="k">puts</span> <span class="s">"только status:              "</span> + <span class="f">plan</span>(journal, { <span class="s">"status"</span> =&gt; <span class="n">503</span> })
+<span class="k">puts</span> <span class="s">"service, порядок по status: "</span> + <span class="f">plan</span>(journal, { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> }, { <span class="s">"status"</span> =&gt; <span class="n">1</span> })</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: service_1_status_1
+service и status:           FETCH → IXSCAN service_1_status_1
+только status:              COLLSCAN
+service, порядок по status: FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: service_1_status_1
+service и status:           FETCH → IXSCAN service_1_status_1
+только status:              COLLSCAN
+service, порядок по status: FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: service_1_status_1
+service и status:           FETCH → IXSCAN service_1_status_1
+только status:              COLLSCAN
+service, порядок по status: FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: service_1_status_1
+service и status:           FETCH → IXSCAN service_1_status_1
+только status:              COLLSCAN
+service, порядок по status: FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <p>Индекс получил имя <code>service_1_status_1</code>. Запрос по обоим полям сервер выполнил по нему. Запрос только по <code>status</code> снова выполнен просмотром коллекции: поле <code>status</code> не входит в префикс. В третьем запросе нет стадии <code>SORT</code>: внутри значения <code>payments</code> записи индекса уже упорядочены по статусу, и сервер отдаёт документы в порядке индекса без сортировки в памяти.</p>
+        <p>Сервер выбрал составной индекс для первого запроса, хотя индекс <code>service_1</code> тоже подходил. Когда подходят несколько индексов, сервер пробует их на запросе и оставляет тот, по которому нужный результат получается за меньшее число шагов.</p>
+        <figure class="shot">
+          <img src="../../shots/119-sandbox-events-explain.png" alt="Compass, окно Explain Plan для запроса service payments и status от 500: стадии FETCH и IXSCAN по индексу service_1_status_1, 42 документа, 42 ключа индекса">
+          <figcaption>Compass · <b>Explain</b> для <code>{ service: "payments", status: { $gte: 500 } }</code></figcaption>
+        </figure>
+        <p>Кнопка <b>Explain</b> на вкладке <b>Documents</b> показывает план запроса из поля фильтра. В дереве те же две стадии, что вывела функция <code>plan</code>: снизу <code>IXSCAN</code> по индексу <code>service_1_status_1</code>, над ней <code>FETCH</code>, обе вернули 42 документа. Справа сводка: прочитано 42 ключа индекса и 42 документа — столько же, сколько найдено. Остальные числа сводки разобраны в главе 3.3.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Удаление индекса</h2>
+        <p>После создания составного индекса индекс <code>service_1</code> стал лишним: <code>service</code> — префикс индекса <code>service_1_status_1</code>, и запросы по одному <code>service</code> он тоже обслуживает. Лишний индекс занимает место и замедляет запись (§8), поэтому его удаляют. Индекс удаляется по имени.</p>
+        <p data-lang="python">Метод коллекции <code>drop_index</code> принимает имя индекса.</p>
+        <p data-lang="ruby">Метод <code>indexes.drop_one</code> принимает имя индекса.</p>
+        <p data-lang="go">Метод <code>Indexes().DropOne</code> принимает имя индекса.</p>
+        <p data-lang="cpp">Метод <code>indexes().drop_one</code> принимает имя индекса.</p>
+        <p>Пример удаляет <code>service_1</code>, выводит оставшиеся индексы и планы двух запросов: только по <code>service</code> и по <code>service</code> с сортировкой по времени события <code>ts</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>удаление лишнего индекса</span></figcaption>
+<pre>journal.<span class="f">drop_index</span>(<span class="s">"service_1"</span>)
+<span class="k">for</span> ix <span class="k">in</span> journal.<span class="f">list_indexes</span>():
+    <span class="f">print</span>(<span class="s">"индекс"</span>, ix[<span class="s">"name"</span>], <span class="f">dict</span>(ix[<span class="s">"key"</span>]))
+
+<span class="f">print</span>(<span class="s">"только service:        "</span>, <span class="f">plan</span>(journal, {<span class="s">"service"</span>: <span class="s">"payments"</span>}))
+<span class="f">print</span>(<span class="s">"service, порядок по ts:"</span>, <span class="f">plan</span>(journal, {<span class="s">"service"</span>: <span class="s">"payments"</span>}, [(<span class="s">"ts"</span>, -<span class="n">1</span>)]))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>удаление лишнего индекса</span></figcaption>
+<pre>journal.<span class="f">indexes</span>().<span class="f">drop_one</span>(<span class="s">"service_1"</span>);
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; ix : journal.<span class="f">list_indexes</span>()) {
+    std::cout &lt;&lt; <span class="s">"индекс "</span> &lt;&lt; ix[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; bsoncxx::<span class="f">to_json</span>(ix[<span class="s">"key"</span>].<span class="f">get_document</span>().value, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"только service:         "</span> &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>))) &lt;&lt; std::endl;
+std::cout &lt;&lt; <span class="s">"service, порядок по ts: "</span>
+          &lt;&lt; <span class="f">plan</span>(sandbox, <span class="s">"events"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"service"</span>, <span class="s">"payments"</span>)), <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"ts"</span>, -<span class="n">1</span>)))
+          &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>удаление лишнего индекса</span></figcaption>
+<pre>journal.<span class="f">Indexes</span>().<span class="f">DropOne</span>(ctx, <span class="s">"service_1"</span>)
+list, _ := journal.<span class="f">Indexes</span>().<span class="f">List</span>(ctx)
+<span class="k">for</span> list.<span class="f">Next</span>(ctx) {
+    key, _ := bson.<span class="f">MarshalExtJSON</span>(list.Current.<span class="f">Lookup</span>(<span class="s">"key"</span>).<span class="f">Document</span>(), <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="s">"индекс"</span>, list.Current.<span class="f">Lookup</span>(<span class="s">"name"</span>).<span class="f">StringValue</span>(), <span class="k">string</span>(key))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"только service:        "</span>, <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}}, <span class="k">nil</span>))
+fmt.<span class="f">Println</span>(<span class="s">"service, порядок по ts:"</span>,
+    <span class="f">plan</span>(journal, bson.D{{Key: <span class="s">"service"</span>, Value: <span class="s">"payments"</span>}}, bson.D{{Key: <span class="s">"ts"</span>, Value: -<span class="n">1</span>}}))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>удаление лишнего индекса</span></figcaption>
+<pre>journal.indexes.<span class="f">drop_one</span>(<span class="s">"service_1"</span>)
+journal.indexes.each { |ix| <span class="k">puts</span> <span class="s">"индекс "</span> + ix[<span class="s">"name"</span>] + <span class="s">" "</span> + ix[<span class="s">"key"</span>].to_s }
+
+<span class="k">puts</span> <span class="s">"только service:         "</span> + <span class="f">plan</span>(journal, { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> })
+<span class="k">puts</span> <span class="s">"service, порядок по ts: "</span> + <span class="f">plan</span>(journal, { <span class="s">"service"</span> =&gt; <span class="s">"payments"</span> }, { <span class="s">"ts"</span> =&gt; -<span class="n">1</span> })</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>индекс _id_ {'_id': 1}
+индекс service_1_status_1 {'service': 1, 'status': 1}
+только service:         FETCH → IXSCAN service_1_status_1
+service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>индекс _id_ { "_id" : 1 }
+индекс service_1_status_1 { "service" : 1, "status" : 1 }
+только service:         FETCH → IXSCAN service_1_status_1
+service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>индекс _id_ {"_id":1}
+индекс service_1_status_1 {"service":1,"status":1}
+только service:         FETCH → IXSCAN service_1_status_1
+service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>индекс _id_ {"_id"=&gt;1}
+индекс service_1_status_1 {"service"=&gt;1, "status"=&gt;1}
+только service:         FETCH → IXSCAN service_1_status_1
+service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</pre>
+        </figure>
+        <p>Остались два индекса — <code>_id_</code> и составной. Запрос по <code>service</code> выполнен по составному индексу: <code>service</code> — его префикс. Во втором запросе сверху появилась стадия <code>SORT</code>: поля <code>ts</code> в индексе нет, и сервер сортирует 232 документа в памяти после чтения. Если такой запрос выполняется часто, для него строят индекс, в котором после <code>service</code> идёт <code>ts</code>.</p>
+        <p>Порядок по убыванию индекс тоже даёт: для сортировки по <code>status</code> от больших к меньшим сервер читает тот же индекс <code>service_1_status_1</code> с конца, и стадии <code>SORT</code> в плане нет. Удалить можно любой индекс, кроме <code>_id_</code>: на попытку сервер отвечает ошибкой <code>cannot drop _id index</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/120-sandbox-events-compound.png" alt="Compass, вкладка Indexes коллекции sandbox.events: _id_ размером 4,1 kB и service_1_status_1 размером 24,6 kB со свойством COMPOUND">
+          <figcaption>Compass · <code>sandbox.events</code> после удаления <code>service_1</code></figcaption>
+        </figure>
+        <p>Осталось два индекса. У составного свойство <code>COMPOUND</code> — «составной». Размеры в столбце <b>Size</b>: 4,1 kB у <code>_id_</code> и 24,6 kB у составного на 1200 событий.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Уникальный индекс</h2>
+        <p>Индекс с параметром <code>unique</code> — <span class="term">уникальный</span> — не допускает в коллекции двух документов с одинаковым значением индексированного поля. Сервер проверяет это при каждой вставке и каждом обновлении, как валидатор из главы 3.1, и отклоняет запись, которая создала бы повтор. Так защищают значения, которые должны встречаться один раз: почту покупателя, номер заказа, артикул.</p>
+        <p>Пример копирует покупателей из <code>shop.customers</code> в <code>clients</code> (<code>sandbox.customers</code>), создаёт уникальный индекс по полю <code>email</code> и пробует записать нового покупателя с почтой, которая уже есть у Анны Беловой.</p>
+        <p data-lang="python">Параметр передаётся в <code>create_index</code> именованным аргументом <code>unique=True</code>. Отказ из-за повтора PyMongo выбрасывает исключением <code>DuplicateKeyError</code>; повторившееся значение лежит в <code>e.details["keyValue"]</code>.</p>
+        <p data-lang="ruby">Параметр передаётся в <code>create_one</code> вторым аргументом <code>unique: true</code>. Отказ приходит исключением <code>Mongo::Error::OperationFailure</code>; повторившееся значение лежит в ответе сервера, <code>e.document["writeErrors"][0]["keyValue"]</code>.</p>
+        <p data-lang="go">Параметры индекса собираются в <code>options.Index()</code>, уникальность задаёт <code>SetUnique(true)</code>. Отказ приходит ошибкой <code>mongo.WriteException</code>; повторившееся значение достаёт <code>Raw.Lookup("keyValue")</code> из первой ошибки записи.</p>
+        <p data-lang="cpp">Параметры индекса — объект <code>mongocxx::options::index</code>, уникальность задаёт <code>unique(true)</code>. Отказ приходит исключением <code>mongocxx::operation_exception</code>; повторившееся значение лежит в ответе сервера, в первом элементе <code>writeErrors</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>уникальный индекс</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> DuplicateKeyError
+
+clients.<span class="f">drop</span>()
+clients.<span class="f">insert_many</span>(db[<span class="s">"customers"</span>].<span class="f">find</span>())
+<span class="f">print</span>(<span class="s">"создан индекс:"</span>, clients.<span class="f">create_index</span>(<span class="s">"email"</span>, unique=<span class="k">True</span>))
+
+<span class="k">try</span>:
+    clients.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"c-101"</span>, <span class="s">"name"</span>: <span class="s">"Ольга Кравец"</span>, <span class="s">"email"</span>: <span class="s">"user01@example.com"</span>, <span class="s">"city"</span>: <span class="s">"Ярославль"</span>})
+    <span class="f">print</span>(<span class="s">"Ольга Кравец записана"</span>)
+<span class="k">except</span> DuplicateKeyError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"Ольга Кравец отклонена, код"</span>, e.code, <span class="s">"— уже есть"</span>, e.details[<span class="s">"keyValue"</span>])
+<span class="f">print</span>(<span class="s">"покупателей:"</span>, clients.<span class="f">count_documents</span>({}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>уникальный индекс</span></figcaption>
+<pre>clients.<span class="f">drop</span>();
+std::vector&lt;bsoncxx::document::value&gt; all;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : db[<span class="s">"customers"</span>].<span class="f">find</span>(<span class="f">make_document</span>())) all.<span class="f">emplace_back</span>(doc);
+clients.<span class="f">insert_many</span>(all);
+mongocxx::options::index unique;
+unique.<span class="f">unique</span>(<span class="k">true</span>);
+<span class="k">auto</span> created = clients.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"email"</span>, <span class="n">1</span>)), unique);
+std::cout &lt;&lt; <span class="s">"создан индекс: "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+
+<span class="k">try</span> {
+    clients.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"c-101"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Ольга Кравец"</span>),
+                                     <span class="f">kvp</span>(<span class="s">"email"</span>, <span class="s">"user01@example.com"</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Ярославль"</span>)));
+    std::cout &lt;&lt; <span class="s">"Ольга Кравец записана"</span> &lt;&lt; std::endl;
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"Ольга Кравец отклонена, код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; <span class="s">" — уже есть "</span>
+              &lt;&lt; bsoncxx::<span class="f">to_json</span>(e.<span class="f">raw_server_error</span>()-&gt;<span class="f">view</span>()[<span class="s">"writeErrors"</span>][<span class="n">0</span>][<span class="s">"keyValue"</span>].<span class="f">get_document</span>().value,
+                                  bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+std::cout &lt;&lt; <span class="s">"покупателей: "</span> &lt;&lt; clients.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>уникальный индекс</span></figcaption>
+<pre>clients.<span class="f">Drop</span>(ctx)
+<span class="k">var</span> all []bson.D
+cursor, _ := db.<span class="f">Collection</span>(<span class="s">"customers"</span>).<span class="f">Find</span>(ctx, bson.D{})
+cursor.<span class="f">All</span>(ctx, &amp;all)
+docs := <span class="f">make</span>([]<span class="k">any</span>, <span class="f">len</span>(all))
+<span class="k">for</span> i := <span class="k">range</span> all {
+    docs[i] = all[i]
+}
+clients.<span class="f">InsertMany</span>(ctx, docs)
+name, _ := clients.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: <span class="s">"email"</span>, Value: <span class="n">1</span>}},
+    Options: options.<span class="f">Index</span>().<span class="f">SetUnique</span>(<span class="k">true</span>)})
+fmt.<span class="f">Println</span>(<span class="s">"создан индекс:"</span>, name)
+
+_, err := clients.<span class="f">InsertOne</span>(ctx, bson.D{
+    {Key: <span class="s">"_id"</span>, Value: <span class="s">"c-101"</span>},
+    {Key: <span class="s">"name"</span>, Value: <span class="s">"Ольга Кравец"</span>},
+    {Key: <span class="s">"email"</span>, Value: <span class="s">"user01@example.com"</span>},
+    {Key: <span class="s">"city"</span>, Value: <span class="s">"Ярославль"</span>}})
+<span class="k">var</span> we mongo.WriteException
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"Ольга Кравец отклонена, код"</span>, we.WriteErrors[<span class="n">0</span>].Code, <span class="s">"— уже есть"</span>, we.WriteErrors[<span class="n">0</span>].Raw.<span class="f">Lookup</span>(<span class="s">"keyValue"</span>))
+} <span class="k">else</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"Ольга Кравец записана"</span>)
+}
+n, _ := clients.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"покупателей:"</span>, n)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>уникальный индекс</span></figcaption>
+<pre>clients.drop
+clients.<span class="f">insert_many</span>(db[:customers].find.to_a)
+clients.indexes.<span class="f">create_one</span>({ <span class="s">"email"</span> =&gt; <span class="n">1</span> }, unique: <span class="k">true</span>)
+<span class="k">puts</span> <span class="s">"создан индекс: "</span> + clients.indexes.<span class="f">get</span>({ <span class="s">"email"</span> =&gt; <span class="n">1</span> })[<span class="s">"name"</span>]
+
+<span class="k">begin</span>
+  clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"c-101"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Ольга Кравец"</span>, <span class="s">"email"</span> =&gt; <span class="s">"user01@example.com"</span>, <span class="s">"city"</span> =&gt; <span class="s">"Ярославль"</span> })
+  <span class="k">puts</span> <span class="s">"Ольга Кравец записана"</span>
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"Ольга Кравец отклонена, код #{e.code} — уже есть #{e.document["</span>writeErrors<span class="s">"][0]["</span>keyValue<span class="s">"]}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"покупателей: "</span> + clients.<span class="f">count_documents</span>({}).to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: email_1
+Ольга Кравец отклонена, код 11000 — уже есть {'email': 'user01@example.com'}
+покупателей: 20</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: email_1
+Ольга Кравец отклонена, код 11000 — уже есть { "email" : "user01@example.com" }
+покупателей: 20</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: email_1
+Ольга Кравец отклонена, код 11000 — уже есть {"email": "user01@example.com"}
+покупателей: 20</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>создан индекс: email_1
+Ольга Кравец отклонена, код 11000 — уже есть {"email"=&gt;"user01@example.com"}
+покупателей: 20</pre>
+        </figure>
+        <p>Индекс получил имя <code>email_1</code>. Вставка отклонена с кодом <code>11000</code> — <code>DuplicateKey</code>, «повтор ключа»; <code>keyValue</code> называет значение, которое уже есть в индексе. Покупателей по-прежнему 20: отклонённый документ не записан.</p>
+        <figure class="shot">
+          <img src="../../shots/121-sandbox-customers-unique.png" alt="Compass, вкладка Indexes коллекции sandbox.customers: индекс email_1 со свойством UNIQUE">
+          <figcaption>Compass · <code>sandbox.customers</code>, уникальный индекс по почте</figcaption>
+        </figure>
+        <p>У индекса <code>email_1</code> свойство <code>UNIQUE</code>, как у <code>_id_</code>: оба не допускают повторов. Документов на вкладке <b>Documents</b> — 20.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Уникальный индекс на данных с повторами</h2>
+        <p>Уникальный индекс можно создать только на коллекции, где повторов уже нет. Пока индекс строится, сервер проходит по всем документам, и первый же повтор останавливает постройку. Пример пробует создать уникальный индекс по городу.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>уникальный индекс на данных с повторами</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+<span class="f">print</span>(<span class="s">"городов:"</span>, <span class="f">len</span>(clients.<span class="f">distinct</span>(<span class="s">"city"</span>)), <span class="s">"на"</span>, clients.<span class="f">count_documents</span>({}), <span class="s">"покупателей"</span>)
+<span class="k">try</span>:
+    clients.<span class="f">create_index</span>(<span class="s">"city"</span>, unique=<span class="k">True</span>)
+    <span class="f">print</span>(<span class="s">"индекс по city создан"</span>)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"индекс по city не создан, код"</span>, e.code)
+<span class="f">print</span>(<span class="s">"индексы:"</span>, [ix[<span class="s">"name"</span>] <span class="k">for</span> ix <span class="k">in</span> clients.<span class="f">list_indexes</span>()])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>уникальный индекс на данных с повторами</span></figcaption>
+<pre><span class="k">auto</span> cities = clients.<span class="f">distinct</span>(<span class="s">"city"</span>, <span class="f">make_document</span>());
+<span class="k">auto</span> values = (*cities.<span class="f">begin</span>())[<span class="s">"values"</span>].<span class="f">get_array</span>().value;
+std::cout &lt;&lt; <span class="s">"городов: "</span> &lt;&lt; std::<span class="f">distance</span>(values.<span class="f">begin</span>(), values.<span class="f">end</span>())
+          &lt;&lt; <span class="s">" на "</span> &lt;&lt; clients.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; <span class="s">" покупателей"</span> &lt;&lt; std::endl;
+
+mongocxx::options::index unique;
+unique.<span class="f">unique</span>(<span class="k">true</span>);
+<span class="k">try</span> {
+    clients.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>)), unique);
+    std::cout &lt;&lt; <span class="s">"индекс по city создан"</span> &lt;&lt; std::endl;
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"индекс по city не создан, код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"индексы:"</span>;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; ix : clients.<span class="f">list_indexes</span>()) std::cout &lt;&lt; <span class="s">" "</span> &lt;&lt; ix[<span class="s">"name"</span>].<span class="f">get_string</span>().value;
+std::cout &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>уникальный индекс на данных с повторами</span></figcaption>
+<pre>cities, _ := clients.<span class="f">Distinct</span>(ctx, <span class="s">"city"</span>, bson.D{}).<span class="f">Raw</span>()
+values, _ := cities.<span class="f">Values</span>()
+n, _ := clients.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"городов:"</span>, <span class="f">len</span>(values), <span class="s">"на"</span>, n, <span class="s">"покупателей"</span>)
+
+_, err := clients.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: <span class="s">"city"</span>, Value: <span class="n">1</span>}},
+    Options: options.<span class="f">Index</span>().<span class="f">SetUnique</span>(<span class="k">true</span>)})
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"индекс по city не создан, код"</span>, ce.Code)
+} <span class="k">else</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"индекс по city создан"</span>)
+}
+
+names := []<span class="k">string</span>{}
+list, _ := clients.<span class="f">Indexes</span>().<span class="f">List</span>(ctx)
+<span class="k">for</span> list.<span class="f">Next</span>(ctx) {
+    names = <span class="f">append</span>(names, list.Current.<span class="f">Lookup</span>(<span class="s">"name"</span>).<span class="f">StringValue</span>())
+}
+fmt.<span class="f">Println</span>(<span class="s">"индексы:"</span>, names)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>уникальный индекс на данных с повторами</span></figcaption>
+<pre><span class="k">puts</span> <span class="s">"городов: #{clients.distinct("</span>city<span class="s">").size} на #{clients.count_documents({})} покупателей"</span>
+<span class="k">begin</span>
+  clients.indexes.<span class="f">create_one</span>({ <span class="s">"city"</span> =&gt; <span class="n">1</span> }, unique: <span class="k">true</span>)
+  <span class="k">puts</span> <span class="s">"индекс по city создан"</span>
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"индекс по city не создан, код #{e.code}"</span>
+<span class="k">end</span>
+<span class="k">puts</span> <span class="s">"индексы: "</span> + clients.indexes.map { |ix| ix[<span class="s">"name"</span>] }.to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>городов: 5 на 20 покупателей
+индекс по city не создан, код 11000
+индексы: ['_id_', 'email_1']</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>городов: 5 на 20 покупателей
+индекс по city не создан, код 11000
+индексы: _id_ email_1</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>городов: 5 на 20 покупателей
+индекс по city не создан, код 11000
+индексы: [_id_ email_1]</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>городов: 5 на 20 покупателей
+индекс по city не создан, код 11000
+индексы: ["_id_", "email_1"]</pre>
+        </figure>
+        <p>Городов пять на 20 покупателей, значит, города повторяются. Индекс не создан, ошибка — тот же код <code>11000</code>, что при вставке повтора. В списке индексов коллекции его нет. Перед созданием уникального индекса на коллекции с данными повторы ищут и устраняют, иначе индекс не появится.</p>
+        <p data-lang="python">В PyMongo отказ при постройке приходит тем же исключением <code>DuplicateKeyError</code>; пример ловит его через общий класс <code>OperationFailure</code>, от которого наследуются все ошибки сервера.</p>
+        <p data-lang="go">Отказ при постройке приходит ошибкой команды <code>mongo.CommandError</code>; код лежит в её поле <code>Code</code>.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Документ без поля и частичный индекс</h2>
+        <p>У документа, в котором нет индексированного поля, в индекс попадает значение <code>null</code>. Для уникального индекса это значит, что без почты может быть только один покупатель: второй даст повтор <code>null</code>. Пример добавляет двух покупателей без почты.</p>
+        <p>Если документы без поля допустимы, индекс делают <span class="term">частичным</span>: параметр <code>partialFilterExpression</code> задаёт условие, и в индекс попадают только документы, которые ему соответствуют. Условие <code>{"email": {"$exists": true}}</code> оставляет в индексе документы с почтой, и уникальность проверяется только среди них. Параметры существующего индекса не меняются, поэтому пример удаляет <code>email_1</code> и создаёт индекс заново.</p>
+        <p data-lang="python">Параметр передаётся в <code>create_index</code> именованным аргументом <code>partialFilterExpression</code>, значение — документ условия.</p>
+        <p data-lang="ruby">Параметр передаётся в <code>create_one</code> как <code>partial_filter_expression:</code>, значение — документ условия.</p>
+        <p data-lang="go">Условие задаёт <code>SetPartialFilterExpression</code> в той же цепочке <code>options.Index()</code>, что и <code>SetUnique</code>.</p>
+        <p data-lang="cpp">Условие задаёт <code>partial_filter_expression</code> объекта параметров. Объект хранит ссылку на документ условия, поэтому документ лежит в отдельной переменной <code>has_email</code> и живёт до создания индекса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>документ без поля и частичный индекс</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> DuplicateKeyError
+
+clients.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"c-102"</span>, <span class="s">"name"</span>: <span class="s">"Андрей Носов"</span>, <span class="s">"city"</span>: <span class="s">"Казань"</span>})
+<span class="k">try</span>:
+    clients.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"c-103"</span>, <span class="s">"name"</span>: <span class="s">"Вера Лосева"</span>, <span class="s">"city"</span>: <span class="s">"Казань"</span>})
+    <span class="f">print</span>(<span class="s">"второй покупатель без почты записан"</span>)
+<span class="k">except</span> DuplicateKeyError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"второй покупатель без почты отклонён — уже есть"</span>, e.details[<span class="s">"keyValue"</span>])
+
+clients.<span class="f">drop_index</span>(<span class="s">"email_1"</span>)
+clients.<span class="f">create_index</span>(<span class="s">"email"</span>, unique=<span class="k">True</span>, partialFilterExpression={<span class="s">"email"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}})
+
+clients.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"c-103"</span>, <span class="s">"name"</span>: <span class="s">"Вера Лосева"</span>, <span class="s">"city"</span>: <span class="s">"Казань"</span>})
+<span class="f">print</span>(<span class="s">"покупателей без почты:"</span>, clients.<span class="f">count_documents</span>({<span class="s">"email"</span>: {<span class="s">"$exists"</span>: <span class="k">False</span>}}))
+<span class="k">try</span>:
+    clients.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"c-104"</span>, <span class="s">"name"</span>: <span class="s">"Ольга Кравец"</span>, <span class="s">"email"</span>: <span class="s">"user01@example.com"</span>})
+<span class="k">except</span> DuplicateKeyError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"повтор почты отклонён — уже есть"</span>, e.details[<span class="s">"keyValue"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>документ без поля и частичный индекс</span></figcaption>
+<pre><span class="k">auto</span> key_value = [](<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    <span class="k">return</span> bsoncxx::<span class="f">to_json</span>(e.<span class="f">raw_server_error</span>()-&gt;<span class="f">view</span>()[<span class="s">"writeErrors"</span>][<span class="n">0</span>][<span class="s">"keyValue"</span>].<span class="f">get_document</span>().value,
+                            bsoncxx::ExtendedJsonMode::k_relaxed);
+};
+
+clients.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"c-102"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Андрей Носов"</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Казань"</span>)));
+<span class="k">try</span> {
+    clients.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"c-103"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Вера Лосева"</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Казань"</span>)));
+    std::cout &lt;&lt; <span class="s">"второй покупатель без почты записан"</span> &lt;&lt; std::endl;
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"второй покупатель без почты отклонён — уже есть "</span> &lt;&lt; <span class="f">key_value</span>(e) &lt;&lt; std::endl;
+}
+
+clients.<span class="f">indexes</span>().<span class="f">drop_one</span>(<span class="s">"email_1"</span>);
+<span class="k">auto</span> has_email = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"email"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>))));
+mongocxx::options::index partial;
+partial.<span class="f">unique</span>(<span class="k">true</span>);
+partial.<span class="f">partial_filter_expression</span>(has_email.<span class="f">view</span>());
+clients.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"email"</span>, <span class="n">1</span>)), partial);
+
+clients.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"c-103"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Вера Лосева"</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Казань"</span>)));
+std::cout &lt;&lt; <span class="s">"покупателей без почты: "</span>
+          &lt;&lt; clients.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"email"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">false</span>))))) &lt;&lt; std::endl;
+<span class="k">try</span> {
+    clients.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"c-104"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Ольга Кравец"</span>), <span class="f">kvp</span>(<span class="s">"email"</span>, <span class="s">"user01@example.com"</span>)));
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"повтор почты отклонён — уже есть "</span> &lt;&lt; <span class="f">key_value</span>(e) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>документ без поля и частичный индекс</span></figcaption>
+<pre>clients.<span class="f">InsertOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"c-102"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Андрей Носов"</span>}, {Key: <span class="s">"city"</span>, Value: <span class="s">"Казань"</span>}})
+_, err := clients.<span class="f">InsertOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"c-103"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Вера Лосева"</span>}, {Key: <span class="s">"city"</span>, Value: <span class="s">"Казань"</span>}})
+<span class="k">var</span> we mongo.WriteException
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"второй покупатель без почты отклонён — уже есть"</span>, we.WriteErrors[<span class="n">0</span>].Raw.<span class="f">Lookup</span>(<span class="s">"keyValue"</span>))
+} <span class="k">else</span> {
+    fmt.<span class="f">Println</span>(<span class="s">"второй покупатель без почты записан"</span>)
+}
+
+clients.<span class="f">Indexes</span>().<span class="f">DropOne</span>(ctx, <span class="s">"email_1"</span>)
+clients.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: <span class="s">"email"</span>, Value: <span class="n">1</span>}},
+    Options: options.<span class="f">Index</span>().<span class="f">SetUnique</span>(<span class="k">true</span>).
+        <span class="f">SetPartialFilterExpression</span>(bson.D{{Key: <span class="s">"email"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}})})
+
+clients.<span class="f">InsertOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"c-103"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Вера Лосева"</span>}, {Key: <span class="s">"city"</span>, Value: <span class="s">"Казань"</span>}})
+n, _ := clients.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"email"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">false</span>}}}})
+fmt.<span class="f">Println</span>(<span class="s">"покупателей без почты:"</span>, n)
+_, err = clients.<span class="f">InsertOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"c-104"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Ольга Кравец"</span>}, {Key: <span class="s">"email"</span>, Value: <span class="s">"user01@example.com"</span>}})
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"повтор почты отклонён — уже есть"</span>, we.WriteErrors[<span class="n">0</span>].Raw.<span class="f">Lookup</span>(<span class="s">"keyValue"</span>))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>документ без поля и частичный индекс</span></figcaption>
+<pre>clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"c-102"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Андрей Носов"</span>, <span class="s">"city"</span> =&gt; <span class="s">"Казань"</span> })
+<span class="k">begin</span>
+  clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"c-103"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Вера Лосева"</span>, <span class="s">"city"</span> =&gt; <span class="s">"Казань"</span> })
+  <span class="k">puts</span> <span class="s">"второй покупатель без почты записан"</span>
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"второй покупатель без почты отклонён — уже есть #{e.document["</span>writeErrors<span class="s">"][0]["</span>keyValue<span class="s">"]}"</span>
+<span class="k">end</span>
+
+clients.indexes.<span class="f">drop_one</span>(<span class="s">"email_1"</span>)
+clients.indexes.<span class="f">create_one</span>({ <span class="s">"email"</span> =&gt; <span class="n">1</span> }, unique: <span class="k">true</span>,
+                           partial_filter_expression: { <span class="s">"email"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } })
+
+clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"c-103"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Вера Лосева"</span>, <span class="s">"city"</span> =&gt; <span class="s">"Казань"</span> })
+<span class="k">puts</span> <span class="s">"покупателей без почты: "</span> + clients.<span class="f">count_documents</span>({ <span class="s">"email"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">false</span> } }).to_s
+<span class="k">begin</span>
+  clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"c-104"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Ольга Кравец"</span>, <span class="s">"email"</span> =&gt; <span class="s">"user01@example.com"</span> })
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"повтор почты отклонён — уже есть #{e.document["</span>writeErrors<span class="s">"][0]["</span>keyValue<span class="s">"]}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй покупатель без почты отклонён — уже есть {'email': None}
+покупателей без почты: 2
+повтор почты отклонён — уже есть {'email': 'user01@example.com'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй покупатель без почты отклонён — уже есть { "email" : null }
+покупателей без почты: 2
+повтор почты отклонён — уже есть { "email" : "user01@example.com" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй покупатель без почты отклонён — уже есть {"email": null}
+покупателей без почты: 2
+повтор почты отклонён — уже есть {"email": "user01@example.com"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>второй покупатель без почты отклонён — уже есть {"email"=&gt;nil}
+покупателей без почты: 2
+повтор почты отклонён — уже есть {"email"=&gt;"user01@example.com"}</pre>
+        </figure>
+        <p>Первый покупатель без почты записан, второй отклонён: <code>keyValue</code> — почта со значением <code>null</code>. После замены индекса частичным второй покупатель записан, без почты теперь двое. Повтор настоящей почты частичный индекс по-прежнему отклоняет.</p>
+        <figure class="shot">
+          <img src="../../shots/122-sandbox-customers-partial.png" alt="Compass, вкладка Indexes коллекции sandbox.customers: email_1 со свойствами UNIQUE и PARTIAL, документов 22">
+          <figcaption>Compass · <code>sandbox.customers</code> после замены индекса частичным</figcaption>
+        </figure>
+        <p>У нового <code>email_1</code> два свойства: <code>UNIQUE</code> и <code>PARTIAL</code> — «частичный». Значок <b>i</b> рядом со свойством показывает условие индекса. Документов 22: к двадцати покупателям добавились двое без почты.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Какие поля индексировать</h2>
+        <p>Индекс ускоряет чтение, но у него есть цена. При каждой вставке, обновлении и удалении сервер меняет не только документ, но и каждый индекс коллекции. Индекс занимает место: на копии журнала из 1200 событий составной индекс занимает 24,6 kB (кадр в §4), и размер растёт вместе с коллекцией. У одной коллекции может быть не больше 64 индексов.</p>
+        <p>Поэтому индексы строят под запросы, которые выполняются часто: поиск дежурного по сервису и статусу, вход покупателя по почте. Поле, по которому почти не ищут, индексировать не нужно. Поле с немногими значениями, например <code>level</code> с тремя значениями на 1200 событий, отбирает по индексу сотни документов, и выигрыш от такого индекса меньше, чем от индекса по более разнообразному полю.</p>
+        <p>Индексировать можно и вложенные поля, и поля массивов. Ключ записывается точечной нотацией, как в фильтре (глава 2.1): <code>{"delivery.city": 1}</code> — индекс по городу доставки заказа. Если поле — массив или лежит внутри массива, как <code>items.sku</code>, сервер заносит в индекс каждый элемент отдельно; такой индекс называется <span class="term">многоключевым</span> (multikey) и находит заказ по любому из его артикулов.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Индексы в Compass</h2>
+        <p>Кадры в разделах выше сняты на тех же коллекциях, что и примеры. Индексы коллекции в Compass находятся на вкладке <b>Indexes</b>; таблица индексов разобрана в §1.</p>
+        <p>Кнопка <b>Create Index</b> открывает окно создания индекса.</p>
+        <figure class="shot">
+          <img src="../../shots/123-compass-create-index.png" alt="Compass, окно Create Index для sandbox.events: строка Index fields с полем и типом, кнопка плюс, раздел Options с параметрами Create unique index, Index name, Create TTL, Partial Filter Expression">
+          <figcaption>Compass · окно <b>Create Index</b>, раздел <b>Options</b> раскрыт</figcaption>
+        </figure>
+        <p>В строке <b>Index fields</b> выбирается поле и тип: <code>1</code> или <code>-1</code> — направление, как в коде. Кнопка <b>+</b> справа добавляет строку для следующего поля составного индекса. В разделе <b>Options</b> — параметры: <b>Create unique index</b> делает индекс уникальным, <b>Index name</b> задаёт своё имя вместо составленного сервером, <b>Partial Filter Expression</b> — условие частичного индекса. Остальные параметры окна в этой главе не используются. Кнопка <b>Create Index</b> внизу станет активной, когда выбрано хотя бы одно поле с типом.</p>
+        <p>Удаляется индекс из строки таблицы: при наведении курсора в конце строки появляются кнопки <b>Hide Index</b> (скрыть индекс от планировщика запросов, не удаляя) и <b>Drop Index</b> (удалить).</p>
+        <p>Использует ли запрос индекс, Compass показывает кнопкой <b>Explain</b> на вкладке <b>Documents</b> (кадр в §3): для запроса из поля фильтра строится тот же план, что возвращает метод <code>explain</code>, в виде дерева стадий.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Индекс по <code>status</code> и <code>service</code> для запроса только по <code>service</code></td><td>План — <code>COLLSCAN</code>: <code>service</code> не первое поле индекса</td><td>Первым в индексе ставить поле, которое есть во всех запросах: <code>service</code>, затем <code>status</code></td></tr>
+              <tr><td>Индексы по <code>service</code> и по <code>service</code> + <code>status</code> одновременно</td><td>Первый лишний: запросы по <code>service</code> обслуживает префикс составного, а запись обновляет оба</td><td>Удалить <code>service_1</code></td></tr>
+              <tr><td>Сортировка по полю, которого нет в индексе запроса</td><td>В плане стадия <code>SORT</code>: документы сортируются в памяти после чтения</td><td>Добавить поле сортировки в индекс после полей условия</td></tr>
+              <tr><td>Уникальный индекс на коллекции, где значения уже повторяются</td><td>Индекс не создаётся: ошибка 11000 при постройке</td><td>Найти и устранить повторы, затем создать индекс</td></tr>
+              <tr><td>Уникальный индекс по полю, которого нет в части документов</td><td>Второй документ без поля отклонён: в индексе уже есть <code>null</code></td><td>Частичный индекс с <code>partialFilterExpression: {"email": {"$exists": true}}</code></td></tr>
+              <tr><td>Тот же ключ индекса с другими параметрами, например с <code>unique</code></td><td>Ошибка <code>IndexKeySpecsConflict</code> (код 86): параметры существующего индекса не меняются</td><td>Удалить индекс и создать заново с новыми параметрами</td></tr>
+              <tr><td>Удаление индекса <code>_id_</code></td><td>Ошибка <code>cannot drop _id index</code></td><td>Индекс по <code>_id</code> есть у каждой коллекции, удалить его нельзя</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Индекс по <code>status</code> и <code>service</code> для запроса только по <code>service</code></td><td>План — <code>COLLSCAN</code>: <code>service</code> не первое поле индекса</td><td>Первым в индексе ставить поле, которое есть во всех запросах: <code>service</code>, затем <code>status</code></td></tr>
+              <tr><td>Индексы по <code>service</code> и по <code>service</code> + <code>status</code> одновременно</td><td>Первый лишний: запросы по <code>service</code> обслуживает префикс составного, а запись обновляет оба</td><td>Удалить <code>service_1</code></td></tr>
+              <tr><td>Сортировка по полю, которого нет в индексе запроса</td><td>В плане стадия <code>SORT</code>: документы сортируются в памяти после чтения</td><td>Добавить поле сортировки в индекс после полей условия</td></tr>
+              <tr><td>Уникальный индекс на коллекции, где значения уже повторяются</td><td>Индекс не создаётся: ошибка 11000 при постройке</td><td>Найти и устранить повторы, затем создать индекс</td></tr>
+              <tr><td>Уникальный индекс по полю, которого нет в части документов</td><td>Второй документ без поля отклонён: в индексе уже есть <code>null</code></td><td>Частичный индекс с <code>partialFilterExpression: {"email": {"$exists": true}}</code></td></tr>
+              <tr><td>Тот же ключ индекса с другими параметрами, например с <code>unique</code></td><td>Ошибка <code>IndexKeySpecsConflict</code> (код 86): параметры существующего индекса не меняются</td><td>Удалить индекс и создать заново с новыми параметрами</td></tr>
+              <tr><td>Удаление индекса <code>_id_</code></td><td>Ошибка <code>cannot drop _id index</code></td><td>Индекс по <code>_id</code> есть у каждой коллекции, удалить его нельзя</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Индекс по <code>status</code> и <code>service</code> для запроса только по <code>service</code></td><td>План — <code>COLLSCAN</code>: <code>service</code> не первое поле индекса</td><td>Первым в индексе ставить поле, которое есть во всех запросах: <code>service</code>, затем <code>status</code></td></tr>
+              <tr><td>Индексы по <code>service</code> и по <code>service</code> + <code>status</code> одновременно</td><td>Первый лишний: запросы по <code>service</code> обслуживает префикс составного, а запись обновляет оба</td><td>Удалить <code>service_1</code></td></tr>
+              <tr><td>Сортировка по полю, которого нет в индексе запроса</td><td>В плане стадия <code>SORT</code>: документы сортируются в памяти после чтения</td><td>Добавить поле сортировки в индекс после полей условия</td></tr>
+              <tr><td>Уникальный индекс на коллекции, где значения уже повторяются</td><td>Индекс не создаётся: ошибка 11000 при постройке</td><td>Найти и устранить повторы, затем создать индекс</td></tr>
+              <tr><td>Уникальный индекс по полю, которого нет в части документов</td><td>Второй документ без поля отклонён: в индексе уже есть <code>null</code></td><td>Частичный индекс с <code>partialFilterExpression: {"email": {"$exists": true}}</code></td></tr>
+              <tr><td>Тот же ключ индекса с другими параметрами, например с <code>unique</code></td><td>Ошибка <code>IndexKeySpecsConflict</code> (код 86): параметры существующего индекса не меняются</td><td>Удалить индекс и создать заново с новыми параметрами</td></tr>
+              <tr><td>Удаление индекса <code>_id_</code></td><td>Ошибка <code>cannot drop _id index</code></td><td>Индекс по <code>_id</code> есть у каждой коллекции, удалить его нельзя</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Индекс по <code>status</code> и <code>service</code> для запроса только по <code>service</code></td><td>План — <code>COLLSCAN</code>: <code>service</code> не первое поле индекса</td><td>Первым в индексе ставить поле, которое есть во всех запросах: <code>service</code>, затем <code>status</code></td></tr>
+              <tr><td>Индексы по <code>service</code> и по <code>service</code> + <code>status</code> одновременно</td><td>Первый лишний: запросы по <code>service</code> обслуживает префикс составного, а запись обновляет оба</td><td>Удалить <code>service_1</code></td></tr>
+              <tr><td>Сортировка по полю, которого нет в индексе запроса</td><td>В плане стадия <code>SORT</code>: документы сортируются в памяти после чтения</td><td>Добавить поле сортировки в индекс после полей условия</td></tr>
+              <tr><td>Уникальный индекс на коллекции, где значения уже повторяются</td><td>Индекс не создаётся: ошибка 11000 при постройке</td><td>Найти и устранить повторы, затем создать индекс</td></tr>
+              <tr><td>Уникальный индекс по полю, которого нет в части документов</td><td>Второй документ без поля отклонён: в индексе уже есть <code>null</code></td><td>Частичный индекс с <code>partialFilterExpression: {"email": {"$exists": true}}</code></td></tr>
+              <tr><td>Тот же ключ индекса с другими параметрами, например с <code>unique</code></td><td>Ошибка <code>IndexKeySpecsConflict</code> (код 86): параметры существующего индекса не меняются</td><td>Удалить индекс и создать заново с новыми параметрами</td></tr>
+              <tr><td>Удаление индекса <code>_id_</code></td><td>Ошибка <code>cannot drop _id index</code></td><td>Индекс по <code>_id</code> есть у каждой коллекции, удалить его нельзя</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем план <code>COLLSCAN</code> отличается от <code>FETCH → IXSCAN</code>?</summary>
+          <p>При <code>COLLSCAN</code> сервер читает все документы коллекции и проверяет условие у каждого. При <code>IXSCAN</code> он находит нужные значения в упорядоченном индексе и получает ссылки на подходящие документы, а <code>FETCH</code> читает только их.</p>
+        </details>
+        <details>
+          <summary>Есть индекс по <code>service</code> и <code>status</code>. Каким из запросов он поможет: по <code>service</code>, по <code>status</code>, по обоим полям?</summary>
+          <p>Запросу по <code>service</code> и запросу по обоим полям. <code>service</code> — префикс индекса; записи с одним значением <code>status</code> разбросаны по разным сервисам, и запрос только по <code>status</code> выполняется просмотром коллекции.</p>
+        </details>
+        <details>
+          <summary>Когда в плане появляется стадия <code>SORT</code>?</summary>
+          <p>Когда порядок, заданный сортировкой, не совпадает с порядком записей в индексе, по которому выполнен запрос, — например, при сортировке по <code>ts</code> с индексом по <code>service</code> и <code>status</code>. Тогда сервер сортирует прочитанные документы в памяти.</p>
+        </details>
+        <details>
+          <summary>Почему не создаётся уникальный индекс по <code>city</code>?</summary>
+          <p>В коллекции уже есть покупатели с одинаковым городом. При постройке сервер проходит по всем документам и останавливается на первом повторе с ошибкой 11000.</p>
+        </details>
+        <details>
+          <summary>Зачем уникальному индексу по <code>email</code> условие <code>{"email": {"$exists": true}}</code>?</summary>
+          <p>Без условия документы без почты попадают в индекс со значением <code>null</code>, и второй такой документ даёт повтор. С условием они в индекс не попадают, и уникальность проверяется только среди документов с почтой.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в той же заготовке <code>lessons/ch3_2</code>. Нужна копия заказов магазина в песочнице: коллекция <code>sandbox.orders_idx</code>, в которую скопированы документы <code>shop.orders</code> (коллекция <code>orders</code> заготовки), — так же, как копия журнала в §1.</p>
+        <ol class="steps">
+          <li><b>Выполнить запрос без индекса</b>Посчитать заказы, доставленные в Москву: <code>{"delivery.city": "Москва", "status": "доставлен"}</code>, и вывести план этого запроса функцией <code>plan</code>.</li>
+          <li><b>Создать составной индекс</b>По городу доставки и статусу, в этом порядке. Вывести имя индекса и план того же запроса.</li>
+          <li><b>Проверить префикс</b>Вывести планы двух запросов: только по статусу <code>"доставлен"</code> и только по городу <code>"Москва"</code>. Объяснить, почему планы разные.</li>
+          <li><b>Создать уникальный индекс</b>По номеру заказа <code>number</code>. Затем попробовать записать заказ с номером <code>"2026-0001"</code> и вывести код ошибки и <code>keyValue</code>.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Заказов, доставленных в Москву, 12; план без индекса — <code>COLLSCAN</code>. Составной индекс получает имя <code>delivery.city_1_status_1</code>, после него план — <code>FETCH → IXSCAN delivery.city_1_status_1</code>. Запрос только по статусу выполняется просмотром коллекции (<code>COLLSCAN</code>), только по городу — по составному индексу: город — первое поле индекса, статус — второе. Уникальный индекс по номеру получает имя <code>number_1</code> и создаётся без ошибок: номера заказов не повторяются. Заказ с номером <code>2026-0001</code> отклонён с кодом 11000, <code>keyValue</code> — номер <code>"2026-0001"</code>.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Индекс по полю</b>
+            <code>coll.create_index("service")</code>
+          </div>
+          <div>
+            <b>Составной индекс</b>
+            <code>coll.create_index([("service", 1), ("status", 1)])</code>
+          </div>
+          <div>
+            <b>Уникальный индекс</b>
+            <code>coll.create_index("email", unique=True)</code>
+          </div>
+          <div>
+            <b>Частичный индекс</b>
+            <code>coll.create_index("email", unique=True,</code>
+            <code>    partialFilterExpression={"email": {"$exists": True}})</code>
+          </div>
+          <div>
+            <b>Список и удаление</b>
+            <code>coll.list_indexes()</code>
+            <code>coll.drop_index("service_1")</code>
+          </div>
+          <div>
+            <b>Повтор в уникальном индексе</b>
+            <code>except DuplicateKeyError as e:</code>
+            <code>    e.code, e.details["keyValue"]</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Индекс по полю</b>
+            <code>coll.create_index(make_document(kvp("service", 1)));</code>
+          </div>
+          <div>
+            <b>Составной индекс</b>
+            <code>coll.create_index(make_document(kvp("service", 1), kvp("status", 1)));</code>
+          </div>
+          <div>
+            <b>Уникальный индекс</b>
+            <code>mongocxx::options::index o;</code>
+            <code>o.unique(true);</code>
+          </div>
+          <div>
+            <b>Частичный индекс</b>
+            <code>o.partial_filter_expression(has_email.view());</code>
+          </div>
+          <div>
+            <b>Список и удаление</b>
+            <code>coll.list_indexes()</code>
+            <code>coll.indexes().drop_one("service_1");</code>
+          </div>
+          <div>
+            <b>Повтор в уникальном индексе</b>
+            <code>catch (const mongocxx::operation_exception& e)</code>
+            <code>  e.raw_server_error()-&gt;view()["writeErrors"][0]["keyValue"]</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Индекс по полю</b>
+            <code>coll.Indexes().CreateOne(ctx, mongo.IndexModel{</code>
+            <code>  Keys: bson.D{{Key: "service", Value: 1}}})</code>
+          </div>
+          <div>
+            <b>Составной индекс</b>
+            <code>Keys: bson.D{{Key: "service", Value: 1},</code>
+            <code>            {Key: "status", Value: 1}}</code>
+          </div>
+          <div>
+            <b>Уникальный индекс</b>
+            <code>Options: options.Index().SetUnique(true)</code>
+          </div>
+          <div>
+            <b>Частичный индекс</b>
+            <code>options.Index().SetUnique(true).</code>
+            <code>  SetPartialFilterExpression(bson.D{...})</code>
+          </div>
+          <div>
+            <b>Список и удаление</b>
+            <code>coll.Indexes().List(ctx)</code>
+            <code>coll.Indexes().DropOne(ctx, "service_1")</code>
+          </div>
+          <div>
+            <b>Повтор в уникальном индексе</b>
+            <code>errors.As(err, &we)</code>
+            <code>we.WriteErrors[0].Raw.Lookup("keyValue")</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Индекс по полю</b>
+            <code>coll.indexes.create_one({ "service" =&gt; 1 })</code>
+          </div>
+          <div>
+            <b>Составной индекс</b>
+            <code>coll.indexes.create_one({ "service" =&gt; 1, "status" =&gt; 1 })</code>
+          </div>
+          <div>
+            <b>Уникальный индекс</b>
+            <code>coll.indexes.create_one({ "email" =&gt; 1 }, unique: true)</code>
+          </div>
+          <div>
+            <b>Частичный индекс</b>
+            <code>coll.indexes.create_one({ "email" =&gt; 1 }, unique: true,</code>
+            <code>  partial_filter_expression: { "email" =&gt; { "$exists" =&gt; true } })</code>
+          </div>
+          <div>
+            <b>Список и удаление</b>
+            <code>coll.indexes.each { |ix| ... }</code>
+            <code>coll.indexes.drop_one("service_1")</code>
+          </div>
+          <div>
+            <b>Повтор в уникальном индексе</b>
+            <code>rescue Mongo::Error::OperationFailure =&gt; e</code>
+            <code>  e.document["writeErrors"][0]["keyValue"]</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Индекс хранит значения полей коллекции упорядоченно, со ссылками на документы, и позволяет серверу найти документы без просмотра всей коллекции: в плане запроса вместо <code>COLLSCAN</code> появляется <code>IXSCAN</code> с именем индекса и <code>FETCH</code>. Индекс по <code>_id</code> есть у каждой коллекции, остальные создаются явно и удаляются по имени. Составной индекс упорядочен по первому полю, затем по второму и помогает запросам, условия которых начинаются с его префикса; если сортировка совпадает с порядком индекса, стадии <code>SORT</code> в плане нет. Уникальный индекс отклоняет повтор значения с ошибкой 11000 и не создаётся на данных, где повторы уже есть; документ без поля попадает в индекс со значением <code>null</code>, и частичный индекс с условием <code>partialFilterExpression</code> исключает такие документы. Каждый индекс замедляет запись и занимает место, поэтому индексы строят под частые запросы.</p>
+
+        <div class="pager"><a href="../19-jsonschema/index.html">← 3.1 Правила на уровне базы</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 3.2 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

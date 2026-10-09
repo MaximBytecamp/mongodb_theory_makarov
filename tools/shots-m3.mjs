@@ -422,4 +422,77 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     await page.screenshot({ path: `${OUT}/116-sandbox-products-samples.png`, clip: { x: 300, y, width: 1300, height: 330 } });
     console.log('снят', '116-sandbox-products-samples');
   }
+
+  // ── Глава 3.2: индексы на копиях sandbox.events и sandbox.customers ──
+  const EV = `db.events.drop(); db.events.insertMany(db.getSiblingDB("logs").events.find().toArray());`;
+  const CU = `db.customers.drop(); db.customers.insertMany(db.getSiblingDB("shop").customers.find().toArray());`;
+  const IX = {
+    copy: `${EV} db.events.getIndexes().length`,
+    single: `${EV} db.events.createIndex({ service: 1 }); db.events.getIndexes().length`,
+    compound: `${EV} db.events.createIndex({ service: 1 }); db.events.createIndex({ service: 1, status: 1 }); db.events.getIndexes().length`,
+    dropped: `${EV} db.events.createIndex({ service: 1, status: 1 }); db.events.getIndexes().length`,
+    unique: `${CU} db.customers.createIndex({ email: 1 }, { unique: true }); db.customers.getIndexes().length`,
+    partial: `${CU} db.customers.insertOne({ _id: "c-102", name: "Андрей Носов", city: "Казань" });
+      db.customers.createIndex({ email: 1 }, { unique: true, partialFilterExpression: { email: { $exists: true } } });
+      db.customers.insertOne({ _id: "c-103", name: "Вера Лосева", city: "Казань" }); db.customers.getIndexes().length`,
+  };
+  const prepIx = (name, want) => {
+    const got = mongoIn('sandbox', IX[name]).split('\n').pop();
+    if (got !== String(want)) throw new Error(`подготовка ${name}: ждали ${want}, получили ${got}`);
+    console.log('  подготовка', name, '→ индексов', got);
+  };
+  // Вкладка коллекции с прошлого кадра держит старый список индексов: открываем другую коллекцию.
+  const freshOpen = async (coll) => { await openCollection('sandbox', 'catalog'); await openCollection('sandbox', coll); };
+
+  for (const [name, state, want, coll] of [
+    ['117-sandbox-events-indexes', 'copy', 1, 'events'],
+    ['118-sandbox-events-service', 'single', 2, 'events'],
+    ['120-sandbox-events-compound', 'dropped', 2, 'events'],
+    ['121-sandbox-customers-unique', 'unique', 2, 'customers'],
+    ['122-sandbox-customers-partial', 'partial', 2, 'customers'],
+  ]) {
+    if (!need(name)) continue;
+    prepIx(state, want);
+    await freshOpen(coll);
+    await openTab('Indexes');
+    await settle(1500);
+    if (process.env.EXPLORE) {
+      await page.screenshot({ path: `/private/tmp/claude-501/m3/${name}.png` });
+      console.log((await page.$$eval('[data-testid]', els => [...new Set(els.map(e => e.getAttribute('data-testid')))])).filter(i => /index/i.test(i)).join(' '));
+      continue;
+    }
+    await shot(name, 520);
+  }
+
+  // --- 119 · 3.2 §3: визуальный план запроса по двум полям -------------
+  if (need('119-sandbox-events-explain')) {
+    prepIx('compound', 3);
+    await freshOpen('events');
+    await openTab('Documents');
+    await setQuery({ filter: '{ service: "payments", status: { $gte: 500 } }' });
+    await collapseOptions();
+    await page.locator('[data-testid="query-bar-explain-button"], button:has-text("Explain")').first().click({ force: true });
+    await settle(4000);
+    await page.screenshot({ path: process.env.EXPLORE ? '/private/tmp/claude-501/m3/119.png' : `${OUT}/119-sandbox-events-explain.png`,
+                           clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', '119-sandbox-events-explain');
+    const close = page.getByRole('button', { name: /^close$/i }).first();
+    if (await close.count()) await close.click({ force: true }).catch(() => {});
+    await settle(800);
+  }
+
+  // --- 123 · 3.2 §9: окно создания индекса ---------------------------
+  if (need('123-compass-create-index')) {
+    prepIx('dropped', 2);
+    await freshOpen('events');
+    await openTab('Indexes');
+    await page.locator('[data-testid="open-create-index-modal-button"]').click({ force: true });
+    await settle(1500);
+    const opts = page.getByText('Options', { exact: true }).first();
+    if (await opts.count()) { await opts.click({ force: true }); await settle(800); }
+    await page.screenshot({ path: `${OUT}/123-compass-create-index.png`, clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', '123-compass-create-index');
+    await page.getByRole('button', { name: /^cancel$/i }).first().click({ force: true }).catch(() => {});
+    await settle(800);
+  }
 });

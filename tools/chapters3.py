@@ -829,3 +829,492 @@ CHEATS["3.1"] = [
         "go": ['errors.As(err, &we)', 'bson.Unmarshal(we.WriteErrors[0].Details, &info)'],
         "cpp": ['catch (const mongocxx::operation_exception& e)', '  e.raw_server_error()->view()["writeErrors"][0]["errInfo"]']}),
 ]
+
+# ── 3.2 Индексы: одиночные, составные, уникальные ─────────────────────────
+#
+# Заготовка главы (examples.EXTRAS, TOP_EXTRAS) открывает journal = sandbox.events,
+# clients = sandbox.customers и объявляет функцию plan — стадии выбранного плана.
+
+EXAMPLES["3.2"] = {}
+
+# 1200 событий; один индекс _id_
+EXAMPLES["3.2"]["copy"] = {"caption": "копия журнала и её индексы", "plain": {
+    "python": '''
+journal.drop()
+journal.insert_many(events.find())
+print("событий в копии:", journal.count_documents({}))
+
+for ix in journal.list_indexes():
+    print("индекс", ix["name"], dict(ix["key"]))
+''',
+    "ruby": '''
+journal.drop
+journal.insert_many(events.find.to_a)
+puts "событий в копии: " + journal.count_documents({}).to_s
+
+journal.indexes.each { |ix| puts "индекс " + ix["name"] + " " + ix["key"].to_s }
+''',
+    "go": '''
+journal.Drop(ctx)
+var all []bson.D
+cursor, _ := events.Find(ctx, bson.D{})
+cursor.All(ctx, &all)
+docs := make([]any, len(all))
+for i := range all {
+    docs[i] = all[i]
+}
+journal.InsertMany(ctx, docs)
+n, _ := journal.CountDocuments(ctx, bson.D{})
+fmt.Println("событий в копии:", n)
+
+list, _ := journal.Indexes().List(ctx)
+for list.Next(ctx) {
+    key, _ := bson.MarshalExtJSON(list.Current.Lookup("key").Document(), false, false)
+    fmt.Println("индекс", list.Current.Lookup("name").StringValue(), string(key))
+}
+''',
+    "cpp": '''
+journal.drop();
+std::vector<bsoncxx::document::value> all;
+for (auto&& doc : events.find(make_document())) all.emplace_back(doc);
+journal.insert_many(all);
+std::cout << "событий в копии: " << journal.count_documents(make_document()) << std::endl;
+
+for (auto&& ix : journal.list_indexes()) {
+    std::cout << "индекс " << ix["name"].get_string().value << " "
+              << bsoncxx::to_json(ix["key"].get_document().value, bsoncxx::ExtendedJsonMode::k_relaxed) << std::endl;
+}
+''',
+}}
+
+# COLLSCAN → service_1 → FETCH → IXSCAN service_1; 232
+EXAMPLES["3.2"]["single"] = {"caption": "индекс по одному полю", "plain": {
+    "python": '''
+print("до индекса:   ", plan(journal, {"service": "payments"}))
+
+name = journal.create_index("service")
+print("создан индекс:", name)
+
+print("после индекса:", plan(journal, {"service": "payments"}))
+print("событий payments:", journal.count_documents({"service": "payments"}))
+''',
+    "ruby": '''
+puts "до индекса:    " + plan(journal, { "service" => "payments" })
+
+journal.indexes.create_one({ "service" => 1 })
+puts "создан индекс: " + journal.indexes.get({ "service" => 1 })["name"]
+
+puts "после индекса: " + plan(journal, { "service" => "payments" })
+puts "событий payments: " + journal.count_documents({ "service" => "payments" }).to_s
+''',
+    "go": '''
+fmt.Println("до индекса:   ", plan(journal, bson.D{{Key: "service", Value: "payments"}}, nil))
+
+name, _ := journal.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "service", Value: 1}}})
+fmt.Println("создан индекс:", name)
+
+fmt.Println("после индекса:", plan(journal, bson.D{{Key: "service", Value: "payments"}}, nil))
+n, _ := journal.CountDocuments(ctx, bson.D{{Key: "service", Value: "payments"}})
+fmt.Println("событий payments:", n)
+''',
+    "cpp": '''
+std::cout << "до индекса:    " << plan(sandbox, "events", make_document(kvp("service", "payments"))) << std::endl;
+
+auto created = journal.create_index(make_document(kvp("service", 1)));
+std::cout << "создан индекс: " << created.view()["name"].get_string().value << std::endl;
+
+std::cout << "после индекса: " << plan(sandbox, "events", make_document(kvp("service", "payments"))) << std::endl;
+std::cout << "событий payments: " << journal.count_documents(make_document(kvp("service", "payments"))) << std::endl;
+''',
+}}
+
+# service_1_status_1; оба поля — IXSCAN составного; только status — COLLSCAN; сортировка по status без SORT
+EXAMPLES["3.2"]["compound"] = {"caption": "составной индекс", "plain": {
+    "python": '''
+name = journal.create_index([("service", 1), ("status", 1)])
+print("создан индекс:", name)
+
+print("service и status:          ", plan(journal, {"service": "payments", "status": {"$gte": 500}}))
+print("только status:             ", plan(journal, {"status": 503}))
+print("service, порядок по status:", plan(journal, {"service": "payments"}, [("status", 1)]))
+''',
+    "ruby": '''
+journal.indexes.create_one({ "service" => 1, "status" => 1 })
+puts "создан индекс: " + journal.indexes.get({ "service" => 1, "status" => 1 })["name"]
+
+puts "service и status:           " + plan(journal, { "service" => "payments", "status" => { "$gte" => 500 } })
+puts "только status:              " + plan(journal, { "status" => 503 })
+puts "service, порядок по status: " + plan(journal, { "service" => "payments" }, { "status" => 1 })
+''',
+    "go": '''
+name, _ := journal.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: "service", Value: 1}, {Key: "status", Value: 1}}})
+fmt.Println("создан индекс:", name)
+
+fmt.Println("service и status:          ",
+    plan(journal, bson.D{{Key: "service", Value: "payments"}, {Key: "status", Value: bson.D{{Key: "$gte", Value: 500}}}}, nil))
+fmt.Println("только status:             ", plan(journal, bson.D{{Key: "status", Value: 503}}, nil))
+fmt.Println("service, порядок по status:",
+    plan(journal, bson.D{{Key: "service", Value: "payments"}}, bson.D{{Key: "status", Value: 1}}))
+''',
+    "cpp": '''
+auto created = journal.create_index(make_document(kvp("service", 1), kvp("status", 1)));
+std::cout << "создан индекс: " << created.view()["name"].get_string().value << std::endl;
+
+std::cout << "service и status:           "
+          << plan(sandbox, "events", make_document(kvp("service", "payments"), kvp("status", make_document(kvp("$gte", 500)))))
+          << std::endl;
+std::cout << "только status:              " << plan(sandbox, "events", make_document(kvp("status", 503))) << std::endl;
+std::cout << "service, порядок по status: "
+          << plan(sandbox, "events", make_document(kvp("service", "payments")), make_document(kvp("status", 1)))
+          << std::endl;
+''',
+}}
+
+# остались _id_ и service_1_status_1; только service — IXSCAN составного; порядок по ts — SORT
+EXAMPLES["3.2"]["drop"] = {"caption": "удаление лишнего индекса", "plain": {
+    "python": '''
+journal.drop_index("service_1")
+for ix in journal.list_indexes():
+    print("индекс", ix["name"], dict(ix["key"]))
+
+print("только service:        ", plan(journal, {"service": "payments"}))
+print("service, порядок по ts:", plan(journal, {"service": "payments"}, [("ts", -1)]))
+''',
+    "ruby": '''
+journal.indexes.drop_one("service_1")
+journal.indexes.each { |ix| puts "индекс " + ix["name"] + " " + ix["key"].to_s }
+
+puts "только service:         " + plan(journal, { "service" => "payments" })
+puts "service, порядок по ts: " + plan(journal, { "service" => "payments" }, { "ts" => -1 })
+''',
+    "go": '''
+journal.Indexes().DropOne(ctx, "service_1")
+list, _ := journal.Indexes().List(ctx)
+for list.Next(ctx) {
+    key, _ := bson.MarshalExtJSON(list.Current.Lookup("key").Document(), false, false)
+    fmt.Println("индекс", list.Current.Lookup("name").StringValue(), string(key))
+}
+
+fmt.Println("только service:        ", plan(journal, bson.D{{Key: "service", Value: "payments"}}, nil))
+fmt.Println("service, порядок по ts:",
+    plan(journal, bson.D{{Key: "service", Value: "payments"}}, bson.D{{Key: "ts", Value: -1}}))
+''',
+    "cpp": '''
+journal.indexes().drop_one("service_1");
+for (auto&& ix : journal.list_indexes()) {
+    std::cout << "индекс " << ix["name"].get_string().value << " "
+              << bsoncxx::to_json(ix["key"].get_document().value, bsoncxx::ExtendedJsonMode::k_relaxed) << std::endl;
+}
+
+std::cout << "только service:         " << plan(sandbox, "events", make_document(kvp("service", "payments"))) << std::endl;
+std::cout << "service, порядок по ts: "
+          << plan(sandbox, "events", make_document(kvp("service", "payments")), make_document(kvp("ts", -1)))
+          << std::endl;
+''',
+}}
+
+# email_1; дубль отклонён 11000; покупателей 20
+EXAMPLES["3.2"]["unique"] = {"caption": "уникальный индекс", "plain": {
+    "python": '''
+from pymongo.errors import DuplicateKeyError
+
+clients.drop()
+clients.insert_many(db["customers"].find())
+print("создан индекс:", clients.create_index("email", unique=True))
+
+try:
+    clients.insert_one({"_id": "c-101", "name": "Ольга Кравец", "email": "user01@example.com", "city": "Ярославль"})
+    print("Ольга Кравец записана")
+except DuplicateKeyError as e:
+    print("Ольга Кравец отклонена, код", e.code, "— уже есть", e.details["keyValue"])
+print("покупателей:", clients.count_documents({}))
+''',
+    "ruby": '''
+clients.drop
+clients.insert_many(db[:customers].find.to_a)
+clients.indexes.create_one({ "email" => 1 }, unique: true)
+puts "создан индекс: " + clients.indexes.get({ "email" => 1 })["name"]
+
+begin
+  clients.insert_one({ "_id" => "c-101", "name" => "Ольга Кравец", "email" => "user01@example.com", "city" => "Ярославль" })
+  puts "Ольга Кравец записана"
+rescue Mongo::Error::OperationFailure => e
+  puts "Ольга Кравец отклонена, код #{e.code} — уже есть #{e.document["writeErrors"][0]["keyValue"]}"
+end
+puts "покупателей: " + clients.count_documents({}).to_s
+''',
+    "go": '''
+clients.Drop(ctx)
+var all []bson.D
+cursor, _ := db.Collection("customers").Find(ctx, bson.D{})
+cursor.All(ctx, &all)
+docs := make([]any, len(all))
+for i := range all {
+    docs[i] = all[i]
+}
+clients.InsertMany(ctx, docs)
+name, _ := clients.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: "email", Value: 1}},
+    Options: options.Index().SetUnique(true)})
+fmt.Println("создан индекс:", name)
+
+_, err := clients.InsertOne(ctx, bson.D{
+    {Key: "_id", Value: "c-101"},
+    {Key: "name", Value: "Ольга Кравец"},
+    {Key: "email", Value: "user01@example.com"},
+    {Key: "city", Value: "Ярославль"}})
+var we mongo.WriteException
+if errors.As(err, &we) {
+    fmt.Println("Ольга Кравец отклонена, код", we.WriteErrors[0].Code, "— уже есть", we.WriteErrors[0].Raw.Lookup("keyValue"))
+} else {
+    fmt.Println("Ольга Кравец записана")
+}
+n, _ := clients.CountDocuments(ctx, bson.D{})
+fmt.Println("покупателей:", n)
+''',
+    "cpp": '''
+clients.drop();
+std::vector<bsoncxx::document::value> all;
+for (auto&& doc : db["customers"].find(make_document())) all.emplace_back(doc);
+clients.insert_many(all);
+mongocxx::options::index unique;
+unique.unique(true);
+auto created = clients.create_index(make_document(kvp("email", 1)), unique);
+std::cout << "создан индекс: " << created.view()["name"].get_string().value << std::endl;
+
+try {
+    clients.insert_one(make_document(kvp("_id", "c-101"), kvp("name", "Ольга Кравец"),
+                                     kvp("email", "user01@example.com"), kvp("city", "Ярославль")));
+    std::cout << "Ольга Кравец записана" << std::endl;
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "Ольга Кравец отклонена, код " << e.code().value() << " — уже есть "
+              << bsoncxx::to_json(e.raw_server_error()->view()["writeErrors"][0]["keyValue"].get_document().value,
+                                  bsoncxx::ExtendedJsonMode::k_relaxed) << std::endl;
+}
+std::cout << "покупателей: " << clients.count_documents(make_document()) << std::endl;
+''',
+}}
+
+# city_1 не создан: 11000; индексы _id_, email_1
+EXAMPLES["3.2"]["duplicates"] = {"caption": "уникальный индекс на данных с повторами", "plain": {
+    "python": '''
+from pymongo.errors import OperationFailure
+
+print("городов:", len(clients.distinct("city")), "на", clients.count_documents({}), "покупателей")
+try:
+    clients.create_index("city", unique=True)
+    print("индекс по city создан")
+except OperationFailure as e:
+    print("индекс по city не создан, код", e.code)
+print("индексы:", [ix["name"] for ix in clients.list_indexes()])
+''',
+    "ruby": '''
+puts "городов: #{clients.distinct("city").size} на #{clients.count_documents({})} покупателей"
+begin
+  clients.indexes.create_one({ "city" => 1 }, unique: true)
+  puts "индекс по city создан"
+rescue Mongo::Error::OperationFailure => e
+  puts "индекс по city не создан, код #{e.code}"
+end
+puts "индексы: " + clients.indexes.map { |ix| ix["name"] }.to_s
+''',
+    "go": '''
+cities, _ := clients.Distinct(ctx, "city", bson.D{}).Raw()
+values, _ := cities.Values()
+n, _ := clients.CountDocuments(ctx, bson.D{})
+fmt.Println("городов:", len(values), "на", n, "покупателей")
+
+_, err := clients.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: "city", Value: 1}},
+    Options: options.Index().SetUnique(true)})
+var ce mongo.CommandError
+if errors.As(err, &ce) {
+    fmt.Println("индекс по city не создан, код", ce.Code)
+} else {
+    fmt.Println("индекс по city создан")
+}
+
+names := []string{}
+list, _ := clients.Indexes().List(ctx)
+for list.Next(ctx) {
+    names = append(names, list.Current.Lookup("name").StringValue())
+}
+fmt.Println("индексы:", names)
+''',
+    "cpp": '''
+auto cities = clients.distinct("city", make_document());
+auto values = (*cities.begin())["values"].get_array().value;
+std::cout << "городов: " << std::distance(values.begin(), values.end())
+          << " на " << clients.count_documents(make_document()) << " покупателей" << std::endl;
+
+mongocxx::options::index unique;
+unique.unique(true);
+try {
+    clients.create_index(make_document(kvp("city", 1)), unique);
+    std::cout << "индекс по city создан" << std::endl;
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "индекс по city не создан, код " << e.code().value() << std::endl;
+}
+
+std::cout << "индексы:";
+for (auto&& ix : clients.list_indexes()) std::cout << " " << ix["name"].get_string().value;
+std::cout << std::endl;
+''',
+}}
+
+# второй без почты отклонён {email: null}; после частичного индекса — записан; дубль почты по-прежнему отклонён
+EXAMPLES["3.2"]["partial"] = {"caption": "документ без поля и частичный индекс", "plain": {
+    "python": '''
+from pymongo.errors import DuplicateKeyError
+
+clients.insert_one({"_id": "c-102", "name": "Андрей Носов", "city": "Казань"})
+try:
+    clients.insert_one({"_id": "c-103", "name": "Вера Лосева", "city": "Казань"})
+    print("второй покупатель без почты записан")
+except DuplicateKeyError as e:
+    print("второй покупатель без почты отклонён — уже есть", e.details["keyValue"])
+
+clients.drop_index("email_1")
+clients.create_index("email", unique=True, partialFilterExpression={"email": {"$exists": True}})
+
+clients.insert_one({"_id": "c-103", "name": "Вера Лосева", "city": "Казань"})
+print("покупателей без почты:", clients.count_documents({"email": {"$exists": False}}))
+try:
+    clients.insert_one({"_id": "c-104", "name": "Ольга Кравец", "email": "user01@example.com"})
+except DuplicateKeyError as e:
+    print("повтор почты отклонён — уже есть", e.details["keyValue"])
+''',
+    "ruby": '''
+clients.insert_one({ "_id" => "c-102", "name" => "Андрей Носов", "city" => "Казань" })
+begin
+  clients.insert_one({ "_id" => "c-103", "name" => "Вера Лосева", "city" => "Казань" })
+  puts "второй покупатель без почты записан"
+rescue Mongo::Error::OperationFailure => e
+  puts "второй покупатель без почты отклонён — уже есть #{e.document["writeErrors"][0]["keyValue"]}"
+end
+
+clients.indexes.drop_one("email_1")
+clients.indexes.create_one({ "email" => 1 }, unique: true,
+                           partial_filter_expression: { "email" => { "$exists" => true } })
+
+clients.insert_one({ "_id" => "c-103", "name" => "Вера Лосева", "city" => "Казань" })
+puts "покупателей без почты: " + clients.count_documents({ "email" => { "$exists" => false } }).to_s
+begin
+  clients.insert_one({ "_id" => "c-104", "name" => "Ольга Кравец", "email" => "user01@example.com" })
+rescue Mongo::Error::OperationFailure => e
+  puts "повтор почты отклонён — уже есть #{e.document["writeErrors"][0]["keyValue"]}"
+end
+''',
+    "go": '''
+clients.InsertOne(ctx, bson.D{{Key: "_id", Value: "c-102"}, {Key: "name", Value: "Андрей Носов"}, {Key: "city", Value: "Казань"}})
+_, err := clients.InsertOne(ctx, bson.D{{Key: "_id", Value: "c-103"}, {Key: "name", Value: "Вера Лосева"}, {Key: "city", Value: "Казань"}})
+var we mongo.WriteException
+if errors.As(err, &we) {
+    fmt.Println("второй покупатель без почты отклонён — уже есть", we.WriteErrors[0].Raw.Lookup("keyValue"))
+} else {
+    fmt.Println("второй покупатель без почты записан")
+}
+
+clients.Indexes().DropOne(ctx, "email_1")
+clients.Indexes().CreateOne(ctx, mongo.IndexModel{
+    Keys: bson.D{{Key: "email", Value: 1}},
+    Options: options.Index().SetUnique(true).
+        SetPartialFilterExpression(bson.D{{Key: "email", Value: bson.D{{Key: "$exists", Value: true}}}})})
+
+clients.InsertOne(ctx, bson.D{{Key: "_id", Value: "c-103"}, {Key: "name", Value: "Вера Лосева"}, {Key: "city", Value: "Казань"}})
+n, _ := clients.CountDocuments(ctx, bson.D{{Key: "email", Value: bson.D{{Key: "$exists", Value: false}}}})
+fmt.Println("покупателей без почты:", n)
+_, err = clients.InsertOne(ctx, bson.D{{Key: "_id", Value: "c-104"}, {Key: "name", Value: "Ольга Кравец"}, {Key: "email", Value: "user01@example.com"}})
+if errors.As(err, &we) {
+    fmt.Println("повтор почты отклонён — уже есть", we.WriteErrors[0].Raw.Lookup("keyValue"))
+}
+''',
+    "cpp": '''
+auto key_value = [](const mongocxx::operation_exception& e) {
+    return bsoncxx::to_json(e.raw_server_error()->view()["writeErrors"][0]["keyValue"].get_document().value,
+                            bsoncxx::ExtendedJsonMode::k_relaxed);
+};
+
+clients.insert_one(make_document(kvp("_id", "c-102"), kvp("name", "Андрей Носов"), kvp("city", "Казань")));
+try {
+    clients.insert_one(make_document(kvp("_id", "c-103"), kvp("name", "Вера Лосева"), kvp("city", "Казань")));
+    std::cout << "второй покупатель без почты записан" << std::endl;
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "второй покупатель без почты отклонён — уже есть " << key_value(e) << std::endl;
+}
+
+clients.indexes().drop_one("email_1");
+auto has_email = make_document(kvp("email", make_document(kvp("$exists", true))));
+mongocxx::options::index partial;
+partial.unique(true);
+partial.partial_filter_expression(has_email.view());
+clients.create_index(make_document(kvp("email", 1)), partial);
+
+clients.insert_one(make_document(kvp("_id", "c-103"), kvp("name", "Вера Лосева"), kvp("city", "Казань")));
+std::cout << "покупателей без почты: "
+          << clients.count_documents(make_document(kvp("email", make_document(kvp("$exists", false))))) << std::endl;
+try {
+    clients.insert_one(make_document(kvp("_id", "c-104"), kvp("name", "Ольга Кравец"), kvp("email", "user01@example.com")));
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "повтор почты отклонён — уже есть " << key_value(e) << std::endl;
+}
+''',
+}}
+
+ERRORS["3.2"] = [
+    ("Индекс по <code>status</code> и <code>service</code> для запроса только по <code>service</code>",
+     "План — <code>COLLSCAN</code>: <code>service</code> не первое поле индекса",
+     "Первым в индексе ставить поле, которое есть во всех запросах: <code>service</code>, затем <code>status</code>"),
+    ("Индексы по <code>service</code> и по <code>service</code> + <code>status</code> одновременно",
+     "Первый лишний: запросы по <code>service</code> обслуживает префикс составного, а запись обновляет оба",
+     "Удалить <code>service_1</code>"),
+    ("Сортировка по полю, которого нет в индексе запроса",
+     "В плане стадия <code>SORT</code>: документы сортируются в памяти после чтения",
+     "Добавить поле сортировки в индекс после полей условия"),
+    ("Уникальный индекс на коллекции, где значения уже повторяются",
+     "Индекс не создаётся: ошибка 11000 при постройке",
+     "Найти и устранить повторы, затем создать индекс"),
+    ("Уникальный индекс по полю, которого нет в части документов",
+     "Второй документ без поля отклонён: в индексе уже есть <code>null</code>",
+     'Частичный индекс с <code>partialFilterExpression: {"email": {"$exists": true}}</code>'),
+    ("Тот же ключ индекса с другими параметрами, например с <code>unique</code>",
+     "Ошибка <code>IndexKeySpecsConflict</code> (код 86): параметры существующего индекса не меняются",
+     "Удалить индекс и создать заново с новыми параметрами"),
+    ("Удаление индекса <code>_id_</code>",
+     "Ошибка <code>cannot drop _id index</code>",
+     "Индекс по <code>_id</code> есть у каждой коллекции, удалить его нельзя"),
+]
+
+CHEATS["3.2"] = [
+    ("Индекс по полю", {
+        "python": ['coll.create_index("service")'],
+        "ruby": ['coll.indexes.create_one({ "service" => 1 })'],
+        "go": ['coll.Indexes().CreateOne(ctx, mongo.IndexModel{', '  Keys: bson.D{{Key: "service", Value: 1}}})'],
+        "cpp": ['coll.create_index(make_document(kvp("service", 1)));']}),
+    ("Составной индекс", {
+        "python": ['coll.create_index([("service", 1), ("status", 1)])'],
+        "ruby": ['coll.indexes.create_one({ "service" => 1, "status" => 1 })'],
+        "go": ['Keys: bson.D{{Key: "service", Value: 1},', '            {Key: "status", Value: 1}}'],
+        "cpp": ['coll.create_index(make_document(kvp("service", 1), kvp("status", 1)));']}),
+    ("Уникальный индекс", {
+        "python": ['coll.create_index("email", unique=True)'],
+        "ruby": ['coll.indexes.create_one({ "email" => 1 }, unique: true)'],
+        "go": ['Options: options.Index().SetUnique(true)'],
+        "cpp": ['mongocxx::options::index o;', 'o.unique(true);']}),
+    ("Частичный индекс", {
+        "python": ['coll.create_index("email", unique=True,', '    partialFilterExpression={"email": {"$exists": True}})'],
+        "ruby": ['coll.indexes.create_one({ "email" => 1 }, unique: true,', '  partial_filter_expression: { "email" => { "$exists" => true } })'],
+        "go": ['options.Index().SetUnique(true).', '  SetPartialFilterExpression(bson.D{...})'],
+        "cpp": ['o.partial_filter_expression(has_email.view());']}),
+    ("Список и удаление", {
+        "python": ['coll.list_indexes()', 'coll.drop_index("service_1")'],
+        "ruby": ['coll.indexes.each { |ix| ... }', 'coll.indexes.drop_one("service_1")'],
+        "go": ['coll.Indexes().List(ctx)', 'coll.Indexes().DropOne(ctx, "service_1")'],
+        "cpp": ['coll.list_indexes()', 'coll.indexes().drop_one("service_1");']}),
+    ("Повтор в уникальном индексе", {
+        "python": ['except DuplicateKeyError as e:', '    e.code, e.details["keyValue"]'],
+        "ruby": ['rescue Mongo::Error::OperationFailure => e', '  e.document["writeErrors"][0]["keyValue"]'],
+        "go": ['errors.As(err, &we)', 'we.WriteErrors[0].Raw.Lookup("keyValue")'],
+        "cpp": ['catch (const mongocxx::operation_exception& e)', '  e.raw_server_error()->view()["writeErrors"][0]["keyValue"]']}),
+]
