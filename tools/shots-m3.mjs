@@ -581,4 +581,56 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     if (await close.count()) await close.click({ force: true }).catch(() => {});
     await settle(800);
   }
+
+  // ── Глава 3.5: пункты выдачи и зоны ─────────────────────────────────
+  const PV = [["pv-1","Пункт 1, центр",39.8938,57.6261],["pv-2","Пункт 2, вокзал",39.8370,57.6337],
+              ["pv-3","Пункт 3, Брагино",39.8178,57.6929],["pv-4","Пункт 4, Фрунзенский район",39.9050,57.5848],
+              ["pv-5","Пункт 5, Заволжье",39.9500,57.6650],["pv-6","Пункт 6, Москва",37.6056,55.7650]];
+  const PV_INSERT = `db.pickup.drop(); db.pickup.insertMany(${JSON.stringify(PV)}.map(([id, name, lng, lat]) =>
+    ({ _id: id, name, location: { type: "Point", coordinates: [lng, lat] } }))); db.pickup.createIndex({ location: "2dsphere" });`;
+  const GEO = {
+    six: `${PV_INSERT} db.pickup.countDocuments()`,
+    swap: `${PV_INSERT} db.pickup.insertOne({ _id: "pv-7", name: "Пункт 7, координаты перепутаны",
+      location: { type: "Point", coordinates: [57.6261, 39.8938] } }); db.pickup.countDocuments()`,
+  };
+  const prepGeo = (name, want) => {
+    const got = mongoIn('sandbox', GEO[name]).split('\n').pop();
+    if (got !== String(want)) throw new Error(`подготовка ${name}: ждали ${want}, получили ${got}`);
+  };
+  const HERE = '{ type: "Point", coordinates: [39.8875, 57.6300] }';
+  if (need('137-pickup-documents')) {
+    prepGeo('six', 6);
+    await freshOpen('pickup');
+    await openTab('Documents');
+    await setQuery({});
+    await collapseOptions();
+    await useJsonView();
+    await expandAll(2);
+    await shot('137-pickup-documents', 760);
+  }
+  if (need('138-pickup-near')) {
+    prepGeo('six', 6);
+    await freshOpen('pickup');
+    await openTab('Documents');
+    await setQuery({ filter: `{ location: { $near: { $geometry: ${HERE}, $maxDistance: 3500 } } }`, project: '{ name: 1 }' });
+    await collapseOptions();
+    await useJsonView();
+    await shot('138-pickup-near', await fitHeight(900));
+  }
+  for (const [name, state, want] of [['139-pickup-schema', 'six', 6], ['140-pickup-schema-swap', 'swap', 7]]) {
+    if (!need(name)) continue;
+    prepGeo(state, want);
+    await freshOpen('pickup');
+    await openTab('Documents');
+    await setQuery({});
+    await collapseOptions();
+    await openTab('Schema');
+    const analyze = page.getByRole('button', { name: /analyze/i }).first();
+    if (await analyze.count()) await analyze.click({ force: true });
+    await settle(9000);
+    await page.screenshot({ path: process.env.EXPLORE ? `/private/tmp/claude-501/m3/${name}.png` : `${OUT}/${name}.png`,
+                           clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', name);
+    await openTab('Documents');
+  }
 });

@@ -2016,3 +2016,441 @@ CHEATS["3.4"] = [
         "cpp": ['o.weights(weights.view());']}),
     ("Язык запроса", {"all": ['{"$text": {"$search": "…", "$language": "none"}}']}),
 ]
+
+# ── 3.5 География ─────────────────────────────────────────────────────────
+#
+# Заготовка главы открывает pickup = sandbox.pickup, zones = sandbox.zones
+# и объявляет here — точку покупателя в центре Ярославля.
+
+EXAMPLES["3.5"] = {}
+
+POINTS = [("pv-1", "Пункт 1, центр", "39.8938", "57.6261"),
+          ("pv-2", "Пункт 2, вокзал", "39.8370", "57.6337"),
+          ("pv-3", "Пункт 3, Брагино", "39.8178", "57.6929"),
+          ("pv-4", "Пункт 4, Фрунзенский район", "39.9050", "57.5848"),
+          ("pv-5", "Пункт 5, Заволжье", "39.9500", "57.6650"),
+          ("pv-6", "Пункт 6, Москва", "37.6056", "55.7650")]
+
+def _rows(fmt, sep=",\n"):
+    return sep.join(fmt.format(*p) for p in POINTS)
+
+# 6 пунктов; $near без индекса — 291; location_2dsphere
+EXAMPLES["3.5"]["points"] = {"caption": "точки на карте и индекс 2dsphere", "plain": {
+    "python": '''
+from pymongo.errors import OperationFailure
+
+points = [
+''' + _rows('    ("{0}", "{1}", {2}, {3})') + ''',
+]
+pickup.drop()
+pickup.insert_many({"_id": pid, "name": name, "location": {"type": "Point", "coordinates": [lng, lat]}}
+                   for pid, name, lng, lat in points)
+print("пунктов выдачи:", pickup.count_documents({}))
+
+try:
+    list(pickup.find({"location": {"$near": {"$geometry": here}}}))
+except OperationFailure as e:
+    print("$near без индекса: ошибка", e.code)
+
+print("создан индекс:", pickup.create_index([("location", "2dsphere")]))
+''',
+    "ruby": '''
+points = [
+''' + _rows('  ["{0}", "{1}", {2}, {3}]') + ''',
+]
+pickup.drop
+pickup.insert_many(points.map do |pid, name, lng, lat|
+  { "_id" => pid, "name" => name, "location" => { "type" => "Point", "coordinates" => [lng, lat] } }
+end)
+puts "пунктов выдачи: " + pickup.count_documents({}).to_s
+
+begin
+  pickup.find({ "location" => { "$near" => { "$geometry" => here } } }).to_a
+rescue Mongo::Error::OperationFailure => e
+  puts "$near без индекса: ошибка #{e.code}"
+end
+
+pickup.indexes.create_one({ "location" => "2dsphere" })
+puts "создан индекс: " + pickup.indexes.get({ "location" => "2dsphere" })["name"]
+''',
+    "go": '''
+points := []struct {
+    id, name string
+    lng, lat float64
+}{
+''' + _rows('    {{"{0}", "{1}", {2}, {3}}}') + ''',
+}
+pickup.Drop(ctx)
+docs := []any{}
+for _, p := range points {
+    docs = append(docs, bson.D{
+        {Key: "_id", Value: p.id},
+        {Key: "name", Value: p.name},
+        {Key: "location", Value: bson.D{{Key: "type", Value: "Point"}, {Key: "coordinates", Value: bson.A{p.lng, p.lat}}}}})
+}
+pickup.InsertMany(ctx, docs)
+n, _ := pickup.CountDocuments(ctx, bson.D{})
+fmt.Println("пунктов выдачи:", n)
+
+_, err := pickup.Find(ctx, bson.D{{Key: "location", Value: bson.D{{Key: "$near", Value: bson.D{{Key: "$geometry", Value: here}}}}}})
+var ce mongo.CommandError
+if errors.As(err, &ce) {
+    fmt.Println("$near без индекса: ошибка", ce.Code)
+}
+
+name, _ := pickup.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "location", Value: "2dsphere"}}})
+fmt.Println("создан индекс:", name)
+''',
+    "cpp": '''
+struct point { std::string id, name; double lng, lat; };
+std::vector<point> points{
+''' + _rows('    {{"{0}", "{1}", {2}, {3}}}') + '''};
+pickup.drop();
+std::vector<bsoncxx::document::value> docs;
+for (const auto& p : points) {
+    docs.push_back(make_document(
+        kvp("_id", p.id),
+        kvp("name", p.name),
+        kvp("location", make_document(kvp("type", "Point"), kvp("coordinates", make_array(p.lng, p.lat))))));
+}
+pickup.insert_many(docs);
+std::cout << "пунктов выдачи: " << pickup.count_documents(make_document()) << std::endl;
+
+try {
+    for (auto&& doc : pickup.find(make_document(kvp("location", make_document(kvp("$near", make_document(kvp("$geometry", here.view())))))))) {
+        (void)doc;
+    }
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "$near без индекса: ошибка " << e.code().value() << std::endl;
+}
+
+auto created = pickup.create_index(make_document(kvp("location", "2dsphere")));
+std::cout << "создан индекс: " << created.view()["name"].get_string().value << std::endl;
+''',
+}}
+
+# до 3,5 км: pv-1, pv-2; по расстоянию: 1, 2, 4, 5, 3, 6
+EXAMPLES["3.5"]["near"] = {"caption": "ближайшие пункты: $near", "plain": {
+    "python": '''
+near = {"location": {"$near": {"$geometry": here, "$maxDistance": 3500}}}
+for doc in pickup.find(near):
+    print("до 3,5 км:", doc["name"])
+
+print("все по расстоянию:")
+for doc in pickup.find({"location": {"$near": {"$geometry": here}}}):
+    print("  ", doc["name"])
+''',
+    "ruby": '''
+near = { "location" => { "$near" => { "$geometry" => here, "$maxDistance" => 3500 } } }
+pickup.find(near).each { |doc| puts "до 3,5 км: " + doc["name"] }
+
+puts "все по расстоянию:"
+pickup.find({ "location" => { "$near" => { "$geometry" => here } } }).each { |doc| puts "   " + doc["name"] }
+''',
+    "go": '''
+near := bson.D{{Key: "location", Value: bson.D{{Key: "$near", Value: bson.D{
+    {Key: "$geometry", Value: here}, {Key: "$maxDistance", Value: 3500}}}}}}
+cursor, _ := pickup.Find(ctx, near)
+for cursor.Next(ctx) {
+    fmt.Println("до 3,5 км:", cursor.Current.Lookup("name").StringValue())
+}
+
+fmt.Println("все по расстоянию:")
+all, _ := pickup.Find(ctx, bson.D{{Key: "location", Value: bson.D{{Key: "$near", Value: bson.D{{Key: "$geometry", Value: here}}}}}})
+for all.Next(ctx) {
+    fmt.Println("  ", all.Current.Lookup("name").StringValue())
+}
+''',
+    "cpp": '''
+auto near = make_document(kvp("location", make_document(kvp("$near", make_document(
+    kvp("$geometry", here.view()), kvp("$maxDistance", 3500))))));
+for (auto&& doc : pickup.find(near.view())) {
+    std::cout << "до 3,5 км: " << doc["name"].get_string().value << std::endl;
+}
+
+std::cout << "все по расстоянию:" << std::endl;
+for (auto&& doc : pickup.find(make_document(kvp("location", make_document(kvp("$near", make_document(kvp("$geometry", here.view())))))))) {
+    std::cout << "   " << doc["name"].get_string().value << std::endl;
+}
+''',
+}}
+
+# круг 5 км: pv-1, pv-2; прямоугольник: pv-1, pv-2, pv-3
+EXAMPLES["3.5"]["within"] = {"caption": "точки внутри области: $geoWithin", "plain": {
+    "python": '''
+circle = {"location": {"$geoWithin": {"$centerSphere": [[39.8875, 57.6300], 5 / 6378.1]}}}
+print("в круге 5 км:    ", [doc["_id"] for doc in pickup.find(circle).sort("_id", 1)])
+
+square = {"type": "Polygon",
+          "coordinates": [[[39.80, 57.60], [39.92, 57.60], [39.92, 57.70], [39.80, 57.70], [39.80, 57.60]]]}
+inside = {"location": {"$geoWithin": {"$geometry": square}}}
+print("в прямоугольнике:", [doc["_id"] for doc in pickup.find(inside).sort("_id", 1)])
+''',
+    "ruby": '''
+circle = { "location" => { "$geoWithin" => { "$centerSphere" => [[39.8875, 57.6300], 5 / 6378.1] } } }
+puts "в круге 5 км:     " + pickup.find(circle).sort({ "_id" => 1 }).map { |doc| doc["_id"] }.to_s
+
+square = { "type" => "Polygon",
+           "coordinates" => [[[39.80, 57.60], [39.92, 57.60], [39.92, 57.70], [39.80, 57.70], [39.80, 57.60]]] }
+inside = { "location" => { "$geoWithin" => { "$geometry" => square } } }
+puts "в прямоугольнике: " + pickup.find(inside).sort({ "_id" => 1 }).map { |doc| doc["_id"] }.to_s
+''',
+    "go": '''
+ids := func(filtr bson.D) []string {
+    cursor, _ := pickup.Find(ctx, filtr, options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
+    found := []string{}
+    for cursor.Next(ctx) {
+        found = append(found, cursor.Current.Lookup("_id").StringValue())
+    }
+    return found
+}
+
+circle := bson.D{{Key: "location", Value: bson.D{{Key: "$geoWithin", Value: bson.D{
+    {Key: "$centerSphere", Value: bson.A{bson.A{39.8875, 57.6300}, 5 / 6378.1}}}}}}}
+fmt.Println("в круге 5 км:    ", ids(circle))
+
+square := bson.D{{Key: "type", Value: "Polygon"}, {Key: "coordinates", Value: bson.A{bson.A{
+    bson.A{39.80, 57.60}, bson.A{39.92, 57.60}, bson.A{39.92, 57.70}, bson.A{39.80, 57.70}, bson.A{39.80, 57.60}}}}}
+inside := bson.D{{Key: "location", Value: bson.D{{Key: "$geoWithin", Value: bson.D{{Key: "$geometry", Value: square}}}}}}
+fmt.Println("в прямоугольнике:", ids(inside))
+''',
+    "cpp": '''
+mongocxx::options::find by_id;
+by_id.sort(make_document(kvp("_id", 1)));
+auto ids = [&](bsoncxx::document::view filtr) {
+    std::string found;
+    for (auto&& doc : pickup.find(filtr, by_id)) {
+        found += (found.empty() ? "" : " ") + std::string{doc["_id"].get_string().value};
+    }
+    return found;
+};
+
+auto circle = make_document(kvp("location", make_document(kvp("$geoWithin", make_document(
+    kvp("$centerSphere", make_array(make_array(39.8875, 57.6300), 5 / 6378.1)))))));
+std::cout << "в круге 5 км:     " << ids(circle.view()) << std::endl;
+
+auto square = make_document(kvp("type", "Polygon"), kvp("coordinates", make_array(make_array(
+    make_array(39.80, 57.60), make_array(39.92, 57.60), make_array(39.92, 57.70), make_array(39.80, 57.70), make_array(39.80, 57.60)))));
+auto inside = make_document(kvp("location", make_document(kvp("$geoWithin", make_document(kvp("$geometry", square.view()))))));
+std::cout << "в прямоугольнике: " << ids(inside.view()) << std::endl;
+''',
+}}
+
+ZONE_C = "[[[39.85, 57.61], [39.93, 57.61], [39.93, 57.65], [39.85, 57.65], [39.85, 57.61]]]"
+ZONE_S = "[[[39.78, 57.65], [39.98, 57.65], [39.98, 57.72], [39.78, 57.72], [39.78, 57.65]]]"
+
+def _go_ring(r):
+    pts = [p.strip(" []") for p in r.strip("[]").split("], [")]
+    return "bson.A{bson.A{" + ", ".join("bson.A{" + p + "}" for p in pts) + "}}"
+
+def _cpp_ring(r):
+    pts = [p.strip(" []") for p in r.strip("[]").split("], [")]
+    return "make_array(make_array(" + ", ".join("make_array(" + p + ")" for p in pts) + "))"
+
+# покупатель — центр 1 день; Брагино — север 2 дня; Москва — вне зон
+EXAMPLES["3.5"]["intersects"] = {"caption": "в какую зону попадает точка: $geoIntersects", "plain": {
+    "python": '''
+zones.drop()
+zones.insert_many([
+    {"_id": "z-centr", "name": "Зона центр", "days": 1,
+     "area": {"type": "Polygon", "coordinates": ''' + ZONE_C + '''}},
+    {"_id": "z-sever", "name": "Зона север", "days": 2,
+     "area": {"type": "Polygon", "coordinates": ''' + ZONE_S + '''}},
+])
+zones.create_index([("area", "2dsphere")])
+
+for label, point in [("покупатель", here),
+                     ("Брагино", {"type": "Point", "coordinates": [39.8178, 57.6929]}),
+                     ("Москва", {"type": "Point", "coordinates": [37.6056, 55.7650]})]:
+    zone = zones.find_one({"area": {"$geoIntersects": {"$geometry": point}}})
+    print(label + ":", f"{zone['name']}, доставка {zone['days']} дн." if zone else "вне зон доставки")
+''',
+    "ruby": '''
+zones.drop
+zones.insert_many([
+  { "_id" => "z-centr", "name" => "Зона центр", "days" => 1,
+    "area" => { "type" => "Polygon", "coordinates" => ''' + ZONE_C + ''' } },
+  { "_id" => "z-sever", "name" => "Зона север", "days" => 2,
+    "area" => { "type" => "Polygon", "coordinates" => ''' + ZONE_S + ''' } },
+])
+zones.indexes.create_one({ "area" => "2dsphere" })
+
+[["покупатель", here],
+ ["Брагино", { "type" => "Point", "coordinates" => [39.8178, 57.6929] }],
+ ["Москва", { "type" => "Point", "coordinates" => [37.6056, 55.7650] }]].each do |label, point|
+  zone = zones.find({ "area" => { "$geoIntersects" => { "$geometry" => point } } }).first
+  puts label + ": " + (zone ? "#{zone["name"]}, доставка #{zone["days"]} дн." : "вне зон доставки")
+end
+''',
+    "go": '''
+zones.Drop(ctx)
+zones.InsertMany(ctx, []any{
+    bson.D{{Key: "_id", Value: "z-centr"}, {Key: "name", Value: "Зона центр"}, {Key: "days", Value: 1},
+        {Key: "area", Value: bson.D{{Key: "type", Value: "Polygon"}, {Key: "coordinates", Value: ''' + _go_ring(ZONE_C) + '''}}}},
+    bson.D{{Key: "_id", Value: "z-sever"}, {Key: "name", Value: "Зона север"}, {Key: "days", Value: 2},
+        {Key: "area", Value: bson.D{{Key: "type", Value: "Polygon"}, {Key: "coordinates", Value: ''' + _go_ring(ZONE_S) + '''}}}}})
+zones.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "area", Value: "2dsphere"}}})
+
+point := func(lng, lat float64) bson.D {
+    return bson.D{{Key: "type", Value: "Point"}, {Key: "coordinates", Value: bson.A{lng, lat}}}
+}
+for _, place := range []struct {
+    label string
+    where bson.D
+}{{"покупатель", here}, {"Брагино", point(39.8178, 57.6929)}, {"Москва", point(37.6056, 55.7650)}} {
+    var zone bson.M
+    err := zones.FindOne(ctx, bson.D{{Key: "area", Value: bson.D{{Key: "$geoIntersects", Value: bson.D{{Key: "$geometry", Value: place.where}}}}}}).Decode(&zone)
+    if err != nil {
+        fmt.Println(place.label + ": вне зон доставки")
+    } else {
+        fmt.Printf("%s: %s, доставка %d дн.\\n", place.label, zone["name"], zone["days"])
+    }
+}
+''',
+    "cpp": '''
+zones.drop();
+std::vector<bsoncxx::document::value> areas;
+areas.push_back(make_document(kvp("_id", "z-centr"), kvp("name", "Зона центр"), kvp("days", 1),
+    kvp("area", make_document(kvp("type", "Polygon"), kvp("coordinates", ''' + _cpp_ring(ZONE_C) + ''')))));
+areas.push_back(make_document(kvp("_id", "z-sever"), kvp("name", "Зона север"), kvp("days", 2),
+    kvp("area", make_document(kvp("type", "Polygon"), kvp("coordinates", ''' + _cpp_ring(ZONE_S) + ''')))));
+zones.insert_many(areas);
+zones.create_index(make_document(kvp("area", "2dsphere")));
+
+auto point = [](double lng, double lat) {
+    return make_document(kvp("type", "Point"), kvp("coordinates", make_array(lng, lat)));
+};
+std::vector<std::pair<std::string, bsoncxx::document::value>> places;
+places.emplace_back("покупатель", here);
+places.emplace_back("Брагино", point(39.8178, 57.6929));
+places.emplace_back("Москва", point(37.6056, 55.7650));
+for (const auto& [label, where] : places) {
+    auto zone = zones.find_one(make_document(kvp("area", make_document(kvp("$geoIntersects", make_document(kvp("$geometry", where.view())))))));
+    if (zone) {
+        std::cout << label << ": " << zone->view()["name"].get_string().value
+                  << ", доставка " << zone->view()["days"].get_int32().value << " дн." << std::endl;
+    } else {
+        std::cout << label << ": вне зон доставки" << std::endl;
+    }
+}
+''',
+}}
+
+# перепутанные координаты: pv-7 последним, в 5 км не попал; широта 131.8 — 16755
+EXAMPLES["3.5"]["order"] = {"caption": "порядок: долгота, потом широта", "plain": {
+    "python": '''
+from pymongo.errors import WriteError
+
+pickup.insert_one({"_id": "pv-7", "name": "Пункт 7, координаты перепутаны",
+                   "location": {"type": "Point", "coordinates": [57.6261, 39.8938]}})
+print("по расстоянию:", [doc["_id"] for doc in pickup.find({"location": {"$near": {"$geometry": here}}})])
+circle = {"location": {"$geoWithin": {"$centerSphere": [[39.8875, 57.6300], 5 / 6378.1]}}}
+print("в круге 5 км: ", [doc["_id"] for doc in pickup.find(circle).sort("_id", 1)])
+
+try:
+    pickup.insert_one({"_id": "pv-8", "name": "Пункт 8, Владивосток, координаты перепутаны",
+                       "location": {"type": "Point", "coordinates": [43.1155, 131.8855]}})
+except WriteError as e:
+    print("широта 131.8855 отклонена, код", e.code)
+''',
+    "ruby": '''
+pickup.insert_one({ "_id" => "pv-7", "name" => "Пункт 7, координаты перепутаны",
+                    "location" => { "type" => "Point", "coordinates" => [57.6261, 39.8938] } })
+puts "по расстоянию: " + pickup.find({ "location" => { "$near" => { "$geometry" => here } } }).map { |doc| doc["_id"] }.to_s
+circle = { "location" => { "$geoWithin" => { "$centerSphere" => [[39.8875, 57.6300], 5 / 6378.1] } } }
+puts "в круге 5 км:  " + pickup.find(circle).sort({ "_id" => 1 }).map { |doc| doc["_id"] }.to_s
+
+begin
+  pickup.insert_one({ "_id" => "pv-8", "name" => "Пункт 8, Владивосток, координаты перепутаны",
+                      "location" => { "type" => "Point", "coordinates" => [43.1155, 131.8855] } })
+rescue Mongo::Error::OperationFailure => e
+  puts "широта 131.8855 отклонена, код #{e.code}"
+end
+''',
+    "go": '''
+pickup.InsertOne(ctx, bson.D{{Key: "_id", Value: "pv-7"}, {Key: "name", Value: "Пункт 7, координаты перепутаны"},
+    {Key: "location", Value: bson.D{{Key: "type", Value: "Point"}, {Key: "coordinates", Value: bson.A{57.6261, 39.8938}}}}})
+
+ids := func(cursor *mongo.Cursor) []string {
+    found := []string{}
+    for cursor.Next(ctx) {
+        found = append(found, cursor.Current.Lookup("_id").StringValue())
+    }
+    return found
+}
+byDistance, _ := pickup.Find(ctx, bson.D{{Key: "location", Value: bson.D{{Key: "$near", Value: bson.D{{Key: "$geometry", Value: here}}}}}})
+fmt.Println("по расстоянию:", ids(byDistance))
+circle := bson.D{{Key: "location", Value: bson.D{{Key: "$geoWithin", Value: bson.D{
+    {Key: "$centerSphere", Value: bson.A{bson.A{39.8875, 57.6300}, 5 / 6378.1}}}}}}}
+inCircle, _ := pickup.Find(ctx, circle, options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
+fmt.Println("в круге 5 км: ", ids(inCircle))
+
+_, err := pickup.InsertOne(ctx, bson.D{{Key: "_id", Value: "pv-8"}, {Key: "name", Value: "Пункт 8, Владивосток, координаты перепутаны"},
+    {Key: "location", Value: bson.D{{Key: "type", Value: "Point"}, {Key: "coordinates", Value: bson.A{43.1155, 131.8855}}}}})
+var we mongo.WriteException
+if errors.As(err, &we) {
+    fmt.Println("широта 131.8855 отклонена, код", we.WriteErrors[0].Code)
+}
+''',
+    "cpp": '''
+pickup.insert_one(make_document(kvp("_id", "pv-7"), kvp("name", "Пункт 7, координаты перепутаны"),
+    kvp("location", make_document(kvp("type", "Point"), kvp("coordinates", make_array(57.6261, 39.8938))))));
+
+auto ids = [](mongocxx::cursor cursor) {
+    std::string found;
+    for (auto&& doc : cursor) found += (found.empty() ? "" : " ") + std::string{doc["_id"].get_string().value};
+    return found;
+};
+std::cout << "по расстоянию: "
+          << ids(pickup.find(make_document(kvp("location", make_document(kvp("$near", make_document(kvp("$geometry", here.view())))))))) << std::endl;
+mongocxx::options::find by_id;
+by_id.sort(make_document(kvp("_id", 1)));
+auto circle = make_document(kvp("location", make_document(kvp("$geoWithin", make_document(
+    kvp("$centerSphere", make_array(make_array(39.8875, 57.6300), 5 / 6378.1)))))));
+std::cout << "в круге 5 км:  " << ids(pickup.find(circle.view(), by_id)) << std::endl;
+
+try {
+    pickup.insert_one(make_document(kvp("_id", "pv-8"), kvp("name", "Пункт 8, Владивосток, координаты перепутаны"),
+        kvp("location", make_document(kvp("type", "Point"), kvp("coordinates", make_array(43.1155, 131.8855))))));
+} catch (const mongocxx::operation_exception& e) {
+    std::cout << "широта 131.8855 отклонена, код " << e.code().value() << std::endl;
+}
+''',
+}}
+
+ERRORS["3.5"] = [
+    ('<code>"coordinates": [57.6261, 39.8938]</code> — широта первой',
+     "Точка записана, но в другом месте: на 2349 км от Ярославля; ошибки нет",
+     '<code>[долгота, широта]</code>: <code>[39.8938, 57.6261]</code>'),
+    ("<code>$near</code> без индекса <code>2dsphere</code>",
+     "Ошибка 291 <code>NoQueryExecutionPlans</code>",
+     'Индекс <code>{"location": "2dsphere"}</code>'),
+    ('<code>$centerSphere</code> с радиусом <code>5</code>',
+     "Радиус 5 радиан больше половины окружности Земли (π радиан): в круг попадают все пункты",
+     "Километры делить на радиус Земли: <code>5 / 6378.1</code>"),
+    ('<code>$maxDistance: 3.5</code> в расчёте на километры',
+     "Ищется в пределах 3,5 метра: для GeoJSON расстояние в метрах",
+     '<code>$maxDistance: 3500</code>'),
+    ("Многоугольник, у которого последняя точка не равна первой",
+     "Ошибка 2: <code>Loop is not closed</code> — первая и последняя вершины не совпадают",
+     "Повторить первую точку в конце контура"),
+    ("<code>count_documents</code> с <code>$near</code>",
+     "Ошибка 5626500: <code>$near</code> нельзя использовать там, где нет сортировки по расстоянию",
+     'Для подсчёта — <code>$geoWithin</code> с <code>$centerSphere</code>'),
+    ("Расчёт на порядок по расстоянию у <code>$geoWithin</code>",
+     "Документы идут в порядке индекса или коллекции",
+     "<code>$near</code>, если нужен порядок от ближнего к дальнему"),
+]
+
+CHEATS["3.5"] = [
+    ("Точка GeoJSON", {"all": ['{"type": "Point", "coordinates": [39.8938, 57.6261]}', 'долгота, затем широта']}),
+    ("Индекс", {
+        "python": ['coll.create_index([("location", "2dsphere")])'],
+        "ruby": ['coll.indexes.create_one({ "location" => "2dsphere" })'],
+        "go": ['Keys: bson.D{{Key: "location", Value: "2dsphere"}}'],
+        "cpp": ['coll.create_index(make_document(kvp("location", "2dsphere")));']}),
+    ("Ближайшие", {"all": ['{"location": {"$near": {"$geometry": here,', '                          "$maxDistance": 3500}}}']}),
+    ("Внутри круга", {"all": ['{"location": {"$geoWithin": {"$centerSphere":', '    [[39.8875, 57.6300], 5 / 6378.1]}}}']}),
+    ("Внутри многоугольника", {"all": ['{"location": {"$geoWithin": {"$geometry":', '    {"type": "Polygon", "coordinates": [[...]]}}}}']}),
+    ("Зона для точки", {"all": ['{"area": {"$geoIntersects": {"$geometry": here}}}']}),
+]

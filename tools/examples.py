@@ -49,6 +49,7 @@ CHAPTERS = {
     "3.2": ("20-indeksy", "Индексы: одиночные, составные, уникальные", True),
     "3.3": ("21-explain", "Как читать explain: COLLSCAN против IXSCAN", True),
     "3.4": ("22-tekstovyy-poisk", "Текстовый поиск: $text и $search", True),
+    "3.5": ("23-geografiya", "География: 2dsphere, $near, $geoWithin, $geoIntersects", True),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -558,6 +559,36 @@ EXTRAS[("3.4", "cpp")] = """
     auto showcase = sandbox["showcase"];   // копия товаров магазина: на ней строится текстовый индекс
 """
 
+# Глава 3.5: пункты выдачи и зоны доставки в песочнице, точка покупателя.
+EXTRAS[("3.5", "python")] = """
+pickup = sandbox["pickup"]        # пункты выдачи: точки на карте
+zones = sandbox["zones"]          # зоны доставки: многоугольники
+
+# Покупатель в центре Ярославля: долгота, затем широта.
+here = {"type": "Point", "coordinates": [39.8875, 57.6300]}
+"""
+EXTRAS[("3.5", "ruby")] = """
+pickup = sandbox[:pickup]         # пункты выдачи: точки на карте
+zones = sandbox[:zones]           # зоны доставки: многоугольники
+
+# Покупатель в центре Ярославля: долгота, затем широта.
+here = { "type" => "Point", "coordinates" => [39.8875, 57.6300] }
+"""
+EXTRAS[("3.5", "go")] = """
+\tpickup := sandbox.Collection("pickup") // пункты выдачи: точки на карте
+\tzones := sandbox.Collection("zones")   // зоны доставки: многоугольники
+
+\t// Покупатель в центре Ярославля: долгота, затем широта.
+\there := bson.D{{Key: "type", Value: "Point"}, {Key: "coordinates", Value: bson.A{39.8875, 57.6300}}}
+"""
+EXTRAS[("3.5", "cpp")] = """
+    auto pickup = sandbox["pickup"];   // пункты выдачи: точки на карте
+    auto zones = sandbox["zones"];     // зоны доставки: многоугольники
+
+    // Покупатель в центре Ярославля: долгота, затем широта.
+    auto here = make_document(kvp("type", "Point"), kvp("coordinates", make_array(39.8875, 57.6300)));
+"""
+
 GO_IMPORTS = ["context", "errors", "fmt", "log", "os", "sort", "strings", "time"]
 GO_MONGO = {
     "bson": '"go.mongodb.org/mongo-driver/v2/bson"',
@@ -716,7 +747,7 @@ def starter(chapter: str, lang: str, snippets: list[str]) -> str:
         head += "\t" + ", ".join("_" for _ in names) + " = " + ", ".join(names) + "\n"
         used = [v for v in ("col", "lastSeenID", "ordersBox", "stats", "today", "catalog", "schema")
                 if re.search(r"\b%s :=" % v, extra)]
-        used += [v for v in ("journal", "clients", "showcase") if re.search(r"\b%s :=" % v, extra)]
+        used += [v for v in ("journal", "clients", "showcase", "pickup", "zones", "here") if re.search(r"\b%s :=" % v, extra)]
         if used:
             extra += "\t" + ", ".join("_" for _ in used) + " = " + ", ".join(used) + "\n"
     if lang == "cpp":

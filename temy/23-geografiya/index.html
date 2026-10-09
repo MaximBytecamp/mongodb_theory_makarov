@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>3.5 География: $near и $geoWithin · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .doc__body .ok { color: var(--leaf); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Форма данных и скорость</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · форма данных и скорость</p>
+          <p class="running__folio">3.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">3.5</span>
+          <h1>География:<br>$near и $geoWithin</h1>
+          <p class="lead">В этой главе разобраны запросы по координатам: ближайшие к покупателю пункты выдачи, пункты внутри круга или многоугольника и зона доставки, в которую попадает адрес. Точки и области записываются в формате GeoJSON, запросы к ним обслуживает индекс 2dsphere. Отдельно разобран порядок координат — долгота, затем широта — и что происходит, если его перепутать.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Форма данных</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Индексы (глава 3.2), вложенные документы и массивы (глава 2.1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Находить ближайшие объекты и проверять, попадает ли точка в область, запросом к базе</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-3.5-python.zip" download><code>mongodb-glava-3.5-python.zip</code></a>, 61 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-3.5-ruby.zip" download><code>mongodb-glava-3.5-ruby.zip</code></a>, 61 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-3.5-go.zip" download><code>mongodb-glava-3.5-go.zip</code></a>, 65 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-3.5-cpp.zip" download><code>mongodb-glava-3.5-cpp.zip</code></a>, 64 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch3_5.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch3_5.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch3_5.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch3_5.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch3_5.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch3_5.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch3_5.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch3_5.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch3_5.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch3_5.go</code> · в Docker: <code>docker compose run --rm go lessons/ch3_5.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch3_5.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch3_5.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Точка на карте: GeoJSON и индекс 2dsphere</a></li>
+            <li><a href="#s2">Ближайшие точки: $near</a></li>
+            <li><a href="#s3">Точки внутри области: $geoWithin</a></li>
+            <li><a href="#s4">В какую зону попадает точка: $geoIntersects</a></li>
+            <li><a href="#s5">Долгота и широта</a></li>
+            <li><a href="#s6">География в Compass</a></li>
+            <li><a href="#s7">Частые ошибки</a></li>
+            <li><a href="#s8">Проверьте себя</a></li>
+            <li><a href="#s9">Самостоятельная работа</a></li>
+            <li><a href="#s10">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Точка на карте: GeoJSON и индекс 2dsphere</h2>
+        <p>Магазин открывает пункты выдачи и хочет показывать покупателю ближайшие. Положение пункта задаётся двумя числами: <span class="term">долготой</span> — углом к востоку от нулевого меридиана, и <span class="term">широтой</span> — углом к северу от экватора. Центр Ярославля — примерно 39,89° восточной долготы и 57,63° северной широты.</p>
+        <p>MongoDB хранит такие места в формате <span class="term">GeoJSON</span> — стандартной записи географических объектов в JSON. Точка — вложенный документ из двух полей: <code>type</code> со значением <code>"Point"</code> и <code>coordinates</code> — массив из двух чисел, <b>сначала долгота, затем широта</b>. Порядок обратный привычному «широта, долгота» из картографических сервисов; что бывает при путанице, разобрано в §5.</p>
+        <div class="doc">
+          <div class="doc__bar"><span>Пункт выдачи</span><span>pv-1</span></div>
+          <div class="doc__body">
+            <div><span class="fld">_id</span>: "pv-1"</div>
+            <div><span class="fld">name</span>: "Пункт 1, центр"</div>
+            <div><span class="fld">location</span>: {</div>
+            <div>&nbsp;&nbsp;<span class="fld">type</span>: "Point",</div>
+            <div>&nbsp;&nbsp;<span class="fld">coordinates</span>: [39.8938, 57.6261] <span class="ok">← долгота, широта</span></div>
+            <div>}</div>
+          </div>
+        </div>
+        <p>Координат в базах стенда нет, поэтому пример сам создаёт в песочнице коллекцию <code>pickup</code> (<code>sandbox.pickup</code>) — шесть условных пунктов выдачи: пять в разных районах Ярославля и один в Москве. Названия пунктов придуманы, координаты взяты по центрам районов. Точка покупателя <code>here</code> — в центре Ярославля, она объявлена в заготовке главы.</p>
+        <p>Запросы по расстоянию обслуживает индекс <span class="term">2dsphere</span>: он считает Землю сферой и хранит точки так, чтобы сервер быстро находил ближайшие. У поля в ключе такого индекса вместо направления стоит <code>"2dsphere"</code>. Пример сначала пробует найти ближайшие пункты без индекса, затем создаёт его.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>точки на карте и индекс 2dsphere</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+points = [
+    (<span class="s">"pv-1"</span>, <span class="s">"Пункт 1, центр"</span>, <span class="n">39.8938</span>, <span class="n">57.6261</span>),
+    (<span class="s">"pv-2"</span>, <span class="s">"Пункт 2, вокзал"</span>, <span class="n">39.8370</span>, <span class="n">57.6337</span>),
+    (<span class="s">"pv-3"</span>, <span class="s">"Пункт 3, Брагино"</span>, <span class="n">39.8178</span>, <span class="n">57.6929</span>),
+    (<span class="s">"pv-4"</span>, <span class="s">"Пункт 4, Фрунзенский район"</span>, <span class="n">39.9050</span>, <span class="n">57.5848</span>),
+    (<span class="s">"pv-5"</span>, <span class="s">"Пункт 5, Заволжье"</span>, <span class="n">39.9500</span>, <span class="n">57.6650</span>),
+    (<span class="s">"pv-6"</span>, <span class="s">"Пункт 6, Москва"</span>, <span class="n">37.6056</span>, <span class="n">55.7650</span>),
+]
+pickup.<span class="f">drop</span>()
+pickup.<span class="f">insert_many</span>({<span class="s">"_id"</span>: pid, <span class="s">"name"</span>: name, <span class="s">"location"</span>: {<span class="s">"type"</span>: <span class="s">"Point"</span>, <span class="s">"coordinates"</span>: [lng, lat]}}
+                   <span class="k">for</span> pid, name, lng, lat <span class="k">in</span> points)
+<span class="f">print</span>(<span class="s">"пунктов выдачи:"</span>, pickup.<span class="f">count_documents</span>({}))
+
+<span class="k">try</span>:
+    <span class="f">list</span>(pickup.<span class="f">find</span>({<span class="s">"location"</span>: {<span class="s">"$near"</span>: {<span class="s">"$geometry"</span>: here}}}))
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"$near без индекса: ошибка"</span>, e.code)
+
+<span class="f">print</span>(<span class="s">"создан индекс:"</span>, pickup.<span class="f">create_index</span>([(<span class="s">"location"</span>, <span class="s">"2dsphere"</span>)]))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>точки на карте и индекс 2dsphere</span></figcaption>
+<pre><span class="k">struct</span> point { std::string id, name; double lng, lat; };
+std::vector&lt;point&gt; points{
+    {<span class="s">"pv-1"</span>, <span class="s">"Пункт 1, центр"</span>, <span class="n">39.8938</span>, <span class="n">57.6261</span>},
+    {<span class="s">"pv-2"</span>, <span class="s">"Пункт 2, вокзал"</span>, <span class="n">39.8370</span>, <span class="n">57.6337</span>},
+    {<span class="s">"pv-3"</span>, <span class="s">"Пункт 3, Брагино"</span>, <span class="n">39.8178</span>, <span class="n">57.6929</span>},
+    {<span class="s">"pv-4"</span>, <span class="s">"Пункт 4, Фрунзенский район"</span>, <span class="n">39.9050</span>, <span class="n">57.5848</span>},
+    {<span class="s">"pv-5"</span>, <span class="s">"Пункт 5, Заволжье"</span>, <span class="n">39.9500</span>, <span class="n">57.6650</span>},
+    {<span class="s">"pv-6"</span>, <span class="s">"Пункт 6, Москва"</span>, <span class="n">37.6056</span>, <span class="n">55.7650</span>}};
+pickup.<span class="f">drop</span>();
+std::vector&lt;bsoncxx::document::value&gt; docs;
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; p : points) {
+    docs.<span class="f">push_back</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, p.id),
+        <span class="f">kvp</span>(<span class="s">"name"</span>, p.name),
+        <span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Point"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(p.lng, p.lat))))));
+}
+pickup.<span class="f">insert_many</span>(docs);
+std::cout &lt;&lt; <span class="s">"пунктов выдачи: "</span> &lt;&lt; pickup.<span class="f">count_documents</span>(<span class="f">make_document</span>()) &lt;&lt; std::endl;
+
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : pickup.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$near"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geometry"</span>, here.<span class="f">view</span>())))))))) {
+        (<span class="k">void</span>)doc;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"$near без индекса: ошибка "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}
+
+<span class="k">auto</span> created = pickup.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="s">"2dsphere"</span>)));
+std::cout &lt;&lt; <span class="s">"создан индекс: "</span> &lt;&lt; created.<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>точки на карте и индекс 2dsphere</span></figcaption>
+<pre>points := []<span class="k">struct</span> {
+    id, name <span class="k">string</span>
+    lng, lat <span class="k">float64</span>
+}{
+    {<span class="s">"pv-1"</span>, <span class="s">"Пункт 1, центр"</span>, <span class="n">39.8938</span>, <span class="n">57.6261</span>},
+    {<span class="s">"pv-2"</span>, <span class="s">"Пункт 2, вокзал"</span>, <span class="n">39.8370</span>, <span class="n">57.6337</span>},
+    {<span class="s">"pv-3"</span>, <span class="s">"Пункт 3, Брагино"</span>, <span class="n">39.8178</span>, <span class="n">57.6929</span>},
+    {<span class="s">"pv-4"</span>, <span class="s">"Пункт 4, Фрунзенский район"</span>, <span class="n">39.9050</span>, <span class="n">57.5848</span>},
+    {<span class="s">"pv-5"</span>, <span class="s">"Пункт 5, Заволжье"</span>, <span class="n">39.9500</span>, <span class="n">57.6650</span>},
+    {<span class="s">"pv-6"</span>, <span class="s">"Пункт 6, Москва"</span>, <span class="n">37.6056</span>, <span class="n">55.7650</span>},
+}
+pickup.<span class="f">Drop</span>(ctx)
+docs := []<span class="k">any</span>{}
+<span class="k">for</span> _, p := <span class="k">range</span> points {
+    docs = <span class="f">append</span>(docs, bson.D{
+        {Key: <span class="s">"_id"</span>, Value: p.id},
+        {Key: <span class="s">"name"</span>, Value: p.name},
+        {Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Point"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{p.lng, p.lat}}}}})
+}
+pickup.<span class="f">InsertMany</span>(ctx, docs)
+n, _ := pickup.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"пунктов выдачи:"</span>, n)
+
+_, err := pickup.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$near"</span>, Value: bson.D{{Key: <span class="s">"$geometry"</span>, Value: here}}}}}})
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"$near без индекса: ошибка"</span>, ce.Code)
+}
+
+name, _ := pickup.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"location"</span>, Value: <span class="s">"2dsphere"</span>}}})
+fmt.<span class="f">Println</span>(<span class="s">"создан индекс:"</span>, name)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>точки на карте и индекс 2dsphere</span></figcaption>
+<pre>points = [
+  [<span class="s">"pv-1"</span>, <span class="s">"Пункт 1, центр"</span>, <span class="n">39.8938</span>, <span class="n">57.6261</span>],
+  [<span class="s">"pv-2"</span>, <span class="s">"Пункт 2, вокзал"</span>, <span class="n">39.8370</span>, <span class="n">57.6337</span>],
+  [<span class="s">"pv-3"</span>, <span class="s">"Пункт 3, Брагино"</span>, <span class="n">39.8178</span>, <span class="n">57.6929</span>],
+  [<span class="s">"pv-4"</span>, <span class="s">"Пункт 4, Фрунзенский район"</span>, <span class="n">39.9050</span>, <span class="n">57.5848</span>],
+  [<span class="s">"pv-5"</span>, <span class="s">"Пункт 5, Заволжье"</span>, <span class="n">39.9500</span>, <span class="n">57.6650</span>],
+  [<span class="s">"pv-6"</span>, <span class="s">"Пункт 6, Москва"</span>, <span class="n">37.6056</span>, <span class="n">55.7650</span>],
+]
+pickup.drop
+pickup.<span class="f">insert_many</span>(points.map <span class="k">do</span> |pid, name, lng, lat|
+  { <span class="s">"_id"</span> =&gt; pid, <span class="s">"name"</span> =&gt; name, <span class="s">"location"</span> =&gt; { <span class="s">"type"</span> =&gt; <span class="s">"Point"</span>, <span class="s">"coordinates"</span> =&gt; [lng, lat] } }
+<span class="k">end</span>)
+<span class="k">puts</span> <span class="s">"пунктов выдачи: "</span> + pickup.<span class="f">count_documents</span>({}).to_s
+
+<span class="k">begin</span>
+  pickup.<span class="f">find</span>({ <span class="s">"location"</span> =&gt; { <span class="s">"$near"</span> =&gt; { <span class="s">"$geometry"</span> =&gt; here } } }).to_a
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"$near без индекса: ошибка #{e.code}"</span>
+<span class="k">end</span>
+
+pickup.indexes.<span class="f">create_one</span>({ <span class="s">"location"</span> =&gt; <span class="s">"2dsphere"</span> })
+<span class="k">puts</span> <span class="s">"создан индекс: "</span> + pickup.indexes.<span class="f">get</span>({ <span class="s">"location"</span> =&gt; <span class="s">"2dsphere"</span> })[<span class="s">"name"</span>]</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>пунктов выдачи: 6
+$near без индекса: ошибка 291
+создан индекс: location_2dsphere</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>пунктов выдачи: 6
+$near без индекса: ошибка 291
+создан индекс: location_2dsphere</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>пунктов выдачи: 6
+$near без индекса: ошибка 291
+создан индекс: location_2dsphere</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>пунктов выдачи: 6
+$near без индекса: ошибка 291
+создан индекс: location_2dsphere</pre>
+        </figure>
+        <p>Шесть пунктов записаны. Поиск ближайших без индекса завершился ошибкой с кодом 291 — <code>NoQueryExecutionPlans</code>: у сервера нет способа выполнить такой запрос. После создания индекса <code>location_2dsphere</code> он выполняется (§2).</p>
+        <figure class="shot">
+          <img src="../../shots/137-pickup-documents.png" alt="Compass, коллекция sandbox.pickup: шесть документов, у первых двух раскрыто поле location с type Point и coordinates">
+          <figcaption>Compass · <code>sandbox.pickup</code>, вкладка <b>Documents</b></figcaption>
+        </figure>
+        <p>У раскрытых документов поле <code>location</code> — вложенный документ с <code>type</code> и <code>coordinates</code>; в массиве первым идёт 39,8938 — долгота, вторым 57,6261 — широта. Вкладка <b>Indexes</b> подписана числом <code>2</code>: <code>_id_</code> и <code>location_2dsphere</code>.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Ближайшие точки: $near</h2>
+        <p>Оператор <code>$near</code> отбирает документы, точка которых лежит рядом с заданной, и возвращает их по расстоянию: ближайшие первыми. Точка задаётся в параметре <code>$geometry</code> в том же формате GeoJSON. Необязательный параметр <code>$maxDistance</code> ограничивает расстояние в метрах; без него возвращаются все документы коллекции, упорядоченные по расстоянию.</p>
+        <p>Пример ищет пункты в пределах 3,5 км от покупателя, затем выводит все пункты по расстоянию.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>ближайшие пункты: $near</span></figcaption>
+<pre>near = {<span class="s">"location"</span>: {<span class="s">"$near"</span>: {<span class="s">"$geometry"</span>: here, <span class="s">"$maxDistance"</span>: <span class="n">3500</span>}}}
+<span class="k">for</span> doc <span class="k">in</span> pickup.<span class="f">find</span>(near):
+    <span class="f">print</span>(<span class="s">"до 3,5 км:"</span>, doc[<span class="s">"name"</span>])
+
+<span class="f">print</span>(<span class="s">"все по расстоянию:"</span>)
+<span class="k">for</span> doc <span class="k">in</span> pickup.<span class="f">find</span>({<span class="s">"location"</span>: {<span class="s">"$near"</span>: {<span class="s">"$geometry"</span>: here}}}):
+    <span class="f">print</span>(<span class="s">"  "</span>, doc[<span class="s">"name"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>ближайшие пункты: $near</span></figcaption>
+<pre><span class="k">auto</span> near = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$near"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$geometry"</span>, here.<span class="f">view</span>()), <span class="f">kvp</span>(<span class="s">"$maxDistance"</span>, <span class="n">3500</span>))))));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : pickup.<span class="f">find</span>(near.<span class="f">view</span>())) {
+    std::cout &lt;&lt; <span class="s">"до 3,5 км: "</span> &lt;&lt; doc[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"все по расстоянию:"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : pickup.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$near"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geometry"</span>, here.<span class="f">view</span>())))))))) {
+    std::cout &lt;&lt; <span class="s">"   "</span> &lt;&lt; doc[<span class="s">"name"</span>].<span class="f">get_string</span>().value &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>ближайшие пункты: $near</span></figcaption>
+<pre>near := bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$near"</span>, Value: bson.D{
+    {Key: <span class="s">"$geometry"</span>, Value: here}, {Key: <span class="s">"$maxDistance"</span>, Value: <span class="n">3500</span>}}}}}}
+cursor, _ := pickup.<span class="f">Find</span>(ctx, near)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    fmt.<span class="f">Println</span>(<span class="s">"до 3,5 км:"</span>, cursor.Current.<span class="f">Lookup</span>(<span class="s">"name"</span>).<span class="f">StringValue</span>())
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"все по расстоянию:"</span>)
+all, _ := pickup.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$near"</span>, Value: bson.D{{Key: <span class="s">"$geometry"</span>, Value: here}}}}}})
+<span class="k">for</span> all.<span class="f">Next</span>(ctx) {
+    fmt.<span class="f">Println</span>(<span class="s">"  "</span>, all.Current.<span class="f">Lookup</span>(<span class="s">"name"</span>).<span class="f">StringValue</span>())
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>ближайшие пункты: $near</span></figcaption>
+<pre>near = { <span class="s">"location"</span> =&gt; { <span class="s">"$near"</span> =&gt; { <span class="s">"$geometry"</span> =&gt; here, <span class="s">"$maxDistance"</span> =&gt; <span class="n">3500</span> } } }
+pickup.<span class="f">find</span>(near).each { |doc| <span class="k">puts</span> <span class="s">"до 3,5 км: "</span> + doc[<span class="s">"name"</span>] }
+
+<span class="k">puts</span> <span class="s">"все по расстоянию:"</span>
+pickup.<span class="f">find</span>({ <span class="s">"location"</span> =&gt; { <span class="s">"$near"</span> =&gt; { <span class="s">"$geometry"</span> =&gt; here } } }).each { |doc| <span class="k">puts</span> <span class="s">"   "</span> + doc[<span class="s">"name"</span>] }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до 3,5 км: Пункт 1, центр
+до 3,5 км: Пункт 2, вокзал
+все по расстоянию:
+   Пункт 1, центр
+   Пункт 2, вокзал
+   Пункт 4, Фрунзенский район
+   Пункт 5, Заволжье
+   Пункт 3, Брагино
+   Пункт 6, Москва</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до 3,5 км: Пункт 1, центр
+до 3,5 км: Пункт 2, вокзал
+все по расстоянию:
+   Пункт 1, центр
+   Пункт 2, вокзал
+   Пункт 4, Фрунзенский район
+   Пункт 5, Заволжье
+   Пункт 3, Брагино
+   Пункт 6, Москва</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до 3,5 км: Пункт 1, центр
+до 3,5 км: Пункт 2, вокзал
+все по расстоянию:
+   Пункт 1, центр
+   Пункт 2, вокзал
+   Пункт 4, Фрунзенский район
+   Пункт 5, Заволжье
+   Пункт 3, Брагино
+   Пункт 6, Москва</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>до 3,5 км: Пункт 1, центр
+до 3,5 км: Пункт 2, вокзал
+все по расстоянию:
+   Пункт 1, центр
+   Пункт 2, вокзал
+   Пункт 4, Фрунзенский район
+   Пункт 5, Заволжье
+   Пункт 3, Брагино
+   Пункт 6, Москва</pre>
+        </figure>
+        <p>В пределах 3,5 км два пункта: в центре и у вокзала. Все шесть идут от ближнего к дальнему, московский пункт — последним. Сортировку <code>$near</code> выполняет сам: в запросе её нет.</p>
+        <p>Расстояния <code>$near</code> не возвращает. Их выдаёт стадия <code>$geoNear</code> конвейера агрегации (модуль 4); здесь она приведена в mongosh, чтобы проверить порядок числами:</p>
+        <figure class="code">
+          <figcaption><span>mongosh · оболочка</span><span>расстояния до пунктов в метрах</span></figcaption>
+<pre>db.pickup.<span class="f">aggregate</span>([
+  { $geoNear: { near: { type: <span class="s">"Point"</span>, coordinates: [<span class="n">39.8875</span>, <span class="n">57.6300</span>] }, distanceField: <span class="s">"metres"</span> } },
+  { $project: { _id: <span class="n">0</span>, name: <span class="n">1</span>, metres: { $round: [<span class="s">"$metres"</span>, <span class="n">0</span>] } } }
+])</pre>
+        </figure>
+        <figure class="code code--out">
+          <figcaption><span>Вывод mongosh</span><span>шесть пунктов</span></figcaption>
+<pre>[
+  { name: 'Пункт 1, центр', metres: 574 },
+  { name: 'Пункт 2, вокзал', metres: 3038 },
+  { name: 'Пункт 4, Фрунзенский район', metres: 5139 },
+  { name: 'Пункт 5, Заволжье', metres: 5389 },
+  { name: 'Пункт 3, Брагино', metres: 8140 },
+  { name: 'Пункт 6, Москва', metres: 250077 }
+]</pre>
+        </figure>
+        <p>До пункта в центре 574 м, до вокзального — 3038 м: оба меньше 3500. Следующий пункт — в 5139 м. До Москвы — 250 км.</p>
+        <figure class="shot">
+          <img src="../../shots/138-pickup-near.png" alt="Compass, коллекция sandbox.pickup: фильтр $near с maxDistance 3500, найдены pv-1 и pv-2, счётчик 1 – 2 of N/A">
+          <figcaption>Compass · <code>{ location: { $near: { $geometry: …, $maxDistance: 3500 } } }</code></figcaption>
+        </figure>
+        <p>Найдены те же два пункта, в том же порядке. Вместо общего числа документов счётчик показывает <code>N/A</code>: Compass считает документы отдельным запросом, а подсчёт с <code>$near</code> сервер не выполняет — оператору нужна сортировка по расстоянию, которой при подсчёте нет. Пункты в радиусе считают через <code>$geoWithin</code> (§3).</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Точки внутри области: $geoWithin</h2>
+        <p>Оператор <code>$geoWithin</code> отбирает документы, точка которых лежит внутри области. Порядка по расстоянию у него нет, и индекс для него не обязателен, хотя ускоряет поиск. Область задаётся одним из двух способов:</p>
+        <ul>
+          <li><code>$centerSphere</code> — круг на поверхности Земли: центр <code>[долгота, широта]</code> и радиус <b>в радианах</b>. Чтобы перевести километры в радианы, их делят на радиус Земли, 6378,1 км: 5 км — это <code>5 / 6378.1</code>.</li>
+          <li><code>$geometry</code> с многоугольником GeoJSON: <code>{"type": "Polygon", "coordinates": [[…]]}</code>. Внешний массив — список контуров, внутри — точки контура. Контур должен быть замкнут: последняя точка повторяет первую.</li>
+        </ul>
+        <p>Пример ищет пункты в круге радиусом 5 км вокруг покупателя и в прямоугольнике, который накрывает центр и север города. Результаты отсортированы по <code>_id</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>точки внутри области: $geoWithin</span></figcaption>
+<pre>circle = {<span class="s">"location"</span>: {<span class="s">"$geoWithin"</span>: {<span class="s">"$centerSphere"</span>: [[<span class="n">39.8875</span>, <span class="n">57.6300</span>], <span class="n">5</span> / <span class="n">6378.1</span>]}}}
+<span class="f">print</span>(<span class="s">"в круге 5 км:    "</span>, [doc[<span class="s">"_id"</span>] <span class="k">for</span> doc <span class="k">in</span> pickup.<span class="f">find</span>(circle).<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>)])
+
+square = {<span class="s">"type"</span>: <span class="s">"Polygon"</span>,
+          <span class="s">"coordinates"</span>: [[[<span class="n">39.80</span>, <span class="n">57.60</span>], [<span class="n">39.92</span>, <span class="n">57.60</span>], [<span class="n">39.92</span>, <span class="n">57.70</span>], [<span class="n">39.80</span>, <span class="n">57.70</span>], [<span class="n">39.80</span>, <span class="n">57.60</span>]]]}
+inside = {<span class="s">"location"</span>: {<span class="s">"$geoWithin"</span>: {<span class="s">"$geometry"</span>: square}}}
+<span class="f">print</span>(<span class="s">"в прямоугольнике:"</span>, [doc[<span class="s">"_id"</span>] <span class="k">for</span> doc <span class="k">in</span> pickup.<span class="f">find</span>(inside).<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>)])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>точки внутри области: $geoWithin</span></figcaption>
+<pre>mongocxx::options::find by_id;
+by_id.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<span class="k">auto</span> ids = [&amp;](bsoncxx::document::view filtr) {
+    std::string found;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : pickup.<span class="f">find</span>(filtr, by_id)) {
+        found += (found.<span class="f">empty</span>() ? <span class="s">""</span> : <span class="s">" "</span>) + std::string{doc[<span class="s">"_id"</span>].<span class="f">get_string</span>().value};
+    }
+    <span class="k">return</span> found;
+};
+
+<span class="k">auto</span> circle = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geoWithin"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$centerSphere"</span>, <span class="f">make_array</span>(<span class="f">make_array</span>(<span class="n">39.8875</span>, <span class="n">57.6300</span>), <span class="n">5</span> / <span class="n">6378.1</span>)))))));
+std::cout &lt;&lt; <span class="s">"в круге 5 км:     "</span> &lt;&lt; <span class="f">ids</span>(circle.<span class="f">view</span>()) &lt;&lt; std::endl;
+
+<span class="k">auto</span> square = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Polygon"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(<span class="f">make_array</span>(
+    <span class="f">make_array</span>(<span class="n">39.80</span>, <span class="n">57.60</span>), <span class="f">make_array</span>(<span class="n">39.92</span>, <span class="n">57.60</span>), <span class="f">make_array</span>(<span class="n">39.92</span>, <span class="n">57.70</span>), <span class="f">make_array</span>(<span class="n">39.80</span>, <span class="n">57.70</span>), <span class="f">make_array</span>(<span class="n">39.80</span>, <span class="n">57.60</span>)))));
+<span class="k">auto</span> inside = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geoWithin"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geometry"</span>, square.<span class="f">view</span>()))))));
+std::cout &lt;&lt; <span class="s">"в прямоугольнике: "</span> &lt;&lt; <span class="f">ids</span>(inside.<span class="f">view</span>()) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>точки внутри области: $geoWithin</span></figcaption>
+<pre>ids := <span class="k">func</span>(filtr bson.D) []<span class="k">string</span> {
+    cursor, _ := pickup.<span class="f">Find</span>(ctx, filtr, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+    found := []<span class="k">string</span>{}
+    <span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+        found = <span class="f">append</span>(found, cursor.Current.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>())
+    }
+    <span class="k">return</span> found
+}
+
+circle := bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$geoWithin"</span>, Value: bson.D{
+    {Key: <span class="s">"$centerSphere"</span>, Value: bson.A{bson.A{<span class="n">39.8875</span>, <span class="n">57.6300</span>}, <span class="n">5</span> / <span class="n">6378.1</span>}}}}}}}
+fmt.<span class="f">Println</span>(<span class="s">"в круге 5 км:    "</span>, <span class="f">ids</span>(circle))
+
+square := bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Polygon"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{bson.A{
+    bson.A{<span class="n">39.80</span>, <span class="n">57.60</span>}, bson.A{<span class="n">39.92</span>, <span class="n">57.60</span>}, bson.A{<span class="n">39.92</span>, <span class="n">57.70</span>}, bson.A{<span class="n">39.80</span>, <span class="n">57.70</span>}, bson.A{<span class="n">39.80</span>, <span class="n">57.60</span>}}}}}
+inside := bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$geoWithin"</span>, Value: bson.D{{Key: <span class="s">"$geometry"</span>, Value: square}}}}}}
+fmt.<span class="f">Println</span>(<span class="s">"в прямоугольнике:"</span>, <span class="f">ids</span>(inside))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>точки внутри области: $geoWithin</span></figcaption>
+<pre>circle = { <span class="s">"location"</span> =&gt; { <span class="s">"$geoWithin"</span> =&gt; { <span class="s">"$centerSphere"</span> =&gt; [[<span class="n">39.8875</span>, <span class="n">57.6300</span>], <span class="n">5</span> / <span class="n">6378.1</span>] } } }
+<span class="k">puts</span> <span class="s">"в круге 5 км:     "</span> + pickup.<span class="f">find</span>(circle).<span class="f">sort</span>({ <span class="s">"_id"</span> =&gt; <span class="n">1</span> }).map { |doc| doc[<span class="s">"_id"</span>] }.to_s
+
+square = { <span class="s">"type"</span> =&gt; <span class="s">"Polygon"</span>,
+           <span class="s">"coordinates"</span> =&gt; [[[<span class="n">39.80</span>, <span class="n">57.60</span>], [<span class="n">39.92</span>, <span class="n">57.60</span>], [<span class="n">39.92</span>, <span class="n">57.70</span>], [<span class="n">39.80</span>, <span class="n">57.70</span>], [<span class="n">39.80</span>, <span class="n">57.60</span>]]] }
+inside = { <span class="s">"location"</span> =&gt; { <span class="s">"$geoWithin"</span> =&gt; { <span class="s">"$geometry"</span> =&gt; square } } }
+<span class="k">puts</span> <span class="s">"в прямоугольнике: "</span> + pickup.<span class="f">find</span>(inside).<span class="f">sort</span>({ <span class="s">"_id"</span> =&gt; <span class="n">1</span> }).map { |doc| doc[<span class="s">"_id"</span>] }.to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>в круге 5 км:     ['pv-1', 'pv-2']
+в прямоугольнике: ['pv-1', 'pv-2', 'pv-3']</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>в круге 5 км:     pv-1 pv-2
+в прямоугольнике: pv-1 pv-2 pv-3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>в круге 5 км:     [pv-1 pv-2]
+в прямоугольнике: [pv-1 pv-2 pv-3]</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>в круге 5 км:     ["pv-1", "pv-2"]
+в прямоугольнике: ["pv-1", "pv-2", "pv-3"]</pre>
+        </figure>
+        <p>В круге 5 км — два пункта, те же, что ближе 3,5 км в §2: следующий пункт лежит в 5139 м, чуть дальше границы. В прямоугольник попали центр, вокзал и Брагино на севере; Фрунзенский район южнее нижней границы 57,60, Заволжье восточнее правой границы 39,92.</p>
+        <figure class="shot">
+          <img src="../../shots/139-pickup-schema.png" alt="Compass, вкладка Schema коллекции sandbox.pickup: поле location с типом coordinates показано на карте, пять точек в Ярославле и одна в Москве">
+          <figcaption>Compass · вкладка <b>Schema</b>, поле <code>location</code> на карте</figcaption>
+        </figure>
+        <p>Вкладка <b>Schema</b> после кнопки <b>Analyze</b> показывает поля коллекции; поле с точками GeoJSON Compass опознаёт как <code>coordinates</code> и рисует на карте. Пять точек собрались у Ярославля вверху справа, одна — в Москве внизу. Кнопки справа на карте рисуют круг или многоугольник, и Compass переносит их в фильтр как <code>$geoWithin</code>.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>В какую зону попадает точка: $geoIntersects</h2>
+        <p>Обратная задача: в базе хранятся области, а нужно найти ту, в которую попадает точка. Так определяют зону доставки по адресу покупателя. Оператор <code>$geoIntersects</code> отбирает документы, область которых пересекается с заданной геометрией; если задана точка, это область, внутри которой точка лежит.</p>
+        <p>Пример создаёт коллекцию <code>zones</code> с двумя зонами доставки — «центр» (доставка за 1 день) и «север» (за 2 дня), строит индекс <code>2dsphere</code> по полю <code>area</code> и ищет зону для трёх точек: покупателя, района Брагино и Москвы.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>в какую зону попадает точка: $geoIntersects</span></figcaption>
+<pre>zones.<span class="f">drop</span>()
+zones.<span class="f">insert_many</span>([
+    {<span class="s">"_id"</span>: <span class="s">"z-centr"</span>, <span class="s">"name"</span>: <span class="s">"Зона центр"</span>, <span class="s">"days"</span>: <span class="n">1</span>,
+     <span class="s">"area"</span>: {<span class="s">"type"</span>: <span class="s">"Polygon"</span>, <span class="s">"coordinates"</span>: [[[<span class="n">39.85</span>, <span class="n">57.61</span>], [<span class="n">39.93</span>, <span class="n">57.61</span>], [<span class="n">39.93</span>, <span class="n">57.65</span>], [<span class="n">39.85</span>, <span class="n">57.65</span>], [<span class="n">39.85</span>, <span class="n">57.61</span>]]]}},
+    {<span class="s">"_id"</span>: <span class="s">"z-sever"</span>, <span class="s">"name"</span>: <span class="s">"Зона север"</span>, <span class="s">"days"</span>: <span class="n">2</span>,
+     <span class="s">"area"</span>: {<span class="s">"type"</span>: <span class="s">"Polygon"</span>, <span class="s">"coordinates"</span>: [[[<span class="n">39.78</span>, <span class="n">57.65</span>], [<span class="n">39.98</span>, <span class="n">57.65</span>], [<span class="n">39.98</span>, <span class="n">57.72</span>], [<span class="n">39.78</span>, <span class="n">57.72</span>], [<span class="n">39.78</span>, <span class="n">57.65</span>]]]}},
+])
+zones.<span class="f">create_index</span>([(<span class="s">"area"</span>, <span class="s">"2dsphere"</span>)])
+
+<span class="k">for</span> label, point <span class="k">in</span> [(<span class="s">"покупатель"</span>, here),
+                     (<span class="s">"Брагино"</span>, {<span class="s">"type"</span>: <span class="s">"Point"</span>, <span class="s">"coordinates"</span>: [<span class="n">39.8178</span>, <span class="n">57.6929</span>]}),
+                     (<span class="s">"Москва"</span>, {<span class="s">"type"</span>: <span class="s">"Point"</span>, <span class="s">"coordinates"</span>: [<span class="n">37.6056</span>, <span class="n">55.7650</span>]})]:
+    zone = zones.<span class="f">find_one</span>({<span class="s">"area"</span>: {<span class="s">"$geoIntersects"</span>: {<span class="s">"$geometry"</span>: point}}})
+    <span class="f">print</span>(label + <span class="s">":"</span>, f<span class="s">"{zone['name']}, доставка {zone['days']} дн."</span> <span class="k">if</span> zone <span class="k">else</span> <span class="s">"вне зон доставки"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>в какую зону попадает точка: $geoIntersects</span></figcaption>
+<pre>zones.<span class="f">drop</span>();
+std::vector&lt;bsoncxx::document::value&gt; areas;
+areas.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"z-centr"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Зона центр"</span>), <span class="f">kvp</span>(<span class="s">"days"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"area"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Polygon"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(<span class="f">make_array</span>(<span class="f">make_array</span>(<span class="n">39.85</span>, <span class="n">57.61</span>), <span class="f">make_array</span>(<span class="n">39.93</span>, <span class="n">57.61</span>), <span class="f">make_array</span>(<span class="n">39.93</span>, <span class="n">57.65</span>), <span class="f">make_array</span>(<span class="n">39.85</span>, <span class="n">57.65</span>), <span class="f">make_array</span>(<span class="n">39.85</span>, <span class="n">57.61</span>))))))));
+areas.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"z-sever"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Зона север"</span>), <span class="f">kvp</span>(<span class="s">"days"</span>, <span class="n">2</span>),
+    <span class="f">kvp</span>(<span class="s">"area"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Polygon"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(<span class="f">make_array</span>(<span class="f">make_array</span>(<span class="n">39.78</span>, <span class="n">57.65</span>), <span class="f">make_array</span>(<span class="n">39.98</span>, <span class="n">57.65</span>), <span class="f">make_array</span>(<span class="n">39.98</span>, <span class="n">57.72</span>), <span class="f">make_array</span>(<span class="n">39.78</span>, <span class="n">57.72</span>), <span class="f">make_array</span>(<span class="n">39.78</span>, <span class="n">57.65</span>))))))));
+zones.<span class="f">insert_many</span>(areas);
+zones.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"area"</span>, <span class="s">"2dsphere"</span>)));
+
+<span class="k">auto</span> point = [](double lng, double lat) {
+    <span class="k">return</span> <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Point"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(lng, lat)));
+};
+std::vector&lt;std::pair&lt;std::string, bsoncxx::document::value&gt;&gt; places;
+places.<span class="f">emplace_back</span>(<span class="s">"покупатель"</span>, here);
+places.<span class="f">emplace_back</span>(<span class="s">"Брагино"</span>, <span class="f">point</span>(<span class="n">39.8178</span>, <span class="n">57.6929</span>));
+places.<span class="f">emplace_back</span>(<span class="s">"Москва"</span>, <span class="f">point</span>(<span class="n">37.6056</span>, <span class="n">55.7650</span>));
+<span class="k">for</span> (<span class="k">const</span> <span class="k">auto</span>&amp; [label, where] : places) {
+    <span class="k">auto</span> zone = zones.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"area"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geoIntersects"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geometry"</span>, where.<span class="f">view</span>())))))));
+    <span class="k">if</span> (zone) {
+        std::cout &lt;&lt; label &lt;&lt; <span class="s">": "</span> &lt;&lt; zone-&gt;<span class="f">view</span>()[<span class="s">"name"</span>].<span class="f">get_string</span>().value
+                  &lt;&lt; <span class="s">", доставка "</span> &lt;&lt; zone-&gt;<span class="f">view</span>()[<span class="s">"days"</span>].<span class="f">get_int32</span>().value &lt;&lt; <span class="s">" дн."</span> &lt;&lt; std::endl;
+    } <span class="k">else</span> {
+        std::cout &lt;&lt; label &lt;&lt; <span class="s">": вне зон доставки"</span> &lt;&lt; std::endl;
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>в какую зону попадает точка: $geoIntersects</span></figcaption>
+<pre>zones.<span class="f">Drop</span>(ctx)
+zones.<span class="f">InsertMany</span>(ctx, []<span class="k">any</span>{
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"z-centr"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Зона центр"</span>}, {Key: <span class="s">"days"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"area"</span>, Value: bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Polygon"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{bson.A{bson.A{<span class="n">39.85</span>, <span class="n">57.61</span>}, bson.A{<span class="n">39.93</span>, <span class="n">57.61</span>}, bson.A{<span class="n">39.93</span>, <span class="n">57.65</span>}, bson.A{<span class="n">39.85</span>, <span class="n">57.65</span>}, bson.A{<span class="n">39.85</span>, <span class="n">57.61</span>}}}}}}},
+    bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"z-sever"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Зона север"</span>}, {Key: <span class="s">"days"</span>, Value: <span class="n">2</span>},
+        {Key: <span class="s">"area"</span>, Value: bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Polygon"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{bson.A{bson.A{<span class="n">39.78</span>, <span class="n">57.65</span>}, bson.A{<span class="n">39.98</span>, <span class="n">57.65</span>}, bson.A{<span class="n">39.98</span>, <span class="n">57.72</span>}, bson.A{<span class="n">39.78</span>, <span class="n">57.72</span>}, bson.A{<span class="n">39.78</span>, <span class="n">57.65</span>}}}}}}}})
+zones.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{Keys: bson.D{{Key: <span class="s">"area"</span>, Value: <span class="s">"2dsphere"</span>}}})
+
+point := <span class="k">func</span>(lng, lat <span class="k">float64</span>) bson.D {
+    <span class="k">return</span> bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Point"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{lng, lat}}}
+}
+<span class="k">for</span> _, place := <span class="k">range</span> []<span class="k">struct</span> {
+    label <span class="k">string</span>
+    where bson.D
+}{{<span class="s">"покупатель"</span>, here}, {<span class="s">"Брагино"</span>, <span class="f">point</span>(<span class="n">39.8178</span>, <span class="n">57.6929</span>)}, {<span class="s">"Москва"</span>, <span class="f">point</span>(<span class="n">37.6056</span>, <span class="n">55.7650</span>)}} {
+    <span class="k">var</span> zone bson.M
+    err := zones.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"area"</span>, Value: bson.D{{Key: <span class="s">"$geoIntersects"</span>, Value: bson.D{{Key: <span class="s">"$geometry"</span>, Value: place.where}}}}}}).<span class="f">Decode</span>(&amp;zone)
+    <span class="k">if</span> err != <span class="k">nil</span> {
+        fmt.<span class="f">Println</span>(place.label + <span class="s">": вне зон доставки"</span>)
+    } <span class="k">else</span> {
+        fmt.<span class="f">Printf</span>(<span class="s">"%s: %s, доставка %d дн.\n"</span>, place.label, zone[<span class="s">"name"</span>], zone[<span class="s">"days"</span>])
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>в какую зону попадает точка: $geoIntersects</span></figcaption>
+<pre>zones.drop
+zones.<span class="f">insert_many</span>([
+  { <span class="s">"_id"</span> =&gt; <span class="s">"z-centr"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Зона центр"</span>, <span class="s">"days"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"area"</span> =&gt; { <span class="s">"type"</span> =&gt; <span class="s">"Polygon"</span>, <span class="s">"coordinates"</span> =&gt; [[[<span class="n">39.85</span>, <span class="n">57.61</span>], [<span class="n">39.93</span>, <span class="n">57.61</span>], [<span class="n">39.93</span>, <span class="n">57.65</span>], [<span class="n">39.85</span>, <span class="n">57.65</span>], [<span class="n">39.85</span>, <span class="n">57.61</span>]]] } },
+  { <span class="s">"_id"</span> =&gt; <span class="s">"z-sever"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Зона север"</span>, <span class="s">"days"</span> =&gt; <span class="n">2</span>,
+    <span class="s">"area"</span> =&gt; { <span class="s">"type"</span> =&gt; <span class="s">"Polygon"</span>, <span class="s">"coordinates"</span> =&gt; [[[<span class="n">39.78</span>, <span class="n">57.65</span>], [<span class="n">39.98</span>, <span class="n">57.65</span>], [<span class="n">39.98</span>, <span class="n">57.72</span>], [<span class="n">39.78</span>, <span class="n">57.72</span>], [<span class="n">39.78</span>, <span class="n">57.65</span>]]] } },
+])
+zones.indexes.<span class="f">create_one</span>({ <span class="s">"area"</span> =&gt; <span class="s">"2dsphere"</span> })
+
+[[<span class="s">"покупатель"</span>, here],
+ [<span class="s">"Брагино"</span>, { <span class="s">"type"</span> =&gt; <span class="s">"Point"</span>, <span class="s">"coordinates"</span> =&gt; [<span class="n">39.8178</span>, <span class="n">57.6929</span>] }],
+ [<span class="s">"Москва"</span>, { <span class="s">"type"</span> =&gt; <span class="s">"Point"</span>, <span class="s">"coordinates"</span> =&gt; [<span class="n">37.6056</span>, <span class="n">55.7650</span>] }]].each <span class="k">do</span> |label, point|
+  zone = zones.<span class="f">find</span>({ <span class="s">"area"</span> =&gt; { <span class="s">"$geoIntersects"</span> =&gt; { <span class="s">"$geometry"</span> =&gt; point } } }).first
+  <span class="k">puts</span> label + <span class="s">": "</span> + (zone ? <span class="s">"#{zone["</span>name<span class="s">"]}, доставка #{zone["</span>days<span class="s">"]} дн."</span> : <span class="s">"вне зон доставки"</span>)
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>покупатель: Зона центр, доставка 1 дн.
+Брагино: Зона север, доставка 2 дн.
+Москва: вне зон доставки</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>покупатель: Зона центр, доставка 1 дн.
+Брагино: Зона север, доставка 2 дн.
+Москва: вне зон доставки</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>покупатель: Зона центр, доставка 1 дн.
+Брагино: Зона север, доставка 2 дн.
+Москва: вне зон доставки</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>покупатель: Зона центр, доставка 1 дн.
+Брагино: Зона север, доставка 2 дн.
+Москва: вне зон доставки</pre>
+        </figure>
+        <p>Покупатель в центре попал в центральную зону, точка в Брагино — в северную, Москва — ни в одну: зон, в которые она попадает, нет, и поиск не нашёл ни одного документа.</p>
+        <p data-lang="go">Если документ не найден, <code>FindOne(…).Decode</code> возвращает ошибку <code>mongo.ErrNoDocuments</code>; пример считает любую ошибку признаком того, что зоны нет.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Долгота и широта</h2>
+        <p>Картографические сервисы показывают координаты в порядке «широта, долгота»: центр Ярославля — «57.6261, 39.8938». Если перенести эти числа в GeoJSON как есть, сервер прочитает 57,6261 как долготу, а 39,8938 — как широту, и точка окажется в другом месте. Ошибки при этом нет: оба числа — допустимые координаты. Широта не бывает больше 90° по модулю, поэтому ошибку видно только тогда, когда долгота места больше 90°, как у Владивостока: переставленные числа дают широту 131,8855.</p>
+        <p>Пример добавляет пункт 7 с переставленными координатами центра Ярославля, выводит все пункты по расстоянию и пункты в круге 5 км, затем пробует добавить пункт во Владивостоке с переставленными координатами.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>порядок: долгота, потом широта</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> WriteError
+
+pickup.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"pv-7"</span>, <span class="s">"name"</span>: <span class="s">"Пункт 7, координаты перепутаны"</span>,
+                   <span class="s">"location"</span>: {<span class="s">"type"</span>: <span class="s">"Point"</span>, <span class="s">"coordinates"</span>: [<span class="n">57.6261</span>, <span class="n">39.8938</span>]}})
+<span class="f">print</span>(<span class="s">"по расстоянию:"</span>, [doc[<span class="s">"_id"</span>] <span class="k">for</span> doc <span class="k">in</span> pickup.<span class="f">find</span>({<span class="s">"location"</span>: {<span class="s">"$near"</span>: {<span class="s">"$geometry"</span>: here}}})])
+circle = {<span class="s">"location"</span>: {<span class="s">"$geoWithin"</span>: {<span class="s">"$centerSphere"</span>: [[<span class="n">39.8875</span>, <span class="n">57.6300</span>], <span class="n">5</span> / <span class="n">6378.1</span>]}}}
+<span class="f">print</span>(<span class="s">"в круге 5 км: "</span>, [doc[<span class="s">"_id"</span>] <span class="k">for</span> doc <span class="k">in</span> pickup.<span class="f">find</span>(circle).<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>)])
+
+<span class="k">try</span>:
+    pickup.<span class="f">insert_one</span>({<span class="s">"_id"</span>: <span class="s">"pv-8"</span>, <span class="s">"name"</span>: <span class="s">"Пункт 8, Владивосток, координаты перепутаны"</span>,
+                       <span class="s">"location"</span>: {<span class="s">"type"</span>: <span class="s">"Point"</span>, <span class="s">"coordinates"</span>: [<span class="n">43.1155</span>, <span class="n">131.8855</span>]}})
+<span class="k">except</span> WriteError <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"широта 131.8855 отклонена, код"</span>, e.code)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>порядок: долгота, потом широта</span></figcaption>
+<pre>pickup.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"pv-7"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Пункт 7, координаты перепутаны"</span>),
+    <span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Point"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(<span class="n">57.6261</span>, <span class="n">39.8938</span>))))));
+
+<span class="k">auto</span> ids = [](mongocxx::cursor cursor) {
+    std::string found;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : cursor) found += (found.<span class="f">empty</span>() ? <span class="s">""</span> : <span class="s">" "</span>) + std::string{doc[<span class="s">"_id"</span>].<span class="f">get_string</span>().value};
+    <span class="k">return</span> found;
+};
+std::cout &lt;&lt; <span class="s">"по расстоянию: "</span>
+          &lt;&lt; <span class="f">ids</span>(pickup.<span class="f">find</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$near"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geometry"</span>, here.<span class="f">view</span>())))))))) &lt;&lt; std::endl;
+mongocxx::options::find by_id;
+by_id.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<span class="k">auto</span> circle = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$geoWithin"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$centerSphere"</span>, <span class="f">make_array</span>(<span class="f">make_array</span>(<span class="n">39.8875</span>, <span class="n">57.6300</span>), <span class="n">5</span> / <span class="n">6378.1</span>)))))));
+std::cout &lt;&lt; <span class="s">"в круге 5 км:  "</span> &lt;&lt; <span class="f">ids</span>(pickup.<span class="f">find</span>(circle.<span class="f">view</span>(), by_id)) &lt;&lt; std::endl;
+
+<span class="k">try</span> {
+    pickup.<span class="f">insert_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"pv-8"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"Пункт 8, Владивосток, координаты перепутаны"</span>),
+        <span class="f">kvp</span>(<span class="s">"location"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"Point"</span>), <span class="f">kvp</span>(<span class="s">"coordinates"</span>, <span class="f">make_array</span>(<span class="n">43.1155</span>, <span class="n">131.8855</span>))))));
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"широта 131.8855 отклонена, код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>порядок: долгота, потом широта</span></figcaption>
+<pre>pickup.<span class="f">InsertOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"pv-7"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Пункт 7, координаты перепутаны"</span>},
+    {Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Point"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{<span class="n">57.6261</span>, <span class="n">39.8938</span>}}}}})
+
+ids := <span class="k">func</span>(cursor *mongo.Cursor) []<span class="k">string</span> {
+    found := []<span class="k">string</span>{}
+    <span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+        found = <span class="f">append</span>(found, cursor.Current.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>())
+    }
+    <span class="k">return</span> found
+}
+byDistance, _ := pickup.<span class="f">Find</span>(ctx, bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$near"</span>, Value: bson.D{{Key: <span class="s">"$geometry"</span>, Value: here}}}}}})
+fmt.<span class="f">Println</span>(<span class="s">"по расстоянию:"</span>, <span class="f">ids</span>(byDistance))
+circle := bson.D{{Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"$geoWithin"</span>, Value: bson.D{
+    {Key: <span class="s">"$centerSphere"</span>, Value: bson.A{bson.A{<span class="n">39.8875</span>, <span class="n">57.6300</span>}, <span class="n">5</span> / <span class="n">6378.1</span>}}}}}}}
+inCircle, _ := pickup.<span class="f">Find</span>(ctx, circle, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+fmt.<span class="f">Println</span>(<span class="s">"в круге 5 км: "</span>, <span class="f">ids</span>(inCircle))
+
+_, err := pickup.<span class="f">InsertOne</span>(ctx, bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"pv-8"</span>}, {Key: <span class="s">"name"</span>, Value: <span class="s">"Пункт 8, Владивосток, координаты перепутаны"</span>},
+    {Key: <span class="s">"location"</span>, Value: bson.D{{Key: <span class="s">"type"</span>, Value: <span class="s">"Point"</span>}, {Key: <span class="s">"coordinates"</span>, Value: bson.A{<span class="n">43.1155</span>, <span class="n">131.8855</span>}}}}})
+<span class="k">var</span> we mongo.WriteException
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;we) {
+    fmt.<span class="f">Println</span>(<span class="s">"широта 131.8855 отклонена, код"</span>, we.WriteErrors[<span class="n">0</span>].Code)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>порядок: долгота, потом широта</span></figcaption>
+<pre>pickup.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"pv-7"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Пункт 7, координаты перепутаны"</span>,
+                    <span class="s">"location"</span> =&gt; { <span class="s">"type"</span> =&gt; <span class="s">"Point"</span>, <span class="s">"coordinates"</span> =&gt; [<span class="n">57.6261</span>, <span class="n">39.8938</span>] } })
+<span class="k">puts</span> <span class="s">"по расстоянию: "</span> + pickup.<span class="f">find</span>({ <span class="s">"location"</span> =&gt; { <span class="s">"$near"</span> =&gt; { <span class="s">"$geometry"</span> =&gt; here } } }).map { |doc| doc[<span class="s">"_id"</span>] }.to_s
+circle = { <span class="s">"location"</span> =&gt; { <span class="s">"$geoWithin"</span> =&gt; { <span class="s">"$centerSphere"</span> =&gt; [[<span class="n">39.8875</span>, <span class="n">57.6300</span>], <span class="n">5</span> / <span class="n">6378.1</span>] } } }
+<span class="k">puts</span> <span class="s">"в круге 5 км:  "</span> + pickup.<span class="f">find</span>(circle).<span class="f">sort</span>({ <span class="s">"_id"</span> =&gt; <span class="n">1</span> }).map { |doc| doc[<span class="s">"_id"</span>] }.to_s
+
+<span class="k">begin</span>
+  pickup.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <span class="s">"pv-8"</span>, <span class="s">"name"</span> =&gt; <span class="s">"Пункт 8, Владивосток, координаты перепутаны"</span>,
+                      <span class="s">"location"</span> =&gt; { <span class="s">"type"</span> =&gt; <span class="s">"Point"</span>, <span class="s">"coordinates"</span> =&gt; [<span class="n">43.1155</span>, <span class="n">131.8855</span>] } })
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"широта 131.8855 отклонена, код #{e.code}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>по расстоянию: ['pv-1', 'pv-2', 'pv-4', 'pv-5', 'pv-3', 'pv-6', 'pv-7']
+в круге 5 км:  ['pv-1', 'pv-2']
+широта 131.8855 отклонена, код 16755</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>по расстоянию: pv-1 pv-2 pv-4 pv-5 pv-3 pv-6 pv-7
+в круге 5 км:  pv-1 pv-2
+широта 131.8855 отклонена, код 16755</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>по расстоянию: [pv-1 pv-2 pv-4 pv-5 pv-3 pv-6 pv-7]
+в круге 5 км:  [pv-1 pv-2]
+широта 131.8855 отклонена, код 16755</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>по расстоянию: ["pv-1", "pv-2", "pv-4", "pv-5", "pv-3", "pv-6", "pv-7"]
+в круге 5 км:  ["pv-1", "pv-2"]
+широта 131.8855 отклонена, код 16755</pre>
+        </figure>
+        <p>Пункт 7 записан, но по расстоянию он последний — дальше Москвы — и в круг 5 км не попал. По стадии <code>$geoNear</code> в mongosh до него 2349 км: точка с долготой 57,63 и широтой 39,89 лежит в Средней Азии. Пункт во Владивостоке не записан: индекс <code>2dsphere</code> не принимает широту 131,8855, ошибка 16755 — не удалось извлечь геоключи. Без индекса такой документ записался бы, поэтому координаты проверяют до записи — например, правилом <code>$jsonSchema</code> из главы 3.1 с <code>minimum</code> и <code>maximum</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/140-pickup-schema-swap.png" alt="Compass, вкладка Schema после добавления пункта 7 с перепутанными координатами: точка на карте в Туркмении, у Ашхабада">
+          <figcaption>Compass · вкладка <b>Schema</b> после добавления пункта 7</figcaption>
+        </figure>
+        <p>Карта отдалилась, чтобы вместить все точки. Пункты у Ярославля и Москвы — вверху, пункт 7 — внизу справа, в Туркмении, рядом с Ашхабадом: туда указывают долгота 57,63 и широта 39,89. На карте такую ошибку видно сразу, в документе — нет.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>География в Compass</h2>
+        <p>Кадры в разделах выше сняты на коллекции <code>pickup</code> в тех же состояниях, что и после примеров. Геозапросы пишутся в поле фильтра вкладки <b>Documents</b> так же, как в коде; при <code>$near</code> счётчик документов показывает <code>N/A</code> (§2).</p>
+        <p>Вкладка <b>Schema</b> показывает поля с точками GeoJSON на карте (кадры в §2 и §5). Так проверяют координаты после загрузки данных: точка, попавшая не в тот город или на другой континент, видна на карте сразу. Индекс <code>2dsphere</code> создаётся в окне <b>Create Index</b> (глава 3.2, §9) — в списке типа поля выбирается <code>2dsphere</code>.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"coordinates": [57.6261, 39.8938]</code> — широта первой</td><td>Точка записана, но в другом месте: на 2349 км от Ярославля; ошибки нет</td><td><code>[долгота, широта]</code>: <code>[39.8938, 57.6261]</code></td></tr>
+              <tr><td><code>$near</code> без индекса <code>2dsphere</code></td><td>Ошибка 291 <code>NoQueryExecutionPlans</code></td><td>Индекс <code>{"location": "2dsphere"}</code></td></tr>
+              <tr><td><code>$centerSphere</code> с радиусом <code>5</code></td><td>Радиус 5 радиан больше половины окружности Земли (π радиан): в круг попадают все пункты</td><td>Километры делить на радиус Земли: <code>5 / 6378.1</code></td></tr>
+              <tr><td><code>$maxDistance: 3.5</code> в расчёте на километры</td><td>Ищется в пределах 3,5 метра: для GeoJSON расстояние в метрах</td><td><code>$maxDistance: 3500</code></td></tr>
+              <tr><td>Многоугольник, у которого последняя точка не равна первой</td><td>Ошибка 2: <code>Loop is not closed</code> — первая и последняя вершины не совпадают</td><td>Повторить первую точку в конце контура</td></tr>
+              <tr><td><code>count_documents</code> с <code>$near</code></td><td>Ошибка 5626500: <code>$near</code> нельзя использовать там, где нет сортировки по расстоянию</td><td>Для подсчёта — <code>$geoWithin</code> с <code>$centerSphere</code></td></tr>
+              <tr><td>Расчёт на порядок по расстоянию у <code>$geoWithin</code></td><td>Документы идут в порядке индекса или коллекции</td><td><code>$near</code>, если нужен порядок от ближнего к дальнему</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"coordinates": [57.6261, 39.8938]</code> — широта первой</td><td>Точка записана, но в другом месте: на 2349 км от Ярославля; ошибки нет</td><td><code>[долгота, широта]</code>: <code>[39.8938, 57.6261]</code></td></tr>
+              <tr><td><code>$near</code> без индекса <code>2dsphere</code></td><td>Ошибка 291 <code>NoQueryExecutionPlans</code></td><td>Индекс <code>{"location": "2dsphere"}</code></td></tr>
+              <tr><td><code>$centerSphere</code> с радиусом <code>5</code></td><td>Радиус 5 радиан больше половины окружности Земли (π радиан): в круг попадают все пункты</td><td>Километры делить на радиус Земли: <code>5 / 6378.1</code></td></tr>
+              <tr><td><code>$maxDistance: 3.5</code> в расчёте на километры</td><td>Ищется в пределах 3,5 метра: для GeoJSON расстояние в метрах</td><td><code>$maxDistance: 3500</code></td></tr>
+              <tr><td>Многоугольник, у которого последняя точка не равна первой</td><td>Ошибка 2: <code>Loop is not closed</code> — первая и последняя вершины не совпадают</td><td>Повторить первую точку в конце контура</td></tr>
+              <tr><td><code>count_documents</code> с <code>$near</code></td><td>Ошибка 5626500: <code>$near</code> нельзя использовать там, где нет сортировки по расстоянию</td><td>Для подсчёта — <code>$geoWithin</code> с <code>$centerSphere</code></td></tr>
+              <tr><td>Расчёт на порядок по расстоянию у <code>$geoWithin</code></td><td>Документы идут в порядке индекса или коллекции</td><td><code>$near</code>, если нужен порядок от ближнего к дальнему</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"coordinates": [57.6261, 39.8938]</code> — широта первой</td><td>Точка записана, но в другом месте: на 2349 км от Ярославля; ошибки нет</td><td><code>[долгота, широта]</code>: <code>[39.8938, 57.6261]</code></td></tr>
+              <tr><td><code>$near</code> без индекса <code>2dsphere</code></td><td>Ошибка 291 <code>NoQueryExecutionPlans</code></td><td>Индекс <code>{"location": "2dsphere"}</code></td></tr>
+              <tr><td><code>$centerSphere</code> с радиусом <code>5</code></td><td>Радиус 5 радиан больше половины окружности Земли (π радиан): в круг попадают все пункты</td><td>Километры делить на радиус Земли: <code>5 / 6378.1</code></td></tr>
+              <tr><td><code>$maxDistance: 3.5</code> в расчёте на километры</td><td>Ищется в пределах 3,5 метра: для GeoJSON расстояние в метрах</td><td><code>$maxDistance: 3500</code></td></tr>
+              <tr><td>Многоугольник, у которого последняя точка не равна первой</td><td>Ошибка 2: <code>Loop is not closed</code> — первая и последняя вершины не совпадают</td><td>Повторить первую точку в конце контура</td></tr>
+              <tr><td><code>count_documents</code> с <code>$near</code></td><td>Ошибка 5626500: <code>$near</code> нельзя использовать там, где нет сортировки по расстоянию</td><td>Для подсчёта — <code>$geoWithin</code> с <code>$centerSphere</code></td></tr>
+              <tr><td>Расчёт на порядок по расстоянию у <code>$geoWithin</code></td><td>Документы идут в порядке индекса или коллекции</td><td><code>$near</code>, если нужен порядок от ближнего к дальнему</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"coordinates": [57.6261, 39.8938]</code> — широта первой</td><td>Точка записана, но в другом месте: на 2349 км от Ярославля; ошибки нет</td><td><code>[долгота, широта]</code>: <code>[39.8938, 57.6261]</code></td></tr>
+              <tr><td><code>$near</code> без индекса <code>2dsphere</code></td><td>Ошибка 291 <code>NoQueryExecutionPlans</code></td><td>Индекс <code>{"location": "2dsphere"}</code></td></tr>
+              <tr><td><code>$centerSphere</code> с радиусом <code>5</code></td><td>Радиус 5 радиан больше половины окружности Земли (π радиан): в круг попадают все пункты</td><td>Километры делить на радиус Земли: <code>5 / 6378.1</code></td></tr>
+              <tr><td><code>$maxDistance: 3.5</code> в расчёте на километры</td><td>Ищется в пределах 3,5 метра: для GeoJSON расстояние в метрах</td><td><code>$maxDistance: 3500</code></td></tr>
+              <tr><td>Многоугольник, у которого последняя точка не равна первой</td><td>Ошибка 2: <code>Loop is not closed</code> — первая и последняя вершины не совпадают</td><td>Повторить первую точку в конце контура</td></tr>
+              <tr><td><code>count_documents</code> с <code>$near</code></td><td>Ошибка 5626500: <code>$near</code> нельзя использовать там, где нет сортировки по расстоянию</td><td>Для подсчёта — <code>$geoWithin</code> с <code>$centerSphere</code></td></tr>
+              <tr><td>Расчёт на порядок по расстоянию у <code>$geoWithin</code></td><td>Документы идут в порядке индекса или коллекции</td><td><code>$near</code>, если нужен порядок от ближнего к дальнему</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Проверьте себя</h2>
+        <details>
+          <summary>В каком порядке записываются числа в <code>coordinates</code> точки GeoJSON?</summary>
+          <p>Сначала долгота, затем широта: <code>[39.8938, 57.6261]</code> для центра Ярославля. Картографические сервисы обычно показывают обратный порядок.</p>
+        </details>
+        <details>
+          <summary>Чем <code>$near</code> отличается от <code>$geoWithin</code> с <code>$centerSphere</code>?</summary>
+          <p><code>$near</code> возвращает документы по расстоянию, ближайшие первыми, и требует индекса <code>2dsphere</code>; ограничение задаётся в метрах параметром <code>$maxDistance</code>. <code>$geoWithin</code> только отбирает точки внутри круга, порядка по расстоянию у него нет; радиус задаётся в радианах.</p>
+        </details>
+        <details>
+          <summary>Как записать радиус 10 км для <code>$centerSphere</code>?</summary>
+          <p>Разделить на радиус Земли в километрах: <code>10 / 6378.1</code>, это около 0,00157 радиана.</p>
+        </details>
+        <details>
+          <summary>Какой оператор нужен, чтобы по адресу покупателя найти его зону доставки?</summary>
+          <p><code>$geoIntersects</code> с точкой покупателя в <code>$geometry</code>: он находит документы зон, многоугольник которых содержит эту точку.</p>
+        </details>
+        <details>
+          <summary>Почему точку с переставленными координатами Ярославля сервер принял, а Владивостока — нет?</summary>
+          <p>У Ярославля оба числа меньше 90, и после перестановки широта 39,89 допустима — точка просто оказывается в другом месте. У Владивостока долгота 131,89; после перестановки она становится широтой больше 90, и индекс <code>2dsphere</code> отклоняет документ с ошибкой 16755.</p>
+        </details>
+
+        <h2 id="s9"><span class="sec">§9</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch3_5</code>, на коллекциях <code>pickup</code> и <code>zones</code> после примеров §1–§4. Новый покупатель живёт на севере города, его координаты — 39,8600° восточной долготы и 57,6800° северной широты.</p>
+        <ol class="steps">
+          <li><b>Записать точку</b>Составить документ GeoJSON для точки покупателя, соблюдая порядок координат.</li>
+          <li><b>Два ближайших пункта</b>Найти два ближайших к покупателю пункта выдачи: <code>$near</code> и предел 2.</li>
+          <li><b>Пункты рядом</b>Найти пункты в круге радиусом 3 км вокруг покупателя.</li>
+          <li><b>Зона доставки</b>Определить зону покупателя и срок доставки.</li>
+          <li><b>Пункты в зоне</b>Найти пункты выдачи внутри северной зоны: взять её многоугольник из документа <code>z-sever</code> и передать в <code>$geoWithin</code>.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Точка — <code>{"type": "Point", "coordinates": [39.8600, 57.6800]}</code>. Два ближайших пункта — <code>pv-3</code> (Брагино, около 2,9 км) и <code>pv-2</code> (вокзал, около 5,3 км). В круге 3 км — только <code>pv-3</code>. Зона — «Зона север», доставка 2 дня. В северной зоне два пункта: <code>pv-3</code> и <code>pv-5</code> (Заволжье). Если пункт 7 из §5 остался в коллекции, на ответы он не влияет: он далеко.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Точка GeoJSON</b>
+            <code>{"type": "Point", "coordinates": [39.8938, 57.6261]}</code>
+            <code>долгота, затем широта</code>
+          </div>
+          <div>
+            <b>Индекс</b>
+            <code>coll.create_index([("location", "2dsphere")])</code>
+          </div>
+          <div>
+            <b>Ближайшие</b>
+            <code>{"location": {"$near": {"$geometry": here,</code>
+            <code>                          "$maxDistance": 3500}}}</code>
+          </div>
+          <div>
+            <b>Внутри круга</b>
+            <code>{"location": {"$geoWithin": {"$centerSphere":</code>
+            <code>    [[39.8875, 57.6300], 5 / 6378.1]}}}</code>
+          </div>
+          <div>
+            <b>Внутри многоугольника</b>
+            <code>{"location": {"$geoWithin": {"$geometry":</code>
+            <code>    {"type": "Polygon", "coordinates": [[...]]}}}}</code>
+          </div>
+          <div>
+            <b>Зона для точки</b>
+            <code>{"area": {"$geoIntersects": {"$geometry": here}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Точка GeoJSON</b>
+            <code>{"type": "Point", "coordinates": [39.8938, 57.6261]}</code>
+            <code>долгота, затем широта</code>
+          </div>
+          <div>
+            <b>Индекс</b>
+            <code>coll.create_index(make_document(kvp("location", "2dsphere")));</code>
+          </div>
+          <div>
+            <b>Ближайшие</b>
+            <code>{"location": {"$near": {"$geometry": here,</code>
+            <code>                          "$maxDistance": 3500}}}</code>
+          </div>
+          <div>
+            <b>Внутри круга</b>
+            <code>{"location": {"$geoWithin": {"$centerSphere":</code>
+            <code>    [[39.8875, 57.6300], 5 / 6378.1]}}}</code>
+          </div>
+          <div>
+            <b>Внутри многоугольника</b>
+            <code>{"location": {"$geoWithin": {"$geometry":</code>
+            <code>    {"type": "Polygon", "coordinates": [[...]]}}}}</code>
+          </div>
+          <div>
+            <b>Зона для точки</b>
+            <code>{"area": {"$geoIntersects": {"$geometry": here}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Точка GeoJSON</b>
+            <code>{"type": "Point", "coordinates": [39.8938, 57.6261]}</code>
+            <code>долгота, затем широта</code>
+          </div>
+          <div>
+            <b>Индекс</b>
+            <code>Keys: bson.D{{Key: "location", Value: "2dsphere"}}</code>
+          </div>
+          <div>
+            <b>Ближайшие</b>
+            <code>{"location": {"$near": {"$geometry": here,</code>
+            <code>                          "$maxDistance": 3500}}}</code>
+          </div>
+          <div>
+            <b>Внутри круга</b>
+            <code>{"location": {"$geoWithin": {"$centerSphere":</code>
+            <code>    [[39.8875, 57.6300], 5 / 6378.1]}}}</code>
+          </div>
+          <div>
+            <b>Внутри многоугольника</b>
+            <code>{"location": {"$geoWithin": {"$geometry":</code>
+            <code>    {"type": "Polygon", "coordinates": [[...]]}}}}</code>
+          </div>
+          <div>
+            <b>Зона для точки</b>
+            <code>{"area": {"$geoIntersects": {"$geometry": here}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Точка GeoJSON</b>
+            <code>{"type": "Point", "coordinates": [39.8938, 57.6261]}</code>
+            <code>долгота, затем широта</code>
+          </div>
+          <div>
+            <b>Индекс</b>
+            <code>coll.indexes.create_one({ "location" =&gt; "2dsphere" })</code>
+          </div>
+          <div>
+            <b>Ближайшие</b>
+            <code>{"location": {"$near": {"$geometry": here,</code>
+            <code>                          "$maxDistance": 3500}}}</code>
+          </div>
+          <div>
+            <b>Внутри круга</b>
+            <code>{"location": {"$geoWithin": {"$centerSphere":</code>
+            <code>    [[39.8875, 57.6300], 5 / 6378.1]}}}</code>
+          </div>
+          <div>
+            <b>Внутри многоугольника</b>
+            <code>{"location": {"$geoWithin": {"$geometry":</code>
+            <code>    {"type": "Polygon", "coordinates": [[...]]}}}}</code>
+          </div>
+          <div>
+            <b>Зона для точки</b>
+            <code>{"area": {"$geoIntersects": {"$geometry": here}}}</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Точка на карте хранится как GeoJSON: <code>{"type": "Point", "coordinates": [долгота, широта]}</code>, область — как <code>Polygon</code> с замкнутым контуром. Индекс <code>2dsphere</code> обязателен для <code>$near</code>, который возвращает документы от ближнего к дальнему и ограничивает расстояние параметром <code>$maxDistance</code> в метрах. <code>$geoWithin</code> отбирает точки внутри круга (<code>$centerSphere</code>, радиус в радианах — километры, делённые на 6378,1) или многоугольника, без порядка по расстоянию. <code>$geoIntersects</code> находит области, в которые попадает точка, — так определяют зону доставки. Перепутанные долгота и широта дают точку в другом месте без ошибки, и только широта больше 90° отклоняется индексом с ошибкой 16755.</p>
+
+        <div class="pager"><a href="../22-tekstovyy-poisk/index.html">← 3.4 Текстовый поиск</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 3.5 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
