@@ -29,6 +29,40 @@
     .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
     .steps > li > b:first-child { display: block; margin-bottom: 3px; }
     .doc__body .ok { color: var(--leaf); font-weight: 600; }
+    /* Схемы главы: документы коллекции, полоса индекса, список записей индекса. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 6px; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .scan { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 22px; padding-bottom: 8px; }
+    .scan b, .strip__q { display: block; margin-bottom: 7px; font: 600 13px/1.4 var(--mono); }
+    .scan__grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+    .scan__grid i { display: grid; place-items: center; height: 26px; border: 2px dashed var(--rule); font: 400 10px/1 var(--mono); font-style: normal; color: var(--ink-faint); }
+    .scan__grid i.rd { border: 2px solid var(--ink); color: var(--ink); }
+    .scan__grid i.hit { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .scan em, .strip em { display: block; margin-top: 7px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
+    .scan em strong, .strip em strong { color: var(--ink); }
+    .strip { margin-bottom: 16px; }
+    .strip__scroll { overflow-x: auto; }
+    .strip__in { min-width: 560px; }
+    .strip__bar { display: flex; height: 30px; border: 2px solid var(--ink); }
+    .strip__bar i { flex: 1 0 0; min-width: 1px; border-right: 1px solid var(--rule); }
+    .strip__bar i.g { border-right: 2px solid var(--ink); }
+    .strip__bar i:last-child { border-right: 0; }
+    .strip__bar i.on { background: var(--leaf-bright); }
+    .strip__lab { display: flex; margin-top: 3px; font: 600 10px/1.3 var(--pixel); letter-spacing: .5px; color: var(--ink-soft); }
+    .strip__lab span { flex: 1 0 0; min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; }
+    .strip__lab span.on { color: var(--leaf); }
+    .strip__hint { display: none; }
+    @media (max-width: 700px) { .strip__hint { display: block; margin: 0 0 10px; font-size: 13.5px; color: var(--clay); } }
+    .ixlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; padding-bottom: 8px; }
+    .ixlist b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .ixlist ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); font: 400 12.5px/1.55 var(--mono); }
+    .ixlist li { padding: 0 9px; color: var(--ink-faint); border-bottom: 1px solid var(--rule); }
+    .ixlist li:last-child { border-bottom: 0; }
+    .ixlist li.on { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .ixlist li.no { background: var(--clay-pale); color: var(--clay); text-decoration: line-through; }
+    .ixlist li.pl { color: var(--ink); }
+    .ixlist em { display: block; margin-top: 6px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
   </style>
 </head>
 <body>
@@ -84,8 +118,34 @@
         </nav>
 
         <h2 id="s1"><span class="sec">§1</span>Как сервер ищет без индекса</h2>
-        <p>Запрос <code>{"service": "payments"}</code> к журналу событий находит 232 документа из 1200. Чтобы их найти, сервер читает все 1200 документов по порядку и проверяет у каждого поле <code>service</code>. Такой способ называется <span class="term">просмотром коллекции</span> (collection scan, в плане запроса — стадия <code>COLLSCAN</code>). На 1200 документах он занимает доли миллисекунды, на десяти миллионах — секунды, и время растёт вместе с коллекцией.</p>
-        <p><span class="term">Индекс</span> — отдельная структура, в которой значения одного или нескольких полей коллекции хранятся упорядоченно, и при каждом значении записана ссылка на документ. Так устроен предметный указатель в конце книги: слова по алфавиту, при каждом — номера страниц. Чтобы найти события <code>payments</code>, сервер находит это значение в упорядоченном списке и сразу получает ссылки на 232 документа, остальные 968 не читаются.</p>
+        <p>Запрос <code>{"service": "payments"}</code> к журналу событий находит 232 документа из 1200. Сервер заранее не знает, в каких документах записан сервис <code>payments</code>. Он читает все 1200 документов по порядку и у каждого проверяет поле <code>service</code>: 232 документа подходят, 968 прочитаны и отброшены. Такой способ называется <span class="term">просмотром коллекции</span> (collection scan, в плане запроса — стадия <code>COLLSCAN</code>).</p>
+        <p>Так ищут слово в книге, у которой нет предметного указателя. Чтобы найти все страницы со словом «платёж», книгу листают от первой страницы до последней. В книге на 1200 страниц просматриваются все 1200, даже если слово встречается на 232. На 1200 документах просмотр занимает доли миллисекунды, на десяти миллионах — секунды. Чем больше коллекция, тем дольше выполняется каждый такой запрос.</p>
+        <p>На схеме — первые 40 событий журнала и два способа найти среди них события <code>payments</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Первые 40 событий журнала</span><span>e-00001 … e-00040</span></div>
+          <div class="scheme__body">
+            <div class="scan">
+              <div><b>Без индекса: COLLSCAN</b><div class="scan__grid"><i class="rd">01</i><i class="rd">02</i><i class="rd">03</i><i class="rd">04</i><i class="rd">05</i><i class="rd">06</i><i class="rd">07</i><i class="rd">08</i><i class="rd">09</i><i class="rd">10</i><i class="rd">11</i><i class="rd">12</i><i class="rd">13</i><i class="rd">14</i><i class="rd">15</i><i class="rd">16</i><i class="rd">17</i><i class="rd hit">18</i><i class="rd">19</i><i class="rd">20</i><i class="rd">21</i><i class="rd">22</i><i class="rd">23</i><i class="rd">24</i><i class="rd">25</i><i class="rd hit">26</i><i class="rd">27</i><i class="rd">28</i><i class="rd">29</i><i class="rd hit">30</i><i class="rd">31</i><i class="rd hit">32</i><i class="rd">33</i><i class="rd">34</i><i class="rd">35</i><i class="rd">36</i><i class="rd hit">37</i><i class="rd">38</i><i class="rd hit">39</i><i class="rd">40</i></div><em>Прочитано <strong>40</strong> документов, подходят 6</em></div>
+              <div><b>С индексом по service: IXSCAN и FETCH</b><div class="scan__grid"><i>01</i><i>02</i><i>03</i><i>04</i><i>05</i><i>06</i><i>07</i><i>08</i><i>09</i><i>10</i><i>11</i><i>12</i><i>13</i><i>14</i><i>15</i><i>16</i><i>17</i><i class="rd hit">18</i><i>19</i><i>20</i><i>21</i><i>22</i><i>23</i><i>24</i><i>25</i><i class="rd hit">26</i><i>27</i><i>28</i><i>29</i><i class="rd hit">30</i><i>31</i><i class="rd hit">32</i><i>33</i><i>34</i><i>35</i><i>36</i><i class="rd hit">37</i><i>38</i><i class="rd hit">39</i><i>40</i></div><em>Прочитано <strong>6</strong> документов, подходят 6</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Квадрат — один документ, число — конец его <code>_id</code>: 18 означает <code>e-00018</code>. Зелёные квадраты — события <code>payments</code>. Сплошная рамка — документ, который сервер прочитал; пунктирная — документ, который не читался.</p>
+        </div>
+        <p>В книге эту работу сокращает предметный указатель в конце: слова стоят в нём по алфавиту, при каждом слове записаны номера страниц. Читатель находит слово и открывает только названные страницы. В MongoDB ту же роль выполняет индекс. <span class="term">Индекс</span> — отдельная структура рядом с коллекцией, в которой значения выбранного поля хранятся по порядку, и при каждом значении записаны ссылки на документы с этим значением. Ссылка — запись о том, где документ лежит на диске; по ней сервер читает документ сразу, без поиска.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>В книге</th><th>В MongoDB</th></tr></thead>
+            <tbody>
+              <tr><td>Страница</td><td>Документ</td></tr>
+              <tr><td>Номер страницы</td><td>Ссылка на документ</td></tr>
+              <tr><td>Слово в указателе</td><td>Значение поля, например <code>"payments"</code></td></tr>
+              <tr><td>Предметный указатель</td><td>Индекс</td></tr>
+              <tr><td>Листать книгу от начала до конца</td><td>Просмотр коллекции, <code>COLLSCAN</code></td></tr>
+              <tr><td>Найти слово в указателе и открыть названные страницы</td><td>Поиск по индексу</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Индекс по полю <code>service</code> для журнала событий выглядит так:</p>
         <div class="doc">
           <div class="doc__bar"><span>Индекс по полю service</span><span>1200 записей</span></div>
           <div class="doc__body">
@@ -96,8 +156,18 @@
             <div><span class="fld">"search"</span> — 249 ссылок</div>
           </div>
         </div>
-        <p>Один индекс у каждой коллекции есть всегда — по полю <code>_id</code>, его создаёт сервер вместе с коллекцией. Поэтому поиск по <code>_id</code> быстрый с самого начала, а по остальным полям — только после того, как для них создан индекс.</p>
-        <p>Индексы главы строятся на копии журнала в песочнице: база <code>logs</code> остаётся без новых индексов, и примеры других глав работают с ней в исходном виде. Коллекция <code>journal</code> (<code>sandbox.events</code>) открыта в заготовке главы. Пример удаляет её — вместе с коллекцией удаляются и все её индексы, — копирует в неё события из <code>logs.events</code> и выводит список индексов.</p>
+        <p>В индексе 1200 записей, по одной на каждый документ, и они сгруппированы по пяти значениям поля. Значения стоят по алфавиту, поэтому сервер не читает индекс с начала: он сразу переходит к <code>payments</code>, как читатель открывает указатель на нужной букве. При этом значении записаны 232 ссылки, и сервер читает только эти 232 документа. Остальные 968 не читаются.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Индекс по service в масштабе</span><span>1200 записей</span></div>
+          <div class="scheme__body">
+            <span class="strip__hint">Полоса шире экрана и прокручивается вправо.</span>
+            <div class="strip"><span class="strip__q">{"service": "payments"}</span><div class="strip__scroll"><div class="strip__in"><div class="strip__bar"><i style="flex-grow:239" class="g"></i><i style="flex-grow:247" class="g"></i><i style="flex-grow:233" class="g"></i><i style="flex-grow:232" class="g on"></i><i style="flex-grow:249" class="g"></i></div><div class="strip__lab"><span style="flex-grow:239">api-gateway</span><span style="flex-grow:247">notifier</span><span style="flex-grow:233">orders</span><span style="flex-grow:232" class="on">payments</span><span style="flex-grow:249">search</span></div></div></div><em>Один участок: <strong>232 записи подряд</strong></em></div>
+          </div>
+          <p class="scheme__note">Полоса — весь индекс слева направо, от первой записи до последней. Ширина участка соответствует числу записей. Участки идут по алфавиту значений: от <code>api-gateway</code> до <code>search</code>.</p>
+        </div>
+        <p>Документы при создании индекса не меняются и не переставляются. В книге с указателем страницы тоже остаются на своих местах, указатель печатается отдельно.</p>
+        <p>Один индекс у каждой коллекции есть всегда — по полю <code>_id</code>, его создаёт сервер вместе с коллекцией. Поэтому поиск по <code>_id</code> быстрый с самого начала. Поиск по остальным полям становится быстрым после того, как для них создан индекс.</p>
+        <p>Индексы этой главы строятся на копии журнала в песочнице. База <code>logs</code> остаётся без новых индексов, и примеры других глав работают с ней в исходном виде. Копия — коллекция <code>sandbox.events</code>; в заготовке главы она открыта в переменной <code>journal</code>. Пример выполняет три действия: удаляет коллекцию <code>journal</code> (вместе с коллекцией удаляются все её индексы), копирует в неё события из <code>logs.events</code> и выводит список индексов.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>копия журнала и её индексы</span></figcaption>
@@ -170,15 +240,24 @@ journal.indexes.each { |ix| <span class="k">puts</span> <span class="s">"инд�
 <pre>событий в копии: 1200
 индекс _id_ {"_id"=&gt;1}</pre>
         </figure>
-        <p>В копии 1200 событий и один индекс — <code>_id_</code>. Имя индекса сервер составляет из имени поля и направления через подчёркивание; у индекса <code>_id</code> имя особое, с подчёркиванием на конце. Ключ индекса <code>{"_id": 1}</code> — поле и направление: <code>1</code> — по возрастанию, <code>-1</code> — по убыванию.</p>
+        <p>В копии 1200 событий и один индекс. У каждого индекса есть ключ и имя. <span class="term">Ключ индекса</span> — запись о том, по какому полю и в каком порядке упорядочен индекс. Ключ <code>{"_id": 1}</code> читается «по полю <code>_id</code>, по возрастанию»: <code>1</code> — по возрастанию, <code>-1</code> — по убыванию. Имя индекса сервер составляет из ключа: имя поля, подчёркивание, направление. Индекс с ключом <code>{"service": 1}</code> получит имя <code>service_1</code>. У индекса по <code>_id</code> имя особое — <code>_id_</code>.</p>
         <figure class="shot">
           <img src="../../shots/117-sandbox-events-indexes.png" alt="Compass, вкладка Indexes коллекции sandbox.events: один индекс _id_, тип REGULAR, свойство UNIQUE, статус READY">
           <figcaption>Compass · <code>sandbox.events</code>, вкладка <b>Indexes</b> после копирования</figcaption>
         </figure>
-        <p>Индексы коллекции показывает вкладка <b>Indexes</b>, её счётчик — <code>1</code>. В таблице одна строка, <code>_id_</code>. Столбцы: <b>Name &amp; Definition</b> — имя, стрелка раскрывает ключ; <b>Type</b> — вид индекса, <code>REGULAR</code> — обычный; <b>Size</b> — место на диске; <b>Usage</b> — сколько раз индекс использовался в запросах с указанной даты; <b>Properties</b> — свойства: индекс по <code>_id</code> всегда <code>UNIQUE</code>, двух документов с одним <code>_id</code> быть не может; <b>Status</b> — <code>READY</code>, индекс построен.</p>
+        <p>Индексы коллекции показывает вкладка <b>Indexes</b>, её счётчик — <code>1</code>. В таблице одна строка, <code>_id_</code>. Столбцы таблицы:</p>
+        <ul>
+          <li><b>Name &amp; Definition</b> — имя индекса; стрелка слева раскрывает его ключ;</li>
+          <li><b>Type</b> — вид индекса; <code>REGULAR</code> — обычный;</li>
+          <li><b>Size</b> — сколько места индекс занимает на диске;</li>
+          <li><b>Usage</b> — сколько раз индекс использовался в запросах с указанной даты;</li>
+          <li><b>Properties</b> — свойства индекса; у <code>_id_</code> свойство <code>UNIQUE</code>, потому что двух документов с одним <code>_id</code> быть не может;</li>
+          <li><b>Status</b> — состояние; <code>READY</code> означает, что индекс построен.</li>
+        </ul>
 
         <h2 id="s2"><span class="sec">§2</span>Индекс по одному полю</h2>
-        <p>Использует ли сервер индекс, видно по <span class="term">плану запроса</span> — описанию шагов, которыми сервер выполняет запрос. План возвращает метод <code>explain</code>; подробно он разобран в главе 3.3. В этой главе из плана берутся только названия стадий, и делает это функция <code>plan</code> из заготовки главы. Она возвращает стадии сверху вниз: верхняя стадия отдаёт документы программе, нижняя — первой получает их из коллекции или индекса.</p>
+        <p>По результату запроса нельзя узнать, каким способом сервер искал документы: с индексом и без него программа получает одни и те же 232 документа. Способ виден в <span class="term">плане запроса</span> — описании шагов, которыми сервер выполняет запрос. Шаги плана называются стадиями. План возвращает метод <code>explain</code>; подробно он разобран в главе 3.3.</p>
+        <p>В этой главе из плана нужны только названия стадий. Их достаёт функция <code>plan</code> из заготовки главы. Она принимает коллекцию и фильтр и возвращает строку со стадиями, например <code>FETCH → IXSCAN service_1</code>.</p>
         <div class="duo">
           <figure class="code" data-lang="python" data-run="no">
             <figcaption><span>Python · PyMongo</span><span>функция plan из заготовки главы</span></figcaption>
@@ -264,13 +343,30 @@ std::string <span class="f">plan</span>(mongocxx::database&amp; db, <span class=
 <span class="k">end</span></pre>
           </figure>
         </div>
-        <p>Стадии, которые встретятся в главе:</p>
-        <ul>
-          <li><code>COLLSCAN</code> — просмотр всей коллекции;</li>
-          <li><code>IXSCAN service_1</code> — чтение индекса с указанным именем: сервер находит в нём нужные значения и получает ссылки на документы;</li>
-          <li><code>FETCH</code> — чтение документов по ссылкам, которые дала стадия ниже;</li>
-          <li><code>SORT</code> — сортировка документов в памяти сервера после того, как они прочитаны.</li>
-        </ul>
+        <p>В главе встречаются четыре стадии. В правом столбце — то же действие с книгой из §1.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Стадия</th><th>Что делает сервер</th><th>То же действие с книгой</th></tr></thead>
+            <tbody>
+              <tr><td><code>COLLSCAN</code></td><td>Читает все документы коллекции и проверяет условие у каждого</td><td>Листает книгу от первой страницы до последней</td></tr>
+              <tr><td><code>IXSCAN service_1</code></td><td>Находит нужное значение в индексе <code>service_1</code> и получает ссылки на документы</td><td>Находит слово в указателе и выписывает номера страниц</td></tr>
+              <tr><td><code>FETCH</code></td><td>Читает документы по ссылкам, которые получила стадия <code>IXSCAN</code></td><td>Открывает страницы по выписанным номерам</td></tr>
+              <tr><td><code>SORT</code></td><td>Сортирует прочитанные документы в памяти сервера</td><td>Раскладывает найденные страницы в нужном порядке</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Строка плана читается справа налево: правая стадия выполняется первой и передаёт результат стадии слева. Строка <code>FETCH → IXSCAN service_1</code> означает, что сервер сначала нашёл ссылки в индексе <code>service_1</code>, затем прочитал по ним документы. Стадии <code>IXSCAN</code> и <code>FETCH</code> идут парой: в индексе лежат только значения поля и ссылки, а запрос возвращает документы целиком, и их нужно прочитать.</p>
+        <p>Порядок выполнения двух планов, слева направо. Числа — из вывода примера ниже.</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>COLLSCAN</b><span>читает все 1200 документов, у каждого проверяет <code>service</code></span><em>без индекса · 1 стадия</em></div>
+          <div class="pipeline__stage is-lit"><b>программа</b><span>получает 232 документа</span><em>результат</em></div>
+        </div>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>IXSCAN service_1</b><span>находит <code>payments</code> в индексе и получает 232 ссылки</span><em>с индексом · 1-я стадия</em></div>
+          <div class="pipeline__stage"><b>FETCH</b><span>читает 232 документа по ссылкам</span><em>с индексом · 2-я стадия</em></div>
+          <div class="pipeline__stage is-lit"><b>программа</b><span>получает 232 документа</span><em>результат</em></div>
+        </div>
+        <p>В строке плана стадии записаны в обратном порядке: <code>FETCH → IXSCAN service_1</code>. Слева стоит стадия, которая выполняется последней и отдаёт документы программе.</p>
         <p>Пример выводит план запроса <code>{"service": "payments"}</code>, создаёт индекс по полю <code>service</code> и выводит план того же запроса ещё раз.</p>
         <p data-lang="python">Индекс создаёт метод коллекции <code>create_index</code>. Одно поле можно передать строкой, направление тогда — по возрастанию. Метод возвращает имя созданного индекса.</p>
         <p data-lang="ruby">Индексами коллекции управляет объект <code>indexes</code>; метод <code>create_one</code> создаёт индекс по документу ключа <code>{ "service" =&gt; 1 }</code>. Он возвращает ответ сервера; имя индекса берётся методом <code>indexes.get</code> по тому же ключу.</p>
@@ -347,7 +443,8 @@ journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</s
 после индекса: FETCH → IXSCAN service_1
 событий payments: 232</pre>
         </figure>
-        <p>До индекса план состоял из одной стадии <code>COLLSCAN</code>. Индекс получил имя <code>service_1</code>. После этого план того же запроса — две стадии: <code>IXSCAN service_1</code> находит в индексе значение <code>payments</code> и передаёт ссылки на 232 документа, <code>FETCH</code> читает эти документы. Найдено столько же документов, сколько без индекса: индекс меняет способ поиска, результат запроса остаётся прежним.</p>
+        <p>До создания индекса план — <code>COLLSCAN</code>: сервер прочитал все 1200 документов. Метод вернул имя нового индекса, <code>service_1</code>. После этого план того же запроса состоит из двух стадий: <code>IXSCAN service_1</code> нашла в индексе значение <code>payments</code> и получила 232 ссылки, <code>FETCH</code> прочитала по ним 232 документа.</p>
+        <p>Запрос в программе остался прежним: в обоих вызовах функции <code>plan</code> один и тот же фильтр. Сервер сам проверяет, есть ли у коллекции подходящий индекс, и использует его. Событий <code>payments</code> найдено 232, как и без индекса: индекс меняет способ поиска, результат запроса остаётся прежним.</p>
         <figure class="shot">
           <img src="../../shots/118-sandbox-events-service.png" alt="Compass, вкладка Indexes коллекции sandbox.events: индексы _id_ и service_1">
           <figcaption>Compass · <code>sandbox.events</code> после <code>create_index</code></figcaption>
@@ -355,7 +452,45 @@ journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</s
         <p>Счётчик вкладки — <code>2</code>, вторая строка — <code>service_1</code>, тип <code>REGULAR</code>, свойств у него нет: индекс не уникальный и не составной.</p>
 
         <h2 id="s3"><span class="sec">§3</span>Составной индекс и порядок полей</h2>
-        <p>Дежурный ищет ошибки сервера в платёжном сервисе: <code>{"service": "payments", "status": {"$gte": 500}}</code>. Индекс по <code>service</code> отбирает 232 события, и у каждого сервер проверяет статус. <span class="term">Составной индекс</span> хранит значения нескольких полей сразу и упорядочен сначала по первому полю, а внутри одинаковых значений первого — по второму. В индексе по <code>service</code> и <code>status</code> записи идут так:</p>
+        <p>Дежурный ищет ошибки сервера в платёжном сервисе: <code>{"service": "payments", "status": {"$gte": 500}}</code>. В запросе два условия: сервис <code>payments</code> и статус от 500. Индекс <code>service_1</code> помогает только с первым условием. Он отбирает 232 события <code>payments</code>, сервер читает все 232 документа и у каждого проверяет статус. Подходят 42 документа, остальные 190 прочитаны и отброшены.</p>
+        <p>Чтобы индекс помогал с обоими условиями, в него включают оба поля. <span class="term">Составной индекс</span> — индекс по нескольким полям. Записи в нём упорядочены сначала по первому полю, а внутри одинаковых значений первого поля — по второму.</p>
+        <p>Так составлен общий список студентов колледжа, упорядоченный по группе, а внутри группы — по фамилии:</p>
+        <div class="doc">
+          <div class="doc__bar"><span>Список студентов: группа, фамилия</span><span>фрагмент</span></div>
+          <div class="doc__body">
+            <div>ИС-21, Абрамов</div>
+            <div>ИС-21, Иванов</div>
+            <div>ИС-21, Яковлев</div>
+            <div class="ok">ИС-22, Белова</div>
+            <div class="ok">ИС-22, Иванов</div>
+            <div class="ok">ИС-22, Орлова</div>
+            <div>ИС-23, Григорьев</div>
+            <div>ИС-23, Иванов</div>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Кого ищут</th><th>Как идёт поиск по списку</th></tr></thead>
+            <tbody>
+              <tr><td>Всех студентов группы ИС-22</td><td>Они стоят подряд. Читается один участок списка</td></tr>
+              <tr><td>Иванова из группы ИС-22</td><td>Сначала находится участок группы, внутри него фамилии стоят по алфавиту. Читается одна строка</td></tr>
+              <tr><td>Всех Ивановых колледжа</td><td>Ивановы есть в каждой группе и стоят в разных местах. Список читается целиком</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Тот же порядок встречается в других привычных списках. В каждом из них поиск по первому полю идёт сразу, а поиск только по второму требует просмотреть всё.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Что упорядочено</th><th>Первое поле, второе поле</th><th>Находится сразу</th><th>Просматривается целиком</th></tr></thead>
+            <tbody>
+              <tr><td>Словарь</td><td>Первая буква слова, вторая буква</td><td>Все слова на «к»; все слова на «ко»</td><td>Все слова, в которых вторая буква «о»: «дом», «кот», «нос» стоят в разных частях словаря</td></tr>
+              <tr><td>Контакты в телефоне</td><td>Фамилия, имя</td><td>Все Ивановы; Иванов Пётр</td><td>Все Петры: они записаны под разными фамилиями</td></tr>
+              <tr><td>Папки на диске</td><td>Папка, файл в ней</td><td>Все файлы папки <code>payments</code>; файл <code>503.txt</code> в папке <code>payments</code></td><td>Файл <code>503.txt</code>, когда папка неизвестна: открывается каждая папка</td></tr>
+              <tr><td>Почтовые адреса</td><td>Город, улица</td><td>Все улицы Казани; улица Баумана в Казани</td><td>Все улицы Ленина: такая улица есть во многих городах</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Группа в этом списке соответствует полю <code>service</code>, фамилия — полю <code>status</code>. В индексе по <code>service</code> и <code>status</code> записи идут так:</p>
         <div class="doc">
           <div class="doc__bar"><span>Индекс по service и status</span><span>фрагмент</span></div>
           <div class="doc__body">
@@ -365,7 +500,57 @@ journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</s
             <div>"search", 200 — 149 · 301 — 16 · … · 503 — 21</div>
           </div>
         </div>
-        <p>Все события <code>payments</code> со статусом от 500 стоят в индексе подряд, и сервер читает ровно 42 записи. События со статусом 503 есть у всех пяти сервисов, и в этом индексе они разбросаны по пяти местам: по второму полю без первого записи не упорядочены. Поэтому составной индекс помогает запросам по первому полю, по первому и второму вместе, но не по второму полю отдельно. Первые поля составного индекса называются его <span class="term">префиксом</span>: индекс по <code>service</code> и <code>status</code> работает для запроса, условия которого начинаются с префикса.</p>
+        <p>В этом фрагменте все события <code>payments</code> со статусом от 500 стоят подряд — 42 записи в одной строке. Ниже тот же индекс показан тремя способами: списком записей, полосой в масштабе и с обратным порядком полей.</p>
+        <h3>Три запроса к одному списку записей</h3>
+        <p>Индекс — это список записей, упорядоченный по сервису, а внутри сервиса — по статусу. Чтобы список поместился на схеме, из восьми статусов оставлены три: 200, 500 и 503.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Записи индекса по service и status</span><span>из восьми статусов показаны три</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>service = "payments"</b><ol><li>"api-gateway", 200</li><li>"api-gateway", 500</li><li>"api-gateway", 503</li><li>"notifier", 200</li><li>"notifier", 500</li><li>"notifier", 503</li><li>"orders", 200</li><li>"orders", 500</li><li>"orders", 503</li><li class="on">"payments", 200</li><li class="on">"payments", 500</li><li class="on">"payments", 503</li><li>"search", 200</li><li>"search", 500</li><li>"search", 503</li></ol><em>Три строки подряд</em></div>
+              <div><b>service = "payments", status ≥ 500</b><ol><li>"api-gateway", 200</li><li>"api-gateway", 500</li><li>"api-gateway", 503</li><li>"notifier", 200</li><li>"notifier", 500</li><li>"notifier", 503</li><li>"orders", 200</li><li>"orders", 500</li><li>"orders", 503</li><li>"payments", 200</li><li class="on">"payments", 500</li><li class="on">"payments", 503</li><li>"search", 200</li><li>"search", 500</li><li>"search", 503</li></ol><em>Две строки подряд</em></div>
+              <div><b>status = 503</b><ol><li>"api-gateway", 200</li><li>"api-gateway", 500</li><li class="on">"api-gateway", 503</li><li>"notifier", 200</li><li>"notifier", 500</li><li class="on">"notifier", 503</li><li>"orders", 200</li><li>"orders", 500</li><li class="on">"orders", 503</li><li>"payments", 200</li><li>"payments", 500</li><li class="on">"payments", 503</li><li>"search", 200</li><li>"search", 500</li><li class="on">"search", 503</li></ol><em>Пять строк в пяти местах</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Список один и тот же во всех трёх столбцах: строки упорядочены по сервису, внутри сервиса — по статусу. Меняется только запрос. Зелёным закрашены строки, которые ему подходят.</p>
+        </div>
+        <p>В первых двух столбцах нужные строки стоят подряд. Сервер находит первую из них и читает вниз, пока строки подходят. В третьем столбце строки со статусом 503 разделены чужими строками, и прочитать их одним участком нельзя.</p>
+        <h3>Почему поиск только по status не работает</h3>
+        <p>В упорядоченном списке сервер ищет так же, как читатель ищет слово в словаре: открывает список в середине, сравнивает запись с искомым значением и по результату идёт выше или ниже. Для условия <code>service = "payments"</code> сравнение даёт ответ: запись <code>"orders", 503</code> стоит раньше, чем нужно, значит, все записи выше неё тоже не подходят, и искать нужно ниже.</p>
+        <p>Для условия <code>status = 503</code> сравнение ответа не даёт. Запись <code>"orders", 503</code> подходит, запись <code>"payments", 200</code> сразу под ней не подходит, а ещё ниже есть подходящая <code>"payments", 503</code>. По одной записи нельзя определить, в какой стороне лежат остальные: статусы идут по возрастанию только внутри одного сервиса, а на границе сервисов счёт начинается заново с 200. Поэтому запрос только по <code>status</code> сервер выполняет просмотром коллекции.</p>
+        <h3>Тот же индекс в масштабе</h3>
+        <p>На списке показаны три статуса. На полосе ниже — весь индекс: 1200 записей, пять сервисов, в каждом восемь статусов. Три полосы — один и тот же индекс и три запроса.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Индекс по service и status</span><span>1200 записей</span></div>
+          <div class="scheme__body">
+            <span class="strip__hint">Полоса шире экрана и прокручивается вправо.</span>
+            <div class="strip"><span class="strip__q">{"service": "payments"}</span><div class="strip__scroll"><div class="strip__in"><div class="strip__bar"><i style="flex-grow:149"></i><i style="flex-grow:20"></i><i style="flex-grow:16"></i><i style="flex-grow:9"></i><i style="flex-grow:14"></i><i style="flex-grow:8"></i><i style="flex-grow:14"></i><i style="flex-grow:9" class="g"></i><i style="flex-grow:173"></i><i style="flex-grow:11"></i><i style="flex-grow:5"></i><i style="flex-grow:13"></i><i style="flex-grow:10"></i><i style="flex-grow:13"></i><i style="flex-grow:16"></i><i style="flex-grow:6" class="g"></i><i style="flex-grow:158"></i><i style="flex-grow:11"></i><i style="flex-grow:9"></i><i style="flex-grow:8"></i><i style="flex-grow:17"></i><i style="flex-grow:10"></i><i style="flex-grow:11"></i><i style="flex-grow:9" class="g"></i><i style="flex-grow:148" class="on"></i><i style="flex-grow:8" class="on"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:13" class="on"></i><i style="flex-grow:12" class="on"></i><i style="flex-grow:13" class="on"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:20" class="on g"></i><i style="flex-grow:149"></i><i style="flex-grow:16"></i><i style="flex-grow:10"></i><i style="flex-grow:20"></i><i style="flex-grow:12"></i><i style="flex-grow:14"></i><i style="flex-grow:7"></i><i style="flex-grow:21" class="g"></i></div><div class="strip__lab"><span style="flex-grow:239">api-gateway</span><span style="flex-grow:247">notifier</span><span style="flex-grow:233">orders</span><span style="flex-grow:232" class="on">payments</span><span style="flex-grow:249">search</span></div></div></div><em>Один участок: <strong>232 записи подряд</strong>. Сервер переходит к началу участка и читает до его конца</em></div>
+            <div class="strip"><span class="strip__q">{"service": "payments", "status": {"$gte": 500}}</span><div class="strip__scroll"><div class="strip__in"><div class="strip__bar"><i style="flex-grow:149"></i><i style="flex-grow:20"></i><i style="flex-grow:16"></i><i style="flex-grow:9"></i><i style="flex-grow:14"></i><i style="flex-grow:8"></i><i style="flex-grow:14"></i><i style="flex-grow:9" class="g"></i><i style="flex-grow:173"></i><i style="flex-grow:11"></i><i style="flex-grow:5"></i><i style="flex-grow:13"></i><i style="flex-grow:10"></i><i style="flex-grow:13"></i><i style="flex-grow:16"></i><i style="flex-grow:6" class="g"></i><i style="flex-grow:158"></i><i style="flex-grow:11"></i><i style="flex-grow:9"></i><i style="flex-grow:8"></i><i style="flex-grow:17"></i><i style="flex-grow:10"></i><i style="flex-grow:11"></i><i style="flex-grow:9" class="g"></i><i style="flex-grow:148"></i><i style="flex-grow:8"></i><i style="flex-grow:9"></i><i style="flex-grow:13"></i><i style="flex-grow:12"></i><i style="flex-grow:13" class="on"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:20" class="on g"></i><i style="flex-grow:149"></i><i style="flex-grow:16"></i><i style="flex-grow:10"></i><i style="flex-grow:20"></i><i style="flex-grow:12"></i><i style="flex-grow:14"></i><i style="flex-grow:7"></i><i style="flex-grow:21" class="g"></i></div><div class="strip__lab"><span style="flex-grow:239">api-gateway</span><span style="flex-grow:247">notifier</span><span style="flex-grow:233">orders</span><span style="flex-grow:232" class="on">payments</span><span style="flex-grow:249">search</span></div></div></div><em>Один участок: <strong>42 записи подряд</strong> в конце участка <code>payments</code>, статусы 500, 502 и 503</em></div>
+            <div class="strip"><span class="strip__q">{"status": 503}</span><div class="strip__scroll"><div class="strip__in"><div class="strip__bar"><i style="flex-grow:149"></i><i style="flex-grow:20"></i><i style="flex-grow:16"></i><i style="flex-grow:9"></i><i style="flex-grow:14"></i><i style="flex-grow:8"></i><i style="flex-grow:14"></i><i style="flex-grow:9" class="on g"></i><i style="flex-grow:173"></i><i style="flex-grow:11"></i><i style="flex-grow:5"></i><i style="flex-grow:13"></i><i style="flex-grow:10"></i><i style="flex-grow:13"></i><i style="flex-grow:16"></i><i style="flex-grow:6" class="on g"></i><i style="flex-grow:158"></i><i style="flex-grow:11"></i><i style="flex-grow:9"></i><i style="flex-grow:8"></i><i style="flex-grow:17"></i><i style="flex-grow:10"></i><i style="flex-grow:11"></i><i style="flex-grow:9" class="on g"></i><i style="flex-grow:148"></i><i style="flex-grow:8"></i><i style="flex-grow:9"></i><i style="flex-grow:13"></i><i style="flex-grow:12"></i><i style="flex-grow:13"></i><i style="flex-grow:9"></i><i style="flex-grow:20" class="on g"></i><i style="flex-grow:149"></i><i style="flex-grow:16"></i><i style="flex-grow:10"></i><i style="flex-grow:20"></i><i style="flex-grow:12"></i><i style="flex-grow:14"></i><i style="flex-grow:7"></i><i style="flex-grow:21" class="on g"></i></div><div class="strip__lab"><span style="flex-grow:239" class="on">api-gateway</span><span style="flex-grow:247" class="on">notifier</span><span style="flex-grow:233" class="on">orders</span><span style="flex-grow:232" class="on">payments</span><span style="flex-grow:249" class="on">search</span></div></div></div><em>Пять участков в разных местах: 9 + 6 + 9 + 20 + 21 = <strong>65 записей</strong>. Одного места, с которого можно начать чтение, нет</em></div>
+          </div>
+          <p class="scheme__note">Толстые линии делят индекс на пять сервисов. Внутри каждого сервиса тонкие линии делят записи по статусам, от 200 слева до 503 справа. Зелёным закрашены записи, которые нужны запросу.</p>
+        </div>
+        <p>Первый запрос занимает один участок целиком, второй — конец того же участка. У третьего запроса пять участков, и между ними лежат записи с другими статусами.</p>
+        <h3>Префикс индекса</h3>
+        <p>Первое поле составного индекса или несколько его первых полей подряд называются <span class="term">префиксом</span>. Сервер использует составной индекс, когда в условиях запроса есть его префикс. Для индекса по <code>service</code> и <code>status</code>:</p>
+        <ul>
+          <li>запрос по <code>service</code> — индекс помогает: <code>service</code> — префикс, нужные записи стоят одним участком;</li>
+          <li>запрос по <code>service</code> и <code>status</code> — индекс помогает: в запросе есть оба поля, нужные записи стоят одним участком внутри сервиса;</li>
+          <li>запрос только по <code>status</code> — индекс не помогает: поля <code>service</code> в запросе нет, нужные записи стоят в пяти местах.</li>
+        </ul>
+        <h3>Обратный порядок полей</h3>
+        <p>Порядок полей задаётся при создании индекса. Индекс по <code>status</code> и <code>service</code> состоит из тех же 1200 записей, но упорядочен сначала по статусу, а внутри статуса — по сервису. Его префикс — <code>status</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Индекс по status и service</span><span>те же 1200 записей</span></div>
+          <div class="scheme__body">
+            <span class="strip__hint">Полоса шире экрана и прокручивается вправо.</span>
+            <div class="strip"><span class="strip__q">{"status": 503}</span><div class="strip__scroll"><div class="strip__in"><div class="strip__bar"><i style="flex-grow:149"></i><i style="flex-grow:173"></i><i style="flex-grow:158"></i><i style="flex-grow:148"></i><i style="flex-grow:149" class="g"></i><i style="flex-grow:20"></i><i style="flex-grow:11"></i><i style="flex-grow:11"></i><i style="flex-grow:8"></i><i style="flex-grow:16" class="g"></i><i style="flex-grow:16"></i><i style="flex-grow:5"></i><i style="flex-grow:9"></i><i style="flex-grow:9"></i><i style="flex-grow:10" class="g"></i><i style="flex-grow:9"></i><i style="flex-grow:13"></i><i style="flex-grow:8"></i><i style="flex-grow:13"></i><i style="flex-grow:20" class="g"></i><i style="flex-grow:14"></i><i style="flex-grow:10"></i><i style="flex-grow:17"></i><i style="flex-grow:12"></i><i style="flex-grow:12" class="g"></i><i style="flex-grow:8"></i><i style="flex-grow:13"></i><i style="flex-grow:10"></i><i style="flex-grow:13"></i><i style="flex-grow:14" class="g"></i><i style="flex-grow:14"></i><i style="flex-grow:16"></i><i style="flex-grow:11"></i><i style="flex-grow:9"></i><i style="flex-grow:7" class="g"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:6" class="on"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:20" class="on"></i><i style="flex-grow:21" class="on g"></i></div><div class="strip__lab"><span style="flex-grow:777">200</span><span style="flex-grow:66">301</span><span style="flex-grow:49">400</span><span style="flex-grow:63">404</span><span style="flex-grow:65">429</span><span style="flex-grow:58">500</span><span style="flex-grow:57">502</span><span style="flex-grow:65" class="on">503</span></div></div></div><em>Один участок: <strong>65 записей подряд</strong></em></div>
+            <div class="strip"><span class="strip__q">{"service": "payments"}</span><div class="strip__scroll"><div class="strip__in"><div class="strip__bar"><i style="flex-grow:149"></i><i style="flex-grow:173"></i><i style="flex-grow:158"></i><i style="flex-grow:148" class="on"></i><i style="flex-grow:149" class="g"></i><i style="flex-grow:20"></i><i style="flex-grow:11"></i><i style="flex-grow:11"></i><i style="flex-grow:8" class="on"></i><i style="flex-grow:16" class="g"></i><i style="flex-grow:16"></i><i style="flex-grow:5"></i><i style="flex-grow:9"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:10" class="g"></i><i style="flex-grow:9"></i><i style="flex-grow:13"></i><i style="flex-grow:8"></i><i style="flex-grow:13" class="on"></i><i style="flex-grow:20" class="g"></i><i style="flex-grow:14"></i><i style="flex-grow:10"></i><i style="flex-grow:17"></i><i style="flex-grow:12" class="on"></i><i style="flex-grow:12" class="g"></i><i style="flex-grow:8"></i><i style="flex-grow:13"></i><i style="flex-grow:10"></i><i style="flex-grow:13" class="on"></i><i style="flex-grow:14" class="g"></i><i style="flex-grow:14"></i><i style="flex-grow:16"></i><i style="flex-grow:11"></i><i style="flex-grow:9" class="on"></i><i style="flex-grow:7" class="g"></i><i style="flex-grow:9"></i><i style="flex-grow:6"></i><i style="flex-grow:9"></i><i style="flex-grow:20" class="on"></i><i style="flex-grow:21" class="g"></i></div><div class="strip__lab"><span style="flex-grow:777" class="on">200</span><span style="flex-grow:66" class="on">301</span><span style="flex-grow:49" class="on">400</span><span style="flex-grow:63" class="on">404</span><span style="flex-grow:65" class="on">429</span><span style="flex-grow:58" class="on">500</span><span style="flex-grow:57" class="on">502</span><span style="flex-grow:65" class="on">503</span></div></div></div><em>Восемь участков в разных местах: 148 + 8 + 9 + 13 + 12 + 13 + 9 + 20 = <strong>232 записи</strong></em></div>
+          </div>
+          <p class="scheme__note">Толстые линии делят индекс на восемь статусов, от 200 до 503; на статус 200 приходится 777 записей из 1200. Внутри каждого статуса тонкие линии делят записи по сервисам, от <code>api-gateway</code> до <code>search</code>.</p>
+        </div>
+        <p>Запросы поменялись местами. События со статусом 503 теперь стоят одним участком, и запрос по <code>status</code> выполняется по индексу. События <code>payments</code> стоят в восьми местах, по одному участку в каждом статусе, и запрос только по <code>service</code> при таком индексе выполняется просмотром коллекции. Оба утверждения проверены на копии журнала: план первого запроса — <code>FETCH → IXSCAN status_1_service_1</code>, план второго — <code>COLLSCAN</code>.</p>
+        <p>Отсюда правило выбора порядка: первым в составном индексе ставят поле, условие на которое есть в каждом запросе. Дежурный всегда указывает сервис и не всегда указывает статус, поэтому в примере ниже индекс строится по <code>service</code>, затем по <code>status</code>.</p>
         <p data-lang="python">Составной индекс задаётся списком пар «поле, направление». Порядок пар в списке и есть порядок полей в индексе.</p>
         <p data-lang="ruby">Составной индекс задаётся хешем из нескольких полей. Хеш Ruby сохраняет порядок ключей, и порядок полей в нём — порядок полей в индексе.</p>
         <p data-lang="go">Составной индекс задаётся в <code>Keys</code> документом <code>bson.D</code> из нескольких полей. <code>bson.D</code> сохраняет порядок, и он становится порядком полей в индексе.</p>
@@ -444,8 +629,13 @@ service и status:           FETCH → IXSCAN service_1_status_1
 только status:              COLLSCAN
 service, порядок по status: FETCH → IXSCAN service_1_status_1</pre>
         </figure>
-        <p>Индекс получил имя <code>service_1_status_1</code>. Запрос по обоим полям сервер выполнил по нему. Запрос только по <code>status</code> снова выполнен просмотром коллекции: поле <code>status</code> не входит в префикс. В третьем запросе нет стадии <code>SORT</code>: внутри значения <code>payments</code> записи индекса уже упорядочены по статусу, и сервер отдаёт документы в порядке индекса без сортировки в памяти.</p>
-        <p>Сервер выбрал составной индекс для первого запроса, хотя индекс <code>service_1</code> тоже подходил. Когда подходят несколько индексов, сервер пробует их на запросе и оставляет тот, по которому нужный результат получается за меньшее число шагов.</p>
+        <p>Индекс получил имя <code>service_1_status_1</code>: в нём оба поля в порядке создания. Три строки плана:</p>
+        <ul>
+          <li><b>по обоим полям</b> — <code>FETCH → IXSCAN service_1_status_1</code>. Сервер выполнил запрос по новому индексу;</li>
+          <li><b>только по <code>status</code></b> — <code>COLLSCAN</code>. Поле <code>status</code> не входит в префикс, сервер читает всю коллекцию;</li>
+          <li><b>по <code>service</code> с сортировкой по <code>status</code></b> — <code>FETCH → IXSCAN service_1_status_1</code>, стадии <code>SORT</code> нет. Внутри значения <code>payments</code> записи индекса уже упорядочены по статусу, и сервер отдаёт документы в порядке индекса. В списке колледжа студенты одной группы тоже уже стоят по фамилиям, отдельно сортировать их не нужно.</li>
+        </ul>
+        <p>Для первого запроса подходили два индекса: <code>service_1</code> и составной. Когда подходят несколько индексов, сервер пробует их на запросе и оставляет тот, по которому результат получается за меньшее число шагов. По составному индексу читаются 42 документа, по <code>service_1</code> — 232, и сервер выбрал составной.</p>
         <figure class="shot">
           <img src="../../shots/119-sandbox-events-explain.png" alt="Compass, окно Explain Plan для запроса service payments и status от 500: стадии FETCH и IXSCAN по индексу service_1_status_1, 42 документа, 42 ключа индекса">
           <figcaption>Compass · <b>Explain</b> для <code>{ service: "payments", status: { $gte: 500 } }</code></figcaption>
@@ -453,7 +643,8 @@ service, порядок по status: FETCH → IXSCAN service_1_status_1</pre>
         <p>Кнопка <b>Explain</b> на вкладке <b>Documents</b> показывает план запроса из поля фильтра. В дереве те же две стадии, что вывела функция <code>plan</code>: снизу <code>IXSCAN</code> по индексу <code>service_1_status_1</code>, над ней <code>FETCH</code>, обе вернули 42 документа. Справа сводка: прочитано 42 ключа индекса и 42 документа — столько же, сколько найдено. Остальные числа сводки разобраны в главе 3.3.</p>
 
         <h2 id="s4"><span class="sec">§4</span>Удаление индекса</h2>
-        <p>После создания составного индекса индекс <code>service_1</code> стал лишним: <code>service</code> — префикс индекса <code>service_1_status_1</code>, и запросы по одному <code>service</code> он тоже обслуживает. Лишний индекс занимает место и замедляет запись (§8), поэтому его удаляют. Индекс удаляется по имени.</p>
+        <p>После создания составного индекса у коллекции два индекса, которые начинаются с поля <code>service</code>: <code>service_1</code> и <code>service_1_status_1</code>. Запрос по одному <code>service</code> может выполнить любой из них, потому что <code>service</code> — префикс составного индекса. Список колледжа, упорядоченный по группе и фамилии, уже позволяет найти всех студентов группы; второй список, упорядоченный только по группе, ничего к нему не добавляет.</p>
+        <p>Индекс <code>service_1</code> стал лишним. Он занимает место на диске, и при каждой записи в коллекцию сервер обновляет и его (§8). Лишний индекс удаляют. Индекс удаляется по имени.</p>
         <p data-lang="python">Метод коллекции <code>drop_index</code> принимает имя индекса.</p>
         <p data-lang="ruby">Метод <code>indexes.drop_one</code> принимает имя индекса.</p>
         <p data-lang="go">Метод <code>Indexes().DropOne</code> принимает имя индекса.</p>
@@ -532,8 +723,19 @@ service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</p
 только service:         FETCH → IXSCAN service_1_status_1
 service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</pre>
         </figure>
-        <p>Остались два индекса — <code>_id_</code> и составной. Запрос по <code>service</code> выполнен по составному индексу: <code>service</code> — его префикс. Во втором запросе сверху появилась стадия <code>SORT</code>: поля <code>ts</code> в индексе нет, и сервер сортирует 232 документа в памяти после чтения. Если такой запрос выполняется часто, для него строят индекс, в котором после <code>service</code> идёт <code>ts</code>.</p>
-        <p>Порядок по убыванию индекс тоже даёт: для сортировки по <code>status</code> от больших к меньшим сервер читает тот же индекс <code>service_1_status_1</code> с конца, и стадии <code>SORT</code> в плане нет. Удалить можно любой индекс, кроме <code>_id_</code>: на попытку сервер отвечает ошибкой <code>cannot drop _id index</code>.</p>
+        <p>Остались два индекса — <code>_id_</code> и составной. Запрос по <code>service</code> выполнен по составному индексу: <code>service</code> — его префикс.</p>
+        <p>Во втором плане первой стоит стадия <code>SORT</code>. Индекс отдаёт события <code>payments</code> в порядке статусов, а запрос требует порядок по времени <code>ts</code>. Поля <code>ts</code> в индексе нет, поэтому сервер читает 232 документа и сортирует их в памяти. В списке колледжа так выглядит запрос «студенты группы ИС-22 по дате рождения»: участок группы находится сразу, но внутри него фамилии стоят по алфавиту, и по дате рождения их раскладывают отдельно. Если запрос с такой сортировкой выполняется часто, для него строят индекс, в котором после <code>service</code> идёт <code>ts</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Шесть первых событий payments</span><span>status и время ts за 01.09.2026</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>Порядок в индексе: по status</b><ol><li class="pl">200 · 00:51</li><li class="pl">200 · 00:59</li><li class="pl">301 · 01:17</li><li class="pl">404 · 00:32</li><li class="pl">404 · 01:06</li><li class="pl">500 · 01:14</li></ol><em>Статусы идут по возрастанию, время — вперемешку</em></div>
+              <div><b>Порядок в запросе: по ts</b><ol><li class="pl">404 · 00:32</li><li class="pl">200 · 00:51</li><li class="pl">200 · 00:59</li><li class="pl">404 · 01:06</li><li class="pl">500 · 01:14</li><li class="pl">301 · 01:17</li></ol><em>Время идёт по возрастанию. Такой порядок сервер получает стадией <code>SORT</code></em></div>
+            </div>
+          </div>
+        </div>
+        <p>Порядок по убыванию индекс тоже даёт. Для сортировки по <code>status</code> от больших значений к меньшим сервер читает тот же индекс <code>service_1_status_1</code> с конца, и стадии <code>SORT</code> в плане нет.</p>
+        <p>Удалить можно любой индекс, кроме <code>_id_</code>. На попытку удалить его сервер отвечает ошибкой <code>cannot drop _id index</code>.</p>
         <figure class="shot">
           <img src="../../shots/120-sandbox-events-compound.png" alt="Compass, вкладка Indexes коллекции sandbox.events: _id_ размером 4,1 kB и service_1_status_1 размером 24,6 kB со свойством COMPOUND">
           <figcaption>Compass · <code>sandbox.events</code> после удаления <code>service_1</code></figcaption>
@@ -541,7 +743,15 @@ service, порядок по ts: SORT → FETCH → IXSCAN service_1_status_1</p
         <p>Осталось два индекса. У составного свойство <code>COMPOUND</code> — «составной». Размеры в столбце <b>Size</b>: 4,1 kB у <code>_id_</code> и 24,6 kB у составного на 1200 событий.</p>
 
         <h2 id="s5"><span class="sec">§5</span>Уникальный индекс</h2>
-        <p>Индекс с параметром <code>unique</code> — <span class="term">уникальный</span> — не допускает в коллекции двух документов с одинаковым значением индексированного поля. Сервер проверяет это при каждой вставке и каждом обновлении, как валидатор из главы 3.1, и отклоняет запись, которая создала бы повтор. Так защищают значения, которые должны встречаться один раз: почту покупателя, номер заказа, артикул.</p>
+        <p>При регистрации на сайте форма отвечает «эта почта уже занята», если на такой адрес уже заведена учётная запись. В базе данных эту проверку выполняет уникальный индекс. Индекс с параметром <code>unique</code> — <span class="term">уникальный</span> — не допускает в коллекции двух документов с одинаковым значением индексированного поля.</p>
+        <p>Сервер проверяет это при каждой вставке и каждом обновлении. Он ищет новое значение в индексе, и если оно там уже есть, отклоняет запись: документ не записывается, программа получает ошибку. Так же приходит отказ валидатора из главы 3.1. Значение в индексе находится быстро, поэтому для проверки сервер не читает коллекцию.</p>
+        <p>Порядок проверки для записи из примера ниже:</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>insert_one</b><span>новый покупатель Ольга Кравец, почта <code>user01@example.com</code></span><em>1 · запись</em></div>
+          <div class="pipeline__stage"><b>индекс email_1</b><span>значение <code>user01@example.com</code> в индексе уже есть: это почта Анны Беловой</span><em>2 · проверка</em></div>
+          <div class="pipeline__stage is-lit"><b>ответ</b><span>код <code>11000</code>, документ не записан</span><em>3 · отказ</em></div>
+        </div>
+        <p>Уникальным индексом защищают значения, которые должны встречаться один раз: почту покупателя, номер заказа, артикул товара.</p>
         <p>Пример копирует покупателей из <code>shop.customers</code> в <code>clients</code> (<code>sandbox.customers</code>), создаёт уникальный индекс по полю <code>email</code> и пробует записать нового покупателя с почтой, которая уже есть у Анны Беловой.</p>
         <p data-lang="python">Параметр передаётся в <code>create_index</code> именованным аргументом <code>unique=True</code>. Отказ из-за повтора PyMongo выбрасывает исключением <code>DuplicateKeyError</code>; повторившееся значение лежит в <code>e.details["keyValue"]</code>.</p>
         <p data-lang="ruby">Параметр передаётся в <code>create_one</code> вторым аргументом <code>unique: true</code>. Отказ приходит исключением <code>Mongo::Error::OperationFailure</code>; повторившееся значение лежит в ответе сервера, <code>e.document["writeErrors"][0]["keyValue"]</code>.</p>
@@ -655,7 +865,7 @@ clients.indexes.<span class="f">create_one</span>({ <span class="s">"email"</spa
 Ольга Кравец отклонена, код 11000 — уже есть {"email"=&gt;"user01@example.com"}
 покупателей: 20</pre>
         </figure>
-        <p>Индекс получил имя <code>email_1</code>. Вставка отклонена с кодом <code>11000</code> — <code>DuplicateKey</code>, «повтор ключа»; <code>keyValue</code> называет значение, которое уже есть в индексе. Покупателей по-прежнему 20: отклонённый документ не записан.</p>
+        <p>Индекс получил имя <code>email_1</code>. Вставка отклонена с кодом <code>11000</code>. Название этой ошибки — <code>DuplicateKey</code>, «повтор ключа»; ключом здесь называется значение индексированного поля. Поле <code>keyValue</code> в ответе сервера называет значение, которое уже есть в индексе: почту <code>user01@example.com</code>. Покупателей по-прежнему 20: отклонённый документ не записан.</p>
         <figure class="shot">
           <img src="../../shots/121-sandbox-customers-unique.png" alt="Compass, вкладка Indexes коллекции sandbox.customers: индекс email_1 со свойством UNIQUE">
           <figcaption>Compass · <code>sandbox.customers</code>, уникальный индекс по почте</figcaption>
@@ -663,7 +873,9 @@ clients.indexes.<span class="f">create_one</span>({ <span class="s">"email"</spa
         <p>У индекса <code>email_1</code> свойство <code>UNIQUE</code>, как у <code>_id_</code>: оба не допускают повторов. Документов на вкладке <b>Documents</b> — 20.</p>
 
         <h2 id="s6"><span class="sec">§6</span>Уникальный индекс на данных с повторами</h2>
-        <p>Уникальный индекс можно создать только на коллекции, где повторов уже нет. Пока индекс строится, сервер проходит по всем документам, и первый же повтор останавливает постройку. Пример пробует создать уникальный индекс по городу.</p>
+        <p>Уникальный индекс можно создать только на коллекции, где повторов уже нет. Создавая индекс, сервер проходит по всем документам и заносит в индекс значение из каждого. Если очередное значение в индекс уже занесено, требование «без повторов» нарушено самими данными, и сервер прекращает создание индекса.</p>
+        <p>Так же нельзя объявить номера зачётных книжек уникальными, пока в списке группы у двух студентов записан один номер. Сначала исправляют список, затем вводят правило.</p>
+        <p>Пример считает, сколько разных городов у покупателей, и пробует создать уникальный индекс по полю <code>city</code>.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>уникальный индекс на данных с повторами</span></figcaption>
@@ -757,13 +969,24 @@ fmt.<span class="f">Println</span>(<span class="s">"индексы:"</span>, nam
 индекс по city не создан, код 11000
 индексы: ["_id_", "email_1"]</pre>
         </figure>
-        <p>Городов пять на 20 покупателей, значит, города повторяются. Индекс не создан, ошибка — тот же код <code>11000</code>, что при вставке повтора. В списке индексов коллекции его нет. Перед созданием уникального индекса на коллекции с данными повторы ищут и устраняют, иначе индекс не появится.</p>
+        <p>Городов пять на 20 покупателей, значит, города повторяются. Индекс не создан, код ошибки тот же, что при вставке повтора, — <code>11000</code>. В списке индексов коллекции его нет: там по-прежнему <code>_id_</code> и <code>email_1</code>. Перед созданием уникального индекса на коллекции с данными повторы находят и устраняют.</p>
         <p data-lang="python">В PyMongo отказ при постройке приходит тем же исключением <code>DuplicateKeyError</code>; пример ловит его через общий класс <code>OperationFailure</code>, от которого наследуются все ошибки сервера.</p>
         <p data-lang="go">Отказ при постройке приходит ошибкой команды <code>mongo.CommandError</code>; код лежит в её поле <code>Code</code>.</p>
 
         <h2 id="s7"><span class="sec">§7</span>Документ без поля и частичный индекс</h2>
-        <p>У документа, в котором нет индексированного поля, в индекс попадает значение <code>null</code>. Для уникального индекса это значит, что без почты может быть только один покупатель: второй даст повтор <code>null</code>. Пример добавляет двух покупателей без почты.</p>
-        <p>Если документы без поля допустимы, индекс делают <span class="term">частичным</span>: параметр <code>partialFilterExpression</code> задаёт условие, и в индекс попадают только документы, которые ему соответствуют. Условие <code>{"email": {"$exists": true}}</code> оставляет в индексе документы с почтой, и уникальность проверяется только среди них. Параметры существующего индекса не меняются, поэтому пример удаляет <code>email_1</code> и создаёт индекс заново.</p>
+        <p>В уникальный индекс заносятся все документы коллекции, в том числе те, в которых индексированного поля нет. Для такого документа в индекс записывается значение <code>null</code> — «значения нет».</p>
+        <p>Сравнение — картотека анкет, в которой у двух анкет не может совпадать графа «почта». Анкета с незаполненной графой тоже стоит в картотеке, и в этой графе у неё прочерк. Первый прочерк допустим. Второй прочерк совпадает с первым, и по правилу картотеки это повтор. С индексом так же: при уникальном индексе по <code>email</code> без почты может быть только один покупатель, второй даст повтор значения <code>null</code>. Пример добавляет двух покупателей без почты.</p>
+        <p>Если документы без поля допустимы, индекс делают частичным. <span class="term">Частичный индекс</span> содержит не все документы коллекции: параметр <code>partialFilterExpression</code> задаёт условие, и в индекс попадают только документы, которые ему соответствуют. Условие <code>{"email": {"$exists": true}}</code> читается «поле <code>email</code> в документе есть». Документы без почты в такой индекс не заносятся, значений <code>null</code> в нём нет, и уникальность проверяется только среди документов с почтой.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что записано в индексе email_1</span><span>два покупателя без почты</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>Уникальный индекс</b><ol><li class="pl">null — Андрей Носов</li><li class="no">null — Вера Лосева</li><li class="pl">user01@example.com — Анна Белова</li><li class="pl">user02@example.com — Игорь Титов</li><li class="">… ещё 18 адресов</li></ol><em>Второе значение <code>null</code> — повтор, Вера Лосева отклонена</em></div>
+              <div><b>Частичный уникальный индекс</b><ol><li class="pl">user01@example.com — Анна Белова</li><li class="pl">user02@example.com — Игорь Титов</li><li class="">… ещё 18 адресов</li></ol><em>Андрей Носов и Вера Лосева записаны в коллекцию, в индексе их нет</em></div>
+            </div>
+          </div>
+        </div>
+        <p>Параметры существующего индекса изменить нельзя. Поэтому пример удаляет <code>email_1</code> и создаёт индекс заново, уже с условием.</p>
         <p data-lang="python">Параметр передаётся в <code>create_index</code> именованным аргументом <code>partialFilterExpression</code>, значение — документ условия.</p>
         <p data-lang="ruby">Параметр передаётся в <code>create_one</code> как <code>partial_filter_expression:</code>, значение — документ условия.</p>
         <p data-lang="go">Условие задаёт <code>SetPartialFilterExpression</code> в той же цепочке <code>options.Index()</code>, что и <code>SetUnique</code>.</p>
@@ -893,7 +1116,7 @@ clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <
 покупателей без почты: 2
 повтор почты отклонён — уже есть {"email"=&gt;"user01@example.com"}</pre>
         </figure>
-        <p>Первый покупатель без почты записан, второй отклонён: <code>keyValue</code> — почта со значением <code>null</code>. После замены индекса частичным второй покупатель записан, без почты теперь двое. Повтор настоящей почты частичный индекс по-прежнему отклоняет.</p>
+        <p>Первый покупатель без почты записан, второй отклонён: в <code>keyValue</code> стоит почта со значением <code>null</code><span data-lang="python"> (Python печатает его как <code>None</code>)</span>. После замены индекса частичным второй покупатель записан, покупателей без почты теперь двое. Повтор почты <code>user01@example.com</code> частичный индекс по-прежнему отклоняет.</p>
         <figure class="shot">
           <img src="../../shots/122-sandbox-customers-partial.png" alt="Compass, вкладка Indexes коллекции sandbox.customers: email_1 со свойствами UNIQUE и PARTIAL, документов 22">
           <figcaption>Compass · <code>sandbox.customers</code> после замены индекса частичным</figcaption>
@@ -901,9 +1124,24 @@ clients.<span class="f">insert_one</span>({ <span class="s">"_id"</span> =&gt; <
         <p>У нового <code>email_1</code> два свойства: <code>UNIQUE</code> и <code>PARTIAL</code> — «частичный». Значок <b>i</b> рядом со свойством показывает условие индекса. Документов 22: к двадцати покупателям добавились двое без почты.</p>
 
         <h2 id="s8"><span class="sec">§8</span>Какие поля индексировать</h2>
-        <p>Индекс ускоряет чтение, но у него есть цена. При каждой вставке, обновлении и удалении сервер меняет не только документ, но и каждый индекс коллекции. Индекс занимает место: на копии журнала из 1200 событий составной индекс занимает 24,6 kB (кадр в §4), и размер растёт вместе с коллекцией. У одной коллекции может быть не больше 64 индексов.</p>
-        <p>Поэтому индексы строят под запросы, которые выполняются часто: поиск дежурного по сервису и статусу, вход покупателя по почте. Поле, по которому почти не ищут, индексировать не нужно. Поле с немногими значениями, например <code>level</code> с тремя значениями на 1200 событий, отбирает по индексу сотни документов, и выигрыш от такого индекса меньше, чем от индекса по более разнообразному полю.</p>
-        <p>Индексировать можно и вложенные поля, и поля массивов. Ключ записывается точечной нотацией, как в фильтре (глава 2.1): <code>{"delivery.city": 1}</code> — индекс по городу доставки заказа. Если поле — массив или лежит внутри массива, как <code>items.sku</code>, сервер заносит в индекс каждый элемент отдельно; такой индекс называется <span class="term">многоключевым</span> (multikey) и находит заказ по любому из его артикулов.</p>
+        <p>Индекс ускоряет чтение и замедляет запись. В книгу с тремя указателями новая страница добавляется в четыре действия: сама страница и запись в каждом указателе. Сервер работает так же: при каждой вставке, обновлении и удалении он меняет документ и каждый индекс коллекции.</p>
+        <p>У копии журнала после §4 два индекса. Вставка одного события состоит из трёх действий:</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>insert_one</b><span>в журнал добавляется одно событие</span><em>запись</em></div>
+          <div class="pipeline__stage"><b>коллекция</b><span>документ записан</span><em>действие 1</em></div>
+          <div class="pipeline__stage"><b>индекс _id_</b><span>добавлена запись с новым <code>_id</code></span><em>действие 2</em></div>
+          <div class="pipeline__stage is-lit"><b>индекс service_1_status_1</b><span>запись вставлена на своё место по сервису и статусу</span><em>действие 3</em></div>
+        </div>
+        <p>Индекс занимает место на диске. На копии журнала из 1200 событий составной индекс занимает 24,6 kB (кадр в §4), и размер растёт вместе с коллекцией. У одной коллекции может быть не больше 64 индексов.</p>
+        <p>Поэтому индексы строят под запросы, которые выполняются часто: поиск дежурного по сервису и статусу, вход покупателя по почте. Поле, по которому почти не ищут, индексировать не нужно.</p>
+        <p>Польза от индекса зависит от того, сколько разных значений у поля. У поля <code>level</code> три значения на 1200 событий, и значение <code>info</code> стоит у 777 из них. По индексу сервер получит 777 ссылок и прочитает 777 документов — больше половины коллекции. Указатель, в котором при слове записано больше половины страниц книги, чтение почти не сокращает. У почты покупателя каждое значение встречается один раз, и по индексу читается один документ.</p>
+        <p>Индекс создают для поля:</p>
+        <ul>
+          <li>по которому часто ищут или сортируют;</li>
+          <li>у которого много разных значений;</li>
+          <li>значения которого не должны повторяться, — тогда индекс уникальный.</li>
+        </ul>
+        <p>Индексировать можно и вложенные поля, и поля массивов. Ключ записывается точечной нотацией, как в фильтре (глава 2.1): <code>{"delivery.city": 1}</code> — индекс по городу доставки заказа. Если поле — массив или лежит внутри массива, как <code>items.sku</code>, сервер заносит в индекс каждый элемент отдельно. Такой индекс называется <span class="term">многоключевым</span> (multikey) и находит заказ по любому из его артикулов. В предметном указателе одна страница тоже записана при нескольких словах — при каждом, которое на ней встречается.</p>
 
         <h2 id="s9"><span class="sec">§9</span>Индексы в Compass</h2>
         <p>Кадры в разделах выше сняты на тех же коллекциях, что и примеры. Индексы коллекции в Compass находятся на вкладке <b>Indexes</b>; таблица индексов разобрана в §1.</p>
