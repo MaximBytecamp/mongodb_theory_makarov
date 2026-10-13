@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>Практикум · Инженер платформы: индексы журнала · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* ── Первый экран ── */
+    .hero h1 { margin: 12px 0 12px; font-family: var(--display); font-size: clamp(36px, 5.4vw, 66px); line-height: 1.03; letter-spacing: -.5px; }
+    .hero .lead { max-width: 780px; }
+    .hero__meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; }
+    .hero__meta span { padding: 7px 11px; border: 2px solid var(--ink); background: #fff; font: 700 11.5px/1 var(--mono); letter-spacing: .3px; }
+    .cta { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border: 3px solid var(--ink); background: var(--ink); color: var(--leaf-bright); box-shadow: 6px 6px 0 var(--leaf); text-decoration: none; font: 700 13px/1.3 var(--mono); letter-spacing: .6px; text-transform: uppercase; }
+    .cta:hover { background: var(--leaf); color: #fff; box-shadow: 6px 6px 0 var(--ink); }
+    .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 4px 0 30px; }
+    .cta-row .note { font-size: 14px; color: var(--ink-soft); }
+
+    /* Окно браузера вокруг кадра рабочего стола. */
+    .window { margin: 8px 0 12px; border: 3px solid var(--ink); background: var(--ink); box-shadow: 10px 10px 0 var(--leaf); }
+    .window__bar { display: flex; align-items: center; gap: 7px; padding: 8px 12px; }
+    .window__bar i { width: 11px; height: 11px; border-radius: 50%; background: #3E5A4E; }
+    .window__bar span { margin-left: 10px; font: 500 12px/1 var(--mono); color: var(--leaf-pale); opacity: .8; }
+    .window img { display: block; width: 100%; height: auto; background: #fff; cursor: zoom-in; }
+    .window figcaption { padding: 9px 14px; background: var(--page); border-top: 2px solid var(--ink); font: 600 11px/1.5 var(--mono); color: var(--ink-soft); }
+
+    /* ── Легенда: действующие лица ── */
+    .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; margin: 20px 0 10px; }
+    .person { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; align-items: start; padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--ink); }
+    .person--you { box-shadow: 5px 5px 0 var(--leaf); border-color: var(--leaf); }
+    .person__ava { display: grid; place-items: center; width: 46px; height: 46px; background: var(--ink); color: var(--leaf-bright); font: 700 16px/1 var(--mono); }
+    .person--you .person__ava { background: var(--leaf); color: #fff; }
+    .person b { display: block; font-size: 15.5px; line-height: 1.3; }
+    .person em { display: block; margin: 2px 0 6px; font: 600 10.5px/1.4 var(--pixel); font-style: normal; letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
+    .person p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+
+    /* ── Суть формата ── */
+    .skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; margin: 20px 0; }
+    .skill { padding: 14px 16px; border: 3px solid var(--ink); background: var(--page); }
+    .skill b { display: block; margin-bottom: 4px; font-family: var(--display); font-size: 18px; }
+    .skill span { display: block; margin-bottom: 8px; font: 700 11px/1.4 var(--mono); text-transform: uppercase; color: var(--leaf); }
+    .skill p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+
+    /* ── Неделя по письмам ── */
+    .week { margin: 24px 0; }
+    .day { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 22px 30px; align-items: start; padding: 24px 0; border-top: 2px dashed var(--rule); }
+    .day:first-child { border-top: 0; padding-top: 6px; }
+    .day:nth-child(even) .day__text { order: 2; }
+    .day__tag { display: inline-flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 5px 10px; background: var(--ink); color: var(--leaf-bright); font: 700 11.5px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .4px; }
+    .day h3 { margin: 4px 0 10px; font-size: 24px; line-height: 1.2; }
+    .day p { font-size: 15.5px; line-height: 1.55; }
+    .day ul { font-size: 15px; line-height: 1.5; }
+    .day .shot { margin: 0; }
+
+    .crit td:last-child { white-space: nowrap; font-family: var(--mono); font-weight: 700; }
+    .faq details { margin-bottom: 8px; }
+    .faq summary { font-size: 15.5px; }
+
+    @media (max-width: 900px) {
+      .day { grid-template-columns: minmax(0, 1fr); }
+      .day:nth-child(even) .day__text { order: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 3 · Практикум</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 3 · практикум</p>
+          <p class="running__folio">ПРАКТИКУМ</p>
+        </div>
+
+        <section class="hero">
+          <span class="chapter-num">ПРАКТИКУМ · МОДУЛЬ 3</span>
+          <h1>Инженер платформы:<br>индексы журнала</h1>
+          <p class="lead">Ролевой практикум по индексам MongoDB. Студент работает стажёром в группе платформы интернет-магазина: выбирает тип индекса по описанию задачи, подбирает индекс под запрос и проверяет его по плану сервера, сравнивает размеры индексов на миллионе событий и проводит ревизию индексов журнала. В конце руководитель группы присылает рецензию.</p>
+          <div class="hero__meta">
+            <span>2 пары</span><span>базы shop и logs</span><span>4 письма + рецензия</span><span>глава 3.2</span><span>работает в браузере</span>
+          </div>
+          <div class="cta-row">
+            <a class="cta" href="stol.html">Открыть рабочий стол →</a>
+            <span class="note">Установка не нужна. Работа сохраняется в этом браузере.</span>
+          </div>
+          <figure class="window">
+            <div class="window__bar"><i></i><i></i><i></i><span>Инженер платформы: индексы журнала · письмо 2</span></div>
+            <img src="img/zapros.webp" width="2880" height="1800" alt="Рабочий стол практикума: слева письмо руководителя, справа план запроса с индексом level_1_duration_ms_1, три числа, полоса индекса и журнал попыток">
+            <figcaption>Рабочий стол: слева письмо руководителя, справа задание. Индекс создан, запрос выполнен: план, числа сервера, полоса индекса и журнал попыток.</figcaption>
+          </figure>
+        </section>
+
+        <nav class="contents">
+          <b>На этой странице</b>
+          <ol>
+            <li><a href="#s1">Легенда</a></li>
+            <li><a href="#s2">Навыки по письмам</a></li>
+            <li><a href="#s3">Четыре письма</a></li>
+            <li><a href="#s4">Откуда взяты числа</a></li>
+            <li><a href="#s5">Рецензия и оценка</a></li>
+            <li><a href="#s6">Вопросы</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Легенда</h2>
+        <p>Интернет-магазин хранит покупателей, товары и заказы в базе <code>shop</code>, а журнал событий своих сервисов — в базе <code>logs</code>. Это базы стенда курса, на них построены главы справочника. За базы отвечает группа платформы: к ней приходят разработчики других команд, когда запрос выполняется медленно или в коллекции появляются повторы.</p>
+        <p>Студент — стажёр этой группы. Задания приходят письмами от руководителя: четыре письма, в каждом своя работа с индексами.</p>
+        <p>Магазин, группа платформы и её сотрудники придуманы для практикума. Данные взяты со стенда курса без изменений.</p>
+
+        <div class="cast">
+          <div class="person person--you"><span class="person__ava">ВЫ</span><div><b>Стажёр группы платформы</b><em>роль студента</em><p>Выбирает и проверяет индексы, измеряет их размер, решает, какие индексы журнала удалить.</p></div></div>
+          <div class="person"><span class="person__ava">ТВ</span><div><b>Тимур Валеев</b><em>руководитель группы платформы</em><p>Присылает четыре письма с заданиями и в конце — рецензию с баллами.</p></div></div>
+          <div class="person"><span class="person__ava">КМ</span><div><b>Команды магазина</b><em>авторы обращений</em><p>Вход и регистрация, личный кабинет, склад, служба поддержки, дежурный инженер, аналитик. От них восемь обращений в письме 1.</p></div></div>
+          <div class="person"><span class="person__ava">ЖС</span><div><b>Журнал событий</b><em>коллекция logs.events</em><p>1200 событий в письме 2 и 1 000 000 событий в письмах 3 и 4. Поля, сервисы, статусы и маршруты те же, что в главе 3.2.</p></div></div>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Навыки по письмам</h2>
+        <p>В главе 3.2 индекс для каждого примера назван в тексте. В работе индекс выбирает инженер: по описанию задачи, по тексту запроса и по тому, как часто запрос выполняется. Каждое письмо практикума отрабатывает один такой выбор.</p>
+        <div class="skills">
+          <div class="skill"><span>письмо 1 · тип</span><b>Выбрать тип индекса по описанию</b><p>По обращению команды определить, нужен ли индекс и какой: обычный, составной, уникальный, частичный или многоключевой.</p></div>
+          <div class="skill"><span>письмо 2 · запрос</span><b>Подобрать индекс под запрос</b><p>Собрать ключ индекса, выполнить запрос и прочитать план: какие стадии выбрал сервер, сколько ключей и документов прочитал.</p></div>
+          <div class="skill"><span>письмо 3 · вес</span><b>Оценить размер индекса</b><p>Предсказать, какой индекс занимает больше места, и сверить прогноз с измерением на 1 000 000 событий.</p></div>
+          <div class="skill"><span>письмо 4 · ревизия</span><b>Убрать лишние индексы</b><p>По списку запросов и их частоте решить, какие из семи индексов журнала оставить.</p></div>
+        </div>
+        <p>Во время работы баллы не показываются. Рабочий стол выводит план запроса и числа сервера, а подходит ли индекс, студент определяет по ним сам. Баллы и разбор всех заданий появляются после сдачи, в рецензии. Так же устроен практикум <a href="../analitik/index.html">«Аналитик данных: первая неделя»</a> модуля 2.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Четыре письма</h2>
+        <p>Следующее письмо открывается кнопкой «Дальше» внизу текущего. Переход не зависит от ответов в предыдущем письме. До сдачи к любому открытому письму можно вернуться и поменять ответ.</p>
+        <div class="week">
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 1</span>
+              <h3>Тип индекса по ситуации</h3>
+              <p>Восемь обращений от команд магазина. В карточке — кто обращается, как он работает с коллекцией и текст запроса.</p>
+              <ul>
+                <li>тип индекса — один из шести вариантов, среди них «новый индекс не нужен»;</li>
+                <li>ключ индекса — поля коллекции в нужном порядке;</li>
+                <li>коллекции: <code>shop.customers</code>, <code>shop.orders</code>, <code>logs.events</code>.</li>
+              </ul>
+            </div>
+            <figure class="shot"><img src="img/tip.webp" width="2880" height="1800" alt="Письмо 1: карточки обращений с выбором типа индекса и сборкой ключа из полей коллекции"><figcaption>Письмо 1: тип индекса выбран, ключ собран из полей коллекции.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 2</span>
+              <h3>Индекс под запрос</h3>
+              <p>Пять заданий на журнале из 1200 событий: условие с диапазоном, сортировка с пределом, два условия с сортировкой, два запроса под один индекс и запрос, в котором есть только сортировка. Ключ индекса собирается нажатиями на поля: от одного до трёх полей, у каждого направление <code>1</code> или <code>-1</code>. Кнопка «Создать индекс и выполнить запрос» показывает:</p>
+              <ul>
+                <li>план, который выбрал сервер: стадии <code>COLLSCAN</code>, <code>IXSCAN</code>, <code>FETCH</code>, <code>SORT</code>, <code>LIMIT</code>;</li>
+                <li>три числа: ключей прочитано, документов прочитано, документов возвращено;</li>
+                <li>полосу индекса — ту же схему, что в главе 3.2, §3: все 1200 записей в порядке ключа, нужные запросу закрашены.</li>
+              </ul>
+              <p>Каждая попытка остаётся в журнале попыток, их число не ограничено. Ответом считается индекс, отмеченный кнопкой «Оставить этот».</p>
+            </div>
+            <figure class="shot"><img src="img/polosa.webp" width="2880" height="1800" alt="Письмо 2: план FETCH → IXSCAN, три числа по 87, полоса индекса с одним закрашенным участком в уровне error и журнал попыток с двумя индексами"><figcaption>Письмо 2: в журнале попыток два индекса с разным порядком полей и разным числом прочитанных ключей.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 3</span>
+              <h3>Сколько весит индекс</h3>
+              <p>Сначала прогноз: четыре индекса расставляются по размеру на журнале из 1 000 000 событий. Кнопка «Измерить» закрепляет порядок и показывает измеренные размеры.</p>
+              <p>После измерения открывается калькулятор. В нём отмечаются индексы и число событий — 100 тысяч, 1 миллион или 10 миллионов. Калькулятор показывает размер каждого индекса рядом с размером данных, общий размер и число действий сервера при вставке одного события. Ниже — время вставки 100 000 событий при одном, двух, четырёх и восьми индексах.</p>
+              <p>Под калькулятором два вопроса. Чтобы ответить, нужно отметить в калькуляторе названные индексы и сравнить числа.</p>
+            </div>
+            <figure class="shot"><img src="img/ves.webp" width="2880" height="1800" alt="Письмо 3: калькулятор размеров индексов на 1 000 000 событий и столбики времени вставки 100 000 событий"><figcaption>Письмо 3: пять индексов вместе занимают больше места, чем данные журнала на диске.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 4</span>
+              <h3>Ревизия индексов журнала</h3>
+              <p>У журнала из 1 000 000 событий семь индексов, созданных разными командами. Рядом — шесть рабочих запросов и частота каждого. По правилу группы индекс остаётся, если без него частый запрос начинает читать больше документов.</p>
+              <p>По каждому индексу принимается решение «оставить» или «удалить». Таблица запросов сразу показывает план с оставшимися индексами и число прочитанных документов, плитки сверху — общий размер индексов и число действий при вставке.</p>
+            </div>
+            <figure class="shot"><img src="img/reviziya.webp" width="2880" height="1800" alt="Письмо 4: таблица рабочих запросов с планами и числом прочитанных документов после удаления четырёх индексов"><figcaption>Письмо 4: два редких запроса перешли на просмотр коллекции, четыре частых выполняются по индексам.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">после сдачи</span>
+              <h3>Рецензия</h3>
+              <p>Кнопка «Сдать работу» в письме 4 закрывает ответы и открывает рецензию: баллы по четырём письмам, итог и разбор каждого задания. В разборе письма 2 рядом стоят индекс студента и наилучший индекс с их планами и полосами.</p>
+            </div>
+            <figure class="shot"><img src="img/recenziya.webp" width="2880" height="1800" alt="Рецензия: баллы по четырём письмам, итог и список тем"><figcaption>Итоговая карточка рецензии. Под ней — разбор каждого задания.</figcaption></figure>
+          </div>
+        </div>
+
+        <div class="cta-row"><a class="cta" href="stol.html">Открыть рабочий стол →</a></div>
+
+        <h2 id="s4"><span class="sec">§4</span>Откуда взяты числа</h2>
+        <p>Сервер MongoDB для практикума не нужен: рабочий стол показывает результаты, заранее полученные на сервере стенда курса, MongoDB 7.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Письмо</th><th>Что показано</th><th>Как получено</th></tr></thead>
+            <tbody>
+              <tr><td>2</td><td>План и три числа для любого индекса из одного–трёх полей</td><td>На копии <code>logs.events</code> создан каждый из 931 возможных индексов, и для каждого выполнены шесть запросов пяти заданий методом <code>explain("executionStats")</code></td></tr>
+              <tr><td>3</td><td>Размеры индексов и данных</td><td>Собран журнал из 100 000 и из 1 000 000 событий с теми же сервисами, уровнями, маршрутами и статусами; размеры прочитаны из статистики коллекции</td></tr>
+              <tr><td>3</td><td>Время вставки 100 000 событий</td><td>Одна и та же пачка событий вставлена в пустую коллекцию с разным числом индексов, девять раз для каждого набора; показана медиана</td></tr>
+              <tr><td>4</td><td>Планы шести запросов для любого набора индексов</td><td>На журнале из 1 000 000 событий для каждого из 128 наборов лишние индексы скрыты от планировщика, и запросы выполнены методом <code>explain</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Размеры для 10 000 000 событий в калькуляторе — оценка пропорцией от измерения на 1 000 000. Время вставки зависит от компьютера: на другом сервере миллисекунды будут другими.</p>
+        <p>Индекс из письма 2 можно создать на своём стенде в песочнице и сверить план: числа совпадут.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Рецензия и оценка</h2>
+        <p>Баллы рецензия считает по шкале ниже. Комментарий к ревизии преподаватель читает отдельно: автоматически оцениваются только решения.</p>
+        <div class="table-scroll crit">
+          <table>
+            <thead><tr><th>Письмо</th><th>Что считается</th><th>Баллы</th></tr></thead>
+            <tbody>
+              <tr><td>1 · тип</td><td>Верно решены обращения (тип и ключ): 7–8 — 3 балла, 5–6 — 2, 3–4 — 1</td><td>3</td></tr>
+              <tr><td>2 · запрос</td><td>Выбран наилучший индекс: 5 заданий — 3 балла, 4 — 2, 2–3 — 1</td><td>3</td></tr>
+              <tr><td>3 · вес</td><td>Индексы на своих местах в прогнозе и верные ответы, всего 6: 5–6 — 2 балла, 3–4 — 1</td><td>2</td></tr>
+              <tr><td>4 · ревизия</td><td>Верные решения по индексам: 7 — 2 балла, 5–6 — 1</td><td>2</td></tr>
+              <tr><td colspan="2"><b>Итого</b></td><td>10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Наилучший индекс в письме 2 — индекс, с которым запрос читает столько ключей и документов, сколько возвращает, выполняется без стадии <code>SORT</code> и в котором нет лишних полей.</p>
+        <p>Перевод в оценку: 9–10 баллов — «отлично», 7–8 — «хорошо», 5–6 — «удовлетворительно».</p>
+        <p>Что сдать: на вкладке «Рецензия» укажите фамилию, имя и группу и скачайте файл <code>indeksy_&lt;фамилия&gt;.md</code>. В нём рецензия с баллами, решения по всем письмам, выбранные индексы с планами и комментарий к ревизии.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Вопросы</h2>
+        <div class="faq">
+          <details><summary>Можно ли пройти практикум дома?</summary><p>Да. Рабочий стол открывается в любом браузере, сервер не нужен. Работа хранится в том браузере, где её начали: на другом компьютере она не появится. Перед сменой компьютера сдайте работу и скачайте отчёт.</p></details>
+          <details><summary>Что будет, если закрыть вкладку?</summary><p>Ответы и журнал попыток сохраняются при каждом изменении и появляются снова при следующем открытии рабочего стола в том же браузере.</p></details>
+          <details><summary>Можно ли переделать работу после сдачи?</summary><p>Нет, после сдачи ответы закрыты. Сбросить работу может только преподаватель — кнопкой «Сбросить работу» с паролем.</p></details>
+          <details><summary>Снижается ли оценка за лишние попытки в письме 2?</summary><p>Нет. Оценивается индекс, который оставлен ответом. Число попыток записывается в отчёт, на баллы оно не влияет.</p></details>
+          <details><summary>Какие главы повторить перед практикумом?</summary><p>Главу <a href="../../temy/20-indeksy/index.html">3.2 «Индексы: одиночные, составные, уникальные»</a>: порядок полей составного индекса и префикс — §3, стадия <code>SORT</code> — §4, уникальный и частичный индексы — §5–§7, цена индекса — §8.</p></details>
+        </div>
+
+        <div class="cta-row" style="margin-top:26px"><a class="cta" href="stol.html">Открыть рабочий стол →</a></div>
+
+        <div class="pager">
+          <a href="../../temy/20-indeksy/index.html">← 3.2 Индексы: одиночные, составные, уникальные</a>
+          <a href="../../index.html">Содержание →</a>
+        </div>
+        <div class="colophon">
+          <span>Справочник по MongoDB · практикум модуля 3</span>
+          <span class="author-line">© Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+  <script>
+    /* Кадр в окне браузера открывается во весь экран так же, как кадры ниже (окно создаёт book.js). */
+    document.querySelectorAll('.window img').forEach(img => img.addEventListener('click', () => {
+      const box = document.querySelector('.lightbox');
+      if (!box) return;
+      box.querySelector('img').src = img.currentSrc || img.src;
+      box.querySelector('figcaption').textContent = img.closest('figure').querySelector('figcaption').textContent.trim();
+      box.classList.add('is-open');
+      box.setAttribute('aria-hidden', 'false');
+    }));
+  </script>
+</body>
+</html>
