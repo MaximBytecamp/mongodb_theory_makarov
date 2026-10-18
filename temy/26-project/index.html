@@ -114,6 +114,11 @@
         <p>Так работает справка из отдела кадров. В личном деле сотрудника десятки граф, а в справку для банка переписывают три: фамилию, должность и стаж. Графу можно назвать в справке иначе, чем в деле. Стаж в деле не записан, его считают по дате приёма. Личное дело не меняется: справка — отдельный лист.</p>
         <p><span class="term">Стадия $project</span> получает каждый документ потока и выпускает документ новой формы. Параметр стадии — документ, в котором перечислены поля результата. Число документов стадия не меняет: сколько пришло, столько и выходит. Документы в коллекции тоже не меняются, новая форма есть только у документов в потоке.</p>
         <p>Значение <code>1</code> у поля включает его в результат, <code>0</code> — исключает. Поле <code>_id</code> входит в результат, пока его не исключили явно. Эти правила совпадают с проекцией метода <code>find</code> из главы 1.5. Пример берёт три самых дорогих заказа в пути, как в главе 4.1, и оставляет у них номер и сумму.</p>
+        <p>Начиная с этой главы документы печатаются целиком: стадия меняет форму документа, и эту форму видно только в документе целиком.</p>
+        <p data-lang="python">Цикл <code>for doc in orders.aggregate(pipeline)</code> перебирает документы результата, <code>print(doc)</code> выводит документ как словарь Python.</p>
+        <p data-lang="ruby">Блок <code>each { |doc| puts doc.inspect }</code> перебирает документы результата, метод <code>inspect</code> выводит документ как хеш Ruby.</p>
+        <p data-lang="go">Каждый документ читается в переменную типа <code>bson.D</code> методом <code>cursor.Decode</code>. Функция <code>bson.MarshalExtJSON</code> переводит его в текст JSON. Её первый аргумент <code>false</code> выбирает нестрогую запись, в которой числа выглядят как обычные числа, второй отключает замену символов <code>&lt;</code> и <code>&gt;</code> кодами.</p>
+        <p data-lang="cpp">Стадия <code>$project</code> добавляется в конвейер методом <code>pipeline.project</code>, параметр — документ проекции. Функция <code>bsoncxx::to_json</code> переводит документ в текст JSON; режим <code>k_relaxed</code> записывает числа как обычные числа.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>включение полей</span></figcaption>
@@ -208,7 +213,7 @@ orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">p
         <p>Проекция метода <code>find</code> только выбирает поля. У стадии <code>$project</code> на месте <code>1</code> может стоять выражение, и тогда поле в результате вычисляется. Перед выражениями разобран случай, когда нужное поле лежит внутри вложенного документа.</p>
 
         <h2 id="s2"><span class="sec">§2</span>Вложенное поле в $project</h2>
-        <p>Город доставки лежит в заказе внутри документа <code>delivery</code>. Чтобы оставить только город, поле указывается точечной нотацией: <code>"delivery.city": 1</code>, как в фильтре. Пример убирает <code>_id</code> и оставляет номер, город и сумму.</p>
+        <p>В анкете адрес записан одной графой: город, улица, дом. Если в справку нужен только город, его переписывают в ту же графу «Адрес», а улицу и дом пропускают. Город доставки лежит в заказе так же — внутри документа <code>delivery</code>. Чтобы оставить только город, поле указывается точечной нотацией: <code>"delivery.city": 1</code>, как в фильтре. Пример убирает <code>_id</code> и оставляет номер, город и сумму.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>без _id, с вложенным полем</span></figcaption>
@@ -573,6 +578,10 @@ products.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k"
         <h2 id="s5"><span class="sec">§5</span>Склейка строк: $concat и $toString</h2>
         <p>Номер заказа на наклейке посылки часто печатают вместе с суммой и городом в одну строку. Такую строку в <code>$project</code> собирает оператор <code>$concat</code>. Он склеивает свои аргументы по порядку: <code>{"$concat": ["$delivery.city", ", ", "$delivery.type"]}</code> даёт «Екатеринбург, пункт выдачи».</p>
         <p>Аргументы <code>$concat</code> должны быть строками. Сумма заказа — число, и склеить её с номером напрямую нельзя. Оператор <code>$toString</code> переводит значение в строку: <code>{"$toString": "$total"}</code> даёт «244460». Пример сначала пробует склеить номер и сумму без перевода, затем с ним.</p>
+        <p data-lang="python">Ошибку сервера PyMongo выбрасывает исключением <code>OperationFailure</code>: код лежит в <code>e.code</code>, текст — в <code>e.details["errmsg"]</code>. Класс исключения импортируется из <code>pymongo.errors</code>.</p>
+        <p data-lang="ruby">Ошибку сервера драйвер выбрасывает исключением <code>Mongo::Error::OperationFailure</code>: код лежит в <code>e.code</code>, текст — в <code>e.document["errmsg"]</code>.</p>
+        <p data-lang="go">Метод <code>Aggregate</code> возвращает ошибку вторым значением. Функция <code>errors.As</code> проверяет, что это ошибка команды сервера, и кладёт её в переменную <code>ce</code> типа <code>mongo.CommandError</code>: код — <code>ce.Code</code>, текст — <code>ce.Message</code>.</p>
+        <p data-lang="cpp">Ошибку сервера драйвер выбрасывает исключением <code>mongocxx::operation_exception</code>: код — <code>e.code().value()</code>, текст — <code>e.what()</code>. К тексту сервера драйвер дописывает «: server error code … : generic server error».</p>
         <div class="duo">
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>склейка строк</span></figcaption>
@@ -936,6 +945,7 @@ products.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k"
         <p>Все проекции главы до этого места сервер принимал. Есть сочетания, которые он отклоняет.</p>
 
         <h2 id="s7"><span class="sec">§7</span>Какие проекции сервер отклоняет</h2>
+        <p>Список покупок пишут одним из двух способов: что купить или чего не покупать из привычного набора. Если в одном списке есть и то и другое, непонятно, что делать с товарами, которых в списке нет. С проекцией то же самое.</p>
         <p>Проекция бывает двух видов. <span class="term">Включающая</span> перечисляет поля, которые остаются: значения <code>1</code>, пути к полям и выражения. <span class="term">Исключающая</span> перечисляет поля, которые убираются: значения <code>0</code>. Смешивать виды нельзя, как и в главе 1.5. Единственное исключение — <code>"_id": 0</code>, оно допускается во включающей проекции.</p>
         <p>Новое для <code>$project</code>: вычисляемое поле относится к включающей проекции. Исключающую проекцию с выражением сервер тоже отклоняет. Пример пробует оба сочетания.</p>
         <div class="duo">
@@ -1246,7 +1256,7 @@ $match до $project: 13</pre>
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
-              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; исключать можно одно <code>_id</code></td></tr>
+              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; во включающей проекции исключать можно только <code>_id</code></td></tr>
               <tr><td><code>{"items": 0, "sum": "$total"}</code></td><td>Ошибка 31310: новое поле в исключающей проекции</td><td>Новые поля — только во включающей проекции: перечислить нужные поля и добавить новое</td></tr>
               <tr><td><code>{"city": "delivery.city"}</code></td><td>Без знака <code>$</code> строка — значение: у всех документов <code>city</code> равно тексту «delivery.city»</td><td>Путь к полю начинается с <code>$</code>: <code>"$delivery.city"</code></td></tr>
               <tr><td><code>{"$concat": ["$number", " — ", "$total"]}</code></td><td>Ошибка 16702: <code>$concat</code> склеивает только строки, а <code>total</code> — число</td><td>Перевести число в строку: <code>{"$toString": "$total"}</code></td></tr>
@@ -1258,7 +1268,7 @@ $match до $project: 13</pre>
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
-              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; исключать можно одно <code>_id</code></td></tr>
+              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; во включающей проекции исключать можно только <code>_id</code></td></tr>
               <tr><td><code>{"items": 0, "sum": "$total"}</code></td><td>Ошибка 31310: новое поле в исключающей проекции</td><td>Новые поля — только во включающей проекции: перечислить нужные поля и добавить новое</td></tr>
               <tr><td><code>{"city": "delivery.city"}</code></td><td>Без знака <code>$</code> строка — значение: у всех документов <code>city</code> равно тексту «delivery.city»</td><td>Путь к полю начинается с <code>$</code>: <code>"$delivery.city"</code></td></tr>
               <tr><td><code>{"$concat": ["$number", " — ", "$total"]}</code></td><td>Ошибка 16702: <code>$concat</code> склеивает только строки, а <code>total</code> — число</td><td>Перевести число в строку: <code>{"$toString": "$total"}</code></td></tr>
@@ -1270,7 +1280,7 @@ $match до $project: 13</pre>
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
-              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; исключать можно одно <code>_id</code></td></tr>
+              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; во включающей проекции исключать можно только <code>_id</code></td></tr>
               <tr><td><code>{"items": 0, "sum": "$total"}</code></td><td>Ошибка 31310: новое поле в исключающей проекции</td><td>Новые поля — только во включающей проекции: перечислить нужные поля и добавить новое</td></tr>
               <tr><td><code>{"city": "delivery.city"}</code></td><td>Без знака <code>$</code> строка — значение: у всех документов <code>city</code> равно тексту «delivery.city»</td><td>Путь к полю начинается с <code>$</code>: <code>"$delivery.city"</code></td></tr>
               <tr><td><code>{"$concat": ["$number", " — ", "$total"]}</code></td><td>Ошибка 16702: <code>$concat</code> склеивает только строки, а <code>total</code> — число</td><td>Перевести число в строку: <code>{"$toString": "$total"}</code></td></tr>
@@ -1282,7 +1292,7 @@ $match до $project: 13</pre>
           <table>
             <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
             <tbody>
-              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; исключать можно одно <code>_id</code></td></tr>
+              <tr><td><code>{"number": 1, "items": 0}</code></td><td>Ошибка 31254: в одной проекции включение и исключение полей</td><td>Перечислить только нужные поля; во включающей проекции исключать можно только <code>_id</code></td></tr>
               <tr><td><code>{"items": 0, "sum": "$total"}</code></td><td>Ошибка 31310: новое поле в исключающей проекции</td><td>Новые поля — только во включающей проекции: перечислить нужные поля и добавить новое</td></tr>
               <tr><td><code>{"city": "delivery.city"}</code></td><td>Без знака <code>$</code> строка — значение: у всех документов <code>city</code> равно тексту «delivery.city»</td><td>Путь к полю начинается с <code>$</code>: <code>"$delivery.city"</code></td></tr>
               <tr><td><code>{"$concat": ["$number", " — ", "$total"]}</code></td><td>Ошибка 16702: <code>$concat</code> склеивает только строки, а <code>total</code> — число</td><td>Перевести число в строку: <code>{"$toString": "$total"}</code></td></tr>
@@ -1356,11 +1366,11 @@ $match до $project: 13</pre>
         <div class="cheat" data-lang="cpp">
           <div>
             <b>Включить, убрать _id</b>
-            <code>make_document(kvp("$project", make_document(kvp("_id", 0), kvp("number", 1), kvp("total", 1))))</code>
+            <code>pipeline.project(make_document(kvp("_id", 0), kvp("number", 1), kvp("total", 1)));</code>
           </div>
           <div>
             <b>Новое имя, поле наверх</b>
-            <code>make_document(kvp("$project", make_document(kvp("order", "$number"), kvp("city", "$delivery.city"))))</code>
+            <code>pipeline.project(make_document(kvp("order", "$number"), kvp("city", "$delivery.city")));</code>
           </div>
           <div>
             <b>Вычисление</b>
@@ -1428,7 +1438,7 @@ $match до $project: 13</pre>
           </div>
           <div>
             <b>Добавить стадию</b>
-            <code>pipeline << { "$project" => {...} }</code>
+            <code>pipeline.push({ "$project" =&gt; {...} })</code>
           </div>
         </div>
 

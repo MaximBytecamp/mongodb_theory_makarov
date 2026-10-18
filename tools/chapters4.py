@@ -511,7 +511,7 @@ example("4.2", "place", "$project до и после $match", _place)
 ERRORS["4.2"] = [
     ('<code>{"number": 1, "items": 0}</code>',
      "Ошибка 31254: в одной проекции включение и исключение полей",
-     "Перечислить только нужные поля; исключать можно одно <code>_id</code>"),
+     "Перечислить только нужные поля; во включающей проекции исключать можно только <code>_id</code>"),
     ('<code>{"items": 0, "sum": "$total"}</code>',
      "Ошибка 31310: новое поле в исключающей проекции",
      "Новые поля — только во включающей проекции: перечислить нужные поля и добавить новое"),
@@ -527,8 +527,13 @@ ERRORS["4.2"] = [
 ]
 
 def cheat_lines(value) -> dict:
-    """Карточка шпаргалки: один литерал на языке каждого драйвера."""
-    return {lang: [flat(value, lang)] for lang in LANGS4}
+    """Карточка шпаргалки: один литерал на языке каждого драйвера. Стадию
+    в C++ показываем методом конвейера: так она и добавляется в коде."""
+    out = {lang: [flat(value, lang)] for lang in LANGS4}
+    (key, arg), = value.items()
+    if key in CPP_METHOD:
+        out["cpp"] = [cpp_stage(value, "pipeline")]
+    return out
 
 
 CHEATS["4.2"] = [
@@ -537,7 +542,7 @@ CHEATS["4.2"] = [
     ("Вычисление", cheat_lines({"sale": {"$multiply": ["$price", 0.9]}})),
     ("Строка из числа", cheat_lines({"line": {"$concat": ["$number", " — ", {"$toString": "$total"}]}})),
     ("Условие", cheat_lines({"$cond": {"if": {"$gte": ["$price", 50000]}, "then": "дорогой", "else": "доступный"}})),
-    ("Добавить стадию", {"python": ["pipeline.append({\"$project\": {...}})"], "ruby": ["pipeline << { \"$project\" => {...} }"],
+    ("Добавить стадию", {"python": ["pipeline.append({\"$project\": {...}})"], "ruby": ["pipeline.push({ \"$project\" => {...} })"],
                       "go": ['pipeline = append(pipeline, bson.D{{Key: "$project", Value: ...}})'],
                       "cpp": ['pipeline.project(make_document(kvp("number", 1)));']}),
 ]
