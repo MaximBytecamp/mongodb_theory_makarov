@@ -710,3 +710,158 @@ CHEATS["4.4"] = [
     ("Одна группа на всё", cheat_lines({"$group": {"_id": None, "revenue": {"$sum": "$total"}}})),
     ("Ключ из двух полей", cheat_lines({"_id": {"city": "$delivery.city", "type": "$delivery.type"}})),
 ]
+
+
+# ── 4.5 $skip, $count, $sortByCount; память сортировки ───────────────────
+
+IN_TRANSIT_SORTED = [{"$match": {"status": "в пути"}}, {"$sort": {"total": -1}}]
+
+# вторая страница по пять заказов
+example("4.5", "page", "вторая страница: $skip и $limit",
+        agg(IN_TRANSIT_SORTED + [{"$skip": 5}, {"$limit": 5}], ["number", "total"]))
+
+# порядок $skip и $limit
+LIMIT_SKIP = IN_TRANSIT_SORTED + [{"$limit": 10}, {"$skip": 5}]
+SKIP_LIMIT = IN_TRANSIT_SORTED + [{"$skip": 5}, {"$limit": 10}]
+_ls = {}
+for lang in LANGS4:
+    a, b = gvar("limit_then_skip", lang), gvar("skip_then_limit", lang)
+    body = pipeline(LIMIT_SKIP, lang, a) + "\n\n" + pipeline(SKIP_LIMIT, lang, b) + "\n\n"
+    body += title_code(lang, "$limit 10, затем $skip 5") + "\n" + show_call(["number", "total"], lang, var=a) + "\n\n"
+    second = show_call(["number", "total"], lang, var=b)
+    if lang == "go":
+        second = second.replace("cursor, _ :=", "cursor, _ =")
+    body += title_code(lang, "$skip 5, затем $limit 10") + "\n" + second
+    _ls[lang] = body
+example("4.5", "order", "$skip и $limit в двух порядках", _ls)
+
+# $count
+example("4.5", "count", "стадия $count", agg_docs([{"$match": {"status": "доставлен"}}, {"$count": "delivered"}]))
+
+# $count после $group: сколько групп
+example("4.5", "countgroups", "$count после $group", agg_docs([
+    {"$match": {"status": "доставлен"}},
+    {"$group": {"_id": "$delivery.city", "revenue": {"$sum": "$total"}}},
+    {"$match": {"revenue": {"$gte": 2000000}}},
+    {"$count": "cities"},
+]))
+
+# $count на пустом потоке
+EMPTY = [{"$match": {"status": "возврат"}}, {"$count": "returns"}]
+example("4.5", "empty", "$count, когда документов нет", {
+    "python": pipeline(EMPTY, "python") + '\n\nresult = list(orders.aggregate(pipeline))\nprint("документов в результате:", len(result))\nprint(result)',
+    "ruby": pipeline(EMPTY, "ruby") + '\n\nresult = orders.aggregate(pipeline).to_a\nputs "документов в результате: #{result.size}"\nputs result.inspect',
+    "go": pipeline(EMPTY, "go") + '\n\ncursor, _ := orders.Aggregate(ctx, pipeline)\nvar result []bson.D\ncursor.All(ctx, &result)\nfmt.Println("документов в результате:", len(result))',
+    "cpp": pipeline(EMPTY, "cpp") + '\n\nauto cursor = orders.aggregate(pipeline);\nstd::cout << "документов в результате: " << std::distance(cursor.begin(), cursor.end()) << std::endl;',
+})
+
+# $sortByCount и то же через $group + $sort
+BY_COUNT = [{"$sortByCount": "$status"}]
+GROUP_SORT = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+example("4.5", "sortbycount", "$sortByCount и $group с $sort", {
+    lang: pipeline(BY_COUNT, lang, gvar("by_count", lang)) + "\n\n"
+    + pipeline(GROUP_SORT, lang, gvar("group_sort", lang)) + "\n\n"
+    + title_code(lang, "$sortByCount") + "\n" + docs_code(lang, var=gvar("by_count", lang)) + "\n\n"
+    + title_code(lang, "$group и $sort") + "\n" + docs_code(lang, var=gvar("group_sort", lang), first=False)
+    for lang in LANGS4})
+
+# память сортировки: план с $limit и без
+example("4.5", "memory", "план сортировки с $limit и без", {
+    "python": '''sorted_all = [
+    {"$match": {"status": "в пути"}},
+    {"$sort": {"total": -1}},
+]
+top3 = sorted_all + [{"$limit": 3}]
+
+for name, stages in [("без $limit", sorted_all), ("с $limit 3", top3)]:
+    info = db.command("explain", {"aggregate": "orders", "pipeline": stages, "cursor": {}},
+                      verbosity="queryPlanner")
+    plan = info["queryPlanner"]["winningPlan"]
+    print(name, "|", plan["stage"], "| memLimit", plan["memLimit"],
+          "| limitAmount", plan.get("limitAmount", "—"))''',
+    "ruby": '''sorted_all = [
+  { "$match" => { "status" => "в пути" } },
+  { "$sort" => { "total" => -1 } },
+]
+top3 = sorted_all + [{ "$limit" => 3 }]
+
+[["без $limit", sorted_all], ["с $limit 3", top3]].each do |name, stages|
+  info = db.command(explain: { aggregate: "orders", pipeline: stages, cursor: {} },
+                    verbosity: "queryPlanner").first
+  plan = info["queryPlanner"]["winningPlan"]
+  puts "#{name} | #{plan["stage"]} | memLimit #{plan["memLimit"]} | limitAmount #{plan["limitAmount"] || "—"}"
+end''',
+    "go": '''sortedAll := mongo.Pipeline{
+    {{Key: "$match", Value: bson.D{{Key: "status", Value: "в пути"}}}},
+    {{Key: "$sort", Value: bson.D{{Key: "total", Value: -1}}}},
+}
+top3 := append(append(mongo.Pipeline{}, sortedAll...), bson.D{{Key: "$limit", Value: 3}})
+
+for _, item := range []struct {
+    name   string
+    stages mongo.Pipeline
+}{{"без $limit", sortedAll}, {"с $limit 3", top3}} {
+    var info bson.Raw
+    db.RunCommand(ctx, bson.D{
+        {Key: "explain", Value: bson.D{
+            {Key: "aggregate", Value: "orders"},
+            {Key: "pipeline", Value: item.stages},
+            {Key: "cursor", Value: bson.D{}}}},
+        {Key: "verbosity", Value: "queryPlanner"}}).Decode(&info)
+    plan := info.Lookup("queryPlanner", "winningPlan").Document()
+    limit := "—"
+    if v, err := plan.LookupErr("limitAmount"); err == nil {
+        limit = fmt.Sprint(v.AsInt64())
+    }
+    fmt.Println(item.name, "|", plan.Lookup("stage").StringValue(),
+        "| memLimit", plan.Lookup("memLimit").AsInt64(), "| limitAmount", limit)
+}''',
+    "cpp": '''mongocxx::pipeline sorted_all;
+sorted_all.match(make_document(kvp("status", "в пути")));
+sorted_all.sort(make_document(kvp("total", -1)));
+mongocxx::pipeline top3;
+top3.match(make_document(kvp("status", "в пути")));
+top3.sort(make_document(kvp("total", -1)));
+top3.limit(3);
+
+auto number = [](bsoncxx::document::element el) {
+    return el.type() == bsoncxx::type::k_int32 ? std::to_string(el.get_int32().value)
+                                               : std::to_string(el.get_int64().value);
+};
+for (auto& [name, stages] : std::vector<std::pair<std::string, mongocxx::pipeline*>>{
+         {"без $limit", &sorted_all}, {"с $limit 3", &top3}}) {
+    auto info = db.run_command(make_document(
+        kvp("explain", make_document(kvp("aggregate", "orders"), kvp("pipeline", stages->view_array()),
+                                     kvp("cursor", make_document()))),
+        kvp("verbosity", "queryPlanner")));
+    auto plan = info.view()["queryPlanner"]["winningPlan"].get_document().view();
+    std::string limit = plan["limitAmount"] ? number(plan["limitAmount"]) : "—";
+    std::cout << name << " | " << plan["stage"].get_string().value << " | memLimit "
+              << number(plan["memLimit"]) << " | limitAmount " << limit << std::endl;
+}''',
+})
+
+
+ERRORS["4.5"] = [
+    ("<code>$skip</code> без <code>$sort</code>",
+     "Страницы собираются из порядка хранения: при изменении коллекции документ может попасть на две страницы или ни на одну",
+     "Перед <code>$skip</code> ставить <code>$sort</code> по полю с неповторяющимися значениями или добавить в сортировку <code>_id</code>"),
+    ("<code>$limit 10</code>, затем <code>$skip 5</code>",
+     "Предел берёт 10 документов, пропуск убирает из них 5: остаётся 5",
+     "Для страницы — сначала <code>$skip</code>, затем <code>$limit</code>"),
+    ('<code>{"$count": "n"}</code> на пустом потоке',
+     "Стадия не выпускает ни одного документа: результат — пустой список, поля <code>n</code> со значением 0 нет",
+     "В программе считать пустой результат нулём"),
+    ('<code>{"$count": "$status"}</code>',
+     "Ошибка 40158: имя поля в <code>$count</code> не может начинаться с <code>$</code>",
+     'Параметр — имя нового поля: <code>{"$count": "orders"}</code>'),
+    ("Ожидание, что <code>$sortByCount</code> быстрее <code>$group</code> и <code>$sort</code>",
+     "Это та же группировка с сортировкой, записанная короче",
+     "Выбирать запись по удобству чтения"),
+]
+
+CHEATS["4.5"] = [
+    ("Страница", {lang: cheat_lines({"$skip": 5})[lang] + cheat_lines({"$limit": 5})[lang] for lang in LANGS4}),
+    ("Подсчёт", cheat_lines({"$count": "delivered"})),
+    ("Частота значений", cheat_lines({"$sortByCount": "$status"})),
+]

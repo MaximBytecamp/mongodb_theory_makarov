@@ -387,4 +387,16 @@ await withCompass(async page => {
     await settle(1200);
     await shot('146-orders-group', 969);
   }
+  // --- 147 · 4.5 §7: стадия $sortByCount по статусу ----------------------
+  if (need('147-orders-sortbycount')) {
+    await openCollection('shop', 'orders');
+    await openTab('Aggregations');
+    await setPipeline(`[
+  { $sortByCount: "$status" }
+]`);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').first().evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('147-orders-sortbycount', 969);
+  }
 });

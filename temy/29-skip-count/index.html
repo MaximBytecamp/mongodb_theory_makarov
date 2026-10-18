@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.5 $skip, $count, $sortByCount и память сортировки · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: поток документов по стадиям, документы до и после стадии. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 6px; }
+    .scheme__body > b { display: block; margin: 4px 0 8px; font: 600 13px/1.4 var(--mono); }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .bars { display: grid; gap: 16px; padding-bottom: 10px; }
+    .bar { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 10px; margin: 3px 0; font: 400 12.5px/1.3 var(--mono); }
+    .bar__track { height: 16px; border: 2px solid var(--ink); }
+    .bar__track i { display: block; height: 100%; background: var(--ink-faint); }
+    .bar__track i.on { background: var(--leaf-bright); }
+    .bar > span:last-child { text-align: right; font-weight: 700; }
+    @media (max-width: 560px) { .bar { grid-template-columns: 1fr 44px; } .bar > span:first-child { grid-column: 1 / -1; } }
+    .ixlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 8px; }
+    .ixlist b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .ixlist ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); font: 400 12.5px/1.55 var(--mono); }
+    .ixlist li { padding: 0 9px; color: var(--ink-faint); border-bottom: 1px solid var(--rule); }
+    .ixlist li:last-child { border-bottom: 0; }
+    .ixlist li.on { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .ixlist li.pl { color: var(--ink); }
+    .ixlist li.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+    .ixlist em { display: block; margin-top: 6px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
+    .cover { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 12px; }
+    .cover b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chips i { padding: 2px 7px; border: 2px solid var(--ink); font: 400 12px/1.4 var(--mono); font-style: normal; }
+    .chips i.on { background: var(--leaf-bright); font-weight: 700; }
+    .chips i.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+    .bars > div > b { display: block; margin-bottom: 4px; font: 600 13px/1.4 var(--mono); }
+    .range { display: grid; gap: 10px; padding: 6px 0 12px; }
+    .range__row { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px; font: 400 12.5px/1.3 var(--mono); }
+    .range__row em { display: block; font-style: normal; font-size: 11px; color: var(--ink-soft); }
+    .range__track { position: relative; height: 18px; border: 2px solid var(--ink); }
+    .range__track i { position: absolute; top: 0; bottom: 0; background: var(--leaf-bright); }
+    .range__track b { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; background: var(--ink); }
+    @media (max-width: 560px) { .range__row { grid-template-columns: 1fr; gap: 3px; } }
+    table.grid th, table.grid td { font: 400 13px/1.4 var(--mono); }
+    table.grid td.on { background: var(--leaf-bright); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.5</span>
+          <h1>$skip, $count,<br>$sortByCount и память сортировки</h1>
+          <p class="lead">В этой главе разобраны три стадии и одно ограничение сервера. $skip пропускает первые документы потока и вместе с $limit делит результат на страницы. $count заменяет поток одним документом с числом документов. $sortByCount считает документы по значениям поля и упорядочивает группы по убыванию числа. В конце разобрано, сколько памяти сервер отводит на сортировку и почему $sort перед $limit держит в памяти только несколько документов.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Сортировка, предел и пропуск в find (глава 1.6), $sort и $limit (глава 4.1), $group (глава 4.4), explain (глава 3.3)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Делить результат на страницы, считать документы и частоту значений одним конвейером и понимать, когда сортировка упирается в память сервера</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.5-python.zip" download><code>mongodb-glava-4.5-python.zip</code></a>, 62 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.5-ruby.zip" download><code>mongodb-glava-4.5-ruby.zip</code></a>, 62 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.5-go.zip" download><code>mongodb-glava-4.5-go.zip</code></a>, 68 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.5-cpp.zip" download><code>mongodb-glava-4.5-cpp.zip</code></a>, 68 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_5.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_5.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_5.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_5.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_5.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_5.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_5.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_5.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_5.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_5.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_5.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_5.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_5.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $skip и страницы</a></li>
+            <li><a href="#s2">Порядок $skip и $limit</a></li>
+            <li><a href="#s3">Стадия $count</a></li>
+            <li><a href="#s4">$count на пустом потоке</a></li>
+            <li><a href="#s5">Стадия $sortByCount</a></li>
+            <li><a href="#s6">Память сортировки</a></li>
+            <li><a href="#s7">$sortByCount в Compass</a></li>
+            <li><a href="#s8">Частые ошибки</a></li>
+            <li><a href="#s9">Проверьте себя</a></li>
+            <li><a href="#s10">Самостоятельная работа</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $skip и страницы</h2>
+        <p>Интернет-магазин показывает каталог страницами: на первой — первые двадцать товаров, на второй — следующие двадцать. Чтобы собрать вторую страницу, первые двадцать товаров списка пропускают, а из оставшихся берут двадцать.</p>
+        <p><span class="term">Стадия $skip</span> пропускает первые N документов потока и передаёт дальше остальные. Параметр — число. Вместе с <code>$limit</code> она выделяет из упорядоченного потока страницу: <code>$skip</code> пропускает предыдущие страницы, <code>$limit</code> оставляет одну. Те же действия у метода <code>find</code> выполняют <code>skip</code> и <code>limit</code> из главы 1.6.</p>
+        <p>Пример делит 13 заказов в пути на страницы по пять, от самого дорогого к самому дешёвому, и выводит вторую страницу.</p>
+        <p data-lang="cpp">У стадии <code>$skip</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>skip</code>, параметр — число.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>вторая страница: $skip и $limit</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$skip"</span>: <span class="n">5</span>},
+    {<span class="s">"$limit"</span>: <span class="n">5</span>},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>вторая страница: $skip и $limit</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+pipeline.<span class="f">skip</span>(<span class="n">5</span>);
+pipeline.<span class="f">limit</span>(<span class="n">5</span>);
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"total"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>вторая страница: $skip и $limit</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$skip"</span>, Value: <span class="n">5</span>}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">5</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>вторая страница: $skip и $limit</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$skip"</span> =&gt; <span class="n">5</span> },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">5</span> },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5</pre>
+        </figure>
+        <p>На второй странице заказы с шестого по десятый: от 2026-0081 за 150 470 до 2026-0054 за 55 360. На схеме — все 13 заказов после <code>$sort</code> и три страницы.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>13 заказов в пути, страницы по 5</span><span>по убыванию суммы</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>страница 1 · пропущена $skip</b>
+                <ol>
+                  <li>1 · 2026-0028 · 244460</li><li>2 · 2026-0085 · 225320</li><li>3 · 2026-0025 · 211760</li><li>4 · 2026-0027 · 191970</li><li>5 · 2026-0119 · 182250</li>
+                </ol></div>
+              <div><b>страница 2 · $skip 5, $limit 5</b>
+                <ol>
+                  <li class="on">6 · 2026-0081 · 150470</li><li class="on">7 · 2026-0088 · 126370</li><li class="on">8 · 2026-0055 · 98970</li><li class="on">9 · 2026-0043 · 56370</li><li class="on">10 · 2026-0054 · 55360</li>
+                </ol></div>
+              <div><b>страница 3 · отброшена $limit</b>
+                <ol>
+                  <li>11 · 2026-0033 · 9180</li><li>12 · 2026-0023 · 8490</li><li>13 · 2026-0056 · 6790</li>
+                </ol></div>
+            </div>
+          </div>
+          <p class="scheme__note">Число перед номером — место заказа в потоке после <code>$sort</code>. Страница N получается так: <code>$skip</code> на (N − 1) × 5, затем <code>$limit</code> 5. Последняя страница короче остальных: на ней три заказа.</p>
+        </div>
+        <p>Страница определена правильно, только когда поток упорядочен: без <code>$sort</code> пропуск отсчитывается в порядке хранения. Важен и порядок самих стадий <code>$skip</code> и <code>$limit</code>.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Порядок $skip и $limit</h2>
+        <p>У метода <code>find</code> пропуск и предел — параметры одного запроса, и сервер всегда сначала пропускает, затем ограничивает. В конвейере это две стадии, и выполняются они в порядке списка, как <code>$match</code> и <code>$limit</code> в главе 4.1. Пример выполняет обе стадии в двух порядках с теми же числами.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$skip и $limit в двух порядках</span></figcaption>
+<pre>limit_then_skip = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">10</span>},
+    {<span class="s">"$skip"</span>: <span class="n">5</span>},
+]
+
+skip_then_limit = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$skip"</span>: <span class="n">5</span>},
+    {<span class="s">"$limit"</span>: <span class="n">10</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $limit 10, затем $skip 5"</span>)
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(limit_then_skip), <span class="s">"number"</span>, <span class="s">"total"</span>)
+
+<span class="f">print</span>(<span class="s">"── $skip 5, затем $limit 10"</span>)
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(skip_then_limit), <span class="s">"number"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$skip и $limit в двух порядках</span></figcaption>
+<pre>mongocxx::pipeline limit_then_skip;
+limit_then_skip.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+limit_then_skip.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+limit_then_skip.<span class="f">limit</span>(<span class="n">10</span>);
+limit_then_skip.<span class="f">skip</span>(<span class="n">5</span>);
+
+mongocxx::pipeline skip_then_limit;
+skip_then_limit.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+skip_then_limit.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+skip_then_limit.<span class="f">skip</span>(<span class="n">5</span>);
+skip_then_limit.<span class="f">limit</span>(<span class="n">10</span>);
+
+std::cout &lt;&lt; <span class="s">"── $limit 10, затем $skip 5"</span> &lt;&lt; std::endl;
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(limit_then_skip), {<span class="s">"number"</span>, <span class="s">"total"</span>});
+
+std::cout &lt;&lt; <span class="s">"── $skip 5, затем $limit 10"</span> &lt;&lt; std::endl;
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(skip_then_limit), {<span class="s">"number"</span>, <span class="s">"total"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$skip и $limit в двух порядках</span></figcaption>
+<pre>limitThenSkip := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">10</span>}},
+    {{Key: <span class="s">"$skip"</span>, Value: <span class="n">5</span>}},
+}
+
+skipThenLimit := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$skip"</span>, Value: <span class="n">5</span>}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">10</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $limit 10, затем $skip 5"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, limitThenSkip)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"total"</span>)
+
+fmt.<span class="f">Println</span>(<span class="s">"── $skip 5, затем $limit 10"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, skipThenLimit)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$skip и $limit в двух порядках</span></figcaption>
+<pre>limit_then_skip = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">10</span> },
+  { <span class="s">"$skip"</span> =&gt; <span class="n">5</span> },
+]
+
+skip_then_limit = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$skip"</span> =&gt; <span class="n">5</span> },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">10</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $limit 10, затем $skip 5"</span>
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(limit_then_skip), <span class="s">"number"</span>, <span class="s">"total"</span>)
+
+<span class="k">puts</span> <span class="s">"── $skip 5, затем $limit 10"</span>
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(skip_then_limit), <span class="s">"number"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit 10, затем $skip 5
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5
+── $skip 5, затем $limit 10
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+2026-0033 | 9180
+2026-0023 | 8490
+2026-0056 | 6790
+документов: 8</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit 10, затем $skip 5
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5
+── $skip 5, затем $limit 10
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+2026-0033 | 9180
+2026-0023 | 8490
+2026-0056 | 6790
+документов: 8</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit 10, затем $skip 5
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5
+── $skip 5, затем $limit 10
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+2026-0033 | 9180
+2026-0023 | 8490
+2026-0056 | 6790
+документов: 8</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit 10, затем $skip 5
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+документов: 5
+── $skip 5, затем $limit 10
+2026-0081 | 150470
+2026-0088 | 126370
+2026-0055 | 98970
+2026-0043 | 56370
+2026-0054 | 55360
+2026-0033 | 9180
+2026-0023 | 8490
+2026-0056 | 6790
+документов: 8</pre>
+        </figure>
+        <p>Первый конвейер вернул пять заказов, второй — восемь. В первом <code>$limit</code> оставил первые десять заказов, а <code>$skip</code> пропустил из них пять. Во втором <code>$skip</code> пропустил пять из тринадцати, а <code>$limit</code> 10 оставил все восемь оставшихся.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Сколько документов выходит из каждой стадии</span><span>полная полоса — 13</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div><b>$limit 10 → $skip 5</b>
+                <div class="bar"><span>после $sort</span><span class="bar__track"><i style="width:100%"></i></span><span>13</span></div>
+                <div class="bar"><span>$limit 10</span><span class="bar__track"><i style="width:76.92%"></i></span><span>10</span></div>
+                <div class="bar"><span>$skip 5</span><span class="bar__track"><i class="on" style="width:38.46%"></i></span><span>5</span></div></div>
+              <div><b>$skip 5 → $limit 10</b>
+                <div class="bar"><span>после $sort</span><span class="bar__track"><i style="width:100%"></i></span><span>13</span></div>
+                <div class="bar"><span>$skip 5</span><span class="bar__track"><i style="width:61.54%"></i></span><span>8</span></div>
+                <div class="bar"><span>$limit 10</span><span class="bar__track"><i class="on" style="width:61.54%"></i></span><span>8</span></div></div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёная полоса — результат конвейера. Во втором порядке <code>$limit</code> 10 ничего не отбросил: после пропуска осталось меньше десяти заказов.</p>
+        </div>
+        <p>Для страницы нужен порядок «<code>$skip</code>, затем <code>$limit</code>». Обе стадии выпускают документы. Следующая стадия выпускает вместо документов одно число.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Стадия $count</h2>
+        <p>У входа в музей стоит счётчик посетителей. Счётчик не записывает, кто прошёл, — на табло видно только число.</p>
+        <p><span class="term">Стадия $count</span> считает документы, которые к ней пришли, и выпускает вместо них один документ с одним полем. Параметр стадии — имя этого поля: <code>{"$count": "delivered"}</code> даёт документ <code>{"delivered": 69}</code>. Тот же итог даёт <code>$group</code> с ключом <code>null</code> и <code>{"$sum": 1}</code> из главы 4.4, но в результате будет ещё поле <code>_id</code>.</p>
+        <p data-lang="cpp">У стадии <code>$count</code> в <code>mongocxx::pipeline</code> есть метод <code>count</code>, параметр — имя поля строкой.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>стадия $count</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"delivered"</span>},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>стадия $count</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">count</span>(<span class="s">"delivered"</span>);
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>стадия $count</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"delivered"</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>стадия $count</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"delivered"</span> },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'delivered': 69}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "delivered" : 69 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"delivered":69}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"delivered"=&gt;69}</pre>
+        </figure>
+        <p>Результат — один документ <code>{"delivered": 69}</code>. Стадия <code>$count</code> считает документы в той точке конвейера, где стоит. После <code>$group</code> она считает группы. Пример считает, сколько городов дали выручку не меньше 2 000 000.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$count после $group</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$match"</span>: {<span class="s">"revenue"</span>: {<span class="s">"$gte"</span>: <span class="n">2000000</span>}}},
+    {<span class="s">"$count"</span>: <span class="s">"cities"</span>},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$count после $group</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">2000000</span>)))));
+pipeline.<span class="f">count</span>(<span class="s">"cities"</span>);
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$count после $group</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">2000000</span>}}}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"cities"</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$count после $group</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"revenue"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">2000000</span> } } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"cities"</span> },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'cities': 2}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "cities" : 2 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"cities":2}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"cities"=&gt;2}</pre>
+        </figure>
+        <p>Результат — <code>{"cities": 2}</code>: тот же отбор групп, что в главе 4.4, §6, только вместо двух документов групп — одно число.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что считает $count в разных местах конвейера</span><span>shop.orders</span></div>
+          <div class="scheme__body">
+            <b>$match → $count</b>
+            <div class="pipeline">
+              <div class="pipeline__stage"><b>$match</b><span>69 доставленных заказов</span><em>69 документов</em></div>
+              <div class="pipeline__stage is-lit"><b>$count</b><span><code>{"delivered": 69}</code></span><em>1 документ</em></div>
+            </div>
+            <b>$match → $group → $match → $count</b>
+            <div class="pipeline">
+              <div class="pipeline__stage"><b>$match</b><span>69 заказов</span><em>69 документов</em></div>
+              <div class="pipeline__stage"><b>$group</b><span>по городу</span><em>5 документов</em></div>
+              <div class="pipeline__stage"><b>$match</b><span>выручка от 2 000 000</span><em>2 документа</em></div>
+              <div class="pipeline__stage is-lit"><b>$count</b><span><code>{"cities": 2}</code></span><em>1 документ</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">В обоих случаях <code>$count</code> выпускает ровно один документ. Число в нём — сколько документов пришло на вход стадии.</p>
+        </div>
+        <p>Стадия выпускает один документ, когда на вход пришёл хотя бы один. Пустой поток она обрабатывает по-другому.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>$count на пустом потоке</h2>
+        <p>Если за день в музей никто не пришёл, вечером на табло ноль. У стадии <code>$count</code> такого табло нет: она ничего не выпускает, если ей нечего считать.</p>
+        <p>Пример считает заказы со статусом «возврат». Такого статуса в магазине нет, и стадии <code>$match</code> нечего пропустить. Программа печатает, сколько документов вернул конвейер.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$count, когда документов нет</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"возврат"</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"returns"</span>},
+]
+
+result = <span class="f">list</span>(orders.<span class="f">aggregate</span>(pipeline))
+<span class="f">print</span>(<span class="s">"документов в результате:"</span>, <span class="f">len</span>(result))
+<span class="f">print</span>(result)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$count, когда документов нет</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"возврат"</span>)));
+pipeline.<span class="f">count</span>(<span class="s">"returns"</span>);
+
+<span class="k">auto</span> cursor = orders.<span class="f">aggregate</span>(pipeline);
+std::cout &lt;&lt; <span class="s">"документов в результате: "</span> &lt;&lt; std::<span class="f">distance</span>(cursor.<span class="f">begin</span>(), cursor.<span class="f">end</span>()) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$count, когда документов нет</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"возврат"</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"returns"</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">var</span> result []bson.D
+cursor.<span class="f">All</span>(ctx, &amp;result)
+fmt.<span class="f">Println</span>(<span class="s">"документов в результате:"</span>, <span class="f">len</span>(result))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$count, когда документов нет</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"возврат"</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"returns"</span> },
+]
+
+result = orders.<span class="f">aggregate</span>(pipeline).to_a
+<span class="k">puts</span> <span class="s">"документов в результате: #{result.size}"</span>
+<span class="k">puts</span> result.inspect</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в результате: 0
+[]</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в результате: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в результате: 0</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>документов в результате: 0
+[]</pre>
+        </figure>
+        <p>Конвейер вернул ноль документов. Документа <code>{"returns": 0}</code> в результате нет. Программа, которая берёт первый документ результата и читает из него поле <code>returns</code>, в этом случае получит ошибку. Пустой результат в ней надо считать нулём.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Пришло на вход <code>$count</code></th><th>Результат конвейера</th></tr></thead>
+            <tbody>
+              <tr><td>69 документов</td><td><code>[{"delivered": 69}]</code> — один документ</td></tr>
+              <tr><td>0 документов</td><td><code>[]</code> — ни одного документа</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><code>$count</code> даёт одно число на весь поток. Если число нужно для каждого значения поля, используют следующую стадию.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Стадия $sortByCount</h2>
+        <p>После голосования на собрании секретарь считает голоса за каждый вариант и записывает варианты в протокол от самого популярного к наименее популярному.</p>
+        <p><span class="term">Стадия $sortByCount</span> группирует документы по значению выражения, считает документы в каждой группе и упорядочивает группы по убыванию числа. Параметр — путь к полю: <code>{"$sortByCount": "$status"}</code>. У каждого документа результата два поля: <code>_id</code> — значение, <code>count</code> — сколько документов с ним. Пример считает заказы по статусам и рядом выполняет ту же работу стадиями <code>$group</code> и <code>$sort</code>.</p>
+        <p data-lang="cpp">У стадии <code>$sortByCount</code> в <code>mongocxx::pipeline</code> есть метод <code>sort_by_count</code>, параметр — путь к полю строкой.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$sortByCount и $group с $sort</span></figcaption>
+<pre>by_count = [
+    {<span class="s">"$sortByCount"</span>: <span class="s">"$status"</span>},
+]
+
+group_sort = [
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$status"</span>, <span class="s">"count"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"count"</span>: -<span class="n">1</span>}},
+]
+
+<span class="f">print</span>(<span class="s">"── $sortByCount"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_count):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── $group и $sort"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(group_sort):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$sortByCount и $group с $sort</span></figcaption>
+<pre>mongocxx::pipeline by_count;
+by_count.<span class="f">sort_by_count</span>(<span class="s">"$status"</span>);
+
+mongocxx::pipeline group_sort;
+group_sort.<span class="f">group</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$status"</span>), <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+group_sort.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"count"</span>, -<span class="n">1</span>)));
+
+std::cout &lt;&lt; <span class="s">"── $sortByCount"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_count)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── $group и $sort"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(group_sort)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$sortByCount и $group с $sort</span></figcaption>
+<pre>byCount := mongo.Pipeline{
+    {{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$status"</span>}},
+}
+
+groupSort := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$status"</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"count"</span>, Value: -<span class="n">1</span>}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $sortByCount"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, byCount)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $group и $sort"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, groupSort)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$sortByCount и $group с $sort</span></figcaption>
+<pre>by_count = [
+  { <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$status"</span> },
+]
+
+group_sort = [
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$status"</span>, <span class="s">"count"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"count"</span> =&gt; -<span class="n">1</span> } },
+]
+
+<span class="k">puts</span> <span class="s">"── $sortByCount"</span>
+orders.<span class="f">aggregate</span>(by_count).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── $group и $sort"</span>
+orders.<span class="f">aggregate</span>(group_sort).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $sortByCount
+{'_id': 'доставлен', 'count': 69}
+{'_id': 'отменён', 'count': 20}
+{'_id': 'собирается', 'count': 18}
+{'_id': 'в пути', 'count': 13}
+── $group и $sort
+{'_id': 'доставлен', 'count': 69}
+{'_id': 'отменён', 'count': 20}
+{'_id': 'собирается', 'count': 18}
+{'_id': 'в пути', 'count': 13}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $sortByCount
+{ "_id" : "доставлен", "count" : 69 }
+{ "_id" : "отменён", "count" : 20 }
+{ "_id" : "собирается", "count" : 18 }
+{ "_id" : "в пути", "count" : 13 }
+── $group и $sort
+{ "_id" : "доставлен", "count" : 69 }
+{ "_id" : "отменён", "count" : 20 }
+{ "_id" : "собирается", "count" : 18 }
+{ "_id" : "в пути", "count" : 13 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $sortByCount
+{"_id":"доставлен","count":69}
+{"_id":"отменён","count":20}
+{"_id":"собирается","count":18}
+{"_id":"в пути","count":13}
+── $group и $sort
+{"_id":"доставлен","count":69}
+{"_id":"отменён","count":20}
+{"_id":"собирается","count":18}
+{"_id":"в пути","count":13}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $sortByCount
+{"_id"=&gt;"доставлен", "count"=&gt;69}
+{"_id"=&gt;"отменён", "count"=&gt;20}
+{"_id"=&gt;"собирается", "count"=&gt;18}
+{"_id"=&gt;"в пути", "count"=&gt;13}
+── $group и $sort
+{"_id"=&gt;"доставлен", "count"=&gt;69}
+{"_id"=&gt;"отменён", "count"=&gt;20}
+{"_id"=&gt;"собирается", "count"=&gt;18}
+{"_id"=&gt;"в пути", "count"=&gt;13}</pre>
+        </figure>
+        <p>Оба конвейера вернули одинаковые четыре документа: доставлен — 69, отменён — 20, собирается — 18, в пути — 13. Стадия <code>$sortByCount</code> — короткая запись пары <code>$group</code> с <code>{"$sum": 1}</code> и <code>$sort</code> по убыванию числа, работает она так же.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказы по статусам</span><span>полная полоса — 120</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <div class="bar"><span>доставлен</span><span class="bar__track"><i class="on" style="width:57.5%"></i></span><span>69</span></div>
+                <div class="bar"><span>отменён</span><span class="bar__track"><i style="width:16.67%"></i></span><span>20</span></div>
+                <div class="bar"><span>собирается</span><span class="bar__track"><i style="width:15%"></i></span><span>18</span></div>
+                <div class="bar"><span>в пути</span><span class="bar__track"><i style="width:10.83%"></i></span><span>13</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Строка — один документ результата: <code>_id</code> слева, <code>count</code> справа. Строки идут по убыванию <code>count</code>, сумма — 120, все заказы магазина.</p>
+        </div>
+        <p>Если у двух значений одинаковое число документов, их порядок между собой не задан. Например, у Москвы и Санкт-Петербурга по 18 заказов, и <code>{"$sortByCount": "$delivery.city"}</code> может выдать их в любом порядке. Для устойчивого порядка после <code>$group</code> ставят <code>$sort</code> по двум полям: <code>{"count": -1, "_id": 1}</code>. Сортировка в конвейере требует памяти сервера, и у этой памяти есть предел.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Память сортировки</h2>
+        <p>Чтобы разложить стопку контрольных по фамилиям, нужен стол, на котором поместится вся стопка. Если работ слишком много, часть раскладывают на полу. Если нужны только три лучшие работы, хватит места на три листа: каждую новую работу сравнивают с тремя отложенными и оставляют лучшие.</p>
+        <p>Стадия <code>$sort</code> не может выпустить первый документ, пока не получит все: последний пришедший документ может оказаться первым по порядку (глава 3.3, §5). Поэтому сервер держит сортируемые документы в памяти. На одну сортировку отводится 100 МБ — параметр сервера <code>internalQueryMaxBlockingSortMemoryUsageBytes</code>, 104 857 600 байт. Если данных больше, сервер пишет промежуточные части на диск. Начиная с MongoDB 6.0 это разрешено по умолчанию.</p>
+        <p>Когда за <code>$sort</code> сразу идёт <code>$limit</code>, сервер соединяет их и держит в памяти только столько документов, сколько требует предел. Это видно в отчёте <code>explain</code>. Пример получает план для отбора и сортировки заказов в пути без предела и с пределом 3.</p>
+        <p data-lang="python">Отчёт возвращает команда <code>explain</code>, внутри неё — команда <code>aggregate</code> с именем коллекции и конвейером. Метод <code>db.command</code> отправляет её серверу, <code>verbosity="queryPlanner"</code> просит только план без выполнения.</p>
+        <p data-lang="ruby">Отчёт возвращает команда <code>explain</code>, внутри неё — команда <code>aggregate</code> с именем коллекции и конвейером. Метод <code>db.command</code> отправляет её серверу, <code>verbosity: "queryPlanner"</code> просит только план без выполнения; <code>.first</code> берёт документ ответа.</p>
+        <p data-lang="go">Отчёт возвращает команда <code>explain</code>, внутри неё — команда <code>aggregate</code> с именем коллекции и конвейером. <code>RunCommand</code> отправляет её серверу, ответ читается в <code>bson.Raw</code>. <code>Lookup</code> достаёт вложенное поле по пути, <code>AsInt64</code> — его числовое значение.</p>
+        <p data-lang="cpp">Отчёт возвращает команда <code>explain</code>, внутри неё — команда <code>aggregate</code> с именем коллекции и конвейером. Метод <code>view_array</code> отдаёт стадии конвейера массивом, <code>run_command</code> отправляет команду серверу. Лямбда <code>number</code> читает число, которое сервер может прислать как 32- или 64-битное.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>план сортировки с $limit и без</span></figcaption>
+<pre>sorted_all = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+]
+top3 = sorted_all + [{<span class="s">"$limit"</span>: <span class="n">3</span>}]
+
+<span class="k">for</span> name, stages <span class="k">in</span> [(<span class="s">"без $limit"</span>, sorted_all), (<span class="s">"с $limit 3"</span>, top3)]:
+    info = db.<span class="f">command</span>(<span class="s">"explain"</span>, {<span class="s">"aggregate"</span>: <span class="s">"orders"</span>, <span class="s">"pipeline"</span>: stages, <span class="s">"cursor"</span>: {}},
+                      verbosity=<span class="s">"queryPlanner"</span>)
+    plan = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+    <span class="f">print</span>(name, <span class="s">"|"</span>, plan[<span class="s">"stage"</span>], <span class="s">"| memLimit"</span>, plan[<span class="s">"memLimit"</span>],
+          <span class="s">"| limitAmount"</span>, plan.<span class="f">get</span>(<span class="s">"limitAmount"</span>, <span class="s">"—"</span>))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>план сортировки с $limit и без</span></figcaption>
+<pre>mongocxx::pipeline sorted_all;
+sorted_all.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+sorted_all.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+mongocxx::pipeline top3;
+top3.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+top3.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+top3.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="k">auto</span> number = [](bsoncxx::document::element el) {
+    <span class="k">return</span> el.<span class="f">type</span>() == bsoncxx::type::k_int32 ? std::<span class="f">to_string</span>(el.<span class="f">get_int32</span>().value)
+                                               : std::<span class="f">to_string</span>(el.<span class="f">get_int64</span>().value);
+};
+<span class="k">for</span> (<span class="k">auto</span>&amp; [name, stages] : std::vector&lt;std::pair&lt;std::string, mongocxx::pipeline*&gt;&gt;{
+         {<span class="s">"без $limit"</span>, &amp;sorted_all}, {<span class="s">"с $limit 3"</span>, &amp;top3}}) {
+    <span class="k">auto</span> info = db.<span class="f">run_command</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"explain"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"aggregate"</span>, <span class="s">"orders"</span>), <span class="f">kvp</span>(<span class="s">"pipeline"</span>, stages-&gt;<span class="f">view_array</span>()),
+                                     <span class="f">kvp</span>(<span class="s">"cursor"</span>, <span class="f">make_document</span>()))),
+        <span class="f">kvp</span>(<span class="s">"verbosity"</span>, <span class="s">"queryPlanner"</span>)));
+    <span class="k">auto</span> plan = info.<span class="f">view</span>()[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>].<span class="f">get_document</span>().<span class="f">view</span>();
+    std::string limit = plan[<span class="s">"limitAmount"</span>] ? <span class="f">number</span>(plan[<span class="s">"limitAmount"</span>]) : <span class="s">"—"</span>;
+    std::cout &lt;&lt; name &lt;&lt; <span class="s">" | "</span> &lt;&lt; plan[<span class="s">"stage"</span>].<span class="f">get_string</span>().value &lt;&lt; <span class="s">" | memLimit "</span>
+              &lt;&lt; <span class="f">number</span>(plan[<span class="s">"memLimit"</span>]) &lt;&lt; <span class="s">" | limitAmount "</span> &lt;&lt; limit &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>план сортировки с $limit и без</span></figcaption>
+<pre>sortedAll := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+}
+top3 := <span class="f">append</span>(<span class="f">append</span>(mongo.Pipeline{}, sortedAll...), bson.D{{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}})
+
+<span class="k">for</span> _, item := <span class="k">range</span> []<span class="k">struct</span> {
+    name   <span class="k">string</span>
+    stages mongo.Pipeline
+}{{<span class="s">"без $limit"</span>, sortedAll}, {<span class="s">"с $limit 3"</span>, top3}} {
+    <span class="k">var</span> info bson.Raw
+    db.<span class="f">RunCommand</span>(ctx, bson.D{
+        {Key: <span class="s">"explain"</span>, Value: bson.D{
+            {Key: <span class="s">"aggregate"</span>, Value: <span class="s">"orders"</span>},
+            {Key: <span class="s">"pipeline"</span>, Value: item.stages},
+            {Key: <span class="s">"cursor"</span>, Value: bson.D{}}}},
+        {Key: <span class="s">"verbosity"</span>, Value: <span class="s">"queryPlanner"</span>}}).<span class="f">Decode</span>(&amp;info)
+    plan := info.<span class="f">Lookup</span>(<span class="s">"queryPlanner"</span>, <span class="s">"winningPlan"</span>).<span class="f">Document</span>()
+    limit := <span class="s">"—"</span>
+    <span class="k">if</span> v, err := plan.<span class="f">LookupErr</span>(<span class="s">"limitAmount"</span>); err == <span class="k">nil</span> {
+        limit = fmt.<span class="f">Sprint</span>(v.<span class="f">AsInt64</span>())
+    }
+    fmt.<span class="f">Println</span>(item.name, <span class="s">"|"</span>, plan.<span class="f">Lookup</span>(<span class="s">"stage"</span>).<span class="f">StringValue</span>(),
+        <span class="s">"| memLimit"</span>, plan.<span class="f">Lookup</span>(<span class="s">"memLimit"</span>).<span class="f">AsInt64</span>(), <span class="s">"| limitAmount"</span>, limit)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>план сортировки с $limit и без</span></figcaption>
+<pre>sorted_all = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+]
+top3 = sorted_all + [{ <span class="s">"$limit"</span> =&gt; <span class="n">3</span> }]
+
+[[<span class="s">"без $limit"</span>, sorted_all], [<span class="s">"с $limit 3"</span>, top3]].each <span class="k">do</span> |name, stages|
+  info = db.<span class="f">command</span>(explain: { aggregate: <span class="s">"orders"</span>, pipeline: stages, cursor: {} },
+                    verbosity: <span class="s">"queryPlanner"</span>).first
+  plan = info[<span class="s">"queryPlanner"</span>][<span class="s">"winningPlan"</span>]
+  <span class="k">puts</span> <span class="s">"#{name} | #{plan["</span>stage<span class="s">"]} | memLimit #{plan["</span>memLimit<span class="s">"]} | limitAmount #{plan["</span>limitAmount<span class="s">"] || "</span>—<span class="s">"}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>без $limit | SORT | memLimit 104857600 | limitAmount —
+с $limit 3 | SORT | memLimit 104857600 | limitAmount 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>без $limit | SORT | memLimit 104857600 | limitAmount —
+с $limit 3 | SORT | memLimit 104857600 | limitAmount 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>без $limit | SORT | memLimit 104857600 | limitAmount —
+с $limit 3 | SORT | memLimit 104857600 | limitAmount 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>без $limit | SORT | memLimit 104857600 | limitAmount —
+с $limit 3 | SORT | memLimit 104857600 | limitAmount 3</pre>
+        </figure>
+        <p>В обоих планах стадия <code>SORT</code> с пределом памяти <code>memLimit</code> 104 857 600 байт. Во втором плане есть поле <code>limitAmount: 3</code>: сортировка соединена с пределом и хранит только три документа. Без предела она хранит все подходящие.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что держит в памяти SORT</span><span>13 заказов в пути</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>$sort без $limit</b>
+                <ol>
+                  <li class="on">13 заказов в памяти</li>
+                  <li class="pl">выпускает все 13 по порядку</li>
+                </ol></div>
+              <div><b>$sort и $limit 3, limitAmount 3</b>
+                <ol>
+                  <li class="on">3 лучших заказа в памяти</li>
+                  <li class="pl">каждый новый сравнивается с ними</li>
+                  <li class="pl">выпускает 3</li>
+                </ol></div>
+            </div>
+          </div>
+          <p class="scheme__note">В обоих планах на вход сортировки приходят все 13 заказов в пути. Различается, сколько документов сортировка хранит одновременно. На 13 заказах разница незаметна, на миллионе документов — это миллион против трёх.</p>
+        </div>
+        <p>Поэтому <code>$limit</code> ставят сразу за <code>$sort</code>, если нужны первые несколько документов. Разрешение писать на диск задаётся и в самом запросе.</p>
+        <p data-lang="python">Аргумент <code>allowDiskUse</code> метода <code>aggregate</code>: <code>orders.aggregate(pipeline, allowDiskUse=False)</code> запрещает писать на диск, и сортировка больше 100 МБ завершится ошибкой.</p>
+        <p data-lang="ruby">Параметр <code>allow_disk_use</code> метода <code>aggregate</code>: <code>orders.aggregate(pipeline, allow_disk_use: false)</code> запрещает писать на диск, и сортировка больше 100 МБ завершится ошибкой.</p>
+        <p data-lang="go">Параметр задаётся в <code>options.Aggregate().SetAllowDiskUse(false)</code> третьим аргументом <code>Aggregate</code>; с ним сортировка больше 100 МБ завершится ошибкой.</p>
+        <p data-lang="cpp">Параметр задаётся объектом <code>mongocxx::options::aggregate</code> и методом <code>allow_disk_use(false)</code>, объект передаётся вторым аргументом <code>aggregate</code>; с ним сортировка больше 100 МБ завершится ошибкой.</p>
+        <p>Стадии главы собираются и в Compass.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>$sortByCount в Compass</h2>
+        <p>Стадия <code>$sortByCount</code> собирается в Compass одной карточкой, параметр — путь к полю в кавычках. На кадре — конвейер из §5 из одной стадии.</p>
+        <figure class="shot">
+          <img src="../../shots/147-orders-sortbycount.png" alt="Compass, вкладка Aggregations коллекции shop.orders: сверху выборка 120 документов коллекции, ниже стадия 1 $sortByCount с параметром $status и выборкой из 4 документов, первые — доставлен 69 и отменён 20">
+          <figcaption>Compass · стадия <code>$sortByCount</code> по полю <code>status</code></figcaption>
+        </figure>
+        <p>Над стадией — блок <b>120 Documents in the collection</b>: выборка документов, которые входят в первую стадию. Под ней — выход <code>$sortByCount</code>: четыре документа с полями <code>_id</code> и <code>count</code>. Подпись <b>Sample of 4 documents</b> здесь совпадает с полным результатом: групп меньше десяти.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>$skip</code> без <code>$sort</code></td><td>Страницы собираются из порядка хранения: при изменении коллекции документ может попасть на две страницы или ни на одну</td><td>Перед <code>$skip</code> ставить <code>$sort</code> по полю с неповторяющимися значениями или добавить в сортировку <code>_id</code></td></tr>
+              <tr><td><code>$limit 10</code>, затем <code>$skip 5</code></td><td>Предел берёт 10 документов, пропуск убирает из них 5: остаётся 5</td><td>Для страницы — сначала <code>$skip</code>, затем <code>$limit</code></td></tr>
+              <tr><td><code>{"$count": "n"}</code> на пустом потоке</td><td>Стадия не выпускает ни одного документа: результат — пустой список, поля <code>n</code> со значением 0 нет</td><td>В программе считать пустой результат нулём</td></tr>
+              <tr><td><code>{"$count": "$status"}</code></td><td>Ошибка 40158: имя поля в <code>$count</code> не может начинаться с <code>$</code></td><td>Параметр — имя нового поля: <code>{"$count": "orders"}</code></td></tr>
+              <tr><td>Ожидание, что <code>$sortByCount</code> быстрее <code>$group</code> и <code>$sort</code></td><td>Это та же группировка с сортировкой, записанная короче</td><td>Выбирать запись по удобству чтения</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>$skip</code> без <code>$sort</code></td><td>Страницы собираются из порядка хранения: при изменении коллекции документ может попасть на две страницы или ни на одну</td><td>Перед <code>$skip</code> ставить <code>$sort</code> по полю с неповторяющимися значениями или добавить в сортировку <code>_id</code></td></tr>
+              <tr><td><code>$limit 10</code>, затем <code>$skip 5</code></td><td>Предел берёт 10 документов, пропуск убирает из них 5: остаётся 5</td><td>Для страницы — сначала <code>$skip</code>, затем <code>$limit</code></td></tr>
+              <tr><td><code>{"$count": "n"}</code> на пустом потоке</td><td>Стадия не выпускает ни одного документа: результат — пустой список, поля <code>n</code> со значением 0 нет</td><td>В программе считать пустой результат нулём</td></tr>
+              <tr><td><code>{"$count": "$status"}</code></td><td>Ошибка 40158: имя поля в <code>$count</code> не может начинаться с <code>$</code></td><td>Параметр — имя нового поля: <code>{"$count": "orders"}</code></td></tr>
+              <tr><td>Ожидание, что <code>$sortByCount</code> быстрее <code>$group</code> и <code>$sort</code></td><td>Это та же группировка с сортировкой, записанная короче</td><td>Выбирать запись по удобству чтения</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>$skip</code> без <code>$sort</code></td><td>Страницы собираются из порядка хранения: при изменении коллекции документ может попасть на две страницы или ни на одну</td><td>Перед <code>$skip</code> ставить <code>$sort</code> по полю с неповторяющимися значениями или добавить в сортировку <code>_id</code></td></tr>
+              <tr><td><code>$limit 10</code>, затем <code>$skip 5</code></td><td>Предел берёт 10 документов, пропуск убирает из них 5: остаётся 5</td><td>Для страницы — сначала <code>$skip</code>, затем <code>$limit</code></td></tr>
+              <tr><td><code>{"$count": "n"}</code> на пустом потоке</td><td>Стадия не выпускает ни одного документа: результат — пустой список, поля <code>n</code> со значением 0 нет</td><td>В программе считать пустой результат нулём</td></tr>
+              <tr><td><code>{"$count": "$status"}</code></td><td>Ошибка 40158: имя поля в <code>$count</code> не может начинаться с <code>$</code></td><td>Параметр — имя нового поля: <code>{"$count": "orders"}</code></td></tr>
+              <tr><td>Ожидание, что <code>$sortByCount</code> быстрее <code>$group</code> и <code>$sort</code></td><td>Это та же группировка с сортировкой, записанная короче</td><td>Выбирать запись по удобству чтения</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>$skip</code> без <code>$sort</code></td><td>Страницы собираются из порядка хранения: при изменении коллекции документ может попасть на две страницы или ни на одну</td><td>Перед <code>$skip</code> ставить <code>$sort</code> по полю с неповторяющимися значениями или добавить в сортировку <code>_id</code></td></tr>
+              <tr><td><code>$limit 10</code>, затем <code>$skip 5</code></td><td>Предел берёт 10 документов, пропуск убирает из них 5: остаётся 5</td><td>Для страницы — сначала <code>$skip</code>, затем <code>$limit</code></td></tr>
+              <tr><td><code>{"$count": "n"}</code> на пустом потоке</td><td>Стадия не выпускает ни одного документа: результат — пустой список, поля <code>n</code> со значением 0 нет</td><td>В программе считать пустой результат нулём</td></tr>
+              <tr><td><code>{"$count": "$status"}</code></td><td>Ошибка 40158: имя поля в <code>$count</code> не может начинаться с <code>$</code></td><td>Параметр — имя нового поля: <code>{"$count": "orders"}</code></td></tr>
+              <tr><td>Ожидание, что <code>$sortByCount</code> быстрее <code>$group</code> и <code>$sort</code></td><td>Это та же группировка с сортировкой, записанная короче</td><td>Выбирать запись по удобству чтения</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Проверьте себя</h2>
+        <details>
+          <summary>Какие стадии дают третью страницу по пять документов?</summary>
+          <p><code>$sort</code>, затем <code>{"$skip": 10}</code> и <code>{"$limit": 5}</code>: пропускаются две страницы по пять.</p>
+        </details>
+        <details>
+          <summary>Почему <code>$limit 10</code>, затем <code>$skip 5</code> вернули пять документов?</summary>
+          <p>Предел оставил десять документов, пропуск убрал из них первые пять. Стадии выполняются в порядке списка.</p>
+        </details>
+        <details>
+          <summary>Что вернёт <code>{"$count": "n"}</code>, если ни один документ не прошёл <code>$match</code>?</summary>
+          <p>Пустой результат, ни одного документа. Документа <code>{"n": 0}</code> не будет.</p>
+        </details>
+        <details>
+          <summary>Какими двумя стадиями можно заменить <code>{"$sortByCount": "$status"}</code>?</summary>
+          <p><code>{"$group": {"_id": "$status", "count": {"$sum": 1}}}</code> и <code>{"$sort": {"count": -1}}</code>.</p>
+        </details>
+        <details>
+          <summary>Что означает <code>limitAmount: 3</code> в плане стадии <code>SORT</code>?</summary>
+          <p>Сортировка соединена с пределом и хранит в памяти только три документа.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_5</code> с функцией <code>show</code>. Данные — <code>shop.orders</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Страницы</b>Доставленные заказы по убыванию суммы, страницы по 10. Вывести номер и сумму заказов третьей страницы.</li>
+          <li><b>Последняя страница</b>Посчитать стадией <code>$count</code>, сколько всего доставленных заказов, и определить, сколько заказов на последней странице.</li>
+          <li><b>Частота</b>Стадией <code>$sortByCount</code> посчитать доставленные заказы по способу оплаты.</li>
+          <li><b>План</b>Получить план для сортировки доставленных заказов по сумме с <code>$limit</code> 10 и найти в нём <code>limitAmount</code>.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Третья страница — <code>$match</code> по доставленным, <code>{"$sort": {"total": -1}}</code>, <code>{"$skip": 20}</code>, <code>{"$limit": 10}</code>: заказы от 2026-0042 (179 980) до пары 2026-0101 и 2026-0087 (обе 114 990). Порядок этой пары между собой не задан; сортировка <code>{"total": -1, "_id": 1}</code> делает его постоянным. Доставленных заказов 69, страниц по 10 — семь, на последней 9 заказов. По способу оплаты: карта — 37, картой при получении — 19, СБП — 13. В плане сортировки с <code>$limit</code> 10 — <code>limitAmount: 10</code>.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Страница</b>
+            <code>{"$skip": 5}</code>
+            <code>{"$limit": 5}</code>
+          </div>
+          <div>
+            <b>Подсчёт</b>
+            <code>{"$count": "delivered"}</code>
+          </div>
+          <div>
+            <b>Частота значений</b>
+            <code>{"$sortByCount": "$status"}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Страница</b>
+            <code>pipeline.skip(5);</code>
+            <code>pipeline.limit(5);</code>
+          </div>
+          <div>
+            <b>Подсчёт</b>
+            <code>pipeline.count("delivered");</code>
+          </div>
+          <div>
+            <b>Частота значений</b>
+            <code>pipeline.sort_by_count("$status");</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Страница</b>
+            <code>bson.D{{Key: "$skip", Value: 5}}</code>
+            <code>bson.D{{Key: "$limit", Value: 5}}</code>
+          </div>
+          <div>
+            <b>Подсчёт</b>
+            <code>bson.D{{Key: "$count", Value: "delivered"}}</code>
+          </div>
+          <div>
+            <b>Частота значений</b>
+            <code>bson.D{{Key: "$sortByCount", Value: "$status"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Страница</b>
+            <code>{ "$skip" =&gt; 5 }</code>
+            <code>{ "$limit" =&gt; 5 }</code>
+          </div>
+          <div>
+            <b>Подсчёт</b>
+            <code>{ "$count" =&gt; "delivered" }</code>
+          </div>
+          <div>
+            <b>Частота значений</b>
+            <code>{ "$sortByCount" =&gt; "$status" }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Стадия <code>$skip</code> пропускает первые N документов потока; вместе с <code>$sort</code> и <code>$limit</code> она выделяет страницу, и порядок «<code>$skip</code>, затем <code>$limit</code>» обязателен. <code>$count</code> выпускает один документ с числом пришедших документов, а на пустом потоке не выпускает ничего. <code>$sortByCount</code> — короткая запись группировки с подсчётом и сортировки по убыванию; при равных числах порядок не задан. Сортировка держит документы в памяти, до 100 МБ на стадию, дальше пишет на диск. <code>$limit</code> сразу за <code>$sort</code> сокращает память до числа документов в пределе — в плане это <code>limitAmount</code>.</p>
+
+        <div class="pager"><a href="../28-group/index.html">← 4.4 $group и аккумуляторы</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.5 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

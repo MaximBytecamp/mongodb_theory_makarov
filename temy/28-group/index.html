@@ -1324,7 +1324,7 @@ a group specification must include an _id</pre>
         <h3>Итог главы</h3>
         <p>Стадия <code>$group</code> раскладывает документы потока по группам с одинаковым ключом <code>_id</code> и выпускает по документу на группу; в нём только ключ и итоги. Итоги считают аккумуляторы: <code>{"$sum": 1}</code> — число документов, <code>{"$sum": "$total"}</code> — сумма поля, <code>$avg</code> — среднее, <code>$min</code> и <code>$max</code> — крайние значения. Ключ <code>null</code> даёт одну группу на все документы, ключ-документ — группу на каждое сочетание полей. <code>$match</code> до <code>$group</code> отбирает документы, после — группы. Поле <code>_id</code> обязательно, остальные поля стадии — только аккумуляторы. Строковые значения <code>$sum</code> и <code>$avg</code> пропускают без ошибки.</p>
 
-        <div class="pager"><a href="../27-addfields-set-unset/index.html">← 4.3 $addFields, $set, $unset</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../27-addfields-set-unset/index.html">← 4.3 $addFields, $set, $unset</a><a href="../29-skip-count/index.html">4.5 $skip, $count, $sortByCount →</a></div>
 
         <div class="colophon">
           <span>Глава 4.4 · Справочник по MongoDB</span>
