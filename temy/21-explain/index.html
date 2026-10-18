@@ -28,6 +28,55 @@
     .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
     .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
     .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: карта отчёта, счётчики в масштабе, запись индекса и документ, порядок записей. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 6px; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .scheme__body > b { display: block; margin: 4px 0 8px; font: 600 13px/1.4 var(--mono); }
+    .xtree, .xtree ul { list-style: none; margin: 0; padding: 0; }
+    .xtree { padding-bottom: 10px; font: 400 13px/1.75 var(--mono); }
+    .xtree ul { margin-left: 9px; padding-left: 16px; border-left: 2px solid var(--rule); }
+    .xtree li > span { padding: 0 5px; color: var(--ink-faint); }
+    .xtree li.on > span { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .xtree li.pl > span { color: var(--ink); }
+    .xtree em { margin-left: 8px; font: 400 13.5px/1.4 var(--body, inherit); font-style: normal; color: var(--ink-soft); }
+    .bars { display: grid; gap: 16px; padding-bottom: 10px; }
+    .bars > div > b { display: block; margin-bottom: 6px; font: 600 13px/1.4 var(--mono); }
+    .bar { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 10px; margin: 3px 0; font: 400 12.5px/1.3 var(--mono); }
+    .bar__track { height: 16px; border: 2px solid var(--ink); background: var(--paper, transparent); }
+    .bar__track i { display: block; height: 100%; background: var(--ink-faint); }
+    .bar__track i.on { background: var(--leaf-bright); }
+    .bar__track i.no { background: var(--clay); }
+    .bar > span:last-child { text-align: right; font-weight: 700; }
+    @media (max-width: 560px) { .bar { grid-template-columns: 1fr 44px; } .bar > span:first-child { grid-column: 1 / -1; } }
+    .ixlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 8px; }
+    .ixlist b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .ixlist ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); font: 400 12.5px/1.55 var(--mono); }
+    .ixlist li { padding: 0 9px; color: var(--ink-faint); border-bottom: 1px solid var(--rule); }
+    .ixlist li:last-child { border-bottom: 0; }
+    .ixlist li.on { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .ixlist li.pl { color: var(--ink); }
+    .ixlist em { display: block; margin-top: 6px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
+    .cover { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 12px; }
+    .cover b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chips i { padding: 2px 7px; border: 2px solid var(--ink); font: 400 12px/1.4 var(--mono); font-style: normal; }
+    .chips i.on { background: var(--leaf-bright); font-weight: 700; }
+    .chips i.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+    .chips i.ref { border-style: dashed; color: var(--ink-soft); }
+    .projrows { display: grid; gap: 10px; padding-bottom: 10px; }
+    .projrows > div { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 6px 14px; align-items: center; padding: 8px 10px; border: 2px solid var(--rule); }
+    .projrows > div > span { font-size: 14px; }
+    .projrows code { font-size: 12.5px; }
+    .projrows em { font-style: normal; font-size: 14px; color: var(--ink-soft); }
+    .projrows em strong { color: var(--ink); }
+    @media (max-width: 560px) { .projrows > div { grid-template-columns: 1fr; } }
+    .esr { width: 100%; border-collapse: collapse; font: 400 12.5px/1.4 var(--mono); }
+    .esr th { padding: 4px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--ink); }
+    .esr td { padding: 2px 8px; border-bottom: 1px solid var(--rule); color: var(--ink-faint); }
+    .esr tr.on td { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .esr td.rd { color: var(--ink); }
+    .esr tfoot td { border-top: 2px solid var(--ink); border-bottom: 0; color: var(--ink); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -83,6 +132,7 @@
 
         <h2 id="s1"><span class="sec">§1</span>Документ explain</h2>
         <p>В главе 3.2 из плана запроса брались только названия стадий. Сервер сообщает о выполнении запроса гораздо больше: какие планы он рассматривал, какой выбрал, сколько записей индекса и сколько документов прочитал, сколько вернул. Всё это лежит в документе, который возвращает <span class="term">explain</span> — команда «объясни, как выполнен запрос». В подробных режимах отчёта сервер выполняет запрос как обычно, но вместо документов программа получает отчёт о выполнении.</p>
+        <p>В главе 3.2 индекс сравнивался с предметным указателем книги. Отчёт <code>explain</code> в этом сравнении — запись о том, как шёл поиск: открывали указатель или листали книгу подряд, сколько строк указателя прочитано, сколько страниц открыто и сколько из открытых страниц попало в ответ. По такой записи видно, где сделана лишняя работа: например, открыто 1200 страниц, а в ответ попали 42.</p>
         <p>Глава снова работает на копии журнала <code>journal</code> (<code>sandbox.events</code>) из заготовки. Первый пример пересоздаёт копию без индексов, кроме <code>_id_</code>, и запрашивает отчёт по запросу дежурного из главы 3.2: события платёжного сервиса со статусом от 500.</p>
         <p data-lang="python">Отчёт возвращает метод курсора <code>explain()</code>: <code>find</code> строит курсор, <code>explain</code> вместо документов возвращает словарь отчёта.</p>
         <p data-lang="ruby">Отчёт возвращает метод <code>explain</code> у результата <code>find</code>; он возвращает хеш отчёта вместо документов.</p>
@@ -205,14 +255,56 @@ nReturned:         42
 totalKeysExamined: 0
 totalDocsExamined: 1200</pre>
         </figure>
-        <p>В отчёте семь разделов. Для разбора запроса нужны два: <code>queryPlanner</code> — какой план выбран, и <code>executionStats</code> — как он выполнился. Остальные служебные: <code>command</code> повторяет запрос, <code>serverInfo</code> и <code>serverParameters</code> описывают сервер, <code>explainVersion</code> — версию формата отчёта.</p>
+        <p>В отчёте семь разделов. Для разбора запроса нужны два: <code>queryPlanner</code> — какой план выбран, и <code>executionStats</code> — как он выполнился. Остальные служебные: <code>command</code> повторяет запрос, <code>serverInfo</code> и <code>serverParameters</code> описывают сервер, <code>explainVersion</code> — версию формата отчёта, <code>ok</code> — что команда выполнена. На схеме — отчёт по запросу дежурного, сокращённый до полей, которые разбираются в этой главе.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Документ explain</span><span>запрос дежурного, копия без индексов</span></div>
+          <div class="scheme__body">
+            <ul class="xtree">
+              <li><span>explainVersion: "1"</span></li>
+              <li class="pl"><span>queryPlanner</span><em>какой план выбран, §2</em>
+                <ul>
+                  <li class="on"><span>winningPlan: { stage: "COLLSCAN", … }</span><em>выбранный план</em></li>
+                  <li class="pl"><span>rejectedPlans: [ ]</span><em>отклонённые планы, здесь их нет</em></li>
+                </ul>
+              </li>
+              <li class="pl"><span>executionStats</span><em>как выполнен выбранный план, §3</em>
+                <ul>
+                  <li class="on"><span>nReturned: 42</span><em>вернул документов</em></li>
+                  <li class="on"><span>totalKeysExamined: 0</span><em>прочитал записей индекса</em></li>
+                  <li class="on"><span>totalDocsExamined: 1200</span><em>прочитал документов</em></li>
+                  <li><span>executionTimeMillis: …</span><em>время, меняется от запуска к запуску</em></li>
+                  <li><span>executionStages: { … }</span><em>те же стадии со счётчиками каждой</em></li>
+                </ul>
+              </li>
+              <li><span>command</span></li>
+              <li><span>serverInfo</span></li>
+              <li><span>serverParameters</span></li>
+              <li><span>ok: 1</span></li>
+            </ul>
+          </div>
+          <p class="scheme__note">Зелёным выделены поля, по которым разбирается запрос. Отступ показывает вложенность: <code>winningPlan</code> лежит внутри <code>queryPlanner</code>, счётчики — внутри <code>executionStats</code>.</p>
+        </div>
         <p>Выбранный план — <code>COLLSCAN</code>: индекса под запрос нет. Три числа из <code>executionStats</code> описывают работу сервера:</p>
         <ul>
           <li><code>nReturned</code> — сколько документов вернул запрос: 42;</li>
           <li><code>totalKeysExamined</code> — сколько записей индекса прочитано: 0, индекс не использовался;</li>
           <li><code>totalDocsExamined</code> — сколько документов прочитано: 1200, вся коллекция.</li>
         </ul>
-        <p>Ради 42 документов сервер прочитал 1200. Когда прочитано намного больше, чем возвращено, запросу нужен индекс. У запроса, который хорошо обслужен индексом, все три числа близки.</p>
+        <p>В сравнении с книгой <code>totalKeysExamined</code> — число прочитанных строк указателя, <code>totalDocsExamined</code> — число открытых страниц, <code>nReturned</code> — число страниц, которые попали в ответ. Ниже те же три числа показаны полосами одного масштаба: полная полоса — 1200, вся коллекция.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Три счётчика запроса дежурного</span><span>COLLSCAN</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <div class="bar"><span>totalKeysExamined</span><span class="bar__track"><i style="width:0"></i></span><span>0</span></div>
+                <div class="bar"><span>totalDocsExamined</span><span class="bar__track"><i class="no" style="width:100%"></i></span><span>1200</span></div>
+                <div class="bar"><span>nReturned</span><span class="bar__track"><i class="on" style="width:3.5%"></i></span><span>42</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Длина полосы пропорциональна числу. Красная полоса — прочитанные документы, зелёная — документы, которые вернул запрос. Разница между ними — 1158 документов, прочитанных и отброшенных.</p>
+        </div>
+        <p>Ради 42 документов сервер прочитал 1200. Когда прочитано намного больше, чем возвращено, запросу нужен индекс. У запроса, который хорошо обслужен индексом, все три числа близки, и три полосы на такой схеме получаются одной длины.</p>
         <p>Подробность отчёта задаёт режим. <code>queryPlanner</code> — только выбранный план, запрос не выполняется; <code>executionStats</code> — план и счётчики выполнения; <code>allPlansExecution</code> — то же и счётчики пробного выполнения отклонённых планов. В примерах на Go и C++ режим задан явно, <code>executionStats</code>. Методы курсора в Python и Ruby режим не передают, и сервер выполняет отчёт в режиме <code>allPlansExecution</code>; разделы и счётчики, разобранные здесь, в нём те же.</p>
         <figure class="shot">
           <img src="../../shots/124-explain-collscan.png" alt="Compass, окно Explain Plan для запроса service payments и status от 500 без индексов: стадия COLLSCAN, Documents Examined 1200, сводка 42 документа возвращено, 1200 прочитано, No index available for this query">
@@ -221,7 +313,8 @@ totalDocsExamined: 1200</pre>
         <p>Окно <b>Explain Plan</b> открывается кнопкой <b>Explain</b> на вкладке <b>Documents</b> и строит отчёт для запроса из поля фильтра. Слева — дерево стадий: одна стадия <code>COLLSCAN</code>, она вернула 42 документа, прочитав 1200 (<b>Documents Examined</b>). Справа — сводка <b>Query Performance Summary</b>: <b>documents returned</b> — <code>nReturned</code>, <b>documents examined</b> — <code>totalDocsExamined</code>, <b>index keys examined</b> — <code>totalKeysExamined</code>, <b>execution time</b> — <code>executionTimeMillis</code>, <b>sorted in memory</b> — есть ли стадия <code>SORT</code>. Предупреждение <b>No index available for this query</b> — индекса под запрос нет.</p>
 
         <h2 id="s2"><span class="sec">§2</span>queryPlanner: какой план выбран</h2>
-        <p>Когда под запрос подходит несколько индексов, сервер составляет по плану на каждый, пробует их на начале запроса и оставляет тот, который быстрее дал результат. Выбранный план лежит в <code>queryPlanner.winningPlan</code>, остальные — в списке <code>queryPlanner.rejectedPlans</code>. Выбор сервер запоминает в кэше планов и для следующих запросов той же формы использует его снова.</p>
+        <p>Когда под запрос подходит несколько индексов, сервер составляет по плану на каждый. Затем он пробует планы на начале запроса: даёт каждому одинаковое число шагов работы и оставляет тот, который за эти шаги вернул больше документов или раньше закончил запрос. Выбранный план лежит в <code>queryPlanner.winningPlan</code>, остальные — в списке <code>queryPlanner.rejectedPlans</code>.</p>
+        <p>Так навигатор показывает поездку: основной маршрут нарисован ярко, запасные — серыми линиями рядом. В отчёте основной маршрут — <code>winningPlan</code>, серые линии — <code>rejectedPlans</code>. Выбранный план сервер записывает в кэш планов и для следующих запросов той же формы использует его снова, без новой пробы.</p>
         <p>Чтобы не разбирать отчёт целиком в каждом примере, в заготовке главы объявлена функция <code>summary</code>. Она отправляет команду <code>explain</code> для запроса, описанного её аргументами, и возвращает одной строкой стадии выбранного плана сверху вниз и три счётчика: сколько документов вернул запрос, сколько ключей индекса и сколько документов прочитано. Аргументы — части команды <code>find</code>: <code>filter</code>, <code>sort</code>, <code>projection</code>, <code>limit</code>, <code>hint</code>.</p>
         <div class="duo">
           <figure class="code" data-lang="python" data-run="no">
@@ -415,6 +508,26 @@ info[<span class="s">"queryPlanner"</span>][<span class="s">"rejectedPlans"</spa
 отклонён план по индексу service_1</pre>
         </figure>
         <p>Выбран план по составному индексу: 42 ключа, 42 документа, 42 результата. План по <code>service_1</code> отклонён. По нему сервер прочитал бы все 232 события <code>payments</code> и у каждого проверил статус, а по составному индексу читаются только записи со статусом от 500.</p>
+        <p>Почему план по <code>service_1</code> хуже, видно по самим планам в отчёте. У стадии <code>IXSCAN</code> есть поле <code>indexBounds</code> — границы чтения индекса: с какого значения сервер начинает читать записи и на каком заканчивает. У стадии <code>FETCH</code> бывает поле <code>filter</code> — условие, которое проверяется по прочитанному документу. Ниже оба плана из отчёта, стадии в порядке выполнения.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Два плана запроса дежурного</span><span>из winningPlan и rejectedPlans</span></div>
+          <div class="scheme__body">
+            <b>winningPlan — выбран</b>
+            <div class="pipeline">
+              <div class="pipeline__stage"><b>IXSCAN service_1_status_1</b><span>границы: <code>service</code> от "payments" до "payments", <code>status</code> от 500 до бесконечности</span><em>читает 42 записи</em></div>
+              <div class="pipeline__stage"><b>FETCH</b><span>читает документы по ссылкам, условия не проверяет</span><em>читает 42 документа</em></div>
+              <div class="pipeline__stage is-lit"><b>результат</b><span>42 документа</span><em>лишнего нет</em></div>
+            </div>
+            <b>rejectedPlans[0] — отклонён</b>
+            <div class="pipeline">
+              <div class="pipeline__stage"><b>IXSCAN service_1</b><span>границы: <code>service</code> от "payments" до "payments", статуса в индексе нет</span><em>читает 232 записи</em></div>
+              <div class="pipeline__stage"><b>FETCH</b><span><code>filter: { status: { $gte: 500 } }</code> — статус проверяется по документу</span><em>читает 232 документа</em></div>
+              <div class="pipeline__stage is-lit"><b>результат</b><span>42 документа</span><em>190 отброшены</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Число записей и документов у отклонённого плана — из §3, где этот план выполнен через <code>hint</code>. Условие на статус в выбранном плане стоит в границах индекса, в отклонённом — в <code>filter</code> стадии <code>FETCH</code>.</p>
+        </div>
+        <p>Условие в <code>filter</code> над <code>FETCH</code> означает, что сервер сначала читает документ и только потом проверяет по нему условие. Условие в <code>indexBounds</code> отсекает ненужные записи ещё в индексе, и их документы не читаются.</p>
         <figure class="shot">
           <img src="../../shots/125-explain-compound.png" alt="Compass, окно Explain Plan при двух индексах: FETCH и IXSCAN по service_1_status_1, 42 документа, 42 ключа">
           <figcaption>Compass · тот же запрос при индексах <code>service_1</code> и <code>service_1_status_1</code></figcaption>
@@ -422,7 +535,7 @@ info[<span class="s">"queryPlanner"</span>][<span class="s">"rejectedPlans"</spa
         <p>Compass показывает только выбранный план: <code>IXSCAN</code> по <code>service_1_status_1</code> и <code>FETCH</code>, по 42 на каждой стадии. В сводке под строкой <b>Query used the following index</b> — поля индекса со стрелками направления. Отклонённый план по <code>service_1</code> на схеме не виден; он есть на вкладке <b>Raw Output</b>, в <code>rejectedPlans</code>.</p>
 
         <h2 id="s3"><span class="sec">§3</span>executionStats: сколько прочитано</h2>
-        <p>Отклонённый план в <code>executionStats</code> не попадает: счётчики описывают только выбранный. Чтобы увидеть числа другого плана, индекс задают запросу явно параметром <span class="term">hint</span> — «подсказка». Значение — имя индекса или его ключ; специальное значение <code>{"$natural": 1}</code> велит читать коллекцию подряд, без индекса. В рабочих запросах подсказку ставят редко: сервер обычно выбирает план сам. Для сравнения индексов она удобна, потому что задаёт план явно.</p>
+        <p>Отклонённый план в <code>executionStats</code> не попадает: счётчики описывают только выбранный. Чтобы увидеть числа другого плана, индекс задают запросу явно параметром <span class="term">hint</span> — «подсказка». Значение — имя индекса или его ключ; специальное значение <code>{"$natural": 1}</code> велит читать коллекцию подряд, без индекса. В рабочих запросах подсказку ставят редко: сервер обычно выбирает план сам. Для сравнения индексов она удобна, потому что задаёт план явно. В сравнении с навигатором из §2 подсказка — поездка по запасному маршруту: проехать его целиком и записать, сколько он занял.</p>
         <p>Пример выполняет один и тот же запрос дежурного по составному индексу, по индексу <code>service_1</code> и без индекса.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -481,16 +594,32 @@ service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 
 service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 232 | документов 232
 без индекса:        COLLSCAN | вернул 42 | ключей 0 | документов 1200</pre>
         </figure>
-        <p>Результат везде одинаковый — 42 документа. Различается работа:</p>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>План</th><th><code>nReturned</code></th><th><code>totalKeysExamined</code></th><th><code>totalDocsExamined</code></th><th>Прочитано лишнего</th></tr></thead>
-            <tbody>
-              <tr><td><code>IXSCAN service_1_status_1</code></td><td>42</td><td>42</td><td>42</td><td>ничего</td></tr>
-              <tr><td><code>IXSCAN service_1</code></td><td>42</td><td>232</td><td>232</td><td>190 документов с другими статусами</td></tr>
-              <tr><td><code>COLLSCAN</code></td><td>42</td><td>0</td><td>1200</td><td>1158 документов</td></tr>
-            </tbody>
-          </table>
+        <p>Результат везде одинаковый — 42 документа. Различается работа. На схеме счётчики трёх планов показаны полосами того же масштаба, что в §1: полная полоса — 1200.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Один запрос, три плана</span><span>полная полоса — 1200</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <b>hint "service_1_status_1"</b>
+                <div class="bar"><span>totalKeysExamined</span><span class="bar__track"><i style="width:3.5%"></i></span><span>42</span></div>
+                <div class="bar"><span>totalDocsExamined</span><span class="bar__track"><i class="no" style="width:3.5%"></i></span><span>42</span></div>
+                <div class="bar"><span>nReturned</span><span class="bar__track"><i class="on" style="width:3.5%"></i></span><span>42</span></div>
+              </div>
+              <div>
+                <b>hint "service_1"</b>
+                <div class="bar"><span>totalKeysExamined</span><span class="bar__track"><i style="width:19.33%"></i></span><span>232</span></div>
+                <div class="bar"><span>totalDocsExamined</span><span class="bar__track"><i class="no" style="width:19.33%"></i></span><span>232</span></div>
+                <div class="bar"><span>nReturned</span><span class="bar__track"><i class="on" style="width:3.5%"></i></span><span>42</span></div>
+              </div>
+              <div>
+                <b>hint {"$natural": 1}</b>
+                <div class="bar"><span>totalKeysExamined</span><span class="bar__track"><i style="width:0"></i></span><span>0</span></div>
+                <div class="bar"><span>totalDocsExamined</span><span class="bar__track"><i class="no" style="width:100%"></i></span><span>1200</span></div>
+                <div class="bar"><span>nReturned</span><span class="bar__track"><i class="on" style="width:3.5%"></i></span><span>42</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Серая полоса — прочитанные записи индекса, красная — прочитанные документы, зелёная — возвращённые. У первого плана три полосы равны: каждый прочитанный документ попал в результат. У второго лишние 190 документов, у третьего — 1158.</p>
         </div>
         <p>По индексу <code>service_1</code> сервер находит все события платёжного сервиса и только после чтения документа проверяет статус: условие на <code>status</code> в этот индекс не входит. Без индекса читается вся коллекция. Время выполнения в отчёте тоже есть — поле <code>executionTimeMillis</code>, в миллисекундах. На копии журнала оно колеблется от нуля до полутора десятков миллисекунд и меняется от запуска к запуску: на кадрах §1 и §8 один и тот же запрос без индекса выполнен за 1 и за 7 мс. Время зависит от нагрузки на сервер и от того, что уже лежит в памяти, а число прочитанных ключей и документов при тех же данных повторяется. Поэтому запросы сравнивают по счётчикам.</p>
         <figure class="shot">
@@ -501,6 +630,29 @@ service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 
 
         <h2 id="s4"><span class="sec">§4</span>Покрывающий запрос</h2>
         <p>Стадия <code>FETCH</code> читает документы по ссылкам из индекса. Если все поля, которые запрос проверяет и возвращает, есть в индексе, документы читать не нужно: значения берутся из записей индекса. Такой запрос называется <span class="term">покрывающим</span> — индекс покрывает его целиком. Для этого проекция (глава 1.5) должна оставить только поля индекса и исключить <code>_id</code>, если его нет в индексе.</p>
+        <p>В книге с предметным указателем так решается вопрос «на скольких страницах встречается слово "платёж"». Ответ записан в самом указателе, рядом со словом, и страницы открывать не нужно. Вопрос «что написано на этих страницах» требует открыть каждую. Запись индекса тоже хранит немного: значения полей индекса и ссылку на документ. Остальные поля есть только в документе.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что есть в записи индекса и в документе</span><span>событие e-01196</span></div>
+          <div class="scheme__body">
+            <div class="cover">
+              <div>
+                <b>Запись индекса service_1_status_1</b>
+                <div class="chips"><i class="on">service: "payments"</i><i class="on">status: 503</i><i class="ref">ссылка на документ</i></div>
+              </div>
+              <div>
+                <b>Документ e-01196</b>
+                <div class="chips"><i>_id</i><i>ts</i><i class="on">service</i><i>level</i><i>route</i><i class="on">status</i><i>duration_ms</i><i>user_id</i><i>trace</i><i>error</i></div>
+              </div>
+            </div>
+            <div class="projrows">
+              <div><span>без проекции — нужны все 10 полей</span><em>большей части полей в записи нет → <strong>FETCH</strong>, 42 документа</em></div>
+              <div><span><code>{"_id": 0, "service": 1, "status": 1}</code></span><em>оба поля есть в записи → <strong>PROJECTION_COVERED</strong>, 0 документов</em></div>
+              <div><span><code>{"_id": 0, "service": 1, "status": 1, "ts": 1}</code></span><em>поля <code>ts</code> в записи нет → <strong>FETCH</strong>, 42 документа</em></div>
+              <div><span><code>{"service": 1, "status": 1}</code></span><em><code>_id</code> возвращается по умолчанию, в записи его нет → <strong>FETCH</strong></em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёным выделены поля, которые есть и в записи индекса, и в документе. Пунктирная ссылка — адрес документа; сервер переходит по ней на стадии <code>FETCH</code>. Последняя строка показывает, почему в покрывающей проекции стоит <code>"_id": 0</code>.</p>
+        </div>
         <p>Пример выполняет запрос дежурного трижды: без проекции, с проекцией на <code>service</code> и <code>status</code> и с проекцией, где добавлено поле <code>ts</code>.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -571,6 +723,7 @@ service и status: PROJECTION_COVERED → IXSCAN service_1_status_1 | верну
 
         <h2 id="s5"><span class="sec">§5</span>Сортировка в памяти</h2>
         <p>Стадия <code>SORT</code> означает, что сервер прочитал подходящие документы и отсортировал их в памяти. Пока сортировка не закончена, сервер не может вернуть ни одного документа: первым в результате может оказаться последний прочитанный. Поэтому <code>SORT</code> в плане запроса с пределом <code>limit</code> особенно заметна — ради нескольких документов сервер читает и сортирует все подходящие. Память на одну сортировку ограничена: на стенде — 100 МБ (параметр сервера <code>internalQueryMaxBlockingSortMemoryUsageBytes</code>). Если подходящих данных больше, сервер пишет промежуточные части на диск, и запрос замедляется сильнее.</p>
+        <p>Так раздают проверенные контрольные работы. Если работы лежат стопкой по фамилиям, а нужны десять последних сданных, преподаватель раскладывает на столе всю стопку по времени сдачи и только потом берёт десять. Если работы складывали в стопку в порядке сдачи, десять последних лежат сверху, и остальные можно не трогать. Стадия <code>SORT</code> — раскладывание на столе. Индекс, в котором записи уже стоят в нужном порядке, — стопка в порядке сдачи.</p>
         <p>Пример ищет десять последних событий платёжного сервиса — запрос с сортировкой по <code>ts</code> по убыванию и пределом 10 — до и после индекса по <code>service</code> и <code>ts</code>. Перед этим он удаляет <code>service_1</code>: с ним сервер выбирал бы между двумя индексами с одинаковой работой, и выбор мог бы меняться от запуска к запуску.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -644,6 +797,43 @@ journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</s
 после индекса по ts: LIMIT → FETCH → IXSCAN service_1_ts_-1 | вернул 10 | ключей 10 | документов 10</pre>
         </figure>
         <p>До нового индекса план — <code>SORT → FETCH → IXSCAN</code>: прочитаны все 232 события <code>payments</code>, отсортированы в памяти, возвращены десять. По индексу <code>service_1_ts_-1</code> записи <code>payments</code> уже упорядочены по времени от новых к старым, и сервер читает их по порядку, пока не наберёт десять. Стадия <code>LIMIT</code> останавливает чтение на десятом документе: прочитано 10 ключей и 10 документов.</p>
+        <p>На схеме — участок <code>payments</code> в двух индексах. Слева он сгруппирован по статусу, и для каждой группы указано время её самого позднего события. Справа те же 232 записи стоят по времени.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Где лежат десять последних событий payments</span><span>232 записи</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>service_1_status_1</b>
+                <ol>
+                  <li class="on">200 — 148 записей · позднее 17:32 · в десятке 5</li>
+                  <li class="pl">301 — 8 записей · позднее 14:42</li>
+                  <li class="pl">400 — 9 записей · позднее 14:49</li>
+                  <li class="on">404 — 13 записей · позднее 17:15 · в десятке 1</li>
+                  <li class="pl">429 — 12 записей · позднее 13:02</li>
+                  <li class="on">500 — 13 записей · позднее 18:13 · в десятке 3</li>
+                  <li class="pl">502 — 9 записей · позднее 13:33</li>
+                  <li class="on">503 — 20 записей · позднее 18:07 · в десятке 1</li>
+                </ol>
+                <em>Десять последних событий лежат в четырёх группах из восьми. Сервер читает все <strong>232</strong> записи и документа, сортирует их стадией <code>SORT</code> и отдаёт первые десять.</em></div>
+              <div><b>service_1_ts_-1</b>
+                <ol>
+                  <li class="on">18:13 · 500</li>
+                  <li class="on">18:07 · 503</li>
+                  <li class="on">17:32 · 200</li>
+                  <li class="on">17:26 · 200</li>
+                  <li class="on">17:21 · 500</li>
+                  <li class="on">17:15 · 404</li>
+                  <li class="on">17:11 · 200</li>
+                  <li class="on">17:04 · 500</li>
+                  <li class="on">16:46 · 200</li>
+                  <li class="on">16:43 · 200</li>
+                  <li>16:28 · 200 … ещё 222 записи</li>
+                </ol>
+                <em>Первые десять записей участка — десять последних событий. Стадия <code>LIMIT</code> останавливает чтение на <strong>10</strong>-й записи.</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Время — 02.09.2026. Зелёным выделены записи, в которых лежат десять последних событий. Слева сервер читает все восемь групп, справа — только зелёные записи, серую и всё, что ниже, не читает. Числа посчитаны по <code>logs.events</code> на стенде.</p>
+        </div>
+        <p>Слева нужные события разбросаны по группам, и найти их без полного чтения участка нельзя: самое позднее событие группы 200 стоит в её конце, через 147 записей от начала. Справа порядок записей совпадает с порядком сортировки запроса, и чтение заканчивается на десятой записи.</p>
         <figure class="shot">
           <img src="../../shots/128-explain-sort.png" alt="Compass, окно Explain Plan для запроса payments с сортировкой по ts и пределом 10: SORT вернул 10, FETCH и IXSCAN по 232, Is sorted in memory">
           <figcaption>Compass · <code>{ service: "payments" }</code>, сортировка <code>{ ts: -1 }</code>, предел 10</figcaption>
@@ -652,6 +842,7 @@ journal.indexes.<span class="f">create_one</span>({ <span class="s">"service"</s
 
         <h2 id="s6"><span class="sec">§6</span>Порядок полей в индексе: равенство, сортировка, диапазон</h2>
         <p>Запрос, в котором есть и условие на равенство, и диапазон, и сортировка, — например, пять последних ошибок платёжного сервиса: <code>service</code> равен <code>payments</code>, <code>status</code> от 500, сортировка по <code>ts</code> — обслуживается индексами с разным порядком полей по-разному. Порядок подбирают по правилу <span class="term">ESR</span> (Equality, Sort, Range): сначала поля условий на равенство, затем поля сортировки, затем поля условий-диапазонов. Правило разобрано по шагам в практикуме «Онлайн-разбор запроса», §5; здесь оно проверяется счётчиками.</p>
+        <p>Правило удобно представить на папках с письмами. Письма разложены по папкам отделов, в папке — по дате, от новых к старым, и на конверте каждого письма стоит пометка «срочно» или её нет. Чтобы найти пять последних срочных писем бухгалтерии, открывают папку бухгалтерии (равенство), идут от новых писем к старым (сортировка) и смотрят только на пометку на конверте (диапазон). Письмо вскрывают, только когда пометка подходит. Если пометку убрать с конвертов, придётся вскрывать каждое письмо подряд. Если разложить письма в папке сначала по пометке, срочные окажутся вместе, но не по дате, и их придётся раскладывать по дате на столе.</p>
         <p>Пример создаёт индекс по правилу ESR — <code>service</code>, <code>ts</code>, <code>status</code> — и выполняет запрос по трём индексам через <code>hint</code>.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
@@ -729,7 +920,40 @@ service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | �
           <li><code>service_1_ts_-1</code> — «равенство, сортировка»: сортировки в памяти нет, сервер идёт по событиям <code>payments</code> от новых к старым. Статуса в индексе нет, поэтому каждое событие приходится читать целиком, чтобы проверить статус: прочитано 18 записей индекса и 18 документов, пока не нашлось 5 подходящих.</li>
           <li><code>service_1_ts_-1_status_1</code> — «равенство, сортировка, диапазон»: порядок тот же, 18 записей индекса, но статус проверяется по записи индекса, и читаются только 5 подходящих документов.</li>
         </ul>
-        <p>Индекс по правилу ESR дал наименьшую работу: ни сортировки в памяти, ни чтения лишних документов.</p>
+        <p>В сравнении с папками писем: индекс <code>service_1_ts_-1</code> — письма по дате без пометки на конверте, <code>service_1_status_1</code> — письма, разложенные по пометке, а <code>service_1_ts_-1_status_1</code> — письма по дате с пометкой на конверте. Как два последних индекса читают участок <code>payments</code>, показано на схеме: это 18 последних событий платёжного сервиса, на которых чтение останавливается.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Пять последних ошибок payments</span><span>18 записей от новых к старым</span></div>
+          <div class="scheme__body">
+            <div class="table-scroll">
+              <table class="esr">
+                <thead><tr><th>№</th><th>время</th><th>status</th><th>service_1_ts_-1</th><th>service_1_ts_-1_status_1</th></tr></thead>
+                <tbody>
+                  <tr class="on"><td>1</td><td>18:13</td><td>500</td><td>запись, документ</td><td>запись, документ</td></tr>
+                  <tr class="on"><td>2</td><td>18:07</td><td>503</td><td>запись, документ</td><td>запись, документ</td></tr>
+                  <tr><td>3</td><td>17:32</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>4</td><td>17:26</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr class="on"><td>5</td><td>17:21</td><td>500</td><td>запись, документ</td><td>запись, документ</td></tr>
+                  <tr><td>6</td><td>17:15</td><td>404</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>7</td><td>17:11</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr class="on"><td>8</td><td>17:04</td><td>500</td><td>запись, документ</td><td>запись, документ</td></tr>
+                  <tr><td>9</td><td>16:46</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>10</td><td>16:43</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>11</td><td>16:28</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>12</td><td>16:24</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>13</td><td>16:05</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>14</td><td>15:46</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>15</td><td>15:35</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>16</td><td>15:28</td><td>404</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr><td>17</td><td>15:17</td><td>200</td><td class="rd">запись, документ</td><td class="rd">запись</td></tr>
+                  <tr class="on"><td>18</td><td>14:53</td><td>503</td><td>запись, документ</td><td>запись, документ</td></tr>
+                </tbody>
+                <tfoot><tr><td colspan="3">прочитано</td><td>18 записей, 18 документов</td><td>18 записей, 5 документов</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+          <p class="scheme__note">Время — 02.09.2026. Зелёные строки — события со статусом от 500, они попадают в результат. Индекс <code>service_1_ts_-1</code> не хранит статус, и сервер читает документ каждой записи, чтобы его проверить. Индекс по правилу ESR хранит статус в записи, и документ читается только у подходящих событий. На пятом подходящем событии, восемнадцатом по счёту, стадия <code>LIMIT</code> останавливает чтение.</p>
+        </div>
+        <p>Третий индекс, <code>service_1_status_1</code>, на схеме не показан: в нём 42 события со статусом от 500 стоят подряд, но по статусу, и чтобы выбрать из них пять последних, сервер читает все 42 и сортирует их стадией <code>SORT</code>. Индекс по правилу ESR дал наименьшую работу: ни сортировки в памяти, ни чтения лишних документов.</p>
         <figure class="shot">
           <img src="../../shots/129-explain-esr.png" alt="Compass, окно Explain Plan для запроса по индексу service_1_ts_-1_status_1: LIMIT, FETCH и IXSCAN по 5, 18 ключей, 5 документов">
           <figcaption>Compass · пять последних ошибок с <b>Index Hint</b> <code>"service_1_ts_-1_status_1"</code></figcaption>
