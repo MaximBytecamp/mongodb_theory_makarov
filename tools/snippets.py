@@ -359,9 +359,9 @@ def filter_var(step, lang: str) -> list[str]:
 
 
 def source(chapter: str):
-    """Модуль с описаниями примеров главы: chapters2 для модуля 2, chapters3 — дальше."""
+    """Модуль с описаниями примеров главы: chapters2, chapters3 или chapters4 по номеру модуля."""
     import importlib
-    return importlib.import_module("chapters2" if chapter.startswith("2.") else "chapters3")
+    return importlib.import_module({"2": "chapters2", "4": "chapters4"}.get(chapter.split(".")[0], "chapters3"))
 
 
 def code(spec, lang: str) -> str:

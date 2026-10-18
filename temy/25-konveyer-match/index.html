@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.1 Конвейер агрегации: $match, $sort, $limit · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: поток документов по стадиям, документы до и после стадии. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 6px; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .bars { display: grid; gap: 16px; padding-bottom: 10px; }
+    .bar { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 10px; margin: 3px 0; font: 400 12.5px/1.3 var(--mono); }
+    .bar__track { height: 16px; border: 2px solid var(--ink); }
+    .bar__track i { display: block; height: 100%; background: var(--ink-faint); }
+    .bar__track i.on { background: var(--leaf-bright); }
+    .bar > span:last-child { text-align: right; font-weight: 700; }
+    @media (max-width: 560px) { .bar { grid-template-columns: 1fr 44px; } .bar > span:first-child { grid-column: 1 / -1; } }
+    .ixlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 8px; }
+    .ixlist b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .ixlist ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); font: 400 12.5px/1.55 var(--mono); }
+    .ixlist li { padding: 0 9px; color: var(--ink-faint); border-bottom: 1px solid var(--rule); }
+    .ixlist li:last-child { border-bottom: 0; }
+    .ixlist li.on { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .ixlist li.pl { color: var(--ink); }
+    .ixlist em { display: block; margin-top: 6px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.1</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.1</span>
+          <h1>Конвейер агрегации:<br>$match, $sort, $limit</h1>
+          <p class="lead">В этой главе разобран конвейер агрегации — список стадий, через которые сервер пропускает документы коллекции. Каждая стадия получает документы от предыдущей и передаёт результат следующей. Первая стадия главы — $match, она отбирает документы по условию на языке фильтров модуля 2. Стадии $sort и $limit упорядочивают и обрезают поток, и на них видно, что результат конвейера зависит от порядка стадий.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Фильтр и точечная нотация (глава 2.1), $in (глава 2.3), $elemMatch (глава 2.6), сортировка и предел (глава 1.6)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Строить запросы, которые сервер выполняет по шагам, и понимать, на каком шаге документ отсеивается</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.1-python.zip" download><code>mongodb-glava-4.1-python.zip</code></a>, 62 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.1-ruby.zip" download><code>mongodb-glava-4.1-ruby.zip</code></a>, 61 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.1-go.zip" download><code>mongodb-glava-4.1-go.zip</code></a>, 67 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.1-cpp.zip" download><code>mongodb-glava-4.1-cpp.zip</code></a>, 66 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_1.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_1.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_1.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_1.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_1.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_1.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_1.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_1.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_1.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_1.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_1.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_1.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_1.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Конвейер и стадия</a></li>
+            <li><a href="#s2">Первый конвейер: aggregate и $match</a></li>
+            <li><a href="#s3">Документы от стадии к стадии</a></li>
+            <li><a href="#s4">Условия внутри $match</a></li>
+            <li><a href="#s5">Стадии $sort и $limit</a></li>
+            <li><a href="#s6">Порядок стадий</a></li>
+            <li><a href="#s7">Стадия с двумя операторами</a></li>
+            <li><a href="#s8">Конвейер в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Самостоятельная работа</a></li>
+            <li><a href="#s12">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Конвейер и стадия</h2>
+        <p>Метод <code>find</code> из модулей 1–2 возвращает документы коллекции в том виде, в каком они записаны: можно выбрать документы по условию, оставить часть полей, упорядочить и ограничить их число. Отчёты требуют большего: сложить суммы заказов по городам, посчитать позиции в каждом заказе, разложить заказы по месяцам. Такие вычисления сервер выполняет конвейером агрегации. В этом модуле конвейер собирается по одной стадии за главу, и в этой главе разобрано, как он устроен.</p>
+        <p>Конвейер похож на ленту сортировочного центра почты. Посылки едут по ленте мимо нескольких постов. Каждый пост выполняет одно действие: первый снимает с ленты посылки не в свой регион, второй откладывает тяжёлые, третий пропускает только первые сто посылок за смену. Пост получает только то, что пропустил предыдущий: посылки, которые сняли раньше, до него не доходят. В конце ленты остаются посылки, прошедшие все посты.</p>
+        <p><span class="term">Конвейер агрегации</span> (aggregation pipeline) — список стадий, через которые сервер пропускает документы коллекции. <span class="term">Стадия</span> — один шаг обработки, записанный документом с одним полем: имя поля — оператор стадии, значение — её параметры. Документ <code>{"$match": {"status": "в пути"}}</code> — стадия с оператором <code>$match</code>, её параметр — условие <code>{"status": "в пути"}</code>. Документы коллекции входят в первую стадию, выход каждой стадии становится входом следующей, а выход последней стадии получает программа.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Сортировочный центр</th><th>Конвейер агрегации</th></tr></thead>
+            <tbody>
+              <tr><td>Посылка</td><td>Документ</td></tr>
+              <tr><td>Пост на ленте</td><td>Стадия</td></tr>
+              <tr><td>Действие поста: снять, отложить, пропустить первые сто</td><td>Оператор стадии: <code>$match</code>, <code>$sort</code>, <code>$limit</code></td></tr>
+              <tr><td>Порядок постов вдоль ленты</td><td>Порядок стадий в списке</td></tr>
+              <tr><td>Посылки в конце ленты</td><td>Результат, который получает программа</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Весь конвейер выполняет сервер. Программа отправляет список стадий одной командой <code>aggregate</code> и получает только документы, которые вышли из последней стадии. Промежуточные документы по сети не передаются.</p>
+        <p>На схеме — конвейер из одной стадии, который разобран в следующем разделе. Числа — из вывода его примера.</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>коллекция orders</b><span>120 заказов магазина</span><em>вход</em></div>
+          <div class="pipeline__stage"><b>$match</b><span>условие <code>{"status": "в пути"}</code>: пропускает подходящие, остальные отбрасывает</span><em>стадия 1 · выход 13</em></div>
+          <div class="pipeline__stage is-lit"><b>программа</b><span>получает 13 заказов</span><em>результат</em></div>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Первый конвейер: aggregate и $match</h2>
+        <p>Стадия <code>$match</code> отбирает документы по условию. Условие записывается так же, как фильтр в <code>find</code>: точечная нотация, операторы сравнения, списки, логика — всё из модуля 2. Документ, который подходит под условие, стадия передаёт дальше без изменений. Документ, который не подходит, дальше не идёт.</p>
+        <p>Конвейер запускает метод коллекции <code>aggregate</code>. Он принимает список стадий и возвращает курсор, как <code>find</code>: документы читаются из него по одному.</p>
+        <p data-lang="python">В PyMongo конвейер — обычный список словарей, по словарю на стадию. Метод <code>orders.aggregate(pipeline)</code> возвращает курсор.</p>
+        <p data-lang="ruby">В драйвере Ruby конвейер — массив хешей, по хешу на стадию. Метод <code>orders.aggregate(pipeline)</code> возвращает объект, который перебирается методом <code>each</code>, как результат <code>find</code>.</p>
+        <p data-lang="go">В Go конвейер записывается типом <code>mongo.Pipeline</code> — это срез документов <code>bson.D</code>, по документу на стадию. Внутри литерала среза имя типа <code>bson.D</code> у элементов не пишется, поэтому стадия начинается с двойной фигурной скобки: <code>{{Key: "$match", Value: …}}</code>. Метод <code>orders.Aggregate(ctx, pipeline)</code> возвращает курсор и ошибку.</p>
+        <p data-lang="cpp">В mongocxx конвейер — объект <code>mongocxx::pipeline</code>. Стадии добавляются в него методами с именами стадий: <code>pipeline.match(…)</code> добавляет стадию <code>$match</code>, параметр — документ условия. Метод <code>orders.aggregate(pipeline)</code> возвращает курсор. Для конвейера нужен заголовок <code>&lt;mongocxx/pipeline.hpp&gt;</code>; в заготовке главы он подключён.</p>
+        <p>Заказ целиком занимает несколько десятков строк: в нём позиции, оплата, доставка. Чтобы вывод примеров помещался на экран, в заготовке главы объявлена функция <code>show</code>. Она получает курсор и имена полей и печатает у каждого документа значения этих полей в одну строку через « | ». Вложенное поле указывается через точку, как в фильтре: <code>"delivery.city"</code>. Последняя строка — сколько документов вернул конвейер. Код функции в примерах не повторяется: она уже есть в заготовке.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>функция show из заготовки главы</span></figcaption>
+<pre><span class="k">from</span> datetime <span class="k">import</span> datetime
+
+
+<span class="k">def</span> <span class="f">show</span>(docs, *fields):
+    <span class="s">""</span><span class="s">"Печатает у каждого документа поля fields в строку через « | »; вложенные — через точку."</span><span class="s">""</span>
+    count = <span class="n">0</span>
+    <span class="k">for</span> doc <span class="k">in</span> docs:
+        cells = []
+        <span class="k">for</span> path <span class="k">in</span> fields:
+            value = doc
+            <span class="k">for</span> key <span class="k">in</span> path.<span class="f">split</span>(<span class="s">"."</span>):
+                value = value.<span class="f">get</span>(key) <span class="k">if</span> <span class="f">isinstance</span>(value, dict) <span class="k">else</span> <span class="k">None</span>
+            <span class="k">if</span> <span class="f">isinstance</span>(value, datetime):
+                value = value.<span class="f">strftime</span>(<span class="s">"%Y-%m-%d %H:%M"</span>)
+            <span class="k">if</span> <span class="f">isinstance</span>(value, bool):
+                value = <span class="f">str</span>(value).<span class="f">lower</span>()
+            cells.<span class="f">append</span>(<span class="s">"—"</span> <span class="k">if</span> value is <span class="k">None</span> <span class="k">else</span> <span class="f">str</span>(value))
+        <span class="f">print</span>(<span class="s">" | "</span>.<span class="f">join</span>(cells))
+        count += <span class="n">1</span>
+    <span class="f">print</span>(<span class="s">"документов:"</span>, count)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>функция show из заготовки главы</span></figcaption>
+<pre>#include &lt;ctime&gt;
+#include &lt;mongocxx/pipeline.hpp&gt;
+
+<span class="c">// show — у каждого документа поля fields в строку через « | »; вложенные — через точку.</span>
+<span class="k">void</span> <span class="f">show</span>(mongocxx::cursor&amp;&amp; cursor, <span class="k">const</span> std::vector&lt;std::string&gt;&amp; fields) {
+    <span class="k">int</span> count = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : cursor) {
+        std::string line;
+        <span class="k">for</span> (std::size_t i = <span class="n">0</span>; i &lt; fields.<span class="f">size</span>(); ++i) {
+            bsoncxx::document::view level = doc;
+            bsoncxx::document::element value;
+            std::stringstream <span class="f">path</span>(fields[i]);
+            std::string key;
+            while (std::<span class="f">getline</span>(path, key, <span class="s">'.'</span>)) {
+                value = level[key];
+                <span class="k">if</span> (!value) break;
+                <span class="k">if</span> (value.<span class="f">type</span>() == bsoncxx::type::k_document) level = value.<span class="f">get_document</span>().value;
+            }
+            std::string cell = <span class="s">"—"</span>;
+            <span class="k">if</span> (value) {
+                switch (value.<span class="f">type</span>()) {
+                    case bsoncxx::type::k_string: cell = std::<span class="f">string</span>(value.<span class="f">get_string</span>().value); break;
+                    case bsoncxx::type::k_int32: cell = std::<span class="f">to_string</span>(value.<span class="f">get_int32</span>().value); break;
+                    case bsoncxx::type::k_int64: cell = std::<span class="f">to_string</span>(value.<span class="f">get_int64</span>().value); break;
+                    case bsoncxx::type::k_double: {
+                        std::ostringstream out;
+                        out &lt;&lt; value.<span class="f">get_double</span>().value;
+                        cell = out.<span class="f">str</span>();
+                        break;
+                    }
+                    case bsoncxx::type::k_bool: cell = value.<span class="f">get_bool</span>().value ? <span class="s">"true"</span> : <span class="s">"false"</span>; break;
+                    case bsoncxx::type::k_date: {
+                        std::time_t t = value.<span class="f">get_date</span>().<span class="f">to_int64</span>() / <span class="n">1000</span>;
+                        std::ostringstream out;
+                        out &lt;&lt; std::<span class="f">put_time</span>(std::<span class="f">gmtime</span>(&amp;t), <span class="s">"%Y-%m-%d %H:%M"</span>);
+                        cell = out.<span class="f">str</span>();
+                        break;
+                    }
+                    case bsoncxx::type::k_null: break;
+                    default: cell = <span class="s">"{…}"</span>;
+                }
+            }
+            line += (i ? <span class="s">" | "</span> : <span class="s">""</span>) + cell;
+        }
+        std::cout &lt;&lt; line &lt;&lt; std::endl;
+        ++count;
+    }
+    std::cout &lt;&lt; <span class="s">"документов: "</span> &lt;&lt; count &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>функция show из заготовки главы</span></figcaption>
+<pre><span class="c">// show — у каждого документа поля fields в строку через « | »; вложенные — через точку.</span>
+<span class="k">func</span> <span class="f">show</span>(cursor *mongo.Cursor, fields ...<span class="k">string</span>) {
+    ctx := context.<span class="f">Background</span>()
+    count := <span class="n">0</span>
+    <span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+        cells := <span class="f">make</span>([]<span class="k">string</span>, <span class="f">len</span>(fields))
+        <span class="k">for</span> i, path := <span class="k">range</span> fields {
+            value, err := cursor.Current.<span class="f">LookupErr</span>(strings.<span class="f">Split</span>(path, <span class="s">"."</span>)...)
+            <span class="k">switch</span> {
+            <span class="k">case</span> err != <span class="k">nil</span> || value.Type == bson.TypeNull:
+                cells[i] = <span class="s">"—"</span>
+            <span class="k">case</span> value.Type == bson.TypeString:
+                cells[i] = value.<span class="f">StringValue</span>()
+            <span class="k">case</span> value.Type == bson.TypeInt32:
+                cells[i] = fmt.<span class="f">Sprint</span>(value.<span class="f">Int32</span>())
+            <span class="k">case</span> value.Type == bson.TypeInt64:
+                cells[i] = fmt.<span class="f">Sprint</span>(value.<span class="f">Int64</span>())
+            <span class="k">case</span> value.Type == bson.TypeDouble:
+                cells[i] = fmt.<span class="f">Sprint</span>(value.<span class="f">Double</span>())
+            <span class="k">case</span> value.Type == bson.TypeBoolean:
+                cells[i] = fmt.<span class="f">Sprint</span>(value.<span class="f">Boolean</span>())
+            <span class="k">case</span> value.Type == bson.TypeDateTime:
+                cells[i] = value.<span class="f">Time</span>().<span class="f">UTC</span>().<span class="f">Format</span>(<span class="s">"2006-01-02 15:04"</span>)
+            <span class="k">default</span>:
+                cells[i] = value.<span class="f">String</span>()
+            }
+        }
+        fmt.<span class="f">Println</span>(strings.<span class="f">Join</span>(cells, <span class="s">" | "</span>))
+        count++
+    }
+    fmt.<span class="f">Println</span>(<span class="s">"документов:"</span>, count)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>функция show из заготовки главы</span></figcaption>
+<pre><span class="c"># Печатает у каждого документа поля fields в строку через « | »; вложенные — через точку.</span>
+<span class="k">def</span> <span class="f">show</span>(docs, *fields)
+  count = <span class="n">0</span>
+  docs.each <span class="k">do</span> |doc|
+    cells = fields.map <span class="k">do</span> |path|
+      value = path.<span class="f">split</span>(<span class="s">"."</span>).<span class="f">reduce</span>(doc) { |v, key| v.is_a?(Hash) ? v[key] : <span class="k">nil</span> }
+      value = value.utc.<span class="f">strftime</span>(<span class="s">"%Y-%m-%d %H:%M"</span>) <span class="k">if</span> value.is_a?(Time)
+      value.<span class="k">nil</span>? ? <span class="s">"—"</span> : value.to_s
+    <span class="k">end</span>
+    <span class="k">puts</span> cells.<span class="f">join</span>(<span class="s">" | "</span>)
+    count += <span class="n">1</span>
+  <span class="k">end</span>
+  <span class="k">puts</span> <span class="s">"документов: #{count}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p>Пример строит конвейер из одной стадии <code>$match</code> — заказы в пути, — печатает результат функцией <code>show</code> и для сравнения считает те же заказы методом <code>count_documents</code> с тем же фильтром.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>конвейер из одной стадии</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)
+<span class="f">print</span>(<span class="s">"find с тем же фильтром:"</span>, orders.<span class="f">count_documents</span>({<span class="s">"status"</span>: <span class="s">"в пути"</span>}))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>конвейер из одной стадии</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>});
+std::cout &lt;&lt; <span class="s">"find с тем же фильтром: "</span>
+          &lt;&lt; orders.<span class="f">count_documents</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>))) &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>конвейер из одной стадии</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)
+n, _ := orders.<span class="f">CountDocuments</span>(ctx, bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}})
+fmt.<span class="f">Println</span>(<span class="s">"find с тем же фильтром:"</span>, n)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>конвейер из одной стадии</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)
+<span class="k">puts</span> <span class="s">"find с тем же фильтром: "</span> + orders.<span class="f">count_documents</span>({ <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> }).to_s</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0023 | в пути | Москва | 8490
+2026-0025 | в пути | Екатеринбург | 211760
+2026-0027 | в пути | Екатеринбург | 191970
+2026-0028 | в пути | Екатеринбург | 244460
+2026-0033 | в пути | Ярославль | 9180
+2026-0043 | в пути | Екатеринбург | 56370
+2026-0054 | в пути | Ярославль | 55360
+2026-0055 | в пути | Новосибирск | 98970
+2026-0056 | в пути | Новосибирск | 6790
+2026-0081 | в пути | Ярославль | 150470
+2026-0085 | в пути | Новосибирск | 225320
+2026-0088 | в пути | Новосибирск | 126370
+2026-0119 | в пути | Новосибирск | 182250
+документов: 13
+find с тем же фильтром: 13</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0023 | в пути | Москва | 8490
+2026-0025 | в пути | Екатеринбург | 211760
+2026-0027 | в пути | Екатеринбург | 191970
+2026-0028 | в пути | Екатеринбург | 244460
+2026-0033 | в пути | Ярославль | 9180
+2026-0043 | в пути | Екатеринбург | 56370
+2026-0054 | в пути | Ярославль | 55360
+2026-0055 | в пути | Новосибирск | 98970
+2026-0056 | в пути | Новосибирск | 6790
+2026-0081 | в пути | Ярославль | 150470
+2026-0085 | в пути | Новосибирск | 225320
+2026-0088 | в пути | Новосибирск | 126370
+2026-0119 | в пути | Новосибирск | 182250
+документов: 13
+find с тем же фильтром: 13</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0023 | в пути | Москва | 8490
+2026-0025 | в пути | Екатеринбург | 211760
+2026-0027 | в пути | Екатеринбург | 191970
+2026-0028 | в пути | Екатеринбург | 244460
+2026-0033 | в пути | Ярославль | 9180
+2026-0043 | в пути | Екатеринбург | 56370
+2026-0054 | в пути | Ярославль | 55360
+2026-0055 | в пути | Новосибирск | 98970
+2026-0056 | в пути | Новосибирск | 6790
+2026-0081 | в пути | Ярославль | 150470
+2026-0085 | в пути | Новосибирск | 225320
+2026-0088 | в пути | Новосибирск | 126370
+2026-0119 | в пути | Новосибирск | 182250
+документов: 13
+find с тем же фильтром: 13</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0023 | в пути | Москва | 8490
+2026-0025 | в пути | Екатеринбург | 211760
+2026-0027 | в пути | Екатеринбург | 191970
+2026-0028 | в пути | Екатеринбург | 244460
+2026-0033 | в пути | Ярославль | 9180
+2026-0043 | в пути | Екатеринбург | 56370
+2026-0054 | в пути | Ярославль | 55360
+2026-0055 | в пути | Новосибирск | 98970
+2026-0056 | в пути | Новосибирск | 6790
+2026-0081 | в пути | Ярославль | 150470
+2026-0085 | в пути | Новосибирск | 225320
+2026-0088 | в пути | Новосибирск | 126370
+2026-0119 | в пути | Новосибирск | 182250
+документов: 13
+find с тем же фильтром: 13</pre>
+        </figure>
+        <p>Конвейер вернул 13 заказов, столько же находит фильтр в <code>count_documents</code>. Конвейер из одной стадии <code>$match</code> даёт тот же результат, что <code>find</code> с этим условием: сервер проверяет условие у каждого заказа и передаёт дальше подходящие. Порядок документов — порядок, в котором они лежат в коллекции: сортировки в конвейере нет.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Документы от стадии к стадии</h2>
+        <p>Стадий в конвейере может быть сколько угодно, и следующая стадия получает только документы, которые пропустила предыдущая. Это видно, если запустить конвейер по частям: сначала только первую стадию, затем первые две, затем все три — и после каждого запуска посчитать документы.</p>
+        <p>Пример строит конвейер из трёх стадий <code>$match</code>: доставленные заказы, затем из них — доставленные в Москву или Санкт-Петербург, затем из них — на сумму от 200 000. Цикл запускает начало конвейера длиной 1, 2 и 3 стадии и печатает, сколько документов вышло.</p>
+        <p data-lang="python">Срез списка <code>stages[:i]</code> — первые <code>i</code> стадий; его и получает <code>aggregate</code> на каждом шаге цикла. Функция <code>len(list(…))</code> читает курсор до конца и считает документы.</p>
+        <p data-lang="ruby">Метод <code>stages.first(i)</code> возвращает первые <code>i</code> стадий массива. <code>to_a.size</code> читает результат до конца и считает документы.</p>
+        <p data-lang="go">Срез <code>stages[:i]</code> — первые <code>i</code> стадий; у него тот же тип <code>mongo.Pipeline</code>. Метод курсора <code>All</code> читает все документы в срез <code>docs</code>, и <code>len(docs)</code> — их число.</p>
+        <p data-lang="cpp">Объект <code>mongocxx::pipeline</code> нельзя обрезать, поэтому стадии сначала собираются в вектор документов, а на каждом шаге цикла из первых <code>i</code> документов собирается новый конвейер методом <code>append_stage</code>. Он добавляет стадию, записанную документом целиком: <code>{"$match": {…}}</code>. Число документов в курсоре считает <code>std::distance</code> от начала до конца курсора.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>три стадии и счёт после каждой</span></figcaption>
+<pre>stages = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$match"</span>: {<span class="s">"delivery.city"</span>: {<span class="s">"$in"</span>: [<span class="s">"Москва"</span>, <span class="s">"Санкт-Петербург"</span>]}}},
+    {<span class="s">"$match"</span>: {<span class="s">"total"</span>: {<span class="s">"$gte"</span>: <span class="n">200000</span>}}},
+]
+
+<span class="f">print</span>(<span class="s">"на входе:"</span>, orders.<span class="f">count_documents</span>({}))
+<span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, <span class="f">len</span>(stages) + <span class="n">1</span>):
+    count = <span class="f">len</span>(<span class="f">list</span>(orders.<span class="f">aggregate</span>(stages[:i])))
+    <span class="f">print</span>(f<span class="s">"после стадии {i}:"</span>, count)
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(stages), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>три стадии и счёт после каждой</span></figcaption>
+<pre>std::vector&lt;bsoncxx::document::value&gt; stages;
+stages.<span class="f">push_back</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)))));
+stages.<span class="f">push_back</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"delivery.city"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"Москва"</span>, <span class="s">"Санкт-Петербург"</span>))))))));
+stages.<span class="f">push_back</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">200000</span>)))))));
+
+std::cout &lt;&lt; <span class="s">"на входе: "</span> &lt;&lt; orders.<span class="f">count_documents</span>({}) &lt;&lt; std::endl;
+<span class="k">for</span> (std::size_t i = <span class="n">1</span>; i &lt;= stages.<span class="f">size</span>(); ++i) {
+    mongocxx::pipeline pipeline;
+    <span class="k">for</span> (std::size_t j = <span class="n">0</span>; j &lt; i; ++j) pipeline.<span class="f">append_stage</span>(stages[j].<span class="f">view</span>());
+    <span class="k">auto</span> cursor = orders.<span class="f">aggregate</span>(pipeline);
+    std::cout &lt;&lt; <span class="s">"после стадии "</span> &lt;&lt; i &lt;&lt; <span class="s">": "</span>
+              &lt;&lt; std::<span class="f">distance</span>(cursor.<span class="f">begin</span>(), cursor.<span class="f">end</span>()) &lt;&lt; std::endl;
+}
+
+mongocxx::pipeline pipeline;
+<span class="k">for</span> (<span class="k">auto</span>&amp; stage : stages) pipeline.<span class="f">append_stage</span>(stage.<span class="f">view</span>());
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>три стадии и счёт после каждой</span></figcaption>
+<pre>stages := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"delivery.city"</span>, Value: bson.D{
+            {Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"Москва"</span>, <span class="s">"Санкт-Петербург"</span>}}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">200000</span>}}}}}},
+}
+
+total, _ := orders.<span class="f">CountDocuments</span>(ctx, bson.D{})
+fmt.<span class="f">Println</span>(<span class="s">"на входе:"</span>, total)
+<span class="k">for</span> i := <span class="n">1</span>; i &lt;= <span class="f">len</span>(stages); i++ {
+    cursor, _ := orders.<span class="f">Aggregate</span>(ctx, stages[:i])
+    <span class="k">var</span> docs []bson.D
+    cursor.<span class="f">All</span>(ctx, &amp;docs)
+    fmt.<span class="f">Printf</span>(<span class="s">"после стадии %d: %d\n"</span>, i, <span class="f">len</span>(docs))
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, stages)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>три стадии и счёт после каждой</span></figcaption>
+<pre>stages = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"delivery.city"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"Москва"</span>, <span class="s">"Санкт-Петербург"</span>] } } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"total"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">200000</span> } } },
+]
+
+<span class="k">puts</span> <span class="s">"на входе: #{orders.count_documents({})}"</span>
+(<span class="n">1</span>..stages.size).each <span class="k">do</span> |i|
+  count = orders.<span class="f">aggregate</span>(stages.<span class="f">first</span>(i)).to_a.size
+  <span class="k">puts</span> <span class="s">"после стадии #{i}: #{count}"</span>
+<span class="k">end</span>
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(stages), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>на входе: 120
+после стадии 1: 69
+после стадии 2: 22
+после стадии 3: 5
+2026-0009 | доставлен | Санкт-Петербург | 320740
+2026-0024 | доставлен | Санкт-Петербург | 274960
+2026-0029 | доставлен | Москва | 289360
+2026-0049 | доставлен | Москва | 231260
+2026-0110 | доставлен | Москва | 235930
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>на входе: 120
+после стадии 1: 69
+после стадии 2: 22
+после стадии 3: 5
+2026-0009 | доставлен | Санкт-Петербург | 320740
+2026-0024 | доставлен | Санкт-Петербург | 274960
+2026-0029 | доставлен | Москва | 289360
+2026-0049 | доставлен | Москва | 231260
+2026-0110 | доставлен | Москва | 235930
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>на входе: 120
+после стадии 1: 69
+после стадии 2: 22
+после стадии 3: 5
+2026-0009 | доставлен | Санкт-Петербург | 320740
+2026-0024 | доставлен | Санкт-Петербург | 274960
+2026-0029 | доставлен | Москва | 289360
+2026-0049 | доставлен | Москва | 231260
+2026-0110 | доставлен | Москва | 235930
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>на входе: 120
+после стадии 1: 69
+после стадии 2: 22
+после стадии 3: 5
+2026-0009 | доставлен | Санкт-Петербург | 320740
+2026-0024 | доставлен | Санкт-Петербург | 274960
+2026-0029 | доставлен | Москва | 289360
+2026-0049 | доставлен | Москва | 231260
+2026-0110 | доставлен | Москва | 235930
+документов: 5</pre>
+        </figure>
+        <p>На вход конвейера поступили все 120 заказов. Первая стадия пропустила 69 доставленных. Вторая получила эти 69 и пропустила 22 из Москвы и Санкт-Петербурга. Третья получила 22 и пропустила 5 заказов на сумму от 200 000. Остальные заказы третья стадия не проверяла: до неё они не дошли.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Сколько документов выходит из каждой стадии</span><span>полная полоса — 120</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <div class="bar"><span>вход: orders</span><span class="bar__track"><i style="width:100%"></i></span><span>120</span></div>
+                <div class="bar"><span>1 · status</span><span class="bar__track"><i style="width:57.5%"></i></span><span>69</span></div>
+                <div class="bar"><span>2 · delivery.city</span><span class="bar__track"><i style="width:18.33%"></i></span><span>22</span></div>
+                <div class="bar"><span>3 · total</span><span class="bar__track"><i class="on" style="width:4.17%"></i></span><span>5</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Каждая полоса — выход стадии, длина пропорциональна числу документов. Полоса стадии не может быть длиннее полосы над ней: <code>$match</code> только отбрасывает документы и новых не создаёт.</p>
+        </div>
+        <p>Три стадии <code>$match</code> подряд дают тот же результат, что одна стадия с тремя условиями: документ доходит до конца, только если подходит под все три. Сервер это учитывает и перед выполнением соединяет соседние стадии <code>$match</code> в одну. В примере стадии разделены, чтобы был виден путь документов. В рабочем конвейере условия одного шага записывают в одну стадию.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Условия внутри $match</h2>
+        <p>Условие стадии <code>$match</code> — фильтр модуля 2 без изменений. Точечная нотация обращается к вложенным полям (глава 2.1), <code>$in</code> задаёт список допустимых значений (глава 2.3), <code>$elemMatch</code> требует, чтобы оба условия выполнялись у одного элемента массива (глава 2.6). Несколько полей в одном документе условия соединяются по «и».</p>
+        <p>Пример ищет заказы, которые ещё не доставлены (собираются или в пути), оплачены заранее — картой или через СБП, — и в которых есть позиция со смартфонами в количестве от двух штук.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>условия модуля 2 внутри $match</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {
+        <span class="s">"status"</span>: {<span class="s">"$in"</span>: [<span class="s">"собирается"</span>, <span class="s">"в пути"</span>]},
+        <span class="s">"payment.method"</span>: {<span class="s">"$in"</span>: [<span class="s">"карта"</span>, <span class="s">"СБП"</span>]},
+        <span class="s">"items"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"category"</span>: <span class="s">"смартфоны"</span>, <span class="s">"qty"</span>: {<span class="s">"$gte"</span>: <span class="n">2</span>}}},
+    }},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"payment.method"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>условия модуля 2 внутри $match</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"собирается"</span>, <span class="s">"в пути"</span>)))),
+    <span class="f">kvp</span>(<span class="s">"payment.method"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"карта"</span>, <span class="s">"СБП"</span>)))),
+    <span class="f">kvp</span>(<span class="s">"items"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$elemMatch"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"смартфоны"</span>),
+            <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">2</span>)))))))));
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"payment.method"</span>, <span class="s">"total"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>условия модуля 2 внутри $match</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"status"</span>, Value: bson.D{{Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"собирается"</span>, <span class="s">"в пути"</span>}}}},
+        {Key: <span class="s">"payment.method"</span>, Value: bson.D{{Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"карта"</span>, <span class="s">"СБП"</span>}}}},
+        {Key: <span class="s">"items"</span>, Value: bson.D{
+            {Key: <span class="s">"$elemMatch"</span>, Value: bson.D{
+                {Key: <span class="s">"category"</span>, Value: <span class="s">"смартфоны"</span>},
+                {Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">2</span>}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"payment.method"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>условия модуля 2 внутри $match</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; {
+    <span class="s">"status"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"собирается"</span>, <span class="s">"в пути"</span>] },
+    <span class="s">"payment.method"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"карта"</span>, <span class="s">"СБП"</span>] },
+    <span class="s">"items"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; { <span class="s">"category"</span> =&gt; <span class="s">"смартфоны"</span>, <span class="s">"qty"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">2</span> } } },
+  } },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"payment.method"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0074 | собирается | СБП | 243000
+2026-0085 | в пути | карта | 225320
+2026-0094 | собирается | карта | 255450
+2026-0104 | собирается | карта | 206940
+2026-0119 | в пути | карта | 182250
+2026-0120 | собирается | карта | 457930
+документов: 6</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0074 | собирается | СБП | 243000
+2026-0085 | в пути | карта | 225320
+2026-0094 | собирается | карта | 255450
+2026-0104 | собирается | карта | 206940
+2026-0119 | в пути | карта | 182250
+2026-0120 | собирается | карта | 457930
+документов: 6</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0074 | собирается | СБП | 243000
+2026-0085 | в пути | карта | 225320
+2026-0094 | собирается | карта | 255450
+2026-0104 | собирается | карта | 206940
+2026-0119 | в пути | карта | 182250
+2026-0120 | собирается | карта | 457930
+документов: 6</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0074 | собирается | СБП | 243000
+2026-0085 | в пути | карта | 225320
+2026-0094 | собирается | карта | 255450
+2026-0104 | собирается | карта | 206940
+2026-0119 | в пути | карта | 182250
+2026-0120 | собирается | карта | 457930
+документов: 6</pre>
+        </figure>
+        <p>Подходят шесть заказов. На схеме — как условие проверяет один из них, заказ 2026-0074. Каждое поле условия сравнивается со своим полем документа, и документ проходит стадию, только если совпали все три.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказ 2026-0074 и три поля условия</span><span>фрагмент документа</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>Документ</b>
+                <ol>
+                  <li class="on">status: "собирается"</li>
+                  <li class="on">payment.method: "СБП"</li>
+                  <li class="on">items[0]: смартфоны, qty 3</li>
+                  <li class="pl">items[1]: смартфоны, qty 3</li>
+                  <li class="pl">items[2]: смартфоны, qty 3</li>
+                  <li class="pl">items[3]: комплектующие, qty 1</li>
+                  <li class="pl">total: 243000</li>
+                </ol>
+              </div>
+              <div><b>Условие $match</b>
+                <ol>
+                  <li class="on">status $in ["собирается", "в пути"]</li>
+                  <li class="on">payment.method $in ["карта", "СБП"]</li>
+                  <li class="on">items $elemMatch: смартфоны и qty ≥ 2</li>
+                  <li>—</li>
+                  <li>—</li>
+                  <li>—</li>
+                  <li>поле в условии не участвует</li>
+                </ol>
+                <em>Совпали все три поля: заказ проходит стадию.</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёные строки — поля, которые проверяет условие, и элемент массива, на котором выполнилось <code>$elemMatch</code>. Для <code>$elemMatch</code> достаточно одного подходящего элемента: первая позиция — смартфоны, три штуки.</p>
+        </div>
+        <p>Строки вывода напечатаны функцией <code>show</code> в порядке полей, переданных ей: номер, статус, способ оплаты, сумма. Поле <code>payment.method</code> лежит внутри вложенного документа <code>payment</code>, и <code>show</code> находит его по пути через точку так же, как условие <code>$match</code>.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Стадии $sort и $limit</h2>
+        <p>Стадия <code>$sort</code> упорядочивает документы, которые к ней пришли. Параметр записывается так же, как в методе <code>sort</code> из главы 1.6: имя поля и направление, <code>1</code> — по возрастанию, <code>-1</code> — по убыванию. Стадия <code>$limit</code> пропускает первые N документов и отбрасывает остальные; параметр — число. В сортировочном центре это пост, который пропускает первые сто посылок за смену.</p>
+        <p>У <code>find</code> сортировка и предел — параметры одного запроса, и сервер применяет их в фиксированном порядке: сначала отбор, затем сортировка, затем предел. В конвейере это три отдельные стадии, и порядок задаёт список. Пример находит три самых дорогих заказа в пути: отбор, затем сортировка по сумме по убыванию, затем предел.</p>
+        <p data-lang="cpp">У стадий <code>$sort</code> и <code>$limit</code> в <code>mongocxx::pipeline</code> есть свои методы: <code>sort</code> принимает документ сортировки, <code>limit</code> — число.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>стадии $sort и $limit</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>стадии $sort и $limit</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>стадии $sort и $limit</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>стадии $sort и $limit</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"status"</span>, <span class="s">"delivery.city"</span>, <span class="s">"total"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | в пути | Екатеринбург | 244460
+2026-0085 | в пути | Новосибирск | 225320
+2026-0025 | в пути | Екатеринбург | 211760
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | в пути | Екатеринбург | 244460
+2026-0085 | в пути | Новосибирск | 225320
+2026-0025 | в пути | Екатеринбург | 211760
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | в пути | Екатеринбург | 244460
+2026-0085 | в пути | Новосибирск | 225320
+2026-0025 | в пути | Екатеринбург | 211760
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | в пути | Екатеринбург | 244460
+2026-0085 | в пути | Новосибирск | 225320
+2026-0025 | в пути | Екатеринбург | 211760
+документов: 3</pre>
+        </figure>
+        <p>На схеме — 13 заказов в пути после стадии <code>$sort</code>, от самого дорогого к самому дешёвому. Стадия <code>$limit</code> пропускает первые три.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выход $sort и выход $limit</span><span>13 заказов в пути</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>после $sort: {"total": -1}</b>
+                <ol>
+                  <li class="on">2026-0028 · 244460</li>
+                  <li class="on">2026-0085 · 225320</li>
+                  <li class="on">2026-0025 · 211760</li>
+                  <li class="pl">2026-0027 · 191970</li>
+                  <li class="pl">2026-0119 · 182250</li>
+                  <li class="pl">2026-0081 · 150470</li>
+                  <li class="pl">2026-0088 · 126370</li>
+                  <li class="pl">2026-0055 · 98970</li>
+                  <li class="pl">2026-0043 · 56370</li>
+                  <li class="pl">2026-0054 · 55360</li>
+                  <li class="pl">2026-0033 · 9180</li>
+                  <li class="pl">2026-0023 · 8490</li>
+                  <li class="pl">2026-0056 · 6790</li>
+                </ol>
+                <em>13 документов, порядок по сумме.</em></div>
+              <div><b>после $limit: 3</b>
+                <ol>
+                  <li class="on">2026-0028 · 244460</li>
+                  <li class="on">2026-0085 · 225320</li>
+                  <li class="on">2026-0025 · 211760</li>
+                </ol>
+                <em>Первые три документа потока. Остальные десять отброшены.</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Стадия <code>$sort</code> не отбрасывает документы, она меняет их порядок: на входе и на выходе по 13. <code>$limit</code> не смотрит на поля документа, только на его место в потоке.</p>
+        </div>
+        <p>Поскольку <code>$limit</code> берёт документы по месту в потоке, перед ней почти всегда стоит <code>$sort</code>. Без сортировки первыми окажутся документы в порядке хранения, и предел выберет их по этому порядку.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Порядок стадий</h2>
+        <p>Стадия получает только то, что пропустили стадии перед ней. Поэтому одни и те же стадии в разном порядке решают разные задачи. На сортировочной ленте пост «первые сто посылок за смену», поставленный до поста «только свой регион», пропустит сто посылок, а из них в свой регион пойдёт лишь часть. Поставленный после — пропустит сто посылок своего региона.</p>
+        <p>Пример выполняет две пары стадий над заказами. Первый конвейер берёт пять последних заказов магазина и из них оставляет доставленные. Второй сначала отбирает доставленные заказы, а из них берёт пять последних.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>порядок стадий</span></figcaption>
+<pre>last_first = [
+    {<span class="s">"$sort"</span>: {<span class="s">"created"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">5</span>},
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+]
+
+match_first = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"created"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">5</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $limit до $match"</span>)
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(last_first), <span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>)
+
+<span class="f">print</span>(<span class="s">"── $match до $limit"</span>)
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(match_first), <span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>порядок стадий</span></figcaption>
+<pre>mongocxx::pipeline last_first;
+last_first.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"created"</span>, -<span class="n">1</span>)));
+last_first.<span class="f">limit</span>(<span class="n">5</span>);
+last_first.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+
+mongocxx::pipeline match_first;
+match_first.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+match_first.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"created"</span>, -<span class="n">1</span>)));
+match_first.<span class="f">limit</span>(<span class="n">5</span>);
+
+std::cout &lt;&lt; <span class="s">"── $limit до $match"</span> &lt;&lt; std::endl;
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(last_first), {<span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>});
+
+std::cout &lt;&lt; <span class="s">"── $match до $limit"</span> &lt;&lt; std::endl;
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(match_first), {<span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>порядок стадий</span></figcaption>
+<pre>lastFirst := mongo.Pipeline{
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"created"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">5</span>}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+}
+
+matchFirst := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"created"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">5</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $limit до $match"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, lastFirst)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>)
+
+fmt.<span class="f">Println</span>(<span class="s">"── $match до $limit"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, matchFirst)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>порядок стадий</span></figcaption>
+<pre>last_first = [
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"created"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">5</span> },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+]
+
+match_first = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"created"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">5</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $limit до $match"</span>
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(last_first), <span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>)
+
+<span class="k">puts</span> <span class="s">"── $match до $limit"</span>
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(match_first), <span class="s">"number"</span>, <span class="s">"created"</span>, <span class="s">"status"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit до $match
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+документов: 2
+── $match до $limit
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+2026-0082 | 2026-08-19 08:30 | доставлен
+2026-0060 | 2026-08-18 13:30 | доставлен
+2026-0110 | 2026-08-17 16:45 | доставлен
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit до $match
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+документов: 2
+── $match до $limit
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+2026-0082 | 2026-08-19 08:30 | доставлен
+2026-0060 | 2026-08-18 13:30 | доставлен
+2026-0110 | 2026-08-17 16:45 | доставлен
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit до $match
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+документов: 2
+── $match до $limit
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+2026-0082 | 2026-08-19 08:30 | доставлен
+2026-0060 | 2026-08-18 13:30 | доставлен
+2026-0110 | 2026-08-17 16:45 | доставлен
+документов: 5</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $limit до $match
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+документов: 2
+── $match до $limit
+2026-0039 | 2026-08-27 12:00 | доставлен
+2026-0009 | 2026-08-26 16:00 | доставлен
+2026-0082 | 2026-08-19 08:30 | доставлен
+2026-0060 | 2026-08-18 13:30 | доставлен
+2026-0110 | 2026-08-17 16:45 | доставлен
+документов: 5</pre>
+        </figure>
+        <p>Первый конвейер вернул два заказа, второй — пять. На схеме показано, что пришло на стадию <code>$match</code> в первом конвейере и на стадию <code>$limit</code> во втором.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Те же три стадии в двух порядках</span><span>сортировка по created, от новых</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>$sort → $limit 5 → $match</b>
+                <ol>
+                  <li class="pl">2026-0054 · 28.08 · в пути</li>
+                  <li class="on">2026-0039 · 27.08 · доставлен</li>
+                  <li class="pl">2026-0070 · 27.08 · отменён</li>
+                  <li class="pl">2026-0088 · 26.08 · в пути</li>
+                  <li class="on">2026-0009 · 26.08 · доставлен</li>
+                </ol>
+                <em>На <code>$match</code> пришли пять последних заказов магазина, доставленных среди них <strong>два</strong>.</em></div>
+              <div><b>$match → $sort → $limit 5</b>
+                <ol>
+                  <li class="on">2026-0039 · 27.08 · доставлен</li>
+                  <li class="on">2026-0009 · 26.08 · доставлен</li>
+                  <li class="on">2026-0082 · 19.08 · доставлен</li>
+                  <li class="on">2026-0060 · 18.08 · доставлен</li>
+                  <li class="on">2026-0110 · 17.08 · доставлен</li>
+                  <li>… ещё 64 доставленных</li>
+                </ol>
+                <em>На <code>$limit</code> пришли 69 доставленных заказов по порядку, предел взял <strong>пять</strong> первых.</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёным выделены заказы, которые попали в результат. Даты — 2026 год. Первый конвейер отвечает на вопрос «какие из последних пяти заказов доставлены», второй — «какие пять доставленных заказов последние».</p>
+        </div>
+        <p>Перестановка <code>$sort</code> и <code>$match</code> результата не меняет: сортировка не убирает документы, а условие не зависит от порядка. Перестановка <code>$limit</code> и <code>$match</code> меняет результат, потому что предел отбрасывает документы, а условие проверяет только оставшиеся. Отсюда обычный порядок стадий: сначала <code>$match</code>, затем <code>$sort</code>, затем <code>$limit</code>. Стадия <code>$match</code> в начале конвейера к тому же уменьшает число документов, которые обрабатывают остальные стадии, и может использовать индекс так же, как <code>find</code> (глава 3.2).</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Стадия с двумя операторами</h2>
+        <p>Документ стадии содержит ровно одно поле — оператор. Если записать в один документ два оператора, например <code>$match</code> и <code>$limit</code>, сервер не выполняет конвейер и возвращает ошибку. Порядок полей внутри документа не определяет порядок действий, поэтому каждый оператор записывается отдельной стадией.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>два оператора в одной стадии</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}, <span class="s">"$limit"</span>: <span class="n">3</span>},
+]
+<span class="k">try</span>:
+    <span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>два оператора в одной стадии</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>))),
+                                    <span class="f">kvp</span>(<span class="s">"$limit"</span>, <span class="n">3</span>)));
+<span class="k">try</span> {
+    <span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>});
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>два оператора в одной стадии</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}, {Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+}
+cursor, err := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+} <span class="k">else</span> {
+    <span class="f">show</span>(cursor, <span class="s">"number"</span>)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>два оператора в одной стадии</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> }, <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+]
+<span class="k">begin</span>
+  <span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>)
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40323
+A pipeline stage specification object must contain exactly one field.</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40323
+A pipeline stage specification object must contain exactly one field.: server error code 40323: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40323
+A pipeline stage specification object must contain exactly one field.</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40323
+A pipeline stage specification object must contain exactly one field.</pre>
+        </figure>
+        <p>Сервер ответил ошибкой с кодом 40323: «спецификация стадии конвейера должна содержать ровно одно поле». Ни одного документа программа не получила. Исправление — две стадии в списке: <code>{"$match": …}</code> и следом <code>{"$limit": 3}</code>.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Конвейер в Compass</h2>
+        <p>Конвейеры в Compass собираются на вкладке <b>Aggregations</b> коллекции. Вкладка работает в двух режимах, переключатель — кнопки <b>Stages</b> и <b>Text</b> над конвейером. В режиме <b>Text</b> конвейер записывается целиком, списком стадий в квадратных скобках, как в коде примеров. В режиме <b>Stages</b> те же стадии стоят карточками сверху вниз: у каждой — поле оператора, поле параметров и справа выборка документов, которые эта стадия выпускает. Над конвейером цепочка <b>$match → $match → $match</b> показывает порядок стадий.</p>
+        <figure class="shot">
+          <img src="../../shots/142-orders-pipeline.png" alt="Compass, вкладка Aggregations коллекции shop.orders в режиме Stages: три стадии $match, у первой условие status доставлен и выборка из 10 документов, у второй условие на delivery.city">
+          <figcaption>Compass · конвейер из §3 в режиме <b>Stages</b></figcaption>
+        </figure>
+        <p>Подпись над выборкой — <b>Output preview after $match stage</b>, «выход после стадии $match», и в скобках — сколько документов в выборке. Выборка ограничена десятью документами: у первой стадии подпись говорит о 10 документах, хотя стадия выпускает 69, у второй — тоже о 10 при 22. Число документов после стадии Compass в этом режиме не считает, его даёт программа из §3. У третьей стадии выборка совпадает с выходом: 5 документов. Переключатель справа от поля оператора выключает стадию, и конвейер выполняется без неё, — так проверяется, какие документы отсеивает стадия.</p>
+        <figure class="shot">
+          <img src="../../shots/143-orders-pipeline-text.png" alt="Compass, вкладка Aggregations в режиме Text: конвейер $match status в пути, $sort total -1, $limit 3 и справа Pipeline Output Preview с тремя заказами 2026-0028, 2026-0085, 2026-0025">
+          <figcaption>Compass · конвейер из §5 в режиме <b>Text</b></figcaption>
+        </figure>
+        <p>В режиме <b>Text</b> слева записан конвейер из §5, справа — <b>Pipeline Output Preview</b>, выход последней стадии: три заказа в том же порядке, что в выводе примера. Кнопка <b>Run</b> выполняет конвейер целиком и показывает весь результат, кнопка <b>Save</b> сохраняет конвейер под именем, а <b>Export code</b> показывает тот же конвейер кодом на Python, Go, C++, Ruby и других языках.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$match": {...}, "$limit": 3}</code></td><td>Ошибка 40323: в документе стадии должно быть ровно одно поле</td><td>Каждый оператор — отдельная стадия, отдельный документ в списке</td></tr>
+              <tr><td><code>orders.aggregate({"$match": {...}})</code></td><td>Драйвер ждёт список стадий; словарь вместо списка отклоняется ошибкой TypeError</td><td>Стадии всегда в списке: <code>[{"$match": {...}}]</code>, даже если стадия одна</td></tr>
+              <tr><td><code>$limit</code> перед <code>$match</code></td><td>Условие проверяется только у документов, которые прошли предел: из пяти последних заказов остаются два доставленных</td><td>Сначала <code>$match</code>, затем <code>$sort</code> и <code>$limit</code>: предел берётся из уже отобранных</td></tr>
+              <tr><td><code>$limit</code> без <code>$sort</code></td><td>Порядок документов на входе не задан, и в предел попадают случайные по смыслу документы</td><td>Перед <code>$limit</code> ставить <code>$sort</code> по нужному полю</td></tr>
+              <tr><td><code>{"$match": {"total": {"$gt": "200000"}}}</code></td><td>Число сравнивается со строкой: условие не находит ни одного заказа</td><td>Тип значения в условии — как в документе: <code>200000</code> без кавычек</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>make_document(kvp("$match", …), kvp("$limit", 3))</code></td><td>Ошибка 40323: в документе стадии должно быть ровно одно поле</td><td>Каждый оператор — отдельная стадия, отдельный документ в списке</td></tr>
+              <tr><td><code>orders.aggregate(make_document(…))</code></td><td>Метод aggregate принимает mongocxx::pipeline; документ вместо него не компилируется</td><td>Стадии добавляются в <code>mongocxx::pipeline</code>: <code>pipeline.match(...)</code></td></tr>
+              <tr><td><code>$limit</code> перед <code>$match</code></td><td>Условие проверяется только у документов, которые прошли предел: из пяти последних заказов остаются два доставленных</td><td>Сначала <code>$match</code>, затем <code>$sort</code> и <code>$limit</code>: предел берётся из уже отобранных</td></tr>
+              <tr><td><code>$limit</code> без <code>$sort</code></td><td>Порядок документов на входе не задан, и в предел попадают случайные по смыслу документы</td><td>Перед <code>$limit</code> ставить <code>$sort</code> по нужному полю</td></tr>
+              <tr><td><code>{"$match": {"total": {"$gt": "200000"}}}</code></td><td>Число сравнивается со строкой: условие не находит ни одного заказа</td><td>Тип значения в условии — как в документе: <code>200000</code> без кавычек</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{{Key: "$match", ...}, {Key: "$limit", Value: 3}}</code></td><td>Ошибка 40323: в документе стадии должно быть ровно одно поле</td><td>Каждый оператор — отдельная стадия, отдельный документ в списке</td></tr>
+              <tr><td><code>orders.Aggregate(ctx, bson.D{{Key: "$match", ...}})</code></td><td>bson.D — один документ; метод ждёт список стадий и возвращает ошибку</td><td>Стадии — в <code>mongo.Pipeline{...}</code></td></tr>
+              <tr><td><code>$limit</code> перед <code>$match</code></td><td>Условие проверяется только у документов, которые прошли предел: из пяти последних заказов остаются два доставленных</td><td>Сначала <code>$match</code>, затем <code>$sort</code> и <code>$limit</code>: предел берётся из уже отобранных</td></tr>
+              <tr><td><code>$limit</code> без <code>$sort</code></td><td>Порядок документов на входе не задан, и в предел попадают случайные по смыслу документы</td><td>Перед <code>$limit</code> ставить <code>$sort</code> по нужному полю</td></tr>
+              <tr><td><code>{"$match": {"total": {"$gt": "200000"}}}</code></td><td>Число сравнивается со строкой: условие не находит ни одного заказа</td><td>Тип значения в условии — как в документе: <code>200000</code> без кавычек</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "$match" =&gt; {...}, "$limit" =&gt; 3 }</code></td><td>Ошибка 40323: в документе стадии должно быть ровно одно поле</td><td>Каждый оператор — отдельная стадия, отдельный документ в списке</td></tr>
+              <tr><td><code>orders.aggregate({ "$match" =&gt; {...} })</code></td><td>Метод ждёт массив стадий; хеш вместо массива приводит к ошибке</td><td>Стадии всегда в массиве: <code>[{ "$match" =&gt; {...} }]</code></td></tr>
+              <tr><td><code>$limit</code> перед <code>$match</code></td><td>Условие проверяется только у документов, которые прошли предел: из пяти последних заказов остаются два доставленных</td><td>Сначала <code>$match</code>, затем <code>$sort</code> и <code>$limit</code>: предел берётся из уже отобранных</td></tr>
+              <tr><td><code>$limit</code> без <code>$sort</code></td><td>Порядок документов на входе не задан, и в предел попадают случайные по смыслу документы</td><td>Перед <code>$limit</code> ставить <code>$sort</code> по нужному полю</td></tr>
+              <tr><td><code>{"$match": {"total": {"$gt": "200000"}}}</code></td><td>Число сравнивается со строкой: условие не находит ни одного заказа</td><td>Тип значения в условии — как в документе: <code>200000</code> без кавычек</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем конвейер из одной стадии <code>$match</code> отличается от <code>find</code> с тем же условием?</summary>
+          <p>Результатом они не отличаются: оба возвращают документы, подходящие под условие, в порядке хранения. Разница в том, что к конвейеру можно добавить следующие стадии, и каждая получит выход <code>$match</code>.</p>
+        </details>
+        <details>
+          <summary>Конвейер из трёх стадий <code>$match</code> вернул 5 документов, а вторая стадия выпустила 22. Сколько документов проверила третья стадия?</summary>
+          <p>22: стадия получает только документы, которые выпустила предыдущая. Остальные 98 заказов коллекции до третьей стадии не дошли.</p>
+        </details>
+        <details>
+          <summary>Почему перед <code>$limit</code> почти всегда стоит <code>$sort</code>?</summary>
+          <p><code>$limit</code> берёт первые документы потока по их месту, не глядя на поля. Без сортировки первыми окажутся документы в порядке хранения, и в результат попадут не те, что нужны по смыслу запроса.</p>
+        </details>
+        <details>
+          <summary>Конвейеры <code>[$sort, $limit 5, $match]</code> и <code>[$match, $sort, $limit 5]</code> вернули 2 и 5 документов. Почему результаты разные?</summary>
+          <p>В первом предел оставляет пять последних заказов всего магазина, и условие отбирает доставленные только из них. Во втором условие отбирает все 69 доставленных, и предел берёт из них пять последних.</p>
+        </details>
+        <details>
+          <summary>Что ответит сервер на стадию <code>{"$match": {…}, "$limit": 3}</code>?</summary>
+          <p>Ошибку 40323: в документе стадии должно быть ровно одно поле. Каждый оператор записывается отдельной стадией.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_1</code> с функцией <code>show</code>. Данные — <code>shop.orders</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Отбор</b>Собрать конвейер из одной стадии <code>$match</code>: заказы с доставкой курьером (<code>delivery.type</code>) в Екатеринбург или Новосибирск, в которых есть позиция категории «ноутбуки». Вывести номер, город, способ доставки и сумму.</li>
+          <li><b>Три самых дорогих</b>Добавить стадии <code>$sort</code> по сумме по убыванию и <code>$limit</code> 3. Вывести те же поля.</li>
+          <li><b>Счёт по стадиям</b>Запустить начало конвейера длиной 1, 2 и 3 стадии и вывести число документов после каждой, как в примере из §3.</li>
+          <li><b>Перестановка</b>Поставить <code>$limit</code> 3 перед <code>$match</code> и объяснить, почему результат изменился.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Условие стадии — <code>{"delivery.type": "курьер", "delivery.city": {"$in": ["Екатеринбург", "Новосибирск"]}, "items.category": "ноутбуки"}</code>; точечная нотация по массиву <code>items</code> находит заказ, если ноутбук есть хотя бы в одной позиции. Подходят шесть заказов: 2026-0002, 2026-0031, 2026-0045, 2026-0104 из Новосибирска и 2026-0111, 2026-0120 из Екатеринбурга. Три самых дорогих — 2026-0120 (457930), 2026-0111 (295960), 2026-0104 (206940). Счёт по стадиям — 6, 6, 3: <code>$sort</code> документы не отбрасывает. Если поставить <code>$limit</code> 3 первым, на <code>$match</code> придут три первых заказа коллекции — 2026-0001, 2026-0002, 2026-0003, — и условию из них подходит один, 2026-0002.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Конвейер</b>
+            <code>pipeline = [</code>
+            <code>    {"$match": {"status": "в пути"}},</code>
+            <code>    {"$sort": {"total": -1}},</code>
+            <code>    {"$limit": 3},</code>
+            <code>]</code>
+          </div>
+          <div>
+            <b>Запуск</b>
+            <code>for doc in orders.aggregate(pipeline):</code>
+          </div>
+          <div>
+            <b>Стадия без своего метода</b>
+            <code>{"$limit": 3}</code>
+          </div>
+          <div>
+            <b>Порядок</b>
+            <code>$match → $sort → $limit</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Конвейер</b>
+            <code>mongocxx::pipeline pipeline;</code>
+            <code>pipeline.match(make_document(kvp("status", "в пути")));</code>
+            <code>pipeline.sort(make_document(kvp("total", -1)));</code>
+            <code>pipeline.limit(3);</code>
+          </div>
+          <div>
+            <b>Запуск</b>
+            <code>for (auto&& doc : orders.aggregate(pipeline))</code>
+          </div>
+          <div>
+            <b>Стадия без своего метода</b>
+            <code>pipeline.append_stage(make_document(kvp("$limit", 3)));</code>
+          </div>
+          <div>
+            <b>Порядок</b>
+            <code>$match → $sort → $limit</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Конвейер</b>
+            <code>pipeline := mongo.Pipeline{</code>
+            <code>    {{Key: "$match", Value: bson.D{...}}},</code>
+            <code>    {{Key: "$sort", Value: bson.D{...}}},</code>
+            <code>    {{Key: "$limit", Value: 3}},</code>
+            <code>}</code>
+          </div>
+          <div>
+            <b>Запуск</b>
+            <code>cursor, err := orders.Aggregate(ctx, pipeline)</code>
+          </div>
+          <div>
+            <b>Стадия без своего метода</b>
+            <code>{{Key: "$limit", Value: 3}}</code>
+          </div>
+          <div>
+            <b>Порядок</b>
+            <code>$match → $sort → $limit</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Конвейер</b>
+            <code>pipeline = [</code>
+            <code>  { "$match" =&gt; { "status" =&gt; "в пути" } },</code>
+            <code>  { "$sort" =&gt; { "total" =&gt; -1 } },</code>
+            <code>  { "$limit" =&gt; 3 },</code>
+            <code>]</code>
+          </div>
+          <div>
+            <b>Запуск</b>
+            <code>orders.aggregate(pipeline).each { |doc| ... }</code>
+          </div>
+          <div>
+            <b>Стадия без своего метода</b>
+            <code>{ "$limit" =&gt; 3 }</code>
+          </div>
+          <div>
+            <b>Порядок</b>
+            <code>$match → $sort → $limit</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Конвейер агрегации — список стадий, которые сервер выполняет по очереди: документы коллекции входят в первую стадию, выход каждой стадии становится входом следующей, программа получает выход последней. Стадия записывается документом с одним полем — оператором. Конвейер запускает метод <code>aggregate</code>, он возвращает курсор. Стадия <code>$match</code> отбирает документы по условию на языке фильтров модуля 2, <code>$sort</code> упорядочивает поток, <code>$limit</code> оставляет первые N документов. Стадия получает только то, что пропустили предыдущие, поэтому порядок стадий меняет результат: обычный порядок — <code>$match</code>, <code>$sort</code>, <code>$limit</code>.</p>
+
+        <div class="pager"><a href="../24-skript-audit/index.html">← 3.6 Скрипт целиком</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.1 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

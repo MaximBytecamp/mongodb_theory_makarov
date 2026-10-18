@@ -51,6 +51,7 @@ CHAPTERS = {
     "3.4": ("22-tekstovyy-poisk", "Текстовый поиск: $text и $search", True),
     "3.5": ("23-geografiya", "География: 2dsphere, $near, $geoWithin, $geoIntersects", True),
     "3.6": ("24-skript-audit", "Скрипт целиком: аудит журнала сервиса", True),
+    "4.1": ("25-konveyer-match", "Конвейер агрегации: $match, $sort, $limit", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -252,6 +253,12 @@ SCOPE = {
         "ruby": 'db = client.use("shop").database\nproducts = db[:products]\norders = db[:orders]\nevents = client.use("logs").database[:events]\nsandbox = client.use("sandbox").database\nbox = sandbox[:products]   # песочница: здесь можно менять',
         "go": '\tdb := client.Database("shop")\n\tproducts := db.Collection("products")\n\torders := db.Collection("orders")\n\tevents := client.Database("logs").Collection("events")\n\tsandbox := client.Database("sandbox")\n\tbox := sandbox.Collection("products") // песочница: здесь можно менять',
         "cpp": '    auto db = client["shop"];\n    auto products = db["products"];\n    auto orders = db["orders"];\n    auto events = client["logs"]["events"];\n    auto sandbox = client["sandbox"];\n    auto box = sandbox["products"];   // песочница: здесь можно менять',
+    },
+    "4": {
+        "python": 'db = client["shop"]\norders = db["orders"]\nproducts = db["products"]\ncustomers = db["customers"]\nsandbox = client["sandbox"]',
+        "ruby": 'db = client.use("shop").database\norders = db[:orders]\nproducts = db[:products]\ncustomers = db[:customers]\nsandbox = client.use("sandbox").database',
+        "go": '\tdb := client.Database("shop")\n\torders := db.Collection("orders")\n\tproducts := db.Collection("products")\n\tcustomers := db.Collection("customers")\n\tsandbox := client.Database("sandbox")',
+        "cpp": '    auto db = client["shop"];\n    auto orders = db["orders"];\n    auto products = db["products"];\n    auto customers = db["customers"];\n    auto sandbox = client["sandbox"];',
     },
 }
 
@@ -733,6 +740,140 @@ std::string plan(mongocxx::database& db, const std::string& coll, bsoncxx::docum
     return steps;
 }
 """
+
+
+# ── Модуль 4: функция show — документы конвейера по строке ───────────────
+# Заказ целиком занимает десятки строк, поэтому примеры модуля 4 печатают
+# у каждого документа только выбранные поля: в строку через « | », вложенные
+# поля — через точку, в конце — сколько документов вернул конвейер.
+
+SHOW_PY = '''
+from datetime import datetime
+
+
+def show(docs, *fields):
+    """Печатает у каждого документа поля fields в строку через « | »; вложенные — через точку."""
+    count = 0
+    for doc in docs:
+        cells = []
+        for path in fields:
+            value = doc
+            for key in path.split("."):
+                value = value.get(key) if isinstance(value, dict) else None
+            if isinstance(value, datetime):
+                value = value.strftime("%Y-%m-%d %H:%M")
+            if isinstance(value, bool):
+                value = str(value).lower()
+            cells.append("—" if value is None else str(value))
+        print(" | ".join(cells))
+        count += 1
+    print("документов:", count)
+'''
+SHOW_RB = '''
+# Печатает у каждого документа поля fields в строку через « | »; вложенные — через точку.
+def show(docs, *fields)
+  count = 0
+  docs.each do |doc|
+    cells = fields.map do |path|
+      value = path.split(".").reduce(doc) { |v, key| v.is_a?(Hash) ? v[key] : nil }
+      value = value.utc.strftime("%Y-%m-%d %H:%M") if value.is_a?(Time)
+      value.nil? ? "—" : value.to_s
+    end
+    puts cells.join(" | ")
+    count += 1
+  end
+  puts "документов: #{count}"
+end
+'''
+SHOW_GO = '''// show — у каждого документа поля fields в строку через « | »; вложенные — через точку.
+func show(cursor *mongo.Cursor, fields ...string) {
+\tctx := context.Background()
+\tcount := 0
+\tfor cursor.Next(ctx) {
+\t\tcells := make([]string, len(fields))
+\t\tfor i, path := range fields {
+\t\t\tvalue, err := cursor.Current.LookupErr(strings.Split(path, ".")...)
+\t\t\tswitch {
+\t\t\tcase err != nil || value.Type == bson.TypeNull:
+\t\t\t\tcells[i] = "—"
+\t\t\tcase value.Type == bson.TypeString:
+\t\t\t\tcells[i] = value.StringValue()
+\t\t\tcase value.Type == bson.TypeInt32:
+\t\t\t\tcells[i] = fmt.Sprint(value.Int32())
+\t\t\tcase value.Type == bson.TypeInt64:
+\t\t\t\tcells[i] = fmt.Sprint(value.Int64())
+\t\t\tcase value.Type == bson.TypeDouble:
+\t\t\t\tcells[i] = fmt.Sprint(value.Double())
+\t\t\tcase value.Type == bson.TypeBoolean:
+\t\t\t\tcells[i] = fmt.Sprint(value.Boolean())
+\t\t\tcase value.Type == bson.TypeDateTime:
+\t\t\t\tcells[i] = value.Time().UTC().Format("2006-01-02 15:04")
+\t\t\tdefault:
+\t\t\t\tcells[i] = value.String()
+\t\t\t}
+\t\t}
+\t\tfmt.Println(strings.Join(cells, " | "))
+\t\tcount++
+\t}
+\tfmt.Println("документов:", count)
+}
+'''
+SHOW_CPP = '''#include <ctime>
+#include <mongocxx/pipeline.hpp>
+
+// show — у каждого документа поля fields в строку через « | »; вложенные — через точку.
+void show(mongocxx::cursor&& cursor, const std::vector<std::string>& fields) {
+    int count = 0;
+    for (auto&& doc : cursor) {
+        std::string line;
+        for (std::size_t i = 0; i < fields.size(); ++i) {
+            bsoncxx::document::view level = doc;
+            bsoncxx::document::element value;
+            std::stringstream path(fields[i]);
+            std::string key;
+            while (std::getline(path, key, '.')) {
+                value = level[key];
+                if (!value) break;
+                if (value.type() == bsoncxx::type::k_document) level = value.get_document().value;
+            }
+            std::string cell = "—";
+            if (value) {
+                switch (value.type()) {
+                    case bsoncxx::type::k_string: cell = std::string(value.get_string().value); break;
+                    case bsoncxx::type::k_int32: cell = std::to_string(value.get_int32().value); break;
+                    case bsoncxx::type::k_int64: cell = std::to_string(value.get_int64().value); break;
+                    case bsoncxx::type::k_double: {
+                        std::ostringstream out;
+                        out << value.get_double().value;
+                        cell = out.str();
+                        break;
+                    }
+                    case bsoncxx::type::k_bool: cell = value.get_bool().value ? "true" : "false"; break;
+                    case bsoncxx::type::k_date: {
+                        std::time_t t = value.get_date().to_int64() / 1000;
+                        std::ostringstream out;
+                        out << std::put_time(std::gmtime(&t), "%Y-%m-%d %H:%M");
+                        cell = out.str();
+                        break;
+                    }
+                    case bsoncxx::type::k_null: break;
+                    default: cell = "{…}";
+                }
+            }
+            line += (i ? " | " : "") + cell;
+        }
+        std::cout << line << std::endl;
+        ++count;
+    }
+    std::cout << "документов: " << count << std::endl;
+}
+'''
+
+for _ch in [c for c in CHAPTERS if c.startswith("4.") and c not in WHOLE]:
+    EXTRAS[(_ch, "python")] = EXTRAS.get((_ch, "python"), "") + SHOW_PY
+    EXTRAS[(_ch, "ruby")] = EXTRAS.get((_ch, "ruby"), "") + SHOW_RB
+    TOP_EXTRAS[(_ch, "go")] = SHOW_GO + TOP_EXTRAS.get((_ch, "go"), "")
+    TOP_EXTRAS[(_ch, "cpp")] = SHOW_CPP + TOP_EXTRAS.get((_ch, "cpp"), "")
 
 
 def starter(chapter: str, lang: str, snippets: list[str]) -> str:
