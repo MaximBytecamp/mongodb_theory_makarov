@@ -365,3 +365,179 @@ CHEATS["4.1"] = [
                                   "cpp": ['pipeline.append_stage(make_document(kvp("$limit", 3)));']}),
     ("Порядок", {"all": ["$match → $sort → $limit"]}),
 ]
+
+
+# ── вывод документов целиком и перехват ошибок сервера ────────────────────
+
+def docs_code(lang: str, coll: str = "orders", var: str = "pipeline", first: bool = True) -> str:
+    """Печать каждого документа целиком: в главе о форме ответа видна сама форма."""
+    if lang == "python":
+        return f"for doc in {coll}.aggregate({var}):\n    print(doc)"
+    if lang == "ruby":
+        return f"{coll}.aggregate({var}).each {{ |doc| puts doc.inspect }}"
+    if lang == "go":
+        op = ":=" if first else "="
+        return (f"cursor, _ {op} {coll}.Aggregate(ctx, {var})\n"
+                "for cursor.Next(ctx) {\n"
+                "    var doc bson.D\n"
+                "    cursor.Decode(&doc)\n"
+                "    out, _ := bson.MarshalExtJSON(doc, false, false)\n"
+                "    fmt.Println(string(out))\n"
+                "}")
+    return (f"for (auto&& doc : {coll}.aggregate({var})) {{\n"
+            "    std::cout << bsoncxx::to_json(doc, bsoncxx::ExtendedJsonMode::k_relaxed) << std::endl;\n"
+            "}")
+
+
+def try_code(lang: str, coll: str = "orders", var: str = "pipeline", first: bool = True) -> str:
+    """Запуск конвейера, который сервер отклоняет: печать кода и текста ошибки."""
+    if lang == "python":
+        return (f"try:\n    for doc in {coll}.aggregate({var}):\n        print(doc)\n"
+                "except OperationFailure as e:\n    print(\"код\", e.code)\n    print(e.details[\"errmsg\"])")
+    if lang == "ruby":
+        return (f"begin\n  {coll}.aggregate({var}).each {{ |doc| puts doc.inspect }}\n"
+                "rescue Mongo::Error::OperationFailure => e\n  puts \"код #{e.code}\"\n  puts e.document[\"errmsg\"]\nend")
+    if lang == "go":
+        decl = ("_, err := " if first else "_, err = ") + f"{coll}.Aggregate(ctx, {var})"
+        ce = "var ce mongo.CommandError\n" if first else ""
+        return (decl + "\n" + ce + "if errors.As(err, &ce) {\n"
+                "    fmt.Println(\"код\", ce.Code)\n    fmt.Println(ce.Message)\n}")
+    return ("try {\n"
+            f"    for (auto&& doc : {coll}.aggregate({var})) {{\n"
+            "        std::cout << bsoncxx::to_json(doc) << std::endl;\n    }\n"
+            "} catch (const mongocxx::operation_exception& e) {\n"
+            "    std::cout << \"код \" << e.code().value() << std::endl;\n"
+            "    std::cout << e.what() << std::endl;\n}")
+
+
+LANGS4 = ("python", "ruby", "go", "cpp")
+IMPORT_ERR = {"python": "from pymongo.errors import OperationFailure\n\n"}
+
+
+def title_code(lang: str, text: str) -> str:
+    return {"python": f'print("── {text}")', "ruby": f'puts "── {text}"', "go": f'fmt.Println("── {text}")',
+            "cpp": f'std::cout << "── {text}" << std::endl;'}[lang]
+
+
+def agg_docs(stages: list, coll: str = "orders") -> dict:
+    return {lang: pipeline(stages, lang) + "\n\n" + docs_code(lang, coll) for lang in LANGS4}
+
+
+def gvar(name: str, lang: str) -> str:
+    """Имя переменной: в Go — с заглавной буквы на стыке слов (matchFirst)."""
+    if lang != "go":
+        return name
+    head, *rest = name.split("_")
+    return head + "".join(w.capitalize() for w in rest)
+
+
+# ── 4.2 $project: форма ответа ────────────────────────────────────────────
+
+TOP3 = [{"$match": {"status": "в пути"}}, {"$sort": {"total": -1}}, {"$limit": 3}]
+LAPTOPS = [{"$match": {"category": "ноутбуки"}}, {"$sort": {"price": -1}}]
+
+# _id остаётся сам
+example("4.2", "include", "включение полей", agg_docs(TOP3 + [{"$project": {"number": 1, "total": 1}}]))
+
+# вложенное поле остаётся вложенным; порядок полей — как в документе
+example("4.2", "nested", "без _id, с вложенным полем",
+        agg_docs(TOP3 + [{"$project": {"_id": 0, "number": 1, "delivery.city": 1, "total": 1}}]))
+
+# новые имена и путь к полю
+example("4.2", "rename", "новые имена полей",
+        agg_docs(TOP3 + [{"$project": {"_id": 0, "order": "$number", "city": "$delivery.city", "sum": "$total"}}]))
+
+# вычисления: цена со скидкой 10 % и размер скидки
+example("4.2", "compute", "вычисляемые поля", agg_docs(LAPTOPS + [{"$project": {
+    "_id": 0, "title": 1, "price": 1,
+    "sale": {"$multiply": ["$price", 0.9]},
+    "saving": {"$subtract": ["$price", {"$multiply": ["$price", 0.9]}]},
+}}], coll="products"))
+
+# строки: $concat, ошибка на числе и $toString
+CONCAT_BAD = TOP3 + [{"$project": {"_id": 0, "line": {"$concat": ["$number", " — ", "$total"]}}}]
+CONCAT_OK = TOP3 + [{"$project": {"_id": 0, "line": {"$concat": ["$number", " — ", {"$toString": "$total"}, " ₽"]}}}]
+example("4.2", "concat", "склейка строк", {
+    lang: IMPORT_ERR.get(lang, "")
+    + pipeline(CONCAT_BAD, lang, gvar("with_number", lang)) + "\n\n"
+    + pipeline(CONCAT_OK, lang, gvar("with_string", lang)) + "\n\n"
+    + title_code(lang, "$concat с числом") + "\n" + try_code(lang, var=gvar("with_number", lang)) + "\n\n"
+    + title_code(lang, "$concat с $toString") + "\n" + docs_code(lang, var=gvar("with_string", lang))
+    for lang in LANGS4})
+
+# условие: $cond
+example("4.2", "cond", "поле по условию", agg_docs([
+    {"$match": {"category": {"$in": ["ноутбуки", "смартфоны"]}}},
+    {"$sort": {"price": -1}},
+    {"$project": {"_id": 0, "title": 1, "price": 1, "segment": {"$cond": {
+        "if": {"$gte": ["$price", 50000]}, "then": "дорогой", "else": "доступный"}}}},
+], coll="products"))
+
+# смешивать нельзя: включение с исключением, исключение с выражением
+MIX_A = TOP3 + [{"$project": {"number": 1, "items": 0}}]
+MIX_B = TOP3 + [{"$project": {"items": 0, "sum": "$total"}}]
+example("4.2", "mix", "включение вместе с исключением", {
+    lang: IMPORT_ERR.get(lang, "")
+    + pipeline(MIX_A, lang, gvar("keep_and_drop", lang)) + "\n\n"
+    + pipeline(MIX_B, lang, gvar("drop_and_compute", lang)) + "\n\n"
+    + title_code(lang, "number: 1 и items: 0") + "\n" + try_code(lang, var=gvar("keep_and_drop", lang)) + "\n\n"
+    + title_code(lang, "items: 0 и новое поле") + "\n" + try_code(lang, var=gvar("drop_and_compute", lang), first=False)
+    for lang in LANGS4})
+
+# место $project в конвейере
+EARLY = [{"$project": {"number": 1, "total": 1}}, {"$match": {"status": "в пути"}}]
+LATE = [{"$match": {"status": "в пути"}}, {"$project": {"number": 1, "total": 1}}]
+_place = {}
+for lang in LANGS4:
+    a, b = gvar("project_first", lang), gvar("match_first", lang)
+    count = {
+        "python": lambda v, t: f'print("{t}:", len(list(orders.aggregate({v}))))',
+        "ruby": lambda v, t: f'puts "{t}: #{{orders.aggregate({v}).to_a.size}}"',
+        "go": lambda v, t: (f"cursor, _ := orders.Aggregate(ctx, {v})\nvar docs []bson.D\ncursor.All(ctx, &docs)\n"
+                            f'fmt.Println("{t}:", len(docs))'),
+        "cpp": lambda v, t: (f"auto cursor = orders.aggregate({v});\n"
+                             f'std::cout << "{t}: " << std::distance(cursor.begin(), cursor.end()) << std::endl;'),
+    }[lang]
+    first = count(a, "$project до $match")
+    second = count(b, "$match до $project")
+    if lang == "go":
+        second = second.replace("cursor, _ :=", "cursor, _ =").replace("var docs []bson.D\n", "docs = nil\n")
+    if lang == "cpp":
+        second = second.replace("auto cursor =", "auto cursor2 =").replace("cursor.begin(), cursor.end()", "cursor2.begin(), cursor2.end()")
+    _place[lang] = pipeline(EARLY, lang, a) + "\n\n" + pipeline(LATE, lang, b) + "\n\n" + first + "\n" + second
+example("4.2", "place", "$project до и после $match", _place)
+
+
+ERRORS["4.2"] = [
+    ('<code>{"number": 1, "items": 0}</code>',
+     "Ошибка 31254: в одной проекции включение и исключение полей",
+     "Перечислить только нужные поля; исключать можно одно <code>_id</code>"),
+    ('<code>{"items": 0, "sum": "$total"}</code>',
+     "Ошибка 31310: новое поле в исключающей проекции",
+     "Новые поля — только во включающей проекции: перечислить нужные поля и добавить новое"),
+    ('<code>{"city": "delivery.city"}</code>',
+     "Без знака <code>$</code> строка — значение: у всех документов <code>city</code> равно тексту «delivery.city»",
+     'Путь к полю начинается с <code>$</code>: <code>"$delivery.city"</code>'),
+    ('<code>{"$concat": ["$number", " — ", "$total"]}</code>',
+     "Ошибка 16702: <code>$concat</code> склеивает только строки, а <code>total</code> — число",
+     'Перевести число в строку: <code>{"$toString": "$total"}</code>'),
+    ("<code>$project</code> перед <code>$match</code> по убранному полю",
+     "Поля <code>status</code> после проекции нет, условию не подходит ни один документ: 0",
+     "Сначала <code>$match</code>, затем <code>$project</code>; или оставить в проекции поля, нужные следующим стадиям"),
+]
+
+def cheat_lines(value) -> dict:
+    """Карточка шпаргалки: один литерал на языке каждого драйвера."""
+    return {lang: [flat(value, lang)] for lang in LANGS4}
+
+
+CHEATS["4.2"] = [
+    ("Включить, убрать _id", cheat_lines({"$project": {"_id": 0, "number": 1, "total": 1}})),
+    ("Новое имя, поле наверх", cheat_lines({"$project": {"order": "$number", "city": "$delivery.city"}})),
+    ("Вычисление", cheat_lines({"sale": {"$multiply": ["$price", 0.9]}})),
+    ("Строка из числа", cheat_lines({"line": {"$concat": ["$number", " — ", {"$toString": "$total"}]}})),
+    ("Условие", cheat_lines({"$cond": {"if": {"$gte": ["$price", 50000]}, "then": "дорогой", "else": "доступный"}})),
+    ("Добавить стадию", {"python": ["pipeline.append({\"$project\": {...}})"], "ruby": ["pipeline << { \"$project\" => {...} }"],
+                      "go": ['pipeline = append(pipeline, bson.D{{Key: "$project", Value: ...}})'],
+                      "cpp": ['pipeline.project(make_document(kvp("number", 1)));']}),
+]

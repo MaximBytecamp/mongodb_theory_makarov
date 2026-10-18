@@ -1261,7 +1261,7 @@ A pipeline stage specification object must contain exactly one field.</pre>
         <h3>Итог главы</h3>
         <p>Конвейер агрегации — список стадий, которые сервер выполняет по очереди. Документы коллекции входят в первую стадию, выход каждой стадии становится входом следующей, программа получает выход последней. Стадия записывается документом с одним полем — оператором. Конвейер запускает метод <code>aggregate</code>, он возвращает курсор. Стадия <code>$match</code> отбирает документы по условию на языке фильтров модуля 2, <code>$sort</code> упорядочивает поток, <code>$limit</code> оставляет первые N документов. Стадия получает только то, что пропустили предыдущие, поэтому порядок стадий меняет результат: обычный порядок — <code>$match</code>, <code>$sort</code>, <code>$limit</code>.</p>
 
-        <div class="pager"><a href="../24-skript-audit/index.html">← 3.6 Скрипт целиком</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../24-skript-audit/index.html">← 3.6 Скрипт целиком</a><a href="../26-project/index.html">4.2 $project →</a></div>
 
         <div class="colophon">
           <span>Глава 4.1 · Справочник по MongoDB</span>

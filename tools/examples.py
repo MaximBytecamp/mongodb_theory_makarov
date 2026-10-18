@@ -52,6 +52,7 @@ CHAPTERS = {
     "3.5": ("23-geografiya", "География: 2dsphere, $near, $geoWithin, $geoIntersects", True),
     "3.6": ("24-skript-audit", "Скрипт целиком: аудит журнала сервиса", True),
     "4.1": ("25-konveyer-match", "Конвейер агрегации: $match, $sort, $limit", False),
+    "4.2": ("26-project", "$project: форма ответа", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.

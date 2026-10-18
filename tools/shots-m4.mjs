@@ -334,4 +334,19 @@ await withCompass(async page => {
     await page.screenshot({ path: scratch + '/agg-text.png' });
     if (!need('explore')) await shot('143-orders-pipeline-text', 969);
   }
+  // --- 144 · 4.2 §9: стадия $project с вычисляемыми полями ----------
+  if (need('144-products-project')) {
+    const LAPTOP_SALE = `[
+  { $match: { category: "ноутбуки" } },
+  { $sort: { price: -1 } },
+  { $project: { _id: 0, title: 1, price: 1, sale: { $multiply: ["$price", 0.9] }, saving: { $subtract: ["$price", { $multiply: ["$price", 0.9] }] } } }
+]`;
+    await openCollection('shop', 'products');
+    await openTab('Aggregations');
+    await setPipeline(LAPTOP_SALE);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').nth(2).evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('144-products-project', 969);
+  }
 });
