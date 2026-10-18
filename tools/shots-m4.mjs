@@ -349,4 +349,27 @@ await withCompass(async page => {
     await settle(1200);
     await shot('144-products-project', 969);
   }
+  // --- 145 · 4.3 §9: стадия $addFields у постоянных покупателей ------
+  if (need('145-customers-addfields')) {
+    const CARD = `[
+  { $match: { segment: "постоянный" } },
+  { $sort: { name: 1 } },
+  { $limit: 3 },
+  { $addFields: { card: { $concat: ["$name", ", ", "$city"] } } }
+]`;
+    await openCollection('shop', 'customers');
+    await openTab('Aggregations');
+    await setPipeline(CARD);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').nth(3).evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    // Новое поле стоит последним: прокручиваем карточки выборки двух последних стадий вниз
+    for (const n of [2, 3]) {
+      await page.locator(`[data-testid="stage-preview-${n}"]`).first().evaluate(el => {
+        for (const node of el.querySelectorAll('*')) if (node.scrollHeight > node.clientHeight + 4) node.scrollTop = node.scrollHeight;
+      }).catch(() => {});
+    }
+    await settle(800);
+    await shot('145-customers-addfields', 969);
+  }
 });

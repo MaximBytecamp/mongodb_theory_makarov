@@ -531,8 +531,10 @@ def cheat_lines(value) -> dict:
     в C++ показываем методом конвейера: так она и добавляется в коде."""
     out = {lang: [flat(value, lang)] for lang in LANGS4}
     (key, arg), = value.items()
-    if key in CPP_METHOD:
-        out["cpp"] = [cpp_stage(value, "pipeline")]
+    if key.startswith("$") and key not in ("$cond", "$concat", "$multiply"):
+        method = CPP_METHOD.get(key)
+        out["cpp"] = [f"pipeline.{method}({flat(arg, 'cpp')});" if method
+                      else f"pipeline.append_stage(make_document(kvp({q(key)}, {flat(arg, 'cpp')})));"]
     return out
 
 
@@ -545,4 +547,74 @@ CHEATS["4.2"] = [
     ("Добавить стадию", {"python": ["pipeline.append({\"$project\": {...}})"], "ruby": ["pipeline.push({ \"$project\" => {...} })"],
                       "go": ['pipeline = append(pipeline, bson.D{{Key: "$project", Value: ...}})'],
                       "cpp": ['pipeline.project(make_document(kvp("number", 1)));']}),
+]
+
+
+# ── 4.3 $addFields, $set, $unset ──────────────────────────────────────────
+
+REGULARS = [{"$match": {"segment": "постоянный"}}, {"$sort": {"name": 1}}, {"$limit": 3}]
+CARD = {"$concat": ["$name", ", ", "$city"]}
+
+# все поля остаются, добавляется card
+example("4.3", "add", "новое поле при всех старых", agg_docs(REGULARS + [{"$addFields": {"card": CARD}}], coll="customers"))
+
+# то же выражение в $project
+example("4.3", "vsproject", "то же поле через $project", agg_docs(REGULARS + [{"$project": {"card": CARD}}], coll="customers"))
+
+# перезапись поля: в потоке цена со скидкой, в коллекции прежняя
+_over = agg(LAPTOPS + [{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}], ["title", "price"], coll="products")
+MAC = "Ноутбук Apple MacBook Air 13"
+_over["python"] += f'\nprint("в коллекции:", products.find_one({{"title": "{MAC}"}})["price"])'
+_over["ruby"] += f'\nputs "в коллекции: #{{products.find({{ "title" => "{MAC}" }}).first["price"]}}"'
+_over["go"] += (f'\nvar stored bson.M\nproducts.FindOne(ctx, bson.D{{{{Key: "title", Value: "{MAC}"}}}}).Decode(&stored)\n'
+                'fmt.Println("в коллекции:", stored["price"])')
+_over["cpp"] += (f'\nauto stored = products.find_one(make_document(kvp("title", "{MAC}")));\n'
+                 'std::cout << "в коллекции: " << stored->view()["price"].get_int32().value << std::endl;')
+example("4.3", "overwrite", "поле с тем же именем", _over)
+
+# вложенное поле: остальные поля delivery на месте
+example("4.3", "nested", "поле внутри вложенного документа", agg(TOP3 + [
+    {"$addFields": {"delivery.fast": {"$lte": ["$delivery.days", 2]}}},
+], ["number", "delivery.city", "delivery.type", "delivery.days", "delivery.fast"]))
+
+# новое поле в следующих стадиях
+SALE_UNDER = [
+    {"$addFields": {"sale": {"$multiply": ["$price", 0.9]}}},
+    {"$match": {"sale": {"$lt": 30000}}},
+    {"$sort": {"sale": -1}},
+    {"$limit": 3},
+]
+example("4.3", "next", "новое поле в $match и $sort", agg(SALE_UNDER, ["title", "price", "sale"], coll="products"))
+
+# $set — второе имя $addFields
+SALE_SET = [{"$set": SALE_UNDER[0]["$addFields"]}] + SALE_UNDER[1:]
+example("4.3", "set", "тот же конвейер со стадией $set", agg(SALE_SET, ["title", "price", "sale"], coll="products"))
+
+# $unset: убрать поля
+example("4.3", "unset", "стадия $unset", agg_docs(REGULARS + [{"$unset": ["phone", "email"]}], coll="customers"))
+
+# 0 в $addFields — значение, а не исключение
+example("4.3", "zero", "ноль в $addFields", agg_docs(REGULARS + [{"$addFields": {"phone": 0}}], coll="customers"))
+
+
+ERRORS["4.3"] = [
+    ('<code>{"$addFields": {"phone": 0}}</code>',
+     "Поле не удаляется: у каждого документа <code>phone</code> становится равным 0",
+     'Убирать поля стадией <code>{"$unset": ["phone"]}</code>'),
+    ('<code>{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}</code>, затем ожидание старой цены',
+     "Поле с тем же именем перезаписано: дальше по конвейеру цена уже со скидкой",
+     "Новое значение класть в поле с новым именем: <code>sale</code>"),
+    ("<code>$match</code> по новому полю перед <code>$addFields</code>",
+     "Поля ещё нет, условию не подходит ни один документ",
+     "Сначала <code>$addFields</code>, затем <code>$match</code> по новому полю"),
+    ("Ожидание, что <code>$addFields</code> изменит коллекцию",
+     "Меняются только документы в потоке; в коллекции значения прежние",
+     "Для изменения коллекции — <code>update_one</code> и <code>update_many</code> из главы 1.7"),
+]
+
+CHEATS["4.3"] = [
+    ("Добавить поле", cheat_lines({"$addFields": {"card": {"$concat": ["$name", ", ", "$city"]}}})),
+    ("То же — $set", cheat_lines({"$set": {"card": {"$concat": ["$name", ", ", "$city"]}}})),
+    ("Поле во вложенном документе", cheat_lines({"$addFields": {"delivery.fast": {"$lte": ["$delivery.days", 2]}}})),
+    ("Убрать поля", cheat_lines({"$unset": ["phone", "email"]})),
 ]

@@ -199,7 +199,7 @@ orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">p
         </figure>
         <p>У каждого заказа три поля: <code>_id</code>, <code>number</code> и <code>total</code>. Поле <code>_id</code> в проекции не указано и всё равно осталось. На схеме — тот же заказ 2026-0028 до стадии <code>$project</code> и после неё.</p>
         <div class="scheme">
-          <div class="doc__bar"><span>Заказ 2026-0028 до и после $project</span><span>{"number": 1, "total": 1}</span></div>
+          <div class="doc__bar"><span>Заказ 2026-0028 до и после $project</span><span>number и total</span></div>
           <div class="scheme__body">
             <div class="cover">
               <div><b>На входе стадии</b>
@@ -303,7 +303,7 @@ orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">p
         <p>Город остался внутри документа <code>delivery</code>: вложенность сохраняется, из <code>delivery</code> выпали только поля <code>type</code> и <code>days</code>. Поле <code>_id</code> исчезло, потому что в проекции стоит <code>"_id": 0</code>.</p>
         <p>Порядок полей в результате совпадает с порядком в документе. В проекции <code>delivery.city</code> стоит перед <code>total</code>, а в результате <code>total</code> идёт раньше: в документе заказа поле <code>total</code> записано до <code>delivery</code>. Порядок перечисления в проекции на порядок включённых полей не влияет.</p>
         <div class="scheme">
-          <div class="doc__bar"><span>Заказ 2026-0028 и проекция с вложенным полем</span><span>{"_id": 0, "number": 1, "delivery.city": 1, "total": 1}</span></div>
+          <div class="doc__bar"><span>Заказ 2026-0028 и проекция с вложенным полем</span><span>delivery.city</span></div>
           <div class="scheme__body">
             <div class="cover">
               <div><b>Документ, поля по порядку</b>
@@ -1445,7 +1445,7 @@ $match до $project: 13</pre>
         <h3>Итог главы</h3>
         <p>Стадия <code>$project</code> задаёт форму каждого документа потока и не меняет их число. Значение <code>1</code> включает поле, <code>0</code> исключает, <code>_id</code> остаётся, пока его не исключили. Путь к полю — строка со знаком <code>$</code>: <code>"city": "$delivery.city"</code> создаёт поле с новым именем на верхнем уровне. На месте значения может стоять выражение: <code>$multiply</code>, <code>$subtract</code> и другие арифметические операторы, <code>$concat</code> для строк, <code>$toString</code> для перевода в строку, <code>$cond</code> для выбора по условию. Выражения допускаются только во включающей проекции, и смешивать включение с исключением нельзя, кроме <code>"_id": 0</code>. Стадии после <code>$project</code> получают документы только с оставленными полями, поэтому проекцию обычно ставят в конце конвейера.</p>
 
-        <div class="pager"><a href="../25-konveyer-match/index.html">← 4.1 Конвейер агрегации</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../25-konveyer-match/index.html">← 4.1 Конвейер агрегации</a><a href="../27-addfields-set-unset/index.html">4.3 $addFields, $set, $unset →</a></div>
 
         <div class="colophon">
           <span>Глава 4.2 · Справочник по MongoDB</span>

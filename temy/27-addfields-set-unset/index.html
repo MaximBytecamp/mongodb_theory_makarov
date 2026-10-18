@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.3 $addFields, $set и $unset · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: поток документов по стадиям, документы до и после стадии. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 6px; }
+    .scheme__body > b { display: block; margin: 4px 0 8px; font: 600 13px/1.4 var(--mono); }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .bars { display: grid; gap: 16px; padding-bottom: 10px; }
+    .bar { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 10px; margin: 3px 0; font: 400 12.5px/1.3 var(--mono); }
+    .bar__track { height: 16px; border: 2px solid var(--ink); }
+    .bar__track i { display: block; height: 100%; background: var(--ink-faint); }
+    .bar__track i.on { background: var(--leaf-bright); }
+    .bar > span:last-child { text-align: right; font-weight: 700; }
+    @media (max-width: 560px) { .bar { grid-template-columns: 1fr 44px; } .bar > span:first-child { grid-column: 1 / -1; } }
+    .ixlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 8px; }
+    .ixlist b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .ixlist ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); font: 400 12.5px/1.55 var(--mono); }
+    .ixlist li { padding: 0 9px; color: var(--ink-faint); border-bottom: 1px solid var(--rule); }
+    .ixlist li:last-child { border-bottom: 0; }
+    .ixlist li.on { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .ixlist li.pl { color: var(--ink); }
+    .ixlist li.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+    .ixlist em { display: block; margin-top: 6px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
+    .cover { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 12px; }
+    .cover b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chips i { padding: 2px 7px; border: 2px solid var(--ink); font: 400 12px/1.4 var(--mono); font-style: normal; }
+    .chips i.on { background: var(--leaf-bright); font-weight: 700; }
+    .chips i.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.3</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.3</span>
+          <h1>$addFields, $set<br>и $unset</h1>
+          <p class="lead">В этой главе разобраны стадии, которые меняют документ потока частично. $addFields добавляет к документу новые поля и сохраняет все остальные, $set — второе имя той же стадии, $unset убирает перечисленные поля. Отдельно разобраны поле с уже существующим именем, поле внутри вложенного документа и использование нового поля в следующих стадиях конвейера.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Обновление и $set (глава 1.7), $project и выражения (глава 4.2), конвейер (глава 4.1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Добавлять к документам вычисленные поля, не перечисляя всех остальных, и убирать из ответа лишнее</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.3-python.zip" download><code>mongodb-glava-4.3-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.3-ruby.zip" download><code>mongodb-glava-4.3-ruby.zip</code></a>, 63 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.3-go.zip" download><code>mongodb-glava-4.3-go.zip</code></a>, 70 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.3-cpp.zip" download><code>mongodb-glava-4.3-cpp.zip</code></a>, 70 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_3.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_3.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_3.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_3.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_3.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_3.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_3.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_3.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_3.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_3.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_3.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_3.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_3.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $addFields</a></li>
+            <li><a href="#s2">$addFields и $project</a></li>
+            <li><a href="#s3">Поле с существующим именем</a></li>
+            <li><a href="#s4">Поле во вложенном документе</a></li>
+            <li><a href="#s5">Новое поле в следующих стадиях</a></li>
+            <li><a href="#s6">$set — второе имя $addFields</a></li>
+            <li><a href="#s7">Стадия $unset</a></li>
+            <li><a href="#s8">Ноль в $addFields</a></li>
+            <li><a href="#s9">$addFields в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $addFields</h2>
+        <p>В главе 4.2 стадия <code>$project</code> собирала документ заново: в результат попадали только перечисленные поля. Часто нужно другое — оставить документ как есть и дописать к нему одно-два вычисленных поля. Перечислять ради этого все старые поля долго, а при появлении нового поля в коллекции проекцию пришлось бы править. Для такой задачи есть стадия <code>$addFields</code>.</p>
+        <p>Так секретарь ставит на заявление резолюцию: в углу листа появляется строка «Согласовано, 18.10», а текст заявления остаётся прежним. Заявление не переписывают, к нему только добавляют пометку.</p>
+        <p><span class="term">Стадия $addFields</span> добавляет к каждому документу потока поля, перечисленные в её параметре, и оставляет все остальные поля без изменений. Значение нового поля записывается так же, как в <code>$project</code>: путём к полю или выражением. Число документов стадия не меняет.</p>
+        <p>Пример берёт трёх постоянных покупателей из <code>shop.customers</code> в порядке имён и добавляет поле <code>card</code> — строку «имя, город» для карточки покупателя.</p>
+        <p data-lang="cpp">У стадии <code>$addFields</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>add_fields</code>, параметр — документ новых полей.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>новое поле при всех старых</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"segment"</span>: <span class="s">"постоянный"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"name"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+    {<span class="s">"$addFields"</span>: {<span class="s">"card"</span>: {<span class="s">"$concat"</span>: [<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>]}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>новое поле при всех старых</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"segment"</span>, <span class="s">"постоянный"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+pipeline.<span class="f">add_fields</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"card"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$concat"</span>, <span class="f">make_array</span>(<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>новое поле при всех старых</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"segment"</span>, Value: <span class="s">"постоянный"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"name"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+    {{Key: <span class="s">"$addFields"</span>, Value: bson.D{
+        {Key: <span class="s">"card"</span>, Value: bson.D{{Key: <span class="s">"$concat"</span>, Value: bson.A{<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>}}}}}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>новое поле при всех старых</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"segment"</span> =&gt; <span class="s">"постоянный"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"name"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+  { <span class="s">"$addFields"</span> =&gt; { <span class="s">"card"</span> =&gt; { <span class="s">"$concat"</span> =&gt; [<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>] } } },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'c-016', 'name': 'Андрей Барсов', 'email': 'user16@example.com', 'city': 'Москва', 'registered': datetime.datetime(2025, 12, 13, 0, 0), 'segment': 'постоянный', 'phone': '+7 947 293-42-91', 'card': 'Андрей Барсов, Москва'}
+{'_id': 'c-001', 'name': 'Анна Белова', 'email': 'user01@example.com', 'city': 'Новосибирск', 'registered': datetime.datetime(2026, 3, 13, 0, 0), 'segment': 'постоянный', 'phone': '+7 958 256-50-40', 'card': 'Анна Белова, Новосибирск'}
+{'_id': 'c-013', 'name': 'Вера Панина', 'email': 'user13@example.com', 'city': 'Москва', 'registered': datetime.datetime(2025, 12, 3, 0, 0), 'segment': 'постоянный', 'phone': '+7 993 596-76-99', 'card': 'Вера Панина, Москва'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "c-016", "name" : "Андрей Барсов", "email" : "user16@example.com", "city" : "Москва", "registered" : { "$date" : "2025-12-13T00:00:00Z" }, "segment" : "постоянный", "phone" : "+7 947 293-42-91", "card" : "Андрей Барсов, Москва" }
+{ "_id" : "c-001", "name" : "Анна Белова", "email" : "user01@example.com", "city" : "Новосибирск", "registered" : { "$date" : "2026-03-13T00:00:00Z" }, "segment" : "постоянный", "phone" : "+7 958 256-50-40", "card" : "Анна Белова, Новосибирск" }
+{ "_id" : "c-013", "name" : "Вера Панина", "email" : "user13@example.com", "city" : "Москва", "registered" : { "$date" : "2025-12-03T00:00:00Z" }, "segment" : "постоянный", "phone" : "+7 993 596-76-99", "card" : "Вера Панина, Москва" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"c-016","name":"Андрей Барсов","email":"user16@example.com","city":"Москва","registered":{"$date":"2025-12-13T00:00:00Z"},"segment":"постоянный","phone":"+7 947 293-42-91","card":"Андрей Барсов, Москва"}
+{"_id":"c-001","name":"Анна Белова","email":"user01@example.com","city":"Новосибирск","registered":{"$date":"2026-03-13T00:00:00Z"},"segment":"постоянный","phone":"+7 958 256-50-40","card":"Анна Белова, Новосибирск"}
+{"_id":"c-013","name":"Вера Панина","email":"user13@example.com","city":"Москва","registered":{"$date":"2025-12-03T00:00:00Z"},"segment":"постоянный","phone":"+7 993 596-76-99","card":"Вера Панина, Москва"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"c-016", "name"=&gt;"Андрей Барсов", "email"=&gt;"user16@example.com", "city"=&gt;"Москва", "registered"=&gt;2025-12-13 00:00:00 UTC, "segment"=&gt;"постоянный", "phone"=&gt;"+7 947 293-42-91", "card"=&gt;"Андрей Барсов, Москва"}
+{"_id"=&gt;"c-001", "name"=&gt;"Анна Белова", "email"=&gt;"user01@example.com", "city"=&gt;"Новосибирск", "registered"=&gt;2026-03-13 00:00:00 UTC, "segment"=&gt;"постоянный", "phone"=&gt;"+7 958 256-50-40", "card"=&gt;"Анна Белова, Новосибирск"}
+{"_id"=&gt;"c-013", "name"=&gt;"Вера Панина", "email"=&gt;"user13@example.com", "city"=&gt;"Москва", "registered"=&gt;2025-12-03 00:00:00 UTC, "segment"=&gt;"постоянный", "phone"=&gt;"+7 993 596-76-99", "card"=&gt;"Вера Панина, Москва"}</pre>
+        </figure>
+        <p>У каждого покупателя остались все семь полей документа, и восьмым добавилось <code>card</code>. На схеме — документ Андрея Барсова до стадии и после неё.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Покупатель c-016 до и после $addFields</span><span>поле card</span></div>
+          <div class="scheme__body">
+            <div class="cover">
+              <div><b>На входе стадии</b>
+                <div class="chips"><i>_id</i><i>name</i><i>email</i><i>city</i><i>registered</i><i>segment</i><i>phone</i></div></div>
+              <div><b>На выходе стадии</b>
+                <div class="chips"><i>_id</i><i>name</i><i>email</i><i>city</i><i>registered</i><i>segment</i><i>phone</i><i class="on">card: "Андрей Барсов, Москва"</i></div></div>
+            </div>
+          </div>
+          <p class="scheme__note">Белые поля перешли из входного документа без изменений, зелёное добавлено стадией. Новое поле встаёт в конец документа.</p>
+        </div>
+        <p>Новое поле получилось тем же выражением <code>$concat</code>, что в главе 4.2. Разница между двумя стадиями — в том, что происходит с остальными полями. Её видно, если поставить одно выражение в обе стадии.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>$addFields и $project</h2>
+        <p>Справка из отдела кадров в главе 4.2 была отдельным листом с тремя графами. Резолюция из §1 — пометка на целом заявлении. Обе содержат новую информацию, но справка заменяет документ, а резолюция дополняет его.</p>
+        <p>Пример выполняет тот же конвейер, что в §1, но последней стадией ставит <code>$project</code> с тем же полем <code>card</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>то же поле через $project</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"segment"</span>: <span class="s">"постоянный"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"name"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+    {<span class="s">"$project"</span>: {<span class="s">"card"</span>: {<span class="s">"$concat"</span>: [<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>]}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>то же поле через $project</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"segment"</span>, <span class="s">"постоянный"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"card"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$concat"</span>, <span class="f">make_array</span>(<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>то же поле через $project</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"segment"</span>, Value: <span class="s">"постоянный"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"name"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"card"</span>, Value: bson.D{{Key: <span class="s">"$concat"</span>, Value: bson.A{<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>}}}}}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>то же поле через $project</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"segment"</span> =&gt; <span class="s">"постоянный"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"name"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"card"</span> =&gt; { <span class="s">"$concat"</span> =&gt; [<span class="s">"$name"</span>, <span class="s">", "</span>, <span class="s">"$city"</span>] } } },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'c-016', 'card': 'Андрей Барсов, Москва'}
+{'_id': 'c-001', 'card': 'Анна Белова, Новосибирск'}
+{'_id': 'c-013', 'card': 'Вера Панина, Москва'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "c-016", "card" : "Андрей Барсов, Москва" }
+{ "_id" : "c-001", "card" : "Анна Белова, Новосибирск" }
+{ "_id" : "c-013", "card" : "Вера Панина, Москва" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"c-016","card":"Андрей Барсов, Москва"}
+{"_id":"c-001","card":"Анна Белова, Новосибирск"}
+{"_id":"c-013","card":"Вера Панина, Москва"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"c-016", "card"=&gt;"Андрей Барсов, Москва"}
+{"_id"=&gt;"c-001", "card"=&gt;"Анна Белова, Новосибирск"}
+{"_id"=&gt;"c-013", "card"=&gt;"Вера Панина, Москва"}</pre>
+        </figure>
+        <p>После <code>$project</code> у каждого покупателя два поля: <code>_id</code>, который проекция оставляет сама, и <code>card</code>. Имя, почта, город и остальные поля в результат не попали, потому что в проекции они не перечислены.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Одно выражение в двух стадиях</span><span>покупатель c-016</span></div>
+          <div class="scheme__body">
+            <div class="cover">
+              <div><b>$addFields: {"card": …}</b>
+                <div class="chips"><i>_id</i><i>name</i><i>email</i><i>city</i><i>registered</i><i>segment</i><i>phone</i><i class="on">card</i></div></div>
+              <div><b>$project: {"card": …}</b>
+                <div class="chips"><i>_id</i><i class="on">card</i></div></div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёным выделено поле, которое вычислила стадия. <code>$addFields</code> добавляет его к восьми полям документа, <code>$project</code> оставляет только его и <code>_id</code>.</p>
+        </div>
+        <p>Отсюда правило выбора. Когда нужен документ целиком и ещё несколько вычисленных полей, ставят <code>$addFields</code>. Когда нужен ответ из нескольких полей, ставят <code>$project</code>. Новое поле может получить и имя, которое в документе уже есть.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Поле с существующим именем</h2>
+        <p>Перед распродажей менеджер берёт копию прайс-листа и в графе «Цена» зачёркивает старые цены, вписывая новые. В копии теперь новые цены, а прайс-лист в папке остался прежним.</p>
+        <p>Если имя поля в <code>$addFields</code> совпадает с именем поля документа, стадия заменяет его значение. Пример записывает в поле <code>price</code> ноутбуков цену со скидкой 10 % и печатает результат функцией <code>show</code> из главы 4.1: товар целиком занимает много строк. Затем пример читает цену MacBook Air 13 прямо из коллекции.</p>
+        <p data-lang="python">Метод <code>find_one</code> из главы 1.4 возвращает первый подходящий документ коллекции словарём, и <code>["price"]</code> берёт из него цену.</p>
+        <p data-lang="ruby">Вызов <code>find(…).first</code> возвращает первый подходящий документ коллекции хешем, и <code>["price"]</code> берёт из него цену.</p>
+        <p data-lang="go">Метод <code>FindOne</code> находит первый подходящий документ коллекции, <code>Decode</code> записывает его в переменную <code>stored</code> типа <code>bson.M</code> — словарь «имя поля — значение». <code>stored["price"]</code> — цена.</p>
+        <p data-lang="cpp">Метод <code>find_one</code> возвращает необязательное значение: документ или ничего. Стрелка <code>-&gt;view()</code> даёт доступ к найденному документу, <code>["price"].get_int32().value</code> — цена, записанная в коллекции целым числом.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>поле с тем же именем</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"category"</span>: <span class="s">"ноутбуки"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"price"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$addFields"</span>: {<span class="s">"price"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$price"</span>, <span class="n">0.9</span>]}}},
+]
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), <span class="s">"title"</span>, <span class="s">"price"</span>)
+<span class="f">print</span>(<span class="s">"в коллекции:"</span>, products.<span class="f">find_one</span>({<span class="s">"title"</span>: <span class="s">"Ноутбук Apple MacBook Air 13"</span>})[<span class="s">"price"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>поле с тем же именем</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"ноутбуки"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"price"</span>, -<span class="n">1</span>)));
+pipeline.<span class="f">add_fields</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$price"</span>, <span class="n">0.9</span>))))));
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), {<span class="s">"title"</span>, <span class="s">"price"</span>});
+<span class="k">auto</span> stored = products.<span class="f">find_one</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"Ноутбук Apple MacBook Air 13"</span>)));
+std::cout &lt;&lt; <span class="s">"в коллекции: "</span> &lt;&lt; stored-&gt;<span class="f">view</span>()[<span class="s">"price"</span>].<span class="f">get_int32</span>().value &lt;&lt; std::endl;</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>поле с тем же именем</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"ноутбуки"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"price"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$addFields"</span>, Value: bson.D{
+        {Key: <span class="s">"price"</span>, Value: bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$price"</span>, <span class="n">0.9</span>}}}}}}},
+}
+
+cursor, _ := products.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"title"</span>, <span class="s">"price"</span>)
+<span class="k">var</span> stored bson.M
+products.<span class="f">FindOne</span>(ctx, bson.D{{Key: <span class="s">"title"</span>, Value: <span class="s">"Ноутбук Apple MacBook Air 13"</span>}}).<span class="f">Decode</span>(&amp;stored)
+fmt.<span class="f">Println</span>(<span class="s">"в коллекции:"</span>, stored[<span class="s">"price"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>поле с тем же именем</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"category"</span> =&gt; <span class="s">"ноутбуки"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"price"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$addFields"</span> =&gt; { <span class="s">"price"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$price"</span>, <span class="n">0.9</span>] } } },
+]
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), <span class="s">"title"</span>, <span class="s">"price"</span>)
+<span class="k">puts</span> <span class="s">"в коллекции: #{products.find({ "</span>title<span class="s">" =&gt; "</span>Ноутбук Apple MacBook Air <span class="n">13</span><span class="s">" }).first["</span>price<span class="s">"]}"</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Ноутбук Apple MacBook Air 13 | 103491.0
+Ноутбук Acer Nitro V15 | 80991.0
+Ноутбук HP Pavilion 14 | 61110.0
+Ноутбук ASUS VivoBook 15 | 46341.0
+Ноутбук Lenovo IdeaPad 3 | 38691.0
+документов: 5
+в коллекции: 114990</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Ноутбук Apple MacBook Air 13 | 103491
+Ноутбук Acer Nitro V15 | 80991
+Ноутбук HP Pavilion 14 | 61110
+Ноутбук ASUS VivoBook 15 | 46341
+Ноутбук Lenovo IdeaPad 3 | 38691
+документов: 5
+в коллекции: 114990</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Ноутбук Apple MacBook Air 13 | 103491
+Ноутбук Acer Nitro V15 | 80991
+Ноутбук HP Pavilion 14 | 61110
+Ноутбук ASUS VivoBook 15 | 46341
+Ноутбук Lenovo IdeaPad 3 | 38691
+документов: 5
+в коллекции: 114990</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Ноутбук Apple MacBook Air 13 | 103491.0
+Ноутбук Acer Nitro V15 | 80991.0
+Ноутбук HP Pavilion 14 | 61110.0
+Ноутбук ASUS VivoBook 15 | 46341.0
+Ноутбук Lenovo IdeaPad 3 | 38691.0
+документов: 5
+в коллекции: 114990</pre>
+        </figure>
+        <p>В результате конвейера в поле <code>price</code> — цены со скидкой, например 103491 у MacBook Air 13. В коллекции у того же ноутбука по-прежнему 114990. Стадия <code>$addFields</code> меняет документы в потоке, а документы в коллекции остаются нетронутыми.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Поле price в коллекции и в потоке</span><span>Apple MacBook Air 13</span></div>
+          <div class="scheme__body">
+            <div class="pipeline">
+              <div class="pipeline__stage"><b>коллекция products</b><span><code>price: 114990</code></span><em>не меняется</em></div>
+              <div class="pipeline__stage"><b>$addFields</b><span><code>"price": {"$multiply": ["$price", 0.9]}</code></span><em>стадия 3</em></div>
+              <div class="pipeline__stage is-lit"><b>результат</b><span><code>price: 103491.0</code></span><em>поток</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Выражение читает старое значение <code>"$price"</code> и записывает новое в поле с тем же именем. Следующие стадии получают уже новое значение.</p>
+        </div>
+        <p>Старое значение после такой стадии в потоке недоступно. Если оно ещё понадобится, новое значение кладут в поле с другим именем, например <code>sale</code>. Замена значения работает и для поля внутри вложенного документа.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Поле во вложенном документе</h2>
+        <p>Почтальон дописывает на конверт номер своего участка рядом с адресом. Город, улица и дом в адресе остаются на месте, к ним добавляется ещё одна строка.</p>
+        <p>Имя поля в <code>$addFields</code> может быть записано через точку: <code>"delivery.fast"</code>. Тогда новое поле появляется внутри вложенного документа <code>delivery</code>, а его остальные поля сохраняются. Пример добавляет трём заказам в пути признак быстрой доставки: <code>true</code>, если срок не больше двух дней.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>поле внутри вложенного документа</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+    {<span class="s">"$addFields"</span>: {<span class="s">"delivery.fast"</span>: {<span class="s">"$lte"</span>: [<span class="s">"$delivery.days"</span>, <span class="n">2</span>]}}},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"delivery.city"</span>, <span class="s">"delivery.type"</span>, <span class="s">"delivery.days"</span>, <span class="s">"delivery.fast"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>поле внутри вложенного документа</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+pipeline.<span class="f">add_fields</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"delivery.fast"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lte"</span>, <span class="f">make_array</span>(<span class="s">"$delivery.days"</span>, <span class="n">2</span>))))));
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"delivery.city"</span>, <span class="s">"delivery.type"</span>, <span class="s">"delivery.days"</span>, <span class="s">"delivery.fast"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>поле внутри вложенного документа</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+    {{Key: <span class="s">"$addFields"</span>, Value: bson.D{
+        {Key: <span class="s">"delivery.fast"</span>, Value: bson.D{{Key: <span class="s">"$lte"</span>, Value: bson.A{<span class="s">"$delivery.days"</span>, <span class="n">2</span>}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"delivery.city"</span>, <span class="s">"delivery.type"</span>, <span class="s">"delivery.days"</span>, <span class="s">"delivery.fast"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>поле внутри вложенного документа</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+  { <span class="s">"$addFields"</span> =&gt; { <span class="s">"delivery.fast"</span> =&gt; { <span class="s">"$lte"</span> =&gt; [<span class="s">"$delivery.days"</span>, <span class="n">2</span>] } } },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"delivery.city"</span>, <span class="s">"delivery.type"</span>, <span class="s">"delivery.days"</span>, <span class="s">"delivery.fast"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | Екатеринбург | пункт выдачи | 1 | true
+2026-0085 | Новосибирск | почта | 9 | false
+2026-0025 | Екатеринбург | пункт выдачи | 4 | false
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | Екатеринбург | пункт выдачи | 1 | true
+2026-0085 | Новосибирск | почта | 9 | false
+2026-0025 | Екатеринбург | пункт выдачи | 4 | false
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | Екатеринбург | пункт выдачи | 1 | true
+2026-0085 | Новосибирск | почта | 9 | false
+2026-0025 | Екатеринбург | пункт выдачи | 4 | false
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0028 | Екатеринбург | пункт выдачи | 1 | true
+2026-0085 | Новосибирск | почта | 9 | false
+2026-0025 | Екатеринбург | пункт выдачи | 4 | false
+документов: 3</pre>
+        </figure>
+        <p>У каждого заказа в <code>delivery</code> остались город, способ и срок доставки, и добавилось поле <code>fast</code>. У заказа 2026-0028 срок 1 день, и <code>fast</code> равно <code>true</code>. У двух других сроки 9 и 4 дня, и <code>fast</code> равно <code>false</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Документ delivery после двух стадий</span><span>заказ 2026-0028</span></div>
+          <div class="scheme__body">
+            <div class="cover">
+              <div><b>$addFields</b>
+                <div class="chips"><i>city</i><i>type</i><i>days: 1</i><i class="on">fast: true</i></div></div>
+              <div><b>$project из главы 4.2, "delivery.city": 1</b>
+                <div class="chips"><i>city</i></div></div>
+            </div>
+          </div>
+          <p class="scheme__note">Точечная запись в <code>$addFields</code> дописывает поле во вложенный документ. В <code>$project</code> та же запись оставляла во вложенном документе только названное поле.</p>
+        </div>
+        <p>Новые поля пригодны не только для вывода. Следующие стадии конвейера получают их наравне с полями из коллекции.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Новое поле в следующих стадиях</h2>
+        <p>В ведомости сначала считают итоговую оценку каждого студента и записывают её в отдельную графу. Затем по этой графе отбирают отличников и сортируют список. Отбор идёт по графе, которой в исходных оценках не было.</p>
+        <p>Поле, добавленное стадией <code>$addFields</code>, есть у документов во всех следующих стадиях. По нему можно отбирать документы в <code>$match</code> и сортировать в <code>$sort</code>. Пример находит три самых дорогих товара, которые со скидкой 10 % стоят меньше 30 000.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>новое поле в $match и $sort</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$addFields"</span>: {<span class="s">"sale"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$price"</span>, <span class="n">0.9</span>]}}},
+    {<span class="s">"$match"</span>: {<span class="s">"sale"</span>: {<span class="s">"$lt"</span>: <span class="n">30000</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"sale"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+]
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), <span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>новое поле в $match и $sort</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">add_fields</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$price"</span>, <span class="n">0.9</span>))))));
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="n">30000</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sale"</span>, -<span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), {<span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>новое поле в $match и $sort</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$addFields"</span>, Value: bson.D{
+        {Key: <span class="s">"sale"</span>, Value: bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$price"</span>, <span class="n">0.9</span>}}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"sale"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: <span class="n">30000</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"sale"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+}
+
+cursor, _ := products.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>новое поле в $match и $sort</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$addFields"</span> =&gt; { <span class="s">"sale"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$price"</span>, <span class="n">0.9</span>] } } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"sale"</span> =&gt; { <span class="s">"$lt"</span> =&gt; <span class="n">30000</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"sale"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+]
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), <span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691.0
+Смартфон realme 12 Pro | 27490 | 24741.0
+Монитор Dell P2422H | 21990 | 19791.0
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691
+Смартфон realme 12 Pro | 27490 | 24741
+Монитор Dell P2422H | 21990 | 19791
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691
+Смартфон realme 12 Pro | 27490 | 24741
+Монитор Dell P2422H | 21990 | 19791
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691.0
+Смартфон realme 12 Pro | 27490 | 24741.0
+Монитор Dell P2422H | 21990 | 19791.0
+документов: 3</pre>
+        </figure>
+        <p>Первым в результате стоит Samsung Galaxy A55: его цена 32 990 выше порога, а цена со скидкой 29 691 ниже. Условие <code>$match</code> проверяет новое поле <code>sale</code>, цена из коллекции в отборе не участвует.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Сколько товаров выходит из каждой стадии</span><span>полная полоса — 21</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <div class="bar"><span>вход: products</span><span class="bar__track"><i style="width:100%"></i></span><span>21</span></div>
+                <div class="bar"><span>1 · $addFields</span><span class="bar__track"><i style="width:100%"></i></span><span>21</span></div>
+                <div class="bar"><span>2 · $match sale</span><span class="bar__track"><i style="width:61.9%"></i></span><span>13</span></div>
+                <div class="bar"><span>3 · $sort</span><span class="bar__track"><i style="width:61.9%"></i></span><span>13</span></div>
+                <div class="bar"><span>4 · $limit 3</span><span class="bar__track"><i class="on" style="width:14.29%"></i></span><span>3</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note"><code>$addFields</code> и <code>$sort</code> не меняют число документов. Условию <code>sale &lt; 30000</code> подходят 13 товаров из 21, предел оставляет три самых дорогих из них.</p>
+        </div>
+        <p>Числа 21 и 13 посчитаны на стенде тем же конвейером без последних стадий, как в примере главы 4.1, §3. У стадии <code>$addFields</code> есть второе имя, и этот же конвейер можно записать с ним.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>$set — второе имя $addFields</h2>
+        <p>В MongoDB 4.2 у стадии <code>$addFields</code> появилось второе имя — <code>$set</code>. Это одна и та же стадия: параметр записывается так же, результат тот же. Пример повторяет конвейер из §5, заменив <code>$addFields</code> на <code>$set</code>.</p>
+        <p data-lang="cpp">Для стадии <code>$set</code> в <code>mongocxx::pipeline</code> своего метода нет, поэтому она добавляется методом <code>append_stage</code> — документом стадии целиком.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>тот же конвейер со стадией $set</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$set"</span>: {<span class="s">"sale"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$price"</span>, <span class="n">0.9</span>]}}},
+    {<span class="s">"$match"</span>: {<span class="s">"sale"</span>: {<span class="s">"$lt"</span>: <span class="n">30000</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"sale"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+]
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), <span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>тот же конвейер со стадией $set</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$price"</span>, <span class="n">0.9</span>))))))));
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sale"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="n">30000</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sale"</span>, -<span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), {<span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>тот же конвейер со стадией $set</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$set"</span>, Value: bson.D{
+        {Key: <span class="s">"sale"</span>, Value: bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$price"</span>, <span class="n">0.9</span>}}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"sale"</span>, Value: bson.D{{Key: <span class="s">"$lt"</span>, Value: <span class="n">30000</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"sale"</span>, Value: -<span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+}
+
+cursor, _ := products.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>тот же конвейер со стадией $set</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"sale"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$price"</span>, <span class="n">0.9</span>] } } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"sale"</span> =&gt; { <span class="s">"$lt"</span> =&gt; <span class="n">30000</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"sale"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+]
+
+<span class="f">show</span>(products.<span class="f">aggregate</span>(pipeline), <span class="s">"title"</span>, <span class="s">"price"</span>, <span class="s">"sale"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691.0
+Смартфон realme 12 Pro | 27490 | 24741.0
+Монитор Dell P2422H | 21990 | 19791.0
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691
+Смартфон realme 12 Pro | 27490 | 24741
+Монитор Dell P2422H | 21990 | 19791
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691
+Смартфон realme 12 Pro | 27490 | 24741
+Монитор Dell P2422H | 21990 | 19791
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>Смартфон Samsung Galaxy A55 | 32990 | 29691.0
+Смартфон realme 12 Pro | 27490 | 24741.0
+Монитор Dell P2422H | 21990 | 19791.0
+документов: 3</pre>
+        </figure>
+        <p>Вывод совпадает с выводом §5 строка в строку. Имя <code>$set</code> выбрано по аналогии с оператором обновления <code>$set</code> из главы 1.7: оба записывают значение в поле. Действуют они в разных местах.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th></th><th>Стадия <code>$set</code></th><th>Оператор <code>$set</code></th></tr></thead>
+            <tbody>
+              <tr><td>Где пишется</td><td>в конвейере: <code>aggregate([…, {"$set": {…}}])</code></td><td>в обновлении: <code>update_one(фильтр, {"$set": {…}})</code></td></tr>
+              <tr><td>Что меняет</td><td>документы в потоке</td><td>документы в коллекции</td></tr>
+              <tr><td>Значение поля</td><td>путь к полю или выражение</td><td>значение, записанное в запросе</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>В книге дальше используется имя <code>$addFields</code>: по нему сразу видно, что стадия добавляет поля. Для обратной задачи — убрать поля — есть отдельная стадия.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Стадия $unset</h2>
+        <p>Перед тем как отдать список покупателей курьерской службе, из копии вычёркивают телефоны и почту: курьеру нужны имя и город. Остальные графы остаются на месте.</p>
+        <p><span class="term">Стадия $unset</span> убирает из каждого документа потока перечисленные поля и оставляет остальные. Параметр — имя поля строкой или список имён: <code>{"$unset": ["phone", "email"]}</code>. Вложенное поле указывается через точку. Поле, которого в документе нет, стадия пропускает без ошибки.</p>
+        <p>Пример убирает у трёх постоянных покупателей телефон и почту.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>стадия $unset</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"segment"</span>: <span class="s">"постоянный"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"name"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+    {<span class="s">"$unset"</span>: [<span class="s">"phone"</span>, <span class="s">"email"</span>]},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>стадия $unset</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"segment"</span>, <span class="s">"постоянный"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unset"</span>, <span class="f">make_array</span>(<span class="s">"phone"</span>, <span class="s">"email"</span>))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>стадия $unset</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"segment"</span>, Value: <span class="s">"постоянный"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"name"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+    {{Key: <span class="s">"$unset"</span>, Value: bson.A{<span class="s">"phone"</span>, <span class="s">"email"</span>}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>стадия $unset</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"segment"</span> =&gt; <span class="s">"постоянный"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"name"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+  { <span class="s">"$unset"</span> =&gt; [<span class="s">"phone"</span>, <span class="s">"email"</span>] },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'c-016', 'name': 'Андрей Барсов', 'city': 'Москва', 'registered': datetime.datetime(2025, 12, 13, 0, 0), 'segment': 'постоянный'}
+{'_id': 'c-001', 'name': 'Анна Белова', 'city': 'Новосибирск', 'registered': datetime.datetime(2026, 3, 13, 0, 0), 'segment': 'постоянный'}
+{'_id': 'c-013', 'name': 'Вера Панина', 'city': 'Москва', 'registered': datetime.datetime(2025, 12, 3, 0, 0), 'segment': 'постоянный'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "c-016", "name" : "Андрей Барсов", "city" : "Москва", "registered" : { "$date" : "2025-12-13T00:00:00Z" }, "segment" : "постоянный" }
+{ "_id" : "c-001", "name" : "Анна Белова", "city" : "Новосибирск", "registered" : { "$date" : "2026-03-13T00:00:00Z" }, "segment" : "постоянный" }
+{ "_id" : "c-013", "name" : "Вера Панина", "city" : "Москва", "registered" : { "$date" : "2025-12-03T00:00:00Z" }, "segment" : "постоянный" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"c-016","name":"Андрей Барсов","city":"Москва","registered":{"$date":"2025-12-13T00:00:00Z"},"segment":"постоянный"}
+{"_id":"c-001","name":"Анна Белова","city":"Новосибирск","registered":{"$date":"2026-03-13T00:00:00Z"},"segment":"постоянный"}
+{"_id":"c-013","name":"Вера Панина","city":"Москва","registered":{"$date":"2025-12-03T00:00:00Z"},"segment":"постоянный"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"c-016", "name"=&gt;"Андрей Барсов", "city"=&gt;"Москва", "registered"=&gt;2025-12-13 00:00:00 UTC, "segment"=&gt;"постоянный"}
+{"_id"=&gt;"c-001", "name"=&gt;"Анна Белова", "city"=&gt;"Новосибирск", "registered"=&gt;2026-03-13 00:00:00 UTC, "segment"=&gt;"постоянный"}
+{"_id"=&gt;"c-013", "name"=&gt;"Вера Панина", "city"=&gt;"Москва", "registered"=&gt;2025-12-03 00:00:00 UTC, "segment"=&gt;"постоянный"}</pre>
+        </figure>
+        <p>У покупателей осталось пять полей: <code>_id</code>, имя, город, дата регистрации и сегмент. Тот же результат даёт исключающая проекция <code>{"$project": {"phone": 0, "email": 0}}</code> из главы 4.2. Запись <code>$unset</code> короче и сразу читается как «убрать».</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Покупатель c-016 до и после $unset</span><span>phone и email</span></div>
+          <div class="scheme__body">
+            <div class="cover">
+              <div><b>На входе стадии</b>
+                <div class="chips"><i>_id</i><i>name</i><i class="no">email</i><i>city</i><i>registered</i><i>segment</i><i class="no">phone</i></div></div>
+              <div><b>На выходе стадии</b>
+                <div class="chips"><i>_id</i><i>name</i><i>city</i><i>registered</i><i>segment</i></div></div>
+            </div>
+          </div>
+          <p class="scheme__note">Красным выделены поля, которые стадия убрала. Остальные пять полей перешли без изменений и в том же порядке.</p>
+        </div>
+        <p>В проекции поле убирается значением <code>0</code>. В стадии <code>$addFields</code> то же значение работает иначе.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Ноль в $addFields</h2>
+        <p>В стадии <code>$project</code> значения <code>1</code> и <code>0</code> означают «включить» и «исключить». В стадии <code>$addFields</code> у них нет особого смысла: число записывается в поле как значение. Пример ставит <code>"phone": 0</code> в <code>$addFields</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>ноль в $addFields</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"segment"</span>: <span class="s">"постоянный"</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"name"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+    {<span class="s">"$addFields"</span>: {<span class="s">"phone"</span>: <span class="n">0</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>ноль в $addFields</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"segment"</span>, <span class="s">"постоянный"</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+pipeline.<span class="f">add_fields</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"phone"</span>, <span class="n">0</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>ноль в $addFields</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"segment"</span>, Value: <span class="s">"постоянный"</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"name"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+    {{Key: <span class="s">"$addFields"</span>, Value: bson.D{{Key: <span class="s">"phone"</span>, Value: <span class="n">0</span>}}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>ноль в $addFields</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"segment"</span> =&gt; <span class="s">"постоянный"</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"name"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+  { <span class="s">"$addFields"</span> =&gt; { <span class="s">"phone"</span> =&gt; <span class="n">0</span> } },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'c-016', 'name': 'Андрей Барсов', 'email': 'user16@example.com', 'city': 'Москва', 'registered': datetime.datetime(2025, 12, 13, 0, 0), 'segment': 'постоянный', 'phone': 0}
+{'_id': 'c-001', 'name': 'Анна Белова', 'email': 'user01@example.com', 'city': 'Новосибирск', 'registered': datetime.datetime(2026, 3, 13, 0, 0), 'segment': 'постоянный', 'phone': 0}
+{'_id': 'c-013', 'name': 'Вера Панина', 'email': 'user13@example.com', 'city': 'Москва', 'registered': datetime.datetime(2025, 12, 3, 0, 0), 'segment': 'постоянный', 'phone': 0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "c-016", "name" : "Андрей Барсов", "email" : "user16@example.com", "city" : "Москва", "registered" : { "$date" : "2025-12-13T00:00:00Z" }, "segment" : "постоянный", "phone" : 0 }
+{ "_id" : "c-001", "name" : "Анна Белова", "email" : "user01@example.com", "city" : "Новосибирск", "registered" : { "$date" : "2026-03-13T00:00:00Z" }, "segment" : "постоянный", "phone" : 0 }
+{ "_id" : "c-013", "name" : "Вера Панина", "email" : "user13@example.com", "city" : "Москва", "registered" : { "$date" : "2025-12-03T00:00:00Z" }, "segment" : "постоянный", "phone" : 0 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"c-016","name":"Андрей Барсов","email":"user16@example.com","city":"Москва","registered":{"$date":"2025-12-13T00:00:00Z"},"segment":"постоянный","phone":0}
+{"_id":"c-001","name":"Анна Белова","email":"user01@example.com","city":"Новосибирск","registered":{"$date":"2026-03-13T00:00:00Z"},"segment":"постоянный","phone":0}
+{"_id":"c-013","name":"Вера Панина","email":"user13@example.com","city":"Москва","registered":{"$date":"2025-12-03T00:00:00Z"},"segment":"постоянный","phone":0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"c-016", "name"=&gt;"Андрей Барсов", "email"=&gt;"user16@example.com", "city"=&gt;"Москва", "registered"=&gt;2025-12-13 00:00:00 UTC, "segment"=&gt;"постоянный", "phone"=&gt;0}
+{"_id"=&gt;"c-001", "name"=&gt;"Анна Белова", "email"=&gt;"user01@example.com", "city"=&gt;"Новосибирск", "registered"=&gt;2026-03-13 00:00:00 UTC, "segment"=&gt;"постоянный", "phone"=&gt;0}
+{"_id"=&gt;"c-013", "name"=&gt;"Вера Панина", "email"=&gt;"user13@example.com", "city"=&gt;"Москва", "registered"=&gt;2025-12-03 00:00:00 UTC, "segment"=&gt;"постоянный", "phone"=&gt;0}</pre>
+        </figure>
+        <p>Телефон из документов не исчез: у всех трёх покупателей поле <code>phone</code> теперь равно 0. Сервер выполнил стадию без ошибки, поэтому по сообщениям сервера такую ошибку не заметить: её видно только в документах результата.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Стадия</th><th>Что делает с полем <code>phone</code></th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$project": {"phone": 0}}</code></td><td>убирает поле, остальные оставляет</td></tr>
+              <tr><td><code>{"$unset": "phone"}</code></td><td>убирает поле, остальные оставляет</td></tr>
+              <tr><td><code>{"$addFields": {"phone": 0}}</code></td><td>записывает в поле число 0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Стадии этой главы собираются в Compass так же, как стадии глав 4.1 и 4.2.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>$addFields в Compass</h2>
+        <p>Стадия <code>$addFields</code> выбирается в поле оператора карточки, как <code>$match</code> и <code>$project</code>. На кадре — конвейер из §1: отбор постоянных покупателей, сортировка по имени, предел 3 и <code>$addFields</code> с полем <code>card</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/145-customers-addfields.png" alt="Compass, вкладка Aggregations коллекции shop.customers в режиме Stages: стадия 3 $limit с выборкой покупателей без поля card и стадия 4 $addFields, у тех же покупателей последним полем стоит card: Андрей Барсов, Москва и Анна Белова, Новосибирск">
+          <figcaption>Compass · стадии <code>$limit</code> и <code>$addFields</code> конвейера из §1</figcaption>
+        </figure>
+        <p>Выборки двух соседних стадий отличаются одной строкой. После <code>$limit</code> у Андрея Барсова последнее поле — <code>phone</code>. После <code>$addFields</code> под ним появилось <code>card: "Андрей Барсов, Москва"</code>, остальные поля те же. Карточки выборки на кадре прокручены вниз, чтобы последнее поле было видно.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$addFields": {"phone": 0}}</code></td><td>Поле не удаляется: у каждого документа <code>phone</code> становится равным 0</td><td>Убирать поля стадией <code>{"$unset": ["phone"]}</code></td></tr>
+              <tr><td><code>{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}</code>, затем ожидание старой цены</td><td>Поле с тем же именем перезаписано: дальше по конвейеру цена уже со скидкой</td><td>Новое значение класть в поле с новым именем: <code>sale</code></td></tr>
+              <tr><td><code>$match</code> по новому полю перед <code>$addFields</code></td><td>Поля ещё нет, условию не подходит ни один документ</td><td>Сначала <code>$addFields</code>, затем <code>$match</code> по новому полю</td></tr>
+              <tr><td>Ожидание, что <code>$addFields</code> изменит коллекцию</td><td>Меняются только документы в потоке; в коллекции значения прежние</td><td>Для изменения коллекции — <code>update_one</code> и <code>update_many</code> из главы 1.7</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$addFields": {"phone": 0}}</code></td><td>Поле не удаляется: у каждого документа <code>phone</code> становится равным 0</td><td>Убирать поля стадией <code>{"$unset": ["phone"]}</code></td></tr>
+              <tr><td><code>{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}</code>, затем ожидание старой цены</td><td>Поле с тем же именем перезаписано: дальше по конвейеру цена уже со скидкой</td><td>Новое значение класть в поле с новым именем: <code>sale</code></td></tr>
+              <tr><td><code>$match</code> по новому полю перед <code>$addFields</code></td><td>Поля ещё нет, условию не подходит ни один документ</td><td>Сначала <code>$addFields</code>, затем <code>$match</code> по новому полю</td></tr>
+              <tr><td>Ожидание, что <code>$addFields</code> изменит коллекцию</td><td>Меняются только документы в потоке; в коллекции значения прежние</td><td>Для изменения коллекции — <code>update_one</code> и <code>update_many</code> из главы 1.7</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$addFields": {"phone": 0}}</code></td><td>Поле не удаляется: у каждого документа <code>phone</code> становится равным 0</td><td>Убирать поля стадией <code>{"$unset": ["phone"]}</code></td></tr>
+              <tr><td><code>{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}</code>, затем ожидание старой цены</td><td>Поле с тем же именем перезаписано: дальше по конвейеру цена уже со скидкой</td><td>Новое значение класть в поле с новым именем: <code>sale</code></td></tr>
+              <tr><td><code>$match</code> по новому полю перед <code>$addFields</code></td><td>Поля ещё нет, условию не подходит ни один документ</td><td>Сначала <code>$addFields</code>, затем <code>$match</code> по новому полю</td></tr>
+              <tr><td>Ожидание, что <code>$addFields</code> изменит коллекцию</td><td>Меняются только документы в потоке; в коллекции значения прежние</td><td>Для изменения коллекции — <code>update_one</code> и <code>update_many</code> из главы 1.7</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$addFields": {"phone": 0}}</code></td><td>Поле не удаляется: у каждого документа <code>phone</code> становится равным 0</td><td>Убирать поля стадией <code>{"$unset": ["phone"]}</code></td></tr>
+              <tr><td><code>{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}</code>, затем ожидание старой цены</td><td>Поле с тем же именем перезаписано: дальше по конвейеру цена уже со скидкой</td><td>Новое значение класть в поле с новым именем: <code>sale</code></td></tr>
+              <tr><td><code>$match</code> по новому полю перед <code>$addFields</code></td><td>Поля ещё нет, условию не подходит ни один документ</td><td>Сначала <code>$addFields</code>, затем <code>$match</code> по новому полю</td></tr>
+              <tr><td>Ожидание, что <code>$addFields</code> изменит коллекцию</td><td>Меняются только документы в потоке; в коллекции значения прежние</td><td>Для изменения коллекции — <code>update_one</code> и <code>update_many</code> из главы 1.7</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем результат <code>{"$addFields": {"card": …}}</code> отличается от <code>{"$project": {"card": …}}</code>?</summary>
+          <p>После <code>$addFields</code> у документа остаются все прежние поля и добавляется <code>card</code>. После <code>$project</code> остаются только <code>_id</code> и <code>card</code>.</p>
+        </details>
+        <details>
+          <summary>Стадия <code>{"$addFields": {"price": {"$multiply": ["$price", 0.9]}}}</code> изменит цену в коллекции?</summary>
+          <p>Нет. Новое значение есть только у документов в потоке. В коллекции цена прежняя.</p>
+        </details>
+        <details>
+          <summary>Что останется в <code>delivery</code> после <code>{"$addFields": {"delivery.fast": true}}</code>?</summary>
+          <p>Все прежние поля — город, способ и срок доставки — и новое поле <code>fast</code>.</p>
+        </details>
+        <details>
+          <summary>Чем стадия <code>$set</code> отличается от <code>$addFields</code>?</summary>
+          <p>Ничем: <code>$set</code> — второе имя той же стадии, появилось в MongoDB 4.2.</p>
+        </details>
+        <details>
+          <summary>Что сделает <code>{"$addFields": {"phone": 0}}</code>?</summary>
+          <p>Запишет в поле <code>phone</code> число 0. Убирают поле стадией <code>{"$unset": "phone"}</code> или проекцией <code>{"$project": {"phone": 0}}</code>.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_3</code> с функцией <code>show</code>. Данные — <code>shop.orders</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Признаки заказа</b>Для доставленных заказов добавить стадией <code>$addFields</code> два поля: <code>big</code> — сумма не меньше 200 000, <code>fast</code> — срок доставки не больше двух дней. Значения — <code>true</code> или <code>false</code>.</li>
+          <li><b>Отбор по новым полям</b>Оставить заказы, у которых оба признака равны <code>true</code>, и посчитать их.</li>
+          <li><b>Лишние поля</b>Убрать стадией <code>$unset</code> позиции, оплату и покупателя, отсортировать по сумме по убыванию и оставить три заказа. Вывести номер, город, срок и сумму.</li>
+          <li><b>Второе имя</b>Заменить <code>$addFields</code> на <code>$set</code> и убедиться, что результат не изменился.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Стадия признаков — <code>{"$addFields": {"big": {"$gte": ["$total", 200000]}, "fast": {"$lte": ["$delivery.days", 2]}}}</code> после <code>{"$match": {"status": "доставлен"}}</code>. Отбор <code>{"$match": {"big": true, "fast": true}}</code> оставляет 5 заказов. После <code>{"$unset": ["items", "payment", "customer_id"]}</code>, сортировки и предела — 2026-0091 (Новосибирск, 1 день, 354960), 2026-0009 (Санкт-Петербург, 2 дня, 320740), 2026-0008 (Екатеринбург, 1 день, 285750). Со стадией <code>$set</code> результат тот же.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Добавить поле</b>
+            <code>{"$addFields": {"card": {"$concat": ["$name", ", ", "$city"]}}}</code>
+          </div>
+          <div>
+            <b>То же — $set</b>
+            <code>{"$set": {"card": {"$concat": ["$name", ", ", "$city"]}}}</code>
+          </div>
+          <div>
+            <b>Поле во вложенном документе</b>
+            <code>{"$addFields": {"delivery.fast": {"$lte": ["$delivery.days", 2]}}}</code>
+          </div>
+          <div>
+            <b>Убрать поля</b>
+            <code>{"$unset": ["phone", "email"]}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Добавить поле</b>
+            <code>pipeline.add_fields(make_document(kvp("card", make_document(kvp("$concat", make_array("$name", ", ", "$city"))))));</code>
+          </div>
+          <div>
+            <b>То же — $set</b>
+            <code>pipeline.append_stage(make_document(kvp("$set", make_document(kvp("card", make_document(kvp("$concat", make_array("$name", ", ", "$city"))))))));</code>
+          </div>
+          <div>
+            <b>Поле во вложенном документе</b>
+            <code>pipeline.add_fields(make_document(kvp("delivery.fast", make_document(kvp("$lte", make_array("$delivery.days", 2))))));</code>
+          </div>
+          <div>
+            <b>Убрать поля</b>
+            <code>pipeline.append_stage(make_document(kvp("$unset", make_array("phone", "email"))));</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Добавить поле</b>
+            <code>bson.D{{Key: "$addFields", Value: bson.D{{Key: "card", Value: bson.D{{Key: "$concat", Value: bson.A{"$name", ", ", "$city"}}}}}}}</code>
+          </div>
+          <div>
+            <b>То же — $set</b>
+            <code>bson.D{{Key: "$set", Value: bson.D{{Key: "card", Value: bson.D{{Key: "$concat", Value: bson.A{"$name", ", ", "$city"}}}}}}}</code>
+          </div>
+          <div>
+            <b>Поле во вложенном документе</b>
+            <code>bson.D{{Key: "$addFields", Value: bson.D{{Key: "delivery.fast", Value: bson.D{{Key: "$lte", Value: bson.A{"$delivery.days", 2}}}}}}}</code>
+          </div>
+          <div>
+            <b>Убрать поля</b>
+            <code>bson.D{{Key: "$unset", Value: bson.A{"phone", "email"}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Добавить поле</b>
+            <code>{ "$addFields" =&gt; { "card" =&gt; { "$concat" =&gt; ["$name", ", ", "$city"] } } }</code>
+          </div>
+          <div>
+            <b>То же — $set</b>
+            <code>{ "$set" =&gt; { "card" =&gt; { "$concat" =&gt; ["$name", ", ", "$city"] } } }</code>
+          </div>
+          <div>
+            <b>Поле во вложенном документе</b>
+            <code>{ "$addFields" =&gt; { "delivery.fast" =&gt; { "$lte" =&gt; ["$delivery.days", 2] } } }</code>
+          </div>
+          <div>
+            <b>Убрать поля</b>
+            <code>{ "$unset" =&gt; ["phone", "email"] }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Стадия <code>$addFields</code> добавляет к каждому документу потока новые поля и сохраняет все остальные; <code>$project</code> с тем же выражением оставил бы только новое поле и <code>_id</code>. Поле с существующим именем получает новое значение, но только в потоке: коллекция не меняется. Точечное имя добавляет поле во вложенный документ, не трогая его остальные поля. Новые поля доступны следующим стадиям — по ним можно отбирать и сортировать. <code>$set</code> — второе имя <code>$addFields</code>. Стадия <code>$unset</code> убирает перечисленные поля. Значение <code>0</code> в <code>$addFields</code> записывается в поле как число.</p>
+
+        <div class="pager"><a href="../26-project/index.html">← 4.2 $project</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.3 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
