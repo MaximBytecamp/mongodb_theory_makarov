@@ -1059,7 +1059,7 @@ customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k
         <h3>Итог главы</h3>
         <p>Стадия <code>$addFields</code> добавляет к каждому документу потока новые поля и сохраняет все остальные; <code>$project</code> с тем же выражением оставил бы только новое поле и <code>_id</code>. Поле с существующим именем получает новое значение, но только в потоке: коллекция не меняется. Точечное имя добавляет поле во вложенный документ, не трогая его остальные поля. Новые поля доступны следующим стадиям — по ним можно отбирать и сортировать. <code>$set</code> — второе имя <code>$addFields</code>. Стадия <code>$unset</code> убирает перечисленные поля. Значение <code>0</code> в <code>$addFields</code> записывается в поле как число.</p>
 
-        <div class="pager"><a href="../26-project/index.html">← 4.2 $project</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../26-project/index.html">← 4.2 $project</a><a href="../28-group/index.html">4.4 $group и аккумуляторы →</a></div>
 
         <div class="colophon">
           <span>Глава 4.3 · Справочник по MongoDB</span>

@@ -530,6 +530,8 @@ def cheat_lines(value) -> dict:
     """Карточка шпаргалки: один литерал на языке каждого драйвера. Стадию
     в C++ показываем методом конвейера: так она и добавляется в коде."""
     out = {lang: [flat(value, lang)] for lang in LANGS4}
+    if len(value) != 1:
+        return out
     (key, arg), = value.items()
     if key.startswith("$") and key not in ("$cond", "$concat", "$multiply"):
         method = CPP_METHOD.get(key)
@@ -617,4 +619,94 @@ CHEATS["4.3"] = [
     ("То же — $set", cheat_lines({"$set": {"card": {"$concat": ["$name", ", ", "$city"]}}})),
     ("Поле во вложенном документе", cheat_lines({"$addFields": {"delivery.fast": {"$lte": ["$delivery.days", 2]}}})),
     ("Убрать поля", cheat_lines({"$unset": ["phone", "email"]})),
+]
+
+
+# ── 4.4 $group и аккумуляторы ─────────────────────────────────────────────
+
+DELIVERED = {"$match": {"status": "доставлен"}}
+BY_CITY = {"$group": {"_id": "$delivery.city", "orders": {"$sum": 1}, "revenue": {"$sum": "$total"}}}
+
+# выручка по городам
+example("4.4", "bycity", "доставленные заказы по городам", agg_docs([DELIVERED, BY_CITY, {"$sort": {"_id": 1}}]))
+
+# одна группа на все документы
+example("4.4", "total", "одна группа: _id null", agg_docs([DELIVERED, {"$group": {
+    "_id": None, "orders": {"$sum": 1}, "revenue": {"$sum": "$total"}}}]))
+
+# среднее, минимум, максимум; округление среднего
+example("4.4", "stats", "$avg, $min и $max", agg_docs([
+    DELIVERED,
+    {"$group": {"_id": "$delivery.city", "avg": {"$avg": "$total"},
+                "min": {"$min": "$total"}, "max": {"$max": "$total"}}},
+    {"$project": {"avg": {"$round": ["$avg", 0]}, "min": 1, "max": 1}},
+    {"$sort": {"_id": 1}},
+]))
+
+# составной ключ
+example("4.4", "composite", "ключ из двух полей", agg_docs([
+    {"$match": {"status": "доставлен", "delivery.city": {"$in": ["Москва", "Ярославль"]}}},
+    {"$group": {"_id": {"city": "$delivery.city", "type": "$delivery.type"},
+                "orders": {"$sum": 1}, "revenue": {"$sum": "$total"}}},
+    {"$sort": {"_id.city": 1, "_id.type": 1}},
+]))
+
+# $match до $group: какие заказы считать
+ALL_ORDERS = [{"$group": {"_id": "$delivery.city", "revenue": {"$sum": "$total"}}}, {"$sort": {"_id": 1}}]
+ONLY_DELIVERED = [DELIVERED] + ALL_ORDERS
+example("4.4", "before", "$match до $group", {
+    lang: pipeline(ALL_ORDERS, lang, gvar("all_orders", lang)) + "\n\n"
+    + pipeline(ONLY_DELIVERED, lang, gvar("only_delivered", lang)) + "\n\n"
+    + title_code(lang, "все заказы") + "\n" + docs_code(lang, var=gvar("all_orders", lang)) + "\n\n"
+    + title_code(lang, "только доставленные") + "\n" + docs_code(lang, var=gvar("only_delivered", lang), first=False)
+    for lang in LANGS4})
+
+# $match после $group: отбор групп
+example("4.4", "after", "$match после $group", agg_docs([
+    DELIVERED,
+    {"$group": {"_id": "$delivery.city", "revenue": {"$sum": "$total"}}},
+    {"$match": {"revenue": {"$gte": 2000000}}},
+    {"$sort": {"revenue": -1}},
+]))
+
+# аккумулятор по строковому полю
+example("4.4", "strings", "$sum и $avg по строкам", agg_docs([{"$group": {
+    "_id": None, "sum": {"$sum": "$number"}, "avg": {"$avg": "$number"}}}]))
+
+# ошибки записи $group
+NO_ACC = [{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}]
+NO_ID = [{"$group": {"orders": {"$sum": 1}}}]
+example("4.4", "errors", "поле без аккумулятора и группа без _id", {
+    lang: IMPORT_ERR.get(lang, "")
+    + pipeline(NO_ACC, lang, gvar("no_accumulator", lang)) + "\n\n"
+    + pipeline(NO_ID, lang, gvar("no_id", lang)) + "\n\n"
+    + title_code(lang, "поле без аккумулятора") + "\n" + try_code(lang, var=gvar("no_accumulator", lang)) + "\n\n"
+    + title_code(lang, "группа без _id") + "\n" + try_code(lang, var=gvar("no_id", lang), first=False)
+    for lang in LANGS4})
+
+
+ERRORS["4.4"] = [
+    ('<code>{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}</code>',
+     "Ошибка 40234: каждое поле группы, кроме <code>_id</code>, должно быть аккумулятором",
+     'Значение поля — аккумулятор, например <code>{"$max": "$number"}</code>; поле ключа уже лежит в <code>_id</code>'),
+    ('<code>{"$group": {"orders": {"$sum": 1}}}</code>',
+     "Ошибка 15955: у стадии <code>$group</code> нет <code>_id</code>",
+     'Ключ обязателен; одна группа на все документы — <code>"_id": null</code>'),
+    ('<code>{"_id": "delivery.city"}</code>',
+     "Без знака <code>$</code> ключ — один и тот же текст у всех документов: получается одна группа",
+     'Путь к полю: <code>"_id": "$delivery.city"</code>'),
+    ('<code>{"$sum": "$number"}</code> по строковому полю',
+     "Ошибки нет: строки пропускаются, сумма 0, а <code>$avg</code> даёт <code>null</code>",
+     "Суммировать только числовые поля; при сомнении проверить тип в Compass на вкладке Schema"),
+    ("<code>$group</code> по всем заказам вместо доставленных",
+     "В выручку попадают отменённые и не доставленные заказы",
+     "Отбирать документы стадией <code>$match</code> до <code>$group</code>"),
+]
+
+CHEATS["4.4"] = [
+    ("Группа и счёт", cheat_lines({"$group": {"_id": "$delivery.city", "orders": {"$sum": 1}}})),
+    ("Сумма поля", cheat_lines({"revenue": {"$sum": "$total"}})),
+    ("Среднее, минимум, максимум", cheat_lines({"avg": {"$avg": "$total"}, "min": {"$min": "$total"}, "max": {"$max": "$total"}})),
+    ("Одна группа на всё", cheat_lines({"$group": {"_id": None, "revenue": {"$sum": "$total"}}})),
+    ("Ключ из двух полей", cheat_lines({"_id": {"city": "$delivery.city", "type": "$delivery.type"}})),
 ]

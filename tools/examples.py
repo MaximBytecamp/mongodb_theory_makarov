@@ -54,6 +54,7 @@ CHAPTERS = {
     "4.1": ("25-konveyer-match", "Конвейер агрегации: $match, $sort, $limit", False),
     "4.2": ("26-project", "$project: форма ответа", False),
     "4.3": ("27-addfields-set-unset", "$addFields, $set и $unset", False),
+    "4.4": ("28-group", "$group и аккумуляторы", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.

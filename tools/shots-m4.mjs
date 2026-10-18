@@ -372,4 +372,19 @@ await withCompass(async page => {
     await settle(800);
     await shot('145-customers-addfields', 969);
   }
+  // --- 146 · 4.4 §9: стадия $group по городам -------------------------
+  if (need('146-orders-group')) {
+    const BY_CITY = `[
+  { $match: { status: "доставлен" } },
+  { $group: { _id: "$delivery.city", orders: { $sum: 1 }, revenue: { $sum: "$total" } } },
+  { $sort: { _id: 1 } }
+]`;
+    await openCollection('shop', 'orders');
+    await openTab('Aggregations');
+    await setPipeline(BY_CITY);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').nth(1).evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('146-orders-group', 969);
+  }
 });

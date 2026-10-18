@@ -1,0 +1,1338 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.4 $group и аккумуляторы · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: поток документов по стадиям, документы до и после стадии. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 6px; }
+    .scheme__body > b { display: block; margin: 4px 0 8px; font: 600 13px/1.4 var(--mono); }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .bars { display: grid; gap: 16px; padding-bottom: 10px; }
+    .bar { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 10px; margin: 3px 0; font: 400 12.5px/1.3 var(--mono); }
+    .bar__track { height: 16px; border: 2px solid var(--ink); }
+    .bar__track i { display: block; height: 100%; background: var(--ink-faint); }
+    .bar__track i.on { background: var(--leaf-bright); }
+    .bar > span:last-child { text-align: right; font-weight: 700; }
+    @media (max-width: 560px) { .bar { grid-template-columns: 1fr 44px; } .bar > span:first-child { grid-column: 1 / -1; } }
+    .ixlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 8px; }
+    .ixlist b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .ixlist ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); font: 400 12.5px/1.55 var(--mono); }
+    .ixlist li { padding: 0 9px; color: var(--ink-faint); border-bottom: 1px solid var(--rule); }
+    .ixlist li:last-child { border-bottom: 0; }
+    .ixlist li.on { background: var(--leaf-bright); color: var(--ink); font-weight: 700; }
+    .ixlist li.pl { color: var(--ink); }
+    .ixlist li.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+    .ixlist em { display: block; margin-top: 6px; font-style: normal; font-size: 14px; color: var(--ink-soft); }
+    .cover { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; padding-bottom: 12px; }
+    .cover b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chips i { padding: 2px 7px; border: 2px solid var(--ink); font: 400 12px/1.4 var(--mono); font-style: normal; }
+    .chips i.on { background: var(--leaf-bright); font-weight: 700; }
+    .chips i.no { background: var(--clay-pale); color: var(--clay); font-weight: 700; }
+    .bars > div > b { display: block; margin-bottom: 4px; font: 600 13px/1.4 var(--mono); }
+    .range { display: grid; gap: 10px; padding: 6px 0 12px; }
+    .range__row { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px; font: 400 12.5px/1.3 var(--mono); }
+    .range__row em { display: block; font-style: normal; font-size: 11px; color: var(--ink-soft); }
+    .range__track { position: relative; height: 18px; border: 2px solid var(--ink); }
+    .range__track i { position: absolute; top: 0; bottom: 0; background: var(--leaf-bright); }
+    .range__track b { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; background: var(--ink); }
+    @media (max-width: 560px) { .range__row { grid-template-columns: 1fr; gap: 3px; } }
+    table.grid th, table.grid td { font: 400 13px/1.4 var(--mono); }
+    table.grid td.on { background: var(--leaf-bright); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.4</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.4</span>
+          <h1>$group<br>и аккумуляторы</h1>
+          <p class="lead">В этой главе разобрана стадия $group. Она раскладывает документы потока по группам с одинаковым ключом и выпускает по одному документу на группу. Значения итогового документа считают аккумуляторы: $sum складывает и считает, $avg находит среднее, $min и $max — наименьшее и наибольшее. Отдельно разобраны ключ из двух полей, одна группа на все документы и место стадии $match до и после группировки.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Конвейер (глава 4.1), выражения и $project (глава 4.2), $addFields (глава 4.3)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Считать итоги по группам — выручку по городам, число заказов, средний чек — на сервере, одним запросом</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.4-python.zip" download><code>mongodb-glava-4.4-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.4-ruby.zip" download><code>mongodb-glava-4.4-ruby.zip</code></a>, 63 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.4-go.zip" download><code>mongodb-glava-4.4-go.zip</code></a>, 70 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.4-cpp.zip" download><code>mongodb-glava-4.4-cpp.zip</code></a>, 70 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_4.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_4.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_4.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_4.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_4.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_4.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_4.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_4.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_4.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_4.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_4.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_4.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_4.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $group</a></li>
+            <li><a href="#s2">Одна группа на все документы</a></li>
+            <li><a href="#s3">$avg, $min и $max</a></li>
+            <li><a href="#s4">Ключ из двух полей</a></li>
+            <li><a href="#s5">$match до $group</a></li>
+            <li><a href="#s6">$match после $group</a></li>
+            <li><a href="#s7">Аккумулятор по строковому полю</a></li>
+            <li><a href="#s8">Ошибки записи $group</a></li>
+            <li><a href="#s9">$group в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $group</h2>
+        <p>Стадии глав 4.1–4.3 работали с каждым документом отдельно: отбирали, упорядочивали, меняли форму. Отчёту руководителя нужны итоги: сколько заказов доставлено в каждый город и на какую сумму. Такой итог складывается из многих документов сразу. Его считает стадия <code>$group</code>.</p>
+        <p>Кассир в конце дня раскладывает чеки по стопкам — по отделам магазина. На каждую стопку он кладёт листок: «отдел обуви, чеков 34, сумма 186 000». Отдельные чеки в отчёт не идут, в отчёт идут листки, по одному на отдел.</p>
+        <p><span class="term">Стадия $group</span> раскладывает документы потока по группам и выпускает по одному документу на каждую группу. В одну группу попадают документы с одинаковым <span class="term">ключом группировки</span>. Ключ задаётся полем <code>_id</code> в параметре стадии: <code>"_id": "$delivery.city"</code> — группа на каждый город доставки. Остальные поля параметра — итоги группы. Каждый итог считает <span class="term">аккумулятор</span> — оператор, который проходит по всем документам группы и копит результат.</p>
+        <p>Первый аккумулятор — <code>$sum</code>. Запись <code>{"$sum": "$total"}</code> складывает суммы заказов группы. Запись <code>{"$sum": 1}</code> прибавляет единицу за каждый документ, то есть считает документы. Кассир делает то же: щёлкает счётчиком на каждый чек и складывает суммы на калькуляторе.</p>
+        <p>Пример считает доставленные заказы и выручку по каждому городу. Порядок групп на выходе <code>$group</code> не задан, поэтому после неё стоит <code>$sort</code> по названию города.</p>
+        <p data-lang="cpp">У стадии <code>$group</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>group</code>, параметр — документ группировки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>доставленные заказы по городам</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>доставленные заказы по городам</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>доставленные заказы по городам</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>доставленные заказы по городам</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Екатеринбург', 'orders': 16, 'revenue': 1390470}
+{'_id': 'Москва', 'orders': 12, 'revenue': 1387760}
+{'_id': 'Новосибирск', 'orders': 17, 'revenue': 2536840}
+{'_id': 'Санкт-Петербург', 'orders': 10, 'revenue': 1169540}
+{'_id': 'Ярославль', 'orders': 14, 'revenue': 2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Екатеринбург", "orders" : 16, "revenue" : 1390470 }
+{ "_id" : "Москва", "orders" : 12, "revenue" : 1387760 }
+{ "_id" : "Новосибирск", "orders" : 17, "revenue" : 2536840 }
+{ "_id" : "Санкт-Петербург", "orders" : 10, "revenue" : 1169540 }
+{ "_id" : "Ярославль", "orders" : 14, "revenue" : 2048020 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Екатеринбург","orders":16,"revenue":1390470}
+{"_id":"Москва","orders":12,"revenue":1387760}
+{"_id":"Новосибирск","orders":17,"revenue":2536840}
+{"_id":"Санкт-Петербург","orders":10,"revenue":1169540}
+{"_id":"Ярославль","orders":14,"revenue":2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Екатеринбург", "orders"=&gt;16, "revenue"=&gt;1390470}
+{"_id"=&gt;"Москва", "orders"=&gt;12, "revenue"=&gt;1387760}
+{"_id"=&gt;"Новосибирск", "orders"=&gt;17, "revenue"=&gt;2536840}
+{"_id"=&gt;"Санкт-Петербург", "orders"=&gt;10, "revenue"=&gt;1169540}
+{"_id"=&gt;"Ярославль", "orders"=&gt;14, "revenue"=&gt;2048020}</pre>
+        </figure>
+        <p>Из 69 доставленных заказов получилось пять документов, по одному на город. В поле <code>_id</code> каждого стоит город, в <code>orders</code> — число заказов, в <code>revenue</code> — их общая сумма. Больше всего выручки у Новосибирска: 17 заказов на 2 536 840.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выручка доставленных заказов по городам</span><span>полная полоса — 2 536 840</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <div class="bar"><span>Екатеринбург · 16</span><span class="bar__track"><i style="width:54.81%"></i></span><span>1390470</span></div>
+                <div class="bar"><span>Москва · 12</span><span class="bar__track"><i style="width:54.70%"></i></span><span>1387760</span></div>
+                <div class="bar"><span>Новосибирск · 17</span><span class="bar__track"><i class="on" style="width:100%"></i></span><span>2536840</span></div>
+                <div class="bar"><span>Санкт-Петербург · 10</span><span class="bar__track"><i style="width:46.10%"></i></span><span>1169540</span></div>
+                <div class="bar"><span>Ярославль · 14</span><span class="bar__track"><i style="width:80.73%"></i></span><span>2048020</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Строка — один документ результата: город и число заказов слева, выручка справа. Длина полосы пропорциональна выручке. Всего 16 + 12 + 17 + 10 + 14 = 69 заказов: каждый доставленный заказ попал ровно в одну группу.</p>
+        </div>
+        <p>У документов результата нет полей заказов: номера, позиций, оплаты. Документ группы содержит только ключ и итоги, как листок кассира содержит только отдел, число чеков и сумму. Ключ может быть и одним на все документы.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Одна группа на все документы</h2>
+        <p>Для итога за весь день кассир складывает все чеки в одну стопку. В конвейере для этого ключ должен быть одинаковым у всех документов.</p>
+        <p>Значение <code>"_id": null</code> даёт всем документам один и тот же ключ, и группа получается одна. Пример считает число и сумму всех доставленных заказов.</p>
+        <p data-lang="python">Значение <code>null</code> в Python записывается как <code>None</code>.</p>
+        <p data-lang="ruby">Значение <code>null</code> в Ruby записывается как <code>nil</code>.</p>
+        <p data-lang="go">Значение <code>null</code> в Go записывается как <code>nil</code>: <code>{Key: "_id", Value: nil}</code>.</p>
+        <p data-lang="cpp">Значение <code>null</code> в bsoncxx записывается объектом <code>bsoncxx::types::b_null{}</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>одна группа: _id null</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="k">None</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>одна группа: _id null</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>одна группа: _id null</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>одна группа: _id null</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="k">nil</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': None, 'orders': 69, 'revenue': 8532630}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : null, "orders" : 69, "revenue" : 8532630 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":null,"orders":69,"revenue":8532630}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;nil, "orders"=&gt;69, "revenue"=&gt;8532630}</pre>
+        </figure>
+        <p>Результат — один документ: 69 заказов на 8 532 630. Это сумма пяти городских групп из §1: 1 390 470 + 1 387 760 + 2 536 840 + 1 169 540 + 2 048 020 = 8 532 630.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Пять групп и одна группа</span><span>те же 69 заказов</span></div>
+          <div class="scheme__body">
+            <div class="pipeline">
+              <div class="pipeline__stage"><b>"_id": "$delivery.city"</b><span>5 документов: по одному на город</span><em>§1</em></div>
+              <div class="pipeline__stage is-lit"><b>"_id": null</b><span>1 документ: <code>orders: 69</code>, <code>revenue: 8532630</code></span><em>§2</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Слева ключ разный у заказов разных городов, справа один у всех. Число документов на выходе <code>$group</code> равно числу разных значений ключа.</p>
+        </div>
+        <p>Сумма и число — не единственные итоги, которые нужны отчёту. Следующие аккумуляторы находят среднее и крайние значения.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>$avg, $min и $max</h2>
+        <p>В журнале группы у каждого студента три числа по предмету: средний балл, худшая оценка и лучшая. Все три считаются по одному и тому же столбцу оценок.</p>
+        <p>Аккумулятор <code>$avg</code> находит среднее значение поля по группе, <code>$min</code> — наименьшее, <code>$max</code> — наибольшее. Запись та же, что у <code>$sum</code>: <code>{"$avg": "$total"}</code>. Среднее обычно получается дробным с длинным хвостом цифр, поэтому пример после группировки округляет его стадией <code>$project</code> и оператором <code>$round</code>. Его аргументы — число и количество знаков после запятой: <code>{"$round": ["$avg", 0]}</code> округляет до целого.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$avg, $min и $max</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"avg"</span>: {<span class="s">"$avg"</span>: <span class="s">"$total"</span>},
+        <span class="s">"min"</span>: {<span class="s">"$min"</span>: <span class="s">"$total"</span>},
+        <span class="s">"max"</span>: {<span class="s">"$max"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"avg"</span>: {<span class="s">"$round"</span>: [<span class="s">"$avg"</span>, <span class="n">0</span>]}, <span class="s">"min"</span>: <span class="n">1</span>, <span class="s">"max"</span>: <span class="n">1</span>}},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$avg, $min и $max</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$total"</span>))),
+    <span class="f">kvp</span>(<span class="s">"min"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$min"</span>, <span class="s">"$total"</span>))),
+    <span class="f">kvp</span>(<span class="s">"max"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$max"</span>, <span class="s">"$total"</span>)))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$round"</span>, <span class="f">make_array</span>(<span class="s">"$avg"</span>, <span class="n">0</span>)))),
+    <span class="f">kvp</span>(<span class="s">"min"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"max"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$avg, $min и $max</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$total"</span>}}},
+        {Key: <span class="s">"min"</span>, Value: bson.D{{Key: <span class="s">"$min"</span>, Value: <span class="s">"$total"</span>}}},
+        {Key: <span class="s">"max"</span>, Value: bson.D{{Key: <span class="s">"$max"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$round"</span>, Value: bson.A{<span class="s">"$avg"</span>, <span class="n">0</span>}}}},
+        {Key: <span class="s">"min"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"max"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$avg, $min и $max</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"avg"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$total"</span> },
+    <span class="s">"min"</span> =&gt; { <span class="s">"$min"</span> =&gt; <span class="s">"$total"</span> },
+    <span class="s">"max"</span> =&gt; { <span class="s">"$max"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"avg"</span> =&gt; { <span class="s">"$round"</span> =&gt; [<span class="s">"$avg"</span>, <span class="n">0</span>] }, <span class="s">"min"</span> =&gt; <span class="n">1</span>, <span class="s">"max"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Екатеринбург', 'min': 2370, 'max': 295960, 'avg': 86904.0}
+{'_id': 'Москва', 'min': 13560, 'max': 289360, 'avg': 115647.0}
+{'_id': 'Новосибирск', 'min': 2370, 'max': 354960, 'avg': 149226.0}
+{'_id': 'Санкт-Петербург', 'min': 16980, 'max': 320740, 'avg': 116954.0}
+{'_id': 'Ярославль', 'min': 5980, 'max': 392660, 'avg': 146287.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Екатеринбург", "min" : 2370, "max" : 295960, "avg" : 86904.0 }
+{ "_id" : "Москва", "min" : 13560, "max" : 289360, "avg" : 115647.0 }
+{ "_id" : "Новосибирск", "min" : 2370, "max" : 354960, "avg" : 149226.0 }
+{ "_id" : "Санкт-Петербург", "min" : 16980, "max" : 320740, "avg" : 116954.0 }
+{ "_id" : "Ярославль", "min" : 5980, "max" : 392660, "avg" : 146287.0 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Екатеринбург","min":2370,"max":295960,"avg":86904.0}
+{"_id":"Москва","min":13560,"max":289360,"avg":115647.0}
+{"_id":"Новосибирск","min":2370,"max":354960,"avg":149226.0}
+{"_id":"Санкт-Петербург","min":16980,"max":320740,"avg":116954.0}
+{"_id":"Ярославль","min":5980,"max":392660,"avg":146287.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Екатеринбург", "min"=&gt;2370, "max"=&gt;295960, "avg"=&gt;86904.0}
+{"_id"=&gt;"Москва", "min"=&gt;13560, "max"=&gt;289360, "avg"=&gt;115647.0}
+{"_id"=&gt;"Новосибирск", "min"=&gt;2370, "max"=&gt;354960, "avg"=&gt;149226.0}
+{"_id"=&gt;"Санкт-Петербург", "min"=&gt;16980, "max"=&gt;320740, "avg"=&gt;116954.0}
+{"_id"=&gt;"Ярославль", "min"=&gt;5980, "max"=&gt;392660, "avg"=&gt;146287.0}</pre>
+        </figure>
+        <p>Средний чек выше всего в Новосибирске — 149 226, самый крупный заказ — 392 660 в Ярославле. Самый мелкий, 2 370, есть и в Екатеринбурге, и в Новосибирске. На схеме у каждого города полоса от самого мелкого заказа до самого крупного.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Разброс сумм заказов по городам</span><span>шкала 0 — 400 000</span></div>
+          <div class="scheme__body">
+            <div class="range">
+              <div class="range__row"><span>Екатеринбург<em>2370 · 86904 · 295960</em></span><span class="range__track"><i style="left:0.59%;width:73.40%"></i><b style="left:21.73%"></b></span></div>
+              <div class="range__row"><span>Москва<em>13560 · 115647 · 289360</em></span><span class="range__track"><i style="left:3.39%;width:68.95%"></i><b style="left:28.91%"></b></span></div>
+              <div class="range__row"><span>Новосибирск<em>2370 · 149226 · 354960</em></span><span class="range__track"><i style="left:0.59%;width:88.15%"></i><b style="left:37.31%"></b></span></div>
+              <div class="range__row"><span>Санкт-Петербург<em>16980 · 116954 · 320740</em></span><span class="range__track"><i style="left:4.25%;width:75.94%"></i><b style="left:29.24%"></b></span></div>
+              <div class="range__row"><span>Ярославль<em>5980 · 146287 · 392660</em></span><span class="range__track"><i style="left:1.50%;width:96.67%"></i><b style="left:36.57%"></b></span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Под названием города — <code>min</code>, <code>avg</code> и <code>max</code> из вывода примера. Полоса начинается на <code>min</code> и кончается на <code>max</code>, тёмная черта — <code>avg</code>. У всех городов среднее ближе к левому краю: крупных заказов мало, и они растягивают полосу вправо.</p>
+        </div>
+        <p>Стадия <code>$project</code> после <code>$group</code> работает с документами групп: в ней доступны поля <code>_id</code>, <code>avg</code>, <code>min</code> и <code>max</code>, а поля заказов уже нет. В выводе <code>avg</code> стоит последним: проекция вычисляет его заново, а <code>min</code> и <code>max</code> только включает значением <code>1</code>. Такой порядок полей разобран в главе 4.2, §3. Ключ группы до этого места был одним полем. Он может состоять и из нескольких.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Ключ из двух полей</h2>
+        <p>Кассир может разложить чеки сначала по отделам, а внутри отдела — по продавцам. Тогда стопок больше: по одной на каждую пару «отдел и продавец», которая встретилась в чеках.</p>
+        <p>Ключ группировки может быть документом из нескольких полей: <code>"_id": {"city": "$delivery.city", "type": "$delivery.type"}</code>. В одну группу попадают заказы, у которых совпадают оба поля. Пример считает доставленные заказы Москвы и Ярославля по городу и способу доставки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>ключ из двух полей</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {
+        <span class="s">"status"</span>: <span class="s">"доставлен"</span>,
+        <span class="s">"delivery.city"</span>: {<span class="s">"$in"</span>: [<span class="s">"Москва"</span>, <span class="s">"Ярославль"</span>]},
+    }},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: {<span class="s">"city"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"type"</span>: <span class="s">"$delivery.type"</span>},
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id.city"</span>: <span class="n">1</span>, <span class="s">"_id.type"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>ключ из двух полей</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>),
+    <span class="f">kvp</span>(<span class="s">"delivery.city"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"Москва"</span>, <span class="s">"Ярославль"</span>))))));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"$delivery.city"</span>), <span class="f">kvp</span>(<span class="s">"type"</span>, <span class="s">"$delivery.type"</span>))),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id.city"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"_id.type"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>ключ из двух полей</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>},
+        {Key: <span class="s">"delivery.city"</span>, Value: bson.D{{Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"Москва"</span>, <span class="s">"Ярославль"</span>}}}}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{
+            {Key: <span class="s">"city"</span>, Value: <span class="s">"$delivery.city"</span>},
+            {Key: <span class="s">"type"</span>, Value: <span class="s">"$delivery.type"</span>}}},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id.city"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"_id.type"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>ключ из двух полей</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; {
+    <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span>,
+    <span class="s">"delivery.city"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"Москва"</span>, <span class="s">"Ярославль"</span>] },
+  } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; { <span class="s">"city"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"type"</span> =&gt; <span class="s">"$delivery.type"</span> },
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id.city"</span> =&gt; <span class="n">1</span>, <span class="s">"_id.type"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': {'city': 'Москва', 'type': 'курьер'}, 'orders': 4, 'revenue': 713970}
+{'_id': {'city': 'Москва', 'type': 'почта'}, 'orders': 1, 'revenue': 13560}
+{'_id': {'city': 'Москва', 'type': 'пункт выдачи'}, 'orders': 7, 'revenue': 660230}
+{'_id': {'city': 'Ярославль', 'type': 'курьер'}, 'orders': 2, 'revenue': 212340}
+{'_id': {'city': 'Ярославль', 'type': 'почта'}, 'orders': 3, 'revenue': 316870}
+{'_id': {'city': 'Ярославль', 'type': 'пункт выдачи'}, 'orders': 9, 'revenue': 1518810}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : { "city" : "Москва", "type" : "курьер" }, "orders" : 4, "revenue" : 713970 }
+{ "_id" : { "city" : "Москва", "type" : "почта" }, "orders" : 1, "revenue" : 13560 }
+{ "_id" : { "city" : "Москва", "type" : "пункт выдачи" }, "orders" : 7, "revenue" : 660230 }
+{ "_id" : { "city" : "Ярославль", "type" : "курьер" }, "orders" : 2, "revenue" : 212340 }
+{ "_id" : { "city" : "Ярославль", "type" : "почта" }, "orders" : 3, "revenue" : 316870 }
+{ "_id" : { "city" : "Ярославль", "type" : "пункт выдачи" }, "orders" : 9, "revenue" : 1518810 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":{"city":"Москва","type":"курьер"},"orders":4,"revenue":713970}
+{"_id":{"city":"Москва","type":"почта"},"orders":1,"revenue":13560}
+{"_id":{"city":"Москва","type":"пункт выдачи"},"orders":7,"revenue":660230}
+{"_id":{"city":"Ярославль","type":"курьер"},"orders":2,"revenue":212340}
+{"_id":{"city":"Ярославль","type":"почта"},"orders":3,"revenue":316870}
+{"_id":{"city":"Ярославль","type":"пункт выдачи"},"orders":9,"revenue":1518810}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;{"city"=&gt;"Москва", "type"=&gt;"курьер"}, "orders"=&gt;4, "revenue"=&gt;713970}
+{"_id"=&gt;{"city"=&gt;"Москва", "type"=&gt;"почта"}, "orders"=&gt;1, "revenue"=&gt;13560}
+{"_id"=&gt;{"city"=&gt;"Москва", "type"=&gt;"пункт выдачи"}, "orders"=&gt;7, "revenue"=&gt;660230}
+{"_id"=&gt;{"city"=&gt;"Ярославль", "type"=&gt;"курьер"}, "orders"=&gt;2, "revenue"=&gt;212340}
+{"_id"=&gt;{"city"=&gt;"Ярославль", "type"=&gt;"почта"}, "orders"=&gt;3, "revenue"=&gt;316870}
+{"_id"=&gt;{"city"=&gt;"Ярославль", "type"=&gt;"пункт выдачи"}, "orders"=&gt;9, "revenue"=&gt;1518810}</pre>
+        </figure>
+        <p>Получилось шесть групп: два города на три способа доставки. Поле <code>_id</code> у каждой — документ с двумя полями, и сортировка идёт по ним через точку: <code>"_id.city"</code>, затем <code>"_id.type"</code>. На схеме те же шесть документов показаны таблицей.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Доставленные заказы: город и способ доставки</span><span>заказов · выручка</span></div>
+          <div class="scheme__body">
+            <div class="table-scroll">
+              <table class="grid">
+                <thead><tr><th></th><th>курьер</th><th>почта</th><th>пункт выдачи</th></tr></thead>
+                <tbody>
+                  <tr><th>Москва</th><td>4 · 713970</td><td>1 · 13560</td><td class="on">7 · 660230</td></tr>
+                  <tr><th>Ярославль</th><td>2 · 212340</td><td>3 · 316870</td><td class="on">9 · 1518810</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="scheme__note">Клетка таблицы — один документ результата, его <code>_id</code> — пара «город, способ». В обоих городах больше всего заказов забирают в пунктах выдачи.</p>
+        </div>
+        <p>Во всех примерах до этого места перед <code>$group</code> стояла стадия <code>$match</code> с доставленными заказами. Без неё итог другой.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>$match до $group</h2>
+        <p>Перед тем как считать выручку дня, кассир откладывает чеки возвратов: деньги по ним вернули покупателям. Если их не отложить, выручка получится больше настоящей.</p>
+        <p>Стадия <code>$match</code> перед <code>$group</code> определяет, какие документы попадут в группы. Пример считает выручку по городам дважды: по всем заказам и только по доставленным.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$match до $group</span></figcaption>
+<pre>all_orders = [
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+only_delivered = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="f">print</span>(<span class="s">"── все заказы"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(all_orders):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── только доставленные"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(only_delivered):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$match до $group</span></figcaption>
+<pre>mongocxx::pipeline all_orders;
+all_orders.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+all_orders.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+mongocxx::pipeline only_delivered;
+only_delivered.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+only_delivered.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+only_delivered.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+std::cout &lt;&lt; <span class="s">"── все заказы"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(all_orders)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── только доставленные"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(only_delivered)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$match до $group</span></figcaption>
+<pre>allOrders := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+onlyDelivered := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── все заказы"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, allOrders)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── только доставленные"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, onlyDelivered)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$match до $group</span></figcaption>
+<pre>all_orders = [
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+only_delivered = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+<span class="k">puts</span> <span class="s">"── все заказы"</span>
+orders.<span class="f">aggregate</span>(all_orders).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── только доставленные"</span>
+orders.<span class="f">aggregate</span>(only_delivered).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── все заказы
+{'_id': 'Екатеринбург', 'revenue': 3618120}
+{'_id': 'Москва', 'revenue': 2447770}
+{'_id': 'Новосибирск', 'revenue': 4371990}
+{'_id': 'Санкт-Петербург', 'revenue': 1975570}
+{'_id': 'Ярославль', 'revenue': 2972860}
+── только доставленные
+{'_id': 'Екатеринбург', 'revenue': 1390470}
+{'_id': 'Москва', 'revenue': 1387760}
+{'_id': 'Новосибирск', 'revenue': 2536840}
+{'_id': 'Санкт-Петербург', 'revenue': 1169540}
+{'_id': 'Ярославль', 'revenue': 2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── все заказы
+{ "_id" : "Екатеринбург", "revenue" : 3618120 }
+{ "_id" : "Москва", "revenue" : 2447770 }
+{ "_id" : "Новосибирск", "revenue" : 4371990 }
+{ "_id" : "Санкт-Петербург", "revenue" : 1975570 }
+{ "_id" : "Ярославль", "revenue" : 2972860 }
+── только доставленные
+{ "_id" : "Екатеринбург", "revenue" : 1390470 }
+{ "_id" : "Москва", "revenue" : 1387760 }
+{ "_id" : "Новосибирск", "revenue" : 2536840 }
+{ "_id" : "Санкт-Петербург", "revenue" : 1169540 }
+{ "_id" : "Ярославль", "revenue" : 2048020 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── все заказы
+{"_id":"Екатеринбург","revenue":3618120}
+{"_id":"Москва","revenue":2447770}
+{"_id":"Новосибирск","revenue":4371990}
+{"_id":"Санкт-Петербург","revenue":1975570}
+{"_id":"Ярославль","revenue":2972860}
+── только доставленные
+{"_id":"Екатеринбург","revenue":1390470}
+{"_id":"Москва","revenue":1387760}
+{"_id":"Новосибирск","revenue":2536840}
+{"_id":"Санкт-Петербург","revenue":1169540}
+{"_id":"Ярославль","revenue":2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── все заказы
+{"_id"=&gt;"Екатеринбург", "revenue"=&gt;3618120}
+{"_id"=&gt;"Москва", "revenue"=&gt;2447770}
+{"_id"=&gt;"Новосибирск", "revenue"=&gt;4371990}
+{"_id"=&gt;"Санкт-Петербург", "revenue"=&gt;1975570}
+{"_id"=&gt;"Ярославль", "revenue"=&gt;2972860}
+── только доставленные
+{"_id"=&gt;"Екатеринбург", "revenue"=&gt;1390470}
+{"_id"=&gt;"Москва", "revenue"=&gt;1387760}
+{"_id"=&gt;"Новосибирск", "revenue"=&gt;2536840}
+{"_id"=&gt;"Санкт-Петербург", "revenue"=&gt;1169540}
+{"_id"=&gt;"Ярославль", "revenue"=&gt;2048020}</pre>
+        </figure>
+        <p>По всем заказам выручка Новосибирска — 4 371 990, по доставленным — 2 536 840. В первый итог попали отменённые заказы, заказы в пути и те, что ещё собираются. Для отчёта о полученных деньгах нужен второй.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выручка по городам: все заказы и доставленные</span><span>полная полоса — 4 371 990</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div><b>Новосибирск</b>
+                <div class="bar"><span>все заказы</span><span class="bar__track"><i style="width:100%"></i></span><span>4371990</span></div>
+                <div class="bar"><span>доставленные</span><span class="bar__track"><i class="on" style="width:58.02%"></i></span><span>2536840</span></div></div>
+              <div><b>Екатеринбург</b>
+                <div class="bar"><span>все заказы</span><span class="bar__track"><i style="width:82.76%"></i></span><span>3618120</span></div>
+                <div class="bar"><span>доставленные</span><span class="bar__track"><i class="on" style="width:31.80%"></i></span><span>1390470</span></div></div>
+              <div><b>Санкт-Петербург</b>
+                <div class="bar"><span>все заказы</span><span class="bar__track"><i style="width:45.19%"></i></span><span>1975570</span></div>
+                <div class="bar"><span>доставленные</span><span class="bar__track"><i class="on" style="width:26.75%"></i></span><span>1169540</span></div></div>
+            </div>
+          </div>
+          <p class="scheme__note">Три города из пяти; серая полоса — выручка по всем заказам, зелёная — по доставленным. У Екатеринбурга разница больше всего: из 3 618 120 доставлено 1 390 470.</p>
+        </div>
+        <p><code>$match</code> до <code>$group</code> отбирает документы. Стадия <code>$match</code> может стоять и после группировки, и тогда она отбирает уже группы.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>$match после $group</h2>
+        <p>Из стопок с листками руководитель берёт только те, где сумма больше двух миллионов. Отбор идёт по листкам, отдельные чеки в нём не участвуют.</p>
+        <p>После <code>$group</code> в потоке документы групп. Стадия <code>$match</code> после неё проверяет поля этих документов — ключ и итоги. Пример оставляет города, где выручка доставленных заказов не меньше 2 000 000, и сортирует их по выручке.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$match после $group</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$match"</span>: {<span class="s">"revenue"</span>: {<span class="s">"$gte"</span>: <span class="n">2000000</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$match после $group</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">2000000</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$match после $group</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">2000000</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$match после $group</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"revenue"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">2000000</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Новосибирск', 'revenue': 2536840}
+{'_id': 'Ярославль', 'revenue': 2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Новосибирск", "revenue" : 2536840 }
+{ "_id" : "Ярославль", "revenue" : 2048020 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Новосибирск","revenue":2536840}
+{"_id":"Ярославль","revenue":2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Новосибирск", "revenue"=&gt;2536840}
+{"_id"=&gt;"Ярославль", "revenue"=&gt;2048020}</pre>
+        </figure>
+        <p>Условию подходят два города: Новосибирск и Ярославль. Условие <code>{"revenue": {"$gte": 2000000}}</code> проверяет поле, которое появилось только в стадии <code>$group</code>. В языке SQL такое же различие есть между <code>WHERE</code> и <code>HAVING</code>: первое отбирает строки до группировки, второе — группы после неё.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Сколько документов выходит из каждой стадии</span><span>полная полоса — 120</span></div>
+          <div class="scheme__body">
+            <div class="bars">
+              <div>
+                <div class="bar"><span>вход: orders</span><span class="bar__track"><i style="width:100%"></i></span><span>120</span></div>
+                <div class="bar"><span>1 · $match status</span><span class="bar__track"><i style="width:57.5%"></i></span><span>69</span></div>
+                <div class="bar"><span>2 · $group город</span><span class="bar__track"><i style="width:4.17%"></i></span><span>5</span></div>
+                <div class="bar"><span>3 · $match revenue</span><span class="bar__track"><i class="on" style="width:1.67%"></i></span><span>2</span></div>
+                <div class="bar"><span>4 · $sort</span><span class="bar__track"><i class="on" style="width:1.67%"></i></span><span>2</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Первая стадия <code>$match</code> отбирает заказы, вторая — группы. Стадия <code>$group</code> сокращает 69 документов до пяти.</p>
+        </div>
+        <p>Аккумуляторы до этого места получали числовое поле. Если поле окажется строковым, сервер не сообщит об ошибке.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Аккумулятор по строковому полю</h2>
+        <p>Калькулятор, в который вместо цен вводят номера чеков с буквами, ничего не сложит. Аккумуляторы <code>$sum</code> и <code>$avg</code> работают так же: значения, которые не являются числами, они пропускают.</p>
+        <p>Пример ставит в оба аккумулятора поле <code>number</code> — номер заказа, строку вида «2026-0001».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$sum и $avg по строкам</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="k">None</span>, <span class="s">"sum"</span>: {<span class="s">"$sum"</span>: <span class="s">"$number"</span>}, <span class="s">"avg"</span>: {<span class="s">"$avg"</span>: <span class="s">"$number"</span>}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$sum и $avg по строкам</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+    <span class="f">kvp</span>(<span class="s">"sum"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$number"</span>))),
+    <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$number"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$sum и $avg по строкам</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+        {Key: <span class="s">"sum"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$number"</span>}}},
+        {Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$number"</span>}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$sum и $avg по строкам</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="k">nil</span>,
+    <span class="s">"sum"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$number"</span> },
+    <span class="s">"avg"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$number"</span> },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': None, 'sum': 0, 'avg': None}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : null, "sum" : 0, "avg" : null }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":null,"sum":0,"avg":null}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;nil, "sum"=&gt;0, "avg"=&gt;nil}</pre>
+        </figure>
+        <p>Сумма равна 0, среднее — <code>null</code>: ни одного числа в группе не нашлось. Сервер выполнил стадию без ошибки. Поэтому нулевая сумма в отчёте — повод проверить тип поля, например на вкладке <b>Schema</b> в Compass.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Аккумулятор</th><th>Значения в группе</th><th>Результат</th></tr></thead>
+            <tbody>
+              <tr><td><code>$sum</code></td><td>числа</td><td>сумма чисел</td></tr>
+              <tr><td><code>$sum</code></td><td>только строки</td><td><code>0</code></td></tr>
+              <tr><td><code>$avg</code></td><td>только строки</td><td><code>null</code></td></tr>
+              <tr><td><code>$min</code>, <code>$max</code></td><td>строки</td><td>наименьшая и наибольшая строка при посимвольном сравнении</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Строковое поле в аккумуляторе ошибки не даёт. Ошибки дают две другие записи стадии.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Ошибки записи $group</h2>
+        <p>У стадии <code>$group</code> два правила записи. Поле <code>_id</code> обязательно. Каждое другое поле параметра должно быть аккумулятором. Документ группы один, а документов в группе много, и у каждого своё значение поля. Аккумулятор задаёт, как из многих значений получить одно. Пример нарушает каждое правило по очереди.</p>
+        <p>На схеме — группа «Москва» из §1 и поле <code>number</code>. Без аккумулятора непонятно, какой из двенадцати номеров должен попасть в документ группы.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Группа «Москва» и поле number</span><span>12 доставленных заказов</span></div>
+          <div class="scheme__body">
+            <div class="ixlist">
+              <div><b>Документы группы</b>
+                <ol>
+                  <li class="pl">2026-0004 · 2026-0007 · 2026-0029</li>
+                  <li class="pl">2026-0030 · 2026-0037 · 2026-0046</li>
+                  <li class="pl">2026-0049 · 2026-0080 · 2026-0101</li>
+                  <li class="pl">2026-0102 · 2026-0110 · 2026-0118</li>
+                </ol></div>
+              <div><b>Поле документа группы</b>
+                <ol>
+                  <li class="no">"number": "$number" — какой из 12?</li>
+                  <li class="on">"orders": {"$sum": 1} → 12</li>
+                  <li class="on">"last": {"$max": "$number"} → 2026-0118</li>
+                </ol>
+                <em>Аккумулятор сводит двенадцать значений к одному.</em></div>
+            </div>
+          </div>
+          <p class="scheme__note">Красная строка — поле без аккумулятора, сервер его отклоняет. Зелёные — поля с аккумуляторами. Правило действует и для поля <code>city</code>, хотя у всех документов группы город одинаковый: сервер требует аккумулятор для каждого поля, кроме <code>_id</code>.</p>
+        </div>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>поле без аккумулятора и группа без _id</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+no_accumulator = [
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"city"</span>: <span class="s">"$delivery.city"</span>}},
+]
+
+no_id = [
+    {<span class="s">"$group"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+]
+
+<span class="f">print</span>(<span class="s">"── поле без аккумулятора"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(no_accumulator):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── группа без _id"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(no_id):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>поле без аккумулятора и группа без _id</span></figcaption>
+<pre>mongocxx::pipeline no_accumulator;
+no_accumulator.<span class="f">group</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"$delivery.city"</span>)));
+
+mongocxx::pipeline no_id;
+no_id.<span class="f">group</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+
+std::cout &lt;&lt; <span class="s">"── поле без аккумулятора"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(no_accumulator)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── группа без _id"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(no_id)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>поле без аккумулятора и группа без _id</span></figcaption>
+<pre>noAccumulator := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"city"</span>, Value: <span class="s">"$delivery.city"</span>}}}},
+}
+
+noId := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── поле без аккумулятора"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, noAccumulator)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── группа без _id"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, noId)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>поле без аккумулятора и группа без _id</span></figcaption>
+<pre>no_accumulator = [
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"city"</span> =&gt; <span class="s">"$delivery.city"</span> } },
+]
+
+no_id = [
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+]
+
+<span class="k">puts</span> <span class="s">"── поле без аккумулятора"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(no_accumulator).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── группа без _id"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(no_id).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── поле без аккумулятора
+код 40234
+The field 'city' must be an accumulator object
+── группа без _id
+код 15955
+a group specification must include an _id</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── поле без аккумулятора
+код 40234
+The field 'city' must be an accumulator object: server error code 40234: generic server error
+── группа без _id
+код 15955
+a group specification must include an _id: server error code 15955: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── поле без аккумулятора
+код 40234
+The field 'city' must be an accumulator object
+── группа без _id
+код 15955
+a group specification must include an _id</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── поле без аккумулятора
+код 40234
+The field 'city' must be an accumulator object
+── группа без _id
+код 15955
+a group specification must include an _id</pre>
+        </figure>
+        <p>Первая стадия отклонена ошибкой 40234: «поле city должно быть объектом аккумулятора». Вторая — ошибкой 15955: «спецификация группы должна содержать _id». Город группы уже лежит в её <code>_id</code>, поэтому отдельное поле для него не нужно.</p>
+        <p>Конвейеры главы можно собрать и в Compass.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>$group в Compass</h2>
+        <p>Стадия <code>$group</code> выбирается в поле оператора карточки, как остальные стадии модуля. На кадре — конвейер из §1: отбор доставленных заказов, группировка по городу и сортировка.</p>
+        <figure class="shot">
+          <img src="../../shots/146-orders-group.png" alt="Compass, вкладка Aggregations коллекции shop.orders в режиме Stages: стадия 2 $group с _id $delivery.city, orders $sum 1 и revenue $sum $total, выборка из 5 документов начинается с Москвы; стадия 3 $sort по _id, выборка начинается с Екатеринбурга">
+          <figcaption>Compass · стадии <code>$group</code> и <code>$sort</code> конвейера из §1</figcaption>
+        </figure>
+        <p>В выборке после <code>$group</code> пять документов, у каждого три поля: <code>_id</code>, <code>orders</code> и <code>revenue</code>. Первой идёт Москва, второй — Екатеринбург: группы выходят в порядке, который сервер не обещает сохранять. После <code>$sort</code> первым стоит Екатеринбург, и порядок совпадает с выводом программы.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}</code></td><td>Ошибка 40234: каждое поле группы, кроме <code>_id</code>, должно быть аккумулятором</td><td>Значение поля — аккумулятор, например <code>{"$max": "$number"}</code>; поле ключа уже лежит в <code>_id</code></td></tr>
+              <tr><td><code>{"$group": {"orders": {"$sum": 1}}}</code></td><td>Ошибка 15955: у стадии <code>$group</code> нет <code>_id</code></td><td>Ключ обязателен; одна группа на все документы — <code>"_id": null</code></td></tr>
+              <tr><td><code>{"_id": "delivery.city"}</code></td><td>Без знака <code>$</code> ключ — один и тот же текст у всех документов: получается одна группа</td><td>Путь к полю: <code>"_id": "$delivery.city"</code></td></tr>
+              <tr><td><code>{"$sum": "$number"}</code> по строковому полю</td><td>Ошибки нет: строки пропускаются, сумма 0, а <code>$avg</code> даёт <code>null</code></td><td>Суммировать только числовые поля; при сомнении проверить тип в Compass на вкладке Schema</td></tr>
+              <tr><td><code>$group</code> по всем заказам вместо доставленных</td><td>В выручку попадают отменённые и не доставленные заказы</td><td>Отбирать документы стадией <code>$match</code> до <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}</code></td><td>Ошибка 40234: каждое поле группы, кроме <code>_id</code>, должно быть аккумулятором</td><td>Значение поля — аккумулятор, например <code>{"$max": "$number"}</code>; поле ключа уже лежит в <code>_id</code></td></tr>
+              <tr><td><code>{"$group": {"orders": {"$sum": 1}}}</code></td><td>Ошибка 15955: у стадии <code>$group</code> нет <code>_id</code></td><td>Ключ обязателен; одна группа на все документы — <code>"_id": null</code></td></tr>
+              <tr><td><code>{"_id": "delivery.city"}</code></td><td>Без знака <code>$</code> ключ — один и тот же текст у всех документов: получается одна группа</td><td>Путь к полю: <code>"_id": "$delivery.city"</code></td></tr>
+              <tr><td><code>{"$sum": "$number"}</code> по строковому полю</td><td>Ошибки нет: строки пропускаются, сумма 0, а <code>$avg</code> даёт <code>null</code></td><td>Суммировать только числовые поля; при сомнении проверить тип в Compass на вкладке Schema</td></tr>
+              <tr><td><code>$group</code> по всем заказам вместо доставленных</td><td>В выручку попадают отменённые и не доставленные заказы</td><td>Отбирать документы стадией <code>$match</code> до <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}</code></td><td>Ошибка 40234: каждое поле группы, кроме <code>_id</code>, должно быть аккумулятором</td><td>Значение поля — аккумулятор, например <code>{"$max": "$number"}</code>; поле ключа уже лежит в <code>_id</code></td></tr>
+              <tr><td><code>{"$group": {"orders": {"$sum": 1}}}</code></td><td>Ошибка 15955: у стадии <code>$group</code> нет <code>_id</code></td><td>Ключ обязателен; одна группа на все документы — <code>"_id": null</code></td></tr>
+              <tr><td><code>{"_id": "delivery.city"}</code></td><td>Без знака <code>$</code> ключ — один и тот же текст у всех документов: получается одна группа</td><td>Путь к полю: <code>"_id": "$delivery.city"</code></td></tr>
+              <tr><td><code>{"$sum": "$number"}</code> по строковому полю</td><td>Ошибки нет: строки пропускаются, сумма 0, а <code>$avg</code> даёт <code>null</code></td><td>Суммировать только числовые поля; при сомнении проверить тип в Compass на вкладке Schema</td></tr>
+              <tr><td><code>$group</code> по всем заказам вместо доставленных</td><td>В выручку попадают отменённые и не доставленные заказы</td><td>Отбирать документы стадией <code>$match</code> до <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}</code></td><td>Ошибка 40234: каждое поле группы, кроме <code>_id</code>, должно быть аккумулятором</td><td>Значение поля — аккумулятор, например <code>{"$max": "$number"}</code>; поле ключа уже лежит в <code>_id</code></td></tr>
+              <tr><td><code>{"$group": {"orders": {"$sum": 1}}}</code></td><td>Ошибка 15955: у стадии <code>$group</code> нет <code>_id</code></td><td>Ключ обязателен; одна группа на все документы — <code>"_id": null</code></td></tr>
+              <tr><td><code>{"_id": "delivery.city"}</code></td><td>Без знака <code>$</code> ключ — один и тот же текст у всех документов: получается одна группа</td><td>Путь к полю: <code>"_id": "$delivery.city"</code></td></tr>
+              <tr><td><code>{"$sum": "$number"}</code> по строковому полю</td><td>Ошибки нет: строки пропускаются, сумма 0, а <code>$avg</code> даёт <code>null</code></td><td>Суммировать только числовые поля; при сомнении проверить тип в Compass на вкладке Schema</td></tr>
+              <tr><td><code>$group</code> по всем заказам вместо доставленных</td><td>В выручку попадают отменённые и не доставленные заказы</td><td>Отбирать документы стадией <code>$match</code> до <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>Сколько документов выпустит <code>$group</code> с ключом <code>"$delivery.city"</code> для 69 доставленных заказов?</summary>
+          <p>Пять — по числу разных городов среди этих заказов. Число документов на выходе равно числу разных значений ключа.</p>
+        </details>
+        <details>
+          <summary>Чем <code>{"$sum": 1}</code> отличается от <code>{"$sum": "$total"}</code>?</summary>
+          <p>Первый прибавляет единицу за каждый документ группы и считает документы. Второй складывает значения поля <code>total</code>.</p>
+        </details>
+        <details>
+          <summary>Как получить один итог по всем документам потока?</summary>
+          <p>Ключом <code>"_id": null</code>: у всех документов он одинаковый, и группа получается одна.</p>
+        </details>
+        <details>
+          <summary>Стадия <code>$match</code> стоит до <code>$group</code> и после неё. Что проверяет каждая?</summary>
+          <p>Первая — поля исходных документов, например статус заказа. Вторая — поля документов групп: ключ и итоги, например выручку.</p>
+        </details>
+        <details>
+          <summary>Почему <code>{"$group": {"_id": "$delivery.city", "city": "$delivery.city"}}</code> даёт ошибку?</summary>
+          <p>Поле <code>city</code> записано без аккумулятора, а сервер требует аккумулятор для каждого поля, кроме <code>_id</code>: ошибка 40234. Город группы и так лежит в <code>_id</code>.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_4</code>. Данные — <code>shop.orders</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Группы по оплате</b>Для доставленных заказов посчитать по способу оплаты <code>payment.method</code>: число заказов, выручку, средний чек с округлением до целого и самый крупный заказ.</li>
+          <li><b>Порядок</b>Отсортировать группы по выручке по убыванию.</li>
+          <li><b>Отбор групп</b>Оставить способы оплаты, которыми оплачено не меньше 15 доставленных заказов.</li>
+          <li><b>Итог</b>Отдельным конвейером посчитать число и сумму всех заказов в пути одной группой.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Группировка — <code>{"$group": {"_id": "$payment.method", "orders": {"$sum": 1}, "revenue": {"$sum": "$total"}, "avg": {"$avg": "$total"}, "max": {"$max": "$total"}}}</code> после <code>$match</code> по доставленным, затем <code>$project</code> с <code>{"$round": ["$avg", 0]}</code> и <code>$sort</code> по выручке. Группы: карта — 37 заказов, 5 031 540, средний 135 988, максимум 392 660; СБП — 13, 1 771 340, 136 257, 354 460; картой при получении — 19, 1 729 750, 91 039, 354 960. Условию «не меньше 15 заказов» подходят карта и оплата при получении. Заказов в пути одной группой — 13 на 1 567 760.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Группа и счёт</b>
+            <code>{"$group": {"_id": "$delivery.city", "orders": {"$sum": 1}}}</code>
+          </div>
+          <div>
+            <b>Сумма поля</b>
+            <code>{"revenue": {"$sum": "$total"}}</code>
+          </div>
+          <div>
+            <b>Среднее, минимум, максимум</b>
+            <code>{"avg": {"$avg": "$total"}, "min": {"$min": "$total"}, "max": {"$max": "$total"}}</code>
+          </div>
+          <div>
+            <b>Одна группа на всё</b>
+            <code>{"$group": {"_id": None, "revenue": {"$sum": "$total"}}}</code>
+          </div>
+          <div>
+            <b>Ключ из двух полей</b>
+            <code>{"_id": {"city": "$delivery.city", "type": "$delivery.type"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Группа и счёт</b>
+            <code>pipeline.group(make_document(kvp("_id", "$delivery.city"), kvp("orders", make_document(kvp("$sum", 1)))));</code>
+          </div>
+          <div>
+            <b>Сумма поля</b>
+            <code>make_document(kvp("revenue", make_document(kvp("$sum", "$total"))))</code>
+          </div>
+          <div>
+            <b>Среднее, минимум, максимум</b>
+            <code>make_document(kvp("avg", make_document(kvp("$avg", "$total"))), kvp("min", make_document(kvp("$min", "$total"))), kvp("max", make_document(kvp("$max", "$total"))))</code>
+          </div>
+          <div>
+            <b>Одна группа на всё</b>
+            <code>pipeline.group(make_document(kvp("_id", bsoncxx::types::b_null{}), kvp("revenue", make_document(kvp("$sum", "$total")))));</code>
+          </div>
+          <div>
+            <b>Ключ из двух полей</b>
+            <code>make_document(kvp("_id", make_document(kvp("city", "$delivery.city"), kvp("type", "$delivery.type"))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Группа и счёт</b>
+            <code>bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$delivery.city"}, {Key: "orders", Value: bson.D{{Key: "$sum", Value: 1}}}}}}</code>
+          </div>
+          <div>
+            <b>Сумма поля</b>
+            <code>bson.D{{Key: "revenue", Value: bson.D{{Key: "$sum", Value: "$total"}}}}</code>
+          </div>
+          <div>
+            <b>Среднее, минимум, максимум</b>
+            <code>bson.D{{Key: "avg", Value: bson.D{{Key: "$avg", Value: "$total"}}}, {Key: "min", Value: bson.D{{Key: "$min", Value: "$total"}}}, {Key: "max", Value: bson.D{{Key: "$max", Value: "$total"}}}}</code>
+          </div>
+          <div>
+            <b>Одна группа на всё</b>
+            <code>bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: nil}, {Key: "revenue", Value: bson.D{{Key: "$sum", Value: "$total"}}}}}}</code>
+          </div>
+          <div>
+            <b>Ключ из двух полей</b>
+            <code>bson.D{{Key: "_id", Value: bson.D{{Key: "city", Value: "$delivery.city"}, {Key: "type", Value: "$delivery.type"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Группа и счёт</b>
+            <code>{ "$group" =&gt; { "_id" =&gt; "$delivery.city", "orders" =&gt; { "$sum" =&gt; 1 } } }</code>
+          </div>
+          <div>
+            <b>Сумма поля</b>
+            <code>{ "revenue" =&gt; { "$sum" =&gt; "$total" } }</code>
+          </div>
+          <div>
+            <b>Среднее, минимум, максимум</b>
+            <code>{ "avg" =&gt; { "$avg" =&gt; "$total" }, "min" =&gt; { "$min" =&gt; "$total" }, "max" =&gt; { "$max" =&gt; "$total" } }</code>
+          </div>
+          <div>
+            <b>Одна группа на всё</b>
+            <code>{ "$group" =&gt; { "_id" =&gt; nil, "revenue" =&gt; { "$sum" =&gt; "$total" } } }</code>
+          </div>
+          <div>
+            <b>Ключ из двух полей</b>
+            <code>{ "_id" =&gt; { "city" =&gt; "$delivery.city", "type" =&gt; "$delivery.type" } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Стадия <code>$group</code> раскладывает документы потока по группам с одинаковым ключом <code>_id</code> и выпускает по документу на группу; в нём только ключ и итоги. Итоги считают аккумуляторы: <code>{"$sum": 1}</code> — число документов, <code>{"$sum": "$total"}</code> — сумма поля, <code>$avg</code> — среднее, <code>$min</code> и <code>$max</code> — крайние значения. Ключ <code>null</code> даёт одну группу на все документы, ключ-документ — группу на каждое сочетание полей. <code>$match</code> до <code>$group</code> отбирает документы, после — группы. Поле <code>_id</code> обязательно, остальные поля стадии — только аккумуляторы. Строковые значения <code>$sum</code> и <code>$avg</code> пропускают без ошибки.</p>
+
+        <div class="pager"><a href="../27-addfields-set-unset/index.html">← 4.3 $addFields, $set, $unset</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.4 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
