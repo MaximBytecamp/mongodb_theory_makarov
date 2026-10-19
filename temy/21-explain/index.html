@@ -416,7 +416,7 @@ std::string <span class="f">summary</span>(mongocxx::database&amp; db, <span cla
 <span class="k">end</span></pre>
           </figure>
         </div>
-        <p>Пример создаёт два индекса из главы 3.2 — <code>service_1</code> и <code>service_1_status_1</code> — и смотрит, какой из них сервер выберет для запроса дежурного. Отклонённые планы перебираются в цикле: у каждого пример спускается по <code>inputStage</code> до нижней стадии и печатает имя её индекса.</p>
+        <p>Пример создаёт два индекса из главы 3.2 — <code>service_1</code> и <code>service_1_status_1</code> — и проверяет, какой из них сервер выберет для запроса дежурного. Отклонённые планы перебираются в цикле: у каждого пример спускается по <code>inputStage</code> до нижней стадии и печатает имя её индекса.</p>
         <div class="duo">
           <figure class="code" data-lang="python">
             <figcaption><span>Python · PyMongo</span><span>выбранный и отклонённый планы</span></figcaption>
@@ -540,7 +540,12 @@ info[<span class="s">"queryPlanner"</span>][<span class="s">"rejectedPlans"</spa
           <img src="../../shots/125-explain-compound.png" alt="Compass, окно Explain Plan при двух индексах: FETCH и IXSCAN по service_1_status_1, 42 документа, 42 ключа">
           <figcaption>Compass · тот же запрос при индексах <code>service_1</code> и <code>service_1_status_1</code></figcaption>
         </figure>
-        <p>Compass показывает только выбранный план: <code>IXSCAN</code> по <code>service_1_status_1</code> и <code>FETCH</code>, по 42 на каждой стадии. В сводке под строкой <b>Query used the following index</b> — поля индекса со стрелками направления. Отклонённый план по <code>service_1</code> на схеме не виден; он есть на вкладке <b>Raw Output</b>, в <code>rejectedPlans</code>.</p>
+        <p>Compass показывает только выбранный план: <code>IXSCAN</code> по <code>service_1_status_1</code> и <code>FETCH</code>, по 42 на каждой стадии. В сводке под строкой <b>Query used the following index</b> — поля индекса со стрелками направления. Отклонённый план по <code>service_1</code> на схеме не виден. Он есть на вкладке <b>Raw Output</b>, в списке <code>rejectedPlans</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/150-explain-rejected.png" alt="Compass, вкладка Raw Output окна Explain Plan, прокрученная до rejectedPlans: план FETCH с filter status $gte 500 над IXSCAN по индексу service_1 с indexBounds service от payments до payments">
+          <figcaption>Compass · вкладка <b>Raw Output</b>, список <code>rejectedPlans</code></figcaption>
+        </figure>
+        <p>В <code>rejectedPlans</code> один план — тот, что на схеме выше назван отклонённым. Верхняя стадия <code>FETCH</code> с полем <code>filter: {"status": {"$gte": 500}}</code>, под ней <code>inputStage</code> — <code>IXSCAN</code> по индексу <code>service_1</code>. В <code>indexBounds</code> у него только поле <code>service</code> с границами <code>["payments", "payments"]</code>: статуса в границах нет, он проверяется в <code>filter</code> по прочитанному документу.</p>
 
         <h2 id="s3"><span class="sec">§3</span>executionStats: сколько прочитано</h2>
         <p>Отклонённый план в <code>executionStats</code> не попадает: счётчики описывают только выбранный. Чтобы увидеть числа другого плана, индекс задают запросу явно параметром <span class="term">hint</span> — «подсказка». Значение — имя индекса или его ключ; специальное значение <code>{"$natural": 1}</code> велит читать коллекцию подряд, без индекса. В рабочих запросах подсказку ставят редко: сервер обычно выбирает план сам. Для сравнения индексов она удобна, потому что задаёт план явно. В сравнении с навигатором из §2 подсказка — поездка по запасному маршруту: проехать его целиком и записать, сколько он занял.</p>
@@ -630,11 +635,24 @@ service_1:          FETCH → IXSCAN service_1 | вернул 42 | ключей 
           <p class="scheme__note">Серая полоса — прочитанные записи индекса, красная — прочитанные документы, зелёная — возвращённые. У первого плана три полосы равны: каждый прочитанный документ попал в результат. У второго лишние 190 документов, у третьего — 1158.</p>
         </div>
         <p>По индексу <code>service_1</code> сервер находит все события платёжного сервиса и только после чтения документа проверяет статус: условие на <code>status</code> в этот индекс не входит. Без индекса читается вся коллекция. Время выполнения в отчёте тоже есть — поле <code>executionTimeMillis</code>, в миллисекундах. На копии журнала оно меняется от запуска к запуску, от 0 до 15 мс. На кадрах §1 и §8 один и тот же запрос без индекса выполнен за 1 и за 7 мс. Время зависит от нагрузки на сервер и от того, какие данные уже лежат в памяти. Число прочитанных ключей и документов при тех же данных каждый раз одно и то же. Поэтому запросы сравнивают по счётчикам.</p>
+        <p>Подсказка в Compass задаётся на вкладке <b>Documents</b>. Кнопка <b>Options</b> справа от поля фильтра раскрывает параметры запроса:</p>
+        <ul>
+          <li><b>Project</b> — проекция;</li>
+          <li><b>Sort</b> — сортировка;</li>
+          <li><b>Skip</b> и <b>Limit</b> — пропуск и предел;</li>
+          <li><b>Index Hint</b> — подсказка, значение — имя индекса в кавычках.</li>
+        </ul>
+        <p>Кнопка <b>Explain</b> строит отчёт для запроса со всеми заполненными параметрами.</p>
+        <figure class="shot">
+          <img src="../../shots/148-explain-query-bar.png" alt="Compass, вкладка Documents коллекции sandbox.events с раскрытыми Options: фильтр service payments и status от 500, поля Project и Sort пустые, Index Hint service_1 в кавычках, кнопки Explain, Reset и Find, найдено 1 – 42 of 42">
+          <figcaption>Compass · запрос дежурного с <b>Index Hint</b> <code>"service_1"</code> на вкладке <b>Documents</b></figcaption>
+        </figure>
+        <p>На кадре — тот же запрос дежурного, что в примере, с подсказкой <code>"service_1"</code>. Над списком документов счётчик <b>1 – 42 of 42</b>: подсказка задаёт способ поиска, а результат тот же — 42 документа. Кнопка <b>Explain</b> для этого запроса открывает окно Explain Plan.</p>
         <figure class="shot">
           <img src="../../shots/126-explain-hint-service.png" alt="Compass, окно Explain Plan с подсказкой индекса service_1: IXSCAN вернул 232, FETCH вернул 42, прочитано 232 документа">
-          <figcaption>Compass · тот же запрос с <b>Index Hint</b> <code>"service_1"</code></figcaption>
+          <figcaption>Compass · <b>Explain</b> для запроса с <b>Index Hint</b> <code>"service_1"</code></figcaption>
         </figure>
-        <p>Подсказка в Compass задаётся полем <b>Index Hint</b> в параметрах запроса (<b>Options</b>), значение — имя индекса в кавычках. На схеме видно, где теряется работа: <code>IXSCAN</code> вернул 232 ссылки, а <code>FETCH</code> после проверки статуса оставил 42. Прочитано 232 документа.</p>
+        <p>По стадиям видно, где теряется работа: <code>IXSCAN</code> вернул 232 ссылки, а <code>FETCH</code> после проверки статуса оставил 42. Прочитано 232 документа — те же числа, что во второй строке вывода примера.</p>
 
         <h2 id="s4"><span class="sec">§4</span>Покрывающий запрос</h2>
         <p>Стадия <code>FETCH</code> читает документы по ссылкам из индекса. Если все поля, которые запрос проверяет и возвращает, есть в индексе, документы читать не нужно: значения берутся из записей индекса. Такой запрос называется <span class="term">покрывающим</span> — индекс покрывает его целиком. Для этого проекция (глава 1.5) должна оставить только поля индекса и исключить <code>_id</code>, если его нет в индексе.</p>
@@ -962,6 +980,12 @@ service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | �
           <p class="scheme__note">Время — 02.09.2026. Зелёные строки — события со статусом от 500, они попадают в результат. Индекс <code>service_1_ts_-1</code> не хранит статус, и сервер читает документ каждой записи, чтобы его проверить. Индекс по правилу ESR хранит статус в записи, и документ читается только у подходящих событий. На пятом подходящем событии, восемнадцатом по счёту, стадия <code>LIMIT</code> останавливает чтение.</p>
         </div>
         <p>Третий индекс, <code>service_1_status_1</code>, на схеме не показан. В нём 42 события со статусом от 500 стоят подряд, но упорядочены по статусу. Чтобы выбрать из них пять последних, сервер читает все 42 и сортирует их стадией <code>SORT</code>. Индекс по правилу ESR дал наименьшую работу: сортировки в памяти нет, лишние документы не читаются.</p>
+        <p>В Compass те же два индекса сравниваются подсказкой в поле <b>Index Hint</b>. Сначала — индекс <code>service_1_ts_-1</code> без статуса.</p>
+        <figure class="shot">
+          <img src="../../shots/151-explain-hint-service-ts.png" alt="Compass, окно Explain Plan для пяти последних ошибок с подсказкой service_1_ts_-1: IXSCAN вернул 18, FETCH и LIMIT по 5, сводка 18 index keys examined и 18 documents examined">
+          <figcaption>Compass · пять последних ошибок с <b>Index Hint</b> <code>"service_1_ts_-1"</code></figcaption>
+        </figure>
+        <p><code>IXSCAN</code> вернул 18 записей, <code>FETCH</code> — 5: тринадцать прочитанных документов отброшены после проверки статуса. В сводке <b>18 documents examined</b>. Тот же запрос с индексом по правилу ESR — на следующем кадре.</p>
         <figure class="shot">
           <img src="../../shots/129-explain-esr.png" alt="Compass, окно Explain Plan для запроса по индексу service_1_ts_-1_status_1: LIMIT, FETCH и IXSCAN по 5, 18 ключей, 5 документов">
           <figcaption>Compass · пять последних ошибок с <b>Index Hint</b> <code>"service_1_ts_-1_status_1"</code></figcaption>
@@ -979,8 +1003,13 @@ service_1_ts_-1_status_1 LIMIT → FETCH → IXSCAN service_1_ts_-1_status_1 | �
         </ol>
 
         <h2 id="s8"><span class="sec">§8</span>explain в Compass</h2>
-        <p>Кадры в разделах выше сняты в окне <b>Explain Plan</b> на тех же запросах, что и примеры. Запрос набирается на вкладке <b>Documents</b>: фильтр — в верхнем поле, проекция, сортировка, предел и подсказка индекса — в параметрах <b>Options</b>. Кнопка <b>Explain</b> строит отчёт для этого запроса.</p>
-        <p>Вкладка <b>Visual Tree</b> показывает стадии выбранного плана схемой: нижняя стадия передаёт результат верхней, у каждой — счётчик <b>Returned</b>. Щелчок по названию стадии раскрывает её часть отчёта — условие, направление чтения, имя индекса. Вкладка <b>Raw Output</b> показывает отчёт целиком, тот же документ, что возвращает <code>explain</code> в коде.</p>
+        <p>Кадры в разделах выше сняты в окне <b>Explain Plan</b> на тех же запросах, что и примеры. Запрос набирается на вкладке <b>Documents</b>: фильтр — в верхнем поле, остальные параметры — в <b>Options</b>, как на кадре в §3.</p>
+        <p>Вкладка <b>Visual Tree</b> показывает стадии выбранного плана схемой: нижняя стадия передаёт результат верхней, у каждой — счётчик <b>Returned</b>. Щелчок по названию стадии раскрывает её часть отчёта.</p>
+        <figure class="shot">
+          <img src="../../shots/149-explain-stage-detail.png" alt="Compass, окно Explain Plan с раскрытой стадией IXSCAN по индексу service_1_status_1: под карточкой стадии её часть отчёта — stage IXSCAN, nReturned 42, works 43, keyPattern service 1 и status 1">
+          <figcaption>Compass · раскрытая стадия <code>IXSCAN</code> для запроса из §2</figcaption>
+        </figure>
+        <p>Под карточкой <code>IXSCAN</code> появился её документ из <code>executionStages</code>: <code>stage</code>, <code>nReturned: 42</code>, <code>works: 43</code> — шаги работы стадии, <code>keyPattern</code> — ключ индекса. Ниже в этом документе, при прокрутке, лежат <code>indexBounds</code> из §2. Вкладка <b>Raw Output</b> показывает отчёт целиком, тот же документ, что возвращает <code>explain</code> в коде.</p>
         <figure class="shot">
           <img src="../../shots/130-explain-raw.png" alt="Compass, вкладка Raw Output окна Explain Plan: документ отчёта с explainVersion, queryPlanner с winningPlan COLLSCAN и пустым rejectedPlans, executionStats с nReturned 42, executionTimeMillis 7, totalKeysExamined 0, totalDocsExamined 1200">
           <figcaption>Compass · вкладка <b>Raw Output</b> для запроса без индексов</figcaption>

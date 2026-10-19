@@ -95,6 +95,15 @@ await withCompass(async page => {
     throw new Error('не удалось подключиться к стенду «Стенд занятия»');
   };
 
+  /* Вкладка с изменённым конвейером при закрытии спрашивает подтверждение. */
+  const confirmTabClose = async () => {
+    const dialog = page.locator('[data-testid="confirm-tab-close"][open]');
+    if (await dialog.count()) {
+      await dialog.locator('button', { hasText: /close/i }).first().click({ force: true }).catch(() => {});
+      await settle(700);
+    }
+  };
+
   /* Вкладки рабочей области копятся от прогона к прогону и лезут в верхнюю
      полосу кадра: перед съёмкой оставляем одну. */
   const closeExtraTabs = async () => {
@@ -105,6 +114,7 @@ await withCompass(async page => {
       const close = page.locator('[data-testid="close-workspace-tab"]').first();
       if (!(await close.count())) return;
       await close.click({ force: true }).catch(() => {});
+      await confirmTabClose();
       await settle(500);
     }
   };
@@ -154,6 +164,7 @@ await withCompass(async page => {
   };
 
   const openCollection = async (database, collection) => {
+    await confirmTabClose();
     // Вкладки закрываются до навигации: закрытие текущей вкладки уводит
     // рабочую область на другую коллекцию, и запрос уходит не туда.
     await closeExtraTabs();
@@ -176,6 +187,7 @@ await withCompass(async page => {
       if (other < 0) break;
       await tabs.nth(other).hover().catch(() => {});
       await tabs.nth(other).locator('[data-testid="close-workspace-tab"]').click({ force: true }).catch(() => {});
+      await confirmTabClose();
       await settle(600);
     }
     const header = await page.locator('[data-testid="collection-header"]').first().innerText();
@@ -531,6 +543,54 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
   await explainShot('128-explain-sort', 'sort', 2, { filter: '{ service: "payments" }', sort: '{ ts: -1 }', limit: '10' });
   await explainShot('129-explain-esr', 'esr', 4, { filter: ERR, sort: '{ ts: -1 }', limit: '5', hint: '"service_1_ts_-1_status_1"' });
   await explainShot('130-explain-raw', 'bare', 1, { filter: ERR }, true);
+
+  /* Кадры, которых не хватало тексту главы 3.3 (19.10.2026): панель запроса
+     с параметрами, раскрытая стадия, отклонённый план и третий индекс §6. */
+  if (need('148-explain-query-bar')) {
+    const got = mongoIn('sandbox', EX.two).split('\n').pop();
+    if (got !== '3') throw new Error('подготовка two: ждали 3, получили ' + got);
+    await freshOpen('events');
+    await openTab('Documents');
+    await setQuery({ filter: ERR, hint: '"service_1"' });
+    await dismissPopups();
+    await page.screenshot({ path: `${OUT}/148-explain-query-bar.png`, clip: { x: 0, y: 0, width: 1600, height: 560 } });
+    console.log('снят', '148-explain-query-bar');
+  }
+  const explainExtra = async (name, state, want, query, after) => {
+    if (!need(name)) return;
+    const got = mongoIn('sandbox', EX[state]).split('\n').pop();
+    if (got !== String(want)) throw new Error(`подготовка ${state}: ждали ${want}, получили ${got}`);
+    await freshOpen('events');
+    await openTab('Documents');
+    await setQuery(query);
+    await collapseOptions();
+    await page.locator('[data-testid="query-bar-explain-button"], button:has-text("Explain")').first().click({ force: true });
+    await settle(4000);
+    await after();
+    await page.screenshot({ path: `${OUT}/${name}.png`, clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', name);
+    const close = page.getByRole('button', { name: /^close$/i }).first();
+    if (await close.count()) await close.click({ force: true }).catch(() => {});
+    await settle(800);
+  };
+  await explainExtra('149-explain-stage-detail', 'two', 3, { filter: ERR }, async () => {
+    await page.getByText('IXSCAN', { exact: true }).first().click({ force: true });
+    await settle(1500);
+  });
+  await explainExtra('150-explain-rejected', 'two', 3, { filter: ERR }, async () => {
+    await page.getByText('Raw Output', { exact: true }).first().click({ force: true });
+    await settle(1500);
+    await page.evaluate(() => {
+      const hit = [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.includes('rejectedPlans'));
+      if (!hit) return;
+      for (let n = hit.parentElement; n; n = n.parentElement) {
+        if (n.scrollHeight > n.clientHeight + 4) { n.scrollTop += hit.getBoundingClientRect().top - n.getBoundingClientRect().top - 40; break; }
+      }
+    });
+    await settle(1000);
+  });
+  await explainExtra('151-explain-hint-service-ts', 'esr', 4,
+    { filter: ERR, sort: '{ ts: -1 }', limit: '5', hint: '"service_1_ts_-1"' }, async () => {});
 
   // ── Глава 3.4: текстовый поиск на копии товаров ──────────────────────
   const SC = `db.showcase.drop(); db.showcase.insertMany(db.getSiblingDB("shop").products.find().toArray());`;
