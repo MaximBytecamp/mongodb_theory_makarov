@@ -642,6 +642,32 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     await settle(800);
   }
 
+  // --- 152 · 3.4 §8: окно создания текстового индекса ----------------
+  if (need('152-showcase-create-text')) {
+    prepTx('copy');
+    await freshOpen('showcase');
+    await openTab('Indexes');
+    await page.locator('[data-testid="open-create-index-modal-button"]').click({ force: true });
+    await settle(1500);
+    const name = page.locator('[data-testid="create-index-fields-name-0"] input').first();
+    await name.click({ force: true });
+    await name.fill('title');
+    await settle(500);
+    await page.keyboard.press('Enter');
+    await settle(600);
+    await page.locator('[data-testid="create-index-fields-type-0"] button').first().click({ force: true });
+    await settle(800);
+    // В списке типов: 1 (asc), -1 (desc), 2dsphere, text (full text search).
+    await page.locator('[role="option"]', { hasText: 'text (full text search)' }).first().click({ force: true });
+    await settle(800);
+    const got = await page.locator('[data-testid="create-index-fields-type-0"]').innerText();
+    if (!/text/.test(got)) throw new Error('тип индекса не выбран: ' + got);
+    await page.screenshot({ path: `${OUT}/152-showcase-create-text.png`, clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', '152-showcase-create-text');
+    await page.locator('[data-testid="create-index-actions-cancel-button"]').click({ force: true }).catch(() => {});
+    await settle(800);
+  }
+
   // ── Глава 3.5: пункты выдачи и зоны ─────────────────────────────────
   const PV = [["pv-1","Пункт 1, центр",39.8938,57.6261],["pv-2","Пункт 2, вокзал",39.8370,57.6337],
               ["pv-3","Пункт 3, Брагино",39.8178,57.6929],["pv-4","Пункт 4, Фрунзенский район",39.9050,57.5848],
