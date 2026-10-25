@@ -720,6 +720,33 @@ const CHEHOL = '{ sku: "SKU-AC-030", title: "Чехол для ноутбука 
     await openTab('Documents');
   }
 
+
+  // --- 153 · 3.5 §6: окно создания индекса 2dsphere ------------------
+  if (need('153-pickup-create-2dsphere')) {
+    const got = mongoIn('sandbox', `${PV_INSERT} db.pickup.countDocuments()`).split('\n').pop();
+    if (got !== '6') throw new Error('подготовка pickup: ждали 6, получили ' + got);
+    await freshOpen('pickup');
+    await openTab('Indexes');
+    await page.locator('[data-testid="open-create-index-modal-button"]').click({ force: true });
+    await settle(1500);
+    const name = page.locator('[data-testid="create-index-fields-name-0"] input').first();
+    await name.click({ force: true });
+    await name.fill('location');
+    await settle(500);
+    await page.keyboard.press('Enter');
+    await settle(600);
+    await page.locator('[data-testid="create-index-fields-type-0"] button').first().click({ force: true });
+    await settle(800);
+    await page.locator('[role="option"]', { hasText: '2dsphere' }).first().click({ force: true });
+    await settle(800);
+    const type = await page.locator('[data-testid="create-index-fields-type-0"]').innerText();
+    if (!/2dsphere/.test(type)) throw new Error('тип индекса не выбран: ' + type);
+    await page.screenshot({ path: `${OUT}/153-pickup-create-2dsphere.png`, clip: { x: 0, y: 0, width: 1600, height: 969 } });
+    console.log('снят', '153-pickup-create-2dsphere');
+    await page.locator('[data-testid="create-index-actions-cancel-button"]').click({ force: true }).catch(() => {});
+    await settle(800);
+  }
+
   // ── Глава 3.6: коллекция audit после скрипта logs_audit ──────────────
   if (need('141-audit-indexes')) {
     const got = mongoIn('sandbox', `db.audit.drop(); db.audit.insertMany(db.getSiblingDB("logs").events.find().toArray());
