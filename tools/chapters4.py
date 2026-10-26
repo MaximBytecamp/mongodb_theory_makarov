@@ -865,3 +865,108 @@ CHEATS["4.5"] = [
     ("Подсчёт", cheat_lines({"$count": "delivered"})),
     ("Частота значений", cheat_lines({"$sortByCount": "$status"})),
 ]
+
+
+# ── 4.6 $unwind: массив становится документами ────────────────────────────
+
+def several(chapter: str, name: str, caption: str, variants: list) -> None:
+    """Несколько конвейеров подряд: у каждого заголовок и вывод документов целиком.
+    variants — список (заголовок, имя переменной, стадии)."""
+    def code(lang: str) -> str:
+        decl = "\n\n".join(pipeline(st, lang, gvar(var, lang)) for _, var, st in variants)
+        runs = "\n\n".join(title_code(lang, title) + "\n" + docs_code(lang, var=gvar(var, lang), first=(i == 0))
+                           for i, (title, var, _) in enumerate(variants))
+        return decl + "\n\n" + runs
+    example(chapter, name, caption, {lang: code(lang) for lang in LANGS4})
+
+
+ONE_ORDER = {"$match": {"_id": "o-0002"}}
+UNWIND = {"$unwind": "$items"}
+
+# один заказ до и после $unwind
+example("4.6", "one", "заказ из трёх позиций после $unwind",
+        agg([ONE_ORDER, UNWIND], ["number", "items.title", "items.qty"]))
+
+# сколько документов выходит из $unwind
+several("4.6", "count", "сколько документов до $unwind и после", [
+    ("заказов", "orders_count", [{"$count": "orders"}]),
+    ("позиций после $unwind", "lines_count", [UNWIND, {"$count": "lines"}]),
+])
+
+# группировка по полю элемента массива
+LINE_SUM = {"$multiply": ["$items.qty", "$items.price"]}
+example("4.6", "category", "позиции заказов по категориям", agg_docs([
+    UNWIND,
+    {"$group": {"_id": "$items.category", "lines": {"$sum": 1},
+                "qty": {"$sum": "$items.qty"}, "revenue": {"$sum": LINE_SUM}}},
+    {"$sort": {"revenue": -1}},
+]))
+
+# поля заказа повторяются в каждой позиции
+several("4.6", "repeat", "сумма заказов до $unwind и после", [
+    ("сумма total по заказам", "by_orders", [{"$group": {"_id": None, "revenue": {"$sum": "$total"}}}]),
+    ("сумма total после $unwind", "by_lines_total", [UNWIND, {"$group": {"_id": None, "revenue": {"$sum": "$total"}}}]),
+    ("сумма qty × price после $unwind", "by_lines", [UNWIND, {"$group": {"_id": None, "revenue": {"$sum": LINE_SUM}}}]),
+])
+
+# $match до и после $unwind
+LAPTOPS = {"$match": {"items.category": "ноутбуки"}}
+several("4.6", "match", "$match до $unwind и после", [
+    ("$match до $unwind", "match_before", [LAPTOPS, UNWIND, {"$count": "lines"}]),
+    ("$match после $unwind", "match_after", [UNWIND, LAPTOPS, {"$count": "lines"}]),
+    ("$match до и после", "match_both", [LAPTOPS, UNWIND, LAPTOPS, {"$count": "lines"}]),
+])
+
+# номер элемента в массиве
+example("4.6", "index", "includeArrayIndex: номер позиции",
+        agg([ONE_ORDER, {"$unwind": {"path": "$items", "includeArrayIndex": "pos"}}],
+            ["number", "pos", "items.title"]))
+
+# поле не массив и поле отсутствует
+several("4.6", "promo", "$unwind по полю, которого нет у части заказов", [
+    ("$unwind по promo", "promo_plain", [{"$unwind": "$promo"}, {"$count": "orders"}]),
+    ("с preserveNullAndEmptyArrays", "promo_kept",
+     [{"$unwind": {"path": "$promo", "preserveNullAndEmptyArrays": True}}, {"$count": "orders"}]),
+])
+
+# пустой массив
+EMPTY_CANCELLED = {"$set": {"items": {"$cond": [{"$eq": ["$status", "отменён"]}, [], "$items"]}}}
+several("4.6", "empty", "пустые массивы у отменённых заказов", [
+    ("$unwind", "empty_plain", [EMPTY_CANCELLED, UNWIND, {"$count": "docs"}]),
+    ("с preserveNullAndEmptyArrays", "empty_kept",
+     [EMPTY_CANCELLED, {"$unwind": {"path": "$items", "preserveNullAndEmptyArrays": True}}, {"$count": "docs"}]),
+])
+
+# самые продаваемые товары
+example("4.6", "top", "три самых продаваемых товара", agg_docs([
+    DELIVERED,
+    UNWIND,
+    {"$group": {"_id": "$items.title", "qty": {"$sum": "$items.qty"}}},
+    {"$sort": {"qty": -1, "_id": 1}},
+    {"$limit": 3},
+]))
+
+ERRORS["4.6"] = [
+    ('<code>{"$unwind": "items"}</code>',
+     "Ошибка 28818: путь в <code>$unwind</code> должен начинаться с <code>$</code>",
+     '<code>{"$unwind": "$items"}</code>'),
+    ('<code>{"$sum": "$total"}</code> после <code>$unwind</code>',
+     "Итог заказа повторён в каждой позиции и сложен столько раз, сколько в заказе позиций",
+     'Суммировать поля позиции: <code>{"$sum": {"$multiply": ["$items.qty", "$items.price"]}}</code>, или считать <code>total</code> до <code>$unwind</code>'),
+    ('<code>$match</code> по <code>"items.category"</code> только до <code>$unwind</code>',
+     "Отбираются заказы целиком: после разворота в потоке есть и позиции других категорий",
+     "Повторить то же условие после <code>$unwind</code>"),
+    ("<code>$unwind</code> по полю, которого нет у части документов",
+     "Документы без поля, с <code>null</code> или пустым массивом исчезают из потока",
+     '<code>{"path": "$promo", "preserveNullAndEmptyArrays": true}</code>'),
+    ('<code>"includeArrayIndex": "pos"</code>',
+     "Номера идут с нуля: у первой позиции заказа <code>pos</code> равно 0",
+     "Для номера с единицы прибавить 1 в следующей стадии"),
+]
+
+CHEATS["4.6"] = [
+    ("Развернуть массив", cheat_lines({"$unwind": "$items"})),
+    ("Номер элемента", cheat_lines({"$unwind": {"path": "$items", "includeArrayIndex": "pos"}})),
+    ("Сохранить документы без массива", cheat_lines({"$unwind": {"path": "$promo", "preserveNullAndEmptyArrays": True}})),
+    ("Сумма позиций", cheat_lines({"revenue": {"$sum": {"$multiply": ["$items.qty", "$items.price"]}}})),
+]

@@ -1,0 +1,1547 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.6 $unwind: массив становится документами · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ до и после $unwind, таблицы, полосы выручки. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.6</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.6</span>
+          <h1>$unwind:<br>массив становится документами</h1>
+          <p class="lead">В этой главе разобрана стадия $unwind. Она превращает документ с массивом в несколько документов, по одному на каждый элемент массива. После неё к позициям заказов применяются те же стадии, что к заказам: $match, $group, $sort. Отдельно разобраны два параметра стадии — номер элемента и сохранение документов без массива — и ошибка, при которой после $unwind сумма заказов получается завышенной.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Массивы и точечная нотация (главы 2.1 и 2.6), $match, $sort, $limit (глава 4.1), $multiply и $cond (глава 4.2), $set (глава 4.3), $group (глава 4.4), $count (глава 4.5)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Считать по элементам массивов: штуки и выручку по товарам и категориям, позиции заказов, склады товара</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.6-python.zip" download><code>mongodb-glava-4.6-python.zip</code></a>, 65 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.6-ruby.zip" download><code>mongodb-glava-4.6-ruby.zip</code></a>, 64 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.6-go.zip" download><code>mongodb-glava-4.6-go.zip</code></a>, 72 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.6-cpp.zip" download><code>mongodb-glava-4.6-cpp.zip</code></a>, 72 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_6.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_6.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_6.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_6.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_6.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_6.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_6.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_6.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_6.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_6.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_6.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_6.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_6.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $unwind</a></li>
+            <li><a href="#s2">Сколько документов выходит из $unwind</a></li>
+            <li><a href="#s3">Группировка по элементам массива</a></li>
+            <li><a href="#s4">Поля документа повторяются</a></li>
+            <li><a href="#s5">$match до $unwind и после</a></li>
+            <li><a href="#s6">Номер элемента: includeArrayIndex</a></li>
+            <li><a href="#s7">Документы без массива</a></li>
+            <li><a href="#s8">Самые продаваемые товары</a></li>
+            <li><a href="#s9">$unwind в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $unwind</h2>
+        <p>Кассовый чек заказа 2026-0002 содержит три строки: ноутбук, веб-камеру и наушники. Если чек разрезать по строкам, получится три полоски. Чтобы каждая полоска не потеряла связь с заказом, на каждой повторяют шапку чека: номер заказа, дату, покупателя.</p>
+        <p>В заказе магазина строки чека — массив <code>items</code>, каждая позиция в нём — вложенный документ с полями <code>sku</code>, <code>title</code>, <code>category</code>, <code>qty</code> и <code>price</code>. Стадии модуля обрабатывают документы целиком. Пока позиции лежат внутри заказов, сгруппировать их по товарам нельзя.</p>
+        <p><span class="term">Стадия $unwind</span> разворачивает массив: из документа с массивом из N элементов она выпускает N документов. В каждом выходном документе все поля исходного, а на месте массива — один его элемент. Параметр стадии — путь к полю массива со знаком <code>$</code>: <code>{"$unwind": "$items"}</code>.</p>
+        <p>Пример отбирает заказ 2026-0002, разворачивает его позиции и выводит у каждого выходного документа номер заказа, название и количество товара.</p>
+        <p data-lang="cpp">У стадии <code>$unwind</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>unwind</code>, параметр — путь к полю строкой.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>заказ из трёх позиций после $unwind</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"items.title"</span>, <span class="s">"items.qty"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>заказ из трёх позиций после $unwind</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"items.title"</span>, <span class="s">"items.qty"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>заказ из трёх позиций после $unwind</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"items.title"</span>, <span class="s">"items.qty"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>заказ из трёх позиций после $unwind</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"items.title"</span>, <span class="s">"items.qty"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | Ноутбук ASUS VivoBook 15 | 1
+2026-0002 | Веб-камера Logitech C920 | 1
+2026-0002 | Наушники Sony WH-1000XM5 | 3
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | Ноутбук ASUS VivoBook 15 | 1
+2026-0002 | Веб-камера Logitech C920 | 1
+2026-0002 | Наушники Sony WH-1000XM5 | 3
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | Ноутбук ASUS VivoBook 15 | 1
+2026-0002 | Веб-камера Logitech C920 | 1
+2026-0002 | Наушники Sony WH-1000XM5 | 3
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | Ноутбук ASUS VivoBook 15 | 1
+2026-0002 | Веб-камера Logitech C920 | 1
+2026-0002 | Наушники Sony WH-1000XM5 | 3
+документов: 3</pre>
+        </figure>
+        <p>Из одного заказа получилось три документа. Номер заказа повторён в каждом, а в поле <code>items</code> теперь лежит одна позиция — вложенный документ. Поэтому путь <code>items.title</code> даёт одно название. На схеме — заказ до стадии и три документа после неё.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказ 2026-0002 до $unwind и после</span><span>1 документ → 3</span></div>
+          <div class="scheme__body">
+            <div class="split">
+              <div><b>до: 1 документ</b>
+                <div class="card"><span>number: 2026-0002</span><span>total: 163250</span><span>items: [</span><span class="in on1">ASUS VivoBook 15 · 1 шт.</span><span class="in on2">Logitech C920 · 1 шт.</span><span class="in on3">Sony WH-1000XM5 · 3 шт.</span><span>]</span></div>
+              </div>
+              <div class="split__arrow">$unwind</div>
+              <div><b>после: 3 документа</b>
+                <div class="card"><span>number: 2026-0002</span><span>total: 163250</span><span class="on1">items: ASUS VivoBook 15 · 1 шт.</span></div>
+                <div class="card"><span>number: 2026-0002</span><span>total: 163250</span><span class="on2">items: Logitech C920 · 1 шт.</span></div>
+                <div class="card"><span>number: 2026-0002</span><span>total: 163250</span><span class="on3">items: Sony WH-1000XM5 · 3 шт.</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Цветом отмечено, какой элемент массива попал в какой документ. Поля <code>number</code> и <code>total</code> скопированы во все три документа без изменений; остальные поля заказа копируются так же и на схеме не показаны. У всех трёх документов один и тот же <code>_id</code> — o-0002.</p>
+        </div>
+        <p>Один заказ дал три документа. Сколько документов получится из всей коллекции, зависит от длины массивов.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Сколько документов выходит из $unwind</h2>
+        <p>Число документов после <code>$unwind</code> равно сумме длин массивов всех документов. В заказах магазина от одной до четырёх позиций. Пример считает стадией <code>$count</code> заказы и документы после <code>$unwind</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>сколько документов до $unwind и после</span></figcaption>
+<pre>orders_count = [
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+lines_count = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"lines"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── заказов"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(orders_count):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── позиций после $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(lines_count):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>сколько документов до $unwind и после</span></figcaption>
+<pre>mongocxx::pipeline orders_count;
+orders_count.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+mongocxx::pipeline lines_count;
+lines_count.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+lines_count.<span class="f">count</span>(<span class="s">"lines"</span>);
+
+std::cout &lt;&lt; <span class="s">"── заказов"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(orders_count)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── позиций после $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(lines_count)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>сколько документов до $unwind и после</span></figcaption>
+<pre>ordersCount := mongo.Pipeline{
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+linesCount := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"lines"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── заказов"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, ordersCount)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── позиций после $unwind"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, linesCount)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>сколько документов до $unwind и после</span></figcaption>
+<pre>orders_count = [
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+lines_count = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"lines"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── заказов"</span>
+orders.<span class="f">aggregate</span>(orders_count).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── позиций после $unwind"</span>
+orders.<span class="f">aggregate</span>(lines_count).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── заказов
+{'orders': 120}
+── позиций после $unwind
+{'lines': 271}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── заказов
+{ "orders" : 120 }
+── позиций после $unwind
+{ "lines" : 271 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── заказов
+{"orders":120}
+── позиций после $unwind
+{"lines":271}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── заказов
+{"orders"=&gt;120}
+── позиций после $unwind
+{"lines"=&gt;271}</pre>
+        </figure>
+        <p>Заказов 120, документов после <code>$unwind</code> — 271. На схеме видно, откуда берётся это число: заказы сгруппированы по числу позиций.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказы по числу позиций</span><span>120 заказов → 271 документ</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Позиций в заказе</th><th>Заказов</th><th>Документов после $unwind</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>39</td><td>39 × 1 = 39</td></tr>
+                <tr><td>2</td><td>34</td><td>34 × 2 = 68</td></tr>
+                <tr><td>3</td><td>24</td><td>24 × 3 = 72</td></tr>
+                <tr><td>4</td><td>23</td><td>23 × 4 = 92</td></tr>
+                <tr class="on"><td>всего</td><td>120</td><td>271</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Каждый заказ даёт столько документов, сколько у него позиций. Сумма последнего столбца — число документов на выходе стадии.</p>
+        </div>
+        <p>После <code>$unwind</code> каждый документ потока — одна позиция заказа. Значит, стадия <code>$group</code> из главы 4.4 группирует уже позиции.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Группировка по элементам массива</h2>
+        <p>Чтобы узнать, сколько ноутбуков продано, бухгалтер не считает чеки, в которых есть ноутбук: он выписывает из всех чеков строки с ноутбуками и складывает количества. С заказами то же самое: категория и количество записаны у каждой позиции.</p>
+        <p>Пример разворачивает позиции и группирует их по категории товара. Для каждой категории считаются три числа: позиций — аккумулятор <code>{"$sum": 1}</code>, штук — сумма <code>items.qty</code>, выручка — сумма произведений количества на цену. Произведение записывается выражением <code>$multiply</code> из главы 4.2.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>позиции заказов по категориям</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$items.category"</span>,
+        <span class="s">"lines"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"qty"</span>: {<span class="s">"$sum"</span>: <span class="s">"$items.qty"</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>]}},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>позиции заказов по категориям</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$items.category"</span>),
+    <span class="f">kvp</span>(<span class="s">"lines"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$items.qty"</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>))))))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>позиции заказов по категориям</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$items.category"</span>},
+        {Key: <span class="s">"lines"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$items.qty"</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>}}}}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>позиции заказов по категориям</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$items.category"</span>,
+    <span class="s">"lines"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"qty"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$items.qty"</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>] } },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'ноутбуки', 'lines': 67, 'qty': 103, 'revenue': 8085980}
+{'_id': 'смартфоны', 'lines': 57, 'qty': 103, 'revenue': 4487970}
+{'_id': 'периферия', 'lines': 66, 'qty': 106, 'revenue': 1606540}
+{'_id': 'комплектующие', 'lines': 48, 'qty': 75, 'revenue': 1067950}
+{'_id': 'аксессуары', 'lines': 33, 'qty': 53, 'revenue': 137870}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "ноутбуки", "lines" : 67, "qty" : 103, "revenue" : 8085980 }
+{ "_id" : "смартфоны", "lines" : 57, "qty" : 103, "revenue" : 4487970 }
+{ "_id" : "периферия", "lines" : 66, "qty" : 106, "revenue" : 1606540 }
+{ "_id" : "комплектующие", "lines" : 48, "qty" : 75, "revenue" : 1067950 }
+{ "_id" : "аксессуары", "lines" : 33, "qty" : 53, "revenue" : 137870 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"ноутбуки","lines":67,"qty":103,"revenue":8085980}
+{"_id":"смартфоны","lines":57,"qty":103,"revenue":4487970}
+{"_id":"периферия","lines":66,"qty":106,"revenue":1606540}
+{"_id":"комплектующие","lines":48,"qty":75,"revenue":1067950}
+{"_id":"аксессуары","lines":33,"qty":53,"revenue":137870}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"ноутбуки", "lines"=&gt;67, "qty"=&gt;103, "revenue"=&gt;8085980}
+{"_id"=&gt;"смартфоны", "lines"=&gt;57, "qty"=&gt;103, "revenue"=&gt;4487970}
+{"_id"=&gt;"периферия", "lines"=&gt;66, "qty"=&gt;106, "revenue"=&gt;1606540}
+{"_id"=&gt;"комплектующие", "lines"=&gt;48, "qty"=&gt;75, "revenue"=&gt;1067950}
+{"_id"=&gt;"аксессуары", "lines"=&gt;33, "qty"=&gt;53, "revenue"=&gt;137870}</pre>
+        </figure>
+        <p>Пять категорий отсортированы по выручке. Больше всего выручки дают ноутбуки: 8 085 980 при 103 штуках. Штук периферии продано больше — 106, а выручка у неё в пять раз меньше: товары дешевле. На схеме выручка категорий показана полосами в одном масштабе.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выручка по категориям</span><span>271 позиция</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>ноутбуки · 67 поз., 103 шт.</span><i><b class="on" style="width:100%"></b></i><span>8 085 980</span></div>
+              <div><span>смартфоны · 57 поз., 103 шт.</span><i><b style="width:55.5%"></b></i><span>4 487 970</span></div>
+              <div><span>периферия · 66 поз., 106 шт.</span><i><b style="width:19.9%"></b></i><span>1 606 540</span></div>
+              <div><span>комплектующие · 48 поз., 75 шт.</span><i><b style="width:13.2%"></b></i><span>1 067 950</span></div>
+              <div><span>аксессуары · 33 поз., 53 шт.</span><i><b style="width:1.7%"></b></i><span>137 870</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Позиций 67 + 57 + 66 + 48 + 33 = 271 — все документы после <code>$unwind</code>. Выручка всех категорий вместе — 15 386 310.</p>
+        </div>
+        <p>Выручку здесь посчитали по полям позиции. У каждого документа после <code>$unwind</code> есть и поле <code>total</code> — итог заказа. Сложить его кажется проще, но результат будет другим.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Поля документа повторяются</h2>
+        <p>Если на каждой полоске разрезанного чека написан итог всего чека и полоски потом сложить, итог чека из трёх строк будет посчитан трижды. После <code>$unwind</code> происходит то же: поле <code>total</code> заказа скопировано в каждую его позицию.</p>
+        <p>Пример считает выручку тремя способами: сумму <code>total</code> по заказам, сумму <code>total</code> после <code>$unwind</code> и сумму «количество × цена» после <code>$unwind</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>сумма заказов до $unwind и после</span></figcaption>
+<pre>by_orders = [
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="k">None</span>, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+]
+
+by_lines_total = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="k">None</span>, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}},
+]
+
+by_lines = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="k">None</span>,
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>]}},
+    }},
+]
+
+<span class="f">print</span>(<span class="s">"── сумма total по заказам"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_orders):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── сумма total после $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_lines_total):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── сумма qty × price после $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_lines):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>сумма заказов до $unwind и после</span></figcaption>
+<pre>mongocxx::pipeline by_orders;
+by_orders.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+
+mongocxx::pipeline by_lines_total;
+by_lines_total.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+by_lines_total.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+
+mongocxx::pipeline by_lines;
+by_lines.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+by_lines.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>))))))));
+
+std::cout &lt;&lt; <span class="s">"── сумма total по заказам"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_orders)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── сумма total после $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_lines_total)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── сумма qty × price после $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_lines)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>сумма заказов до $unwind и после</span></figcaption>
+<pre>byOrders := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+}
+
+byLinesTotal := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+}
+
+byLines := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>}}}}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── сумма total по заказам"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, byOrders)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── сумма total после $unwind"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, byLinesTotal)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── сумма qty × price после $unwind"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, byLines)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>сумма заказов до $unwind и после</span></figcaption>
+<pre>by_orders = [
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="k">nil</span>, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } },
+]
+
+by_lines_total = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="k">nil</span>, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } },
+]
+
+by_lines = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="k">nil</span>,
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>] } },
+  } },
+]
+
+<span class="k">puts</span> <span class="s">"── сумма total по заказам"</span>
+orders.<span class="f">aggregate</span>(by_orders).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── сумма total после $unwind"</span>
+orders.<span class="f">aggregate</span>(by_lines_total).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── сумма qty × price после $unwind"</span>
+orders.<span class="f">aggregate</span>(by_lines).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── сумма total по заказам
+{'_id': None, 'revenue': 15386310}
+── сумма total после $unwind
+{'_id': None, 'revenue': 41847990}
+── сумма qty × price после $unwind
+{'_id': None, 'revenue': 15386310}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── сумма total по заказам
+{ "_id" : null, "revenue" : 15386310 }
+── сумма total после $unwind
+{ "_id" : null, "revenue" : 41847990 }
+── сумма qty × price после $unwind
+{ "_id" : null, "revenue" : 15386310 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── сумма total по заказам
+{"_id":null,"revenue":15386310}
+── сумма total после $unwind
+{"_id":null,"revenue":41847990}
+── сумма qty × price после $unwind
+{"_id":null,"revenue":15386310}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── сумма total по заказам
+{"_id"=&gt;nil, "revenue"=&gt;15386310}
+── сумма total после $unwind
+{"_id"=&gt;nil, "revenue"=&gt;41847990}
+── сумма qty × price после $unwind
+{"_id"=&gt;nil, "revenue"=&gt;15386310}</pre>
+        </figure>
+        <p>Первое и третье числа совпадают — 15 386 310: итог заказа равен сумме его позиций. Второе число, 41 847 990, почти втрое больше. На схеме — как это получается на одном заказе.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказ 2026-0002: что складывается после $unwind</span><span>3 позиции</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Документ после $unwind</th><th>total</th><th>qty × price</th></tr></thead>
+              <tbody>
+                <tr><td>ASUS VivoBook 15</td><td>163 250</td><td>1 × 51 490 = 51 490</td></tr>
+                <tr><td>Logitech C920</td><td>163 250</td><td>1 × 6 790 = 6 790</td></tr>
+                <tr><td>Sony WH-1000XM5</td><td>163 250</td><td>3 × 34 990 = 104 970</td></tr>
+                <tr class="no"><td>сумма</td><td>489 750 — итог заказа трижды</td><td class="ok">163 250 — итог заказа</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Заказ из одной позиции учитывается в сумме <code>total</code> один раз, из четырёх — четыре раза. Поэтому по всей коллекции сумма завышена в 2,7 раза.</p>
+        </div>
+        <p>Правило: после <code>$unwind</code> складывают поля позиции. Поля заказа складывают до <code>$unwind</code> или отбирают по одному на заказ. Следующий вопрос — где в конвейере ставить отбор <code>$match</code>.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>$match до $unwind и после</h2>
+        <p>Условие на поле массива можно проверить и у заказа, и у позиции. Результат разный. Условие <code>{"items.category": "ноутбуки"}</code> до <code>$unwind</code> отбирает заказы, в которых есть хотя бы один ноутбук (глава 2.6). Такой заказ проходит целиком, вместе с мышью и наушниками. После <code>$unwind</code> то же условие проверяется у каждой позиции и пропускает только позиции с ноутбуками.</p>
+        <p>Пример считает документы в конце трёх конвейеров: <code>$match</code> до <code>$unwind</code>, после и в обоих местах.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$match до $unwind и после</span></figcaption>
+<pre>match_before = [
+    {<span class="s">"$match"</span>: {<span class="s">"items.category"</span>: <span class="s">"ноутбуки"</span>}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"lines"</span>},
+]
+
+match_after = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$match"</span>: {<span class="s">"items.category"</span>: <span class="s">"ноутбуки"</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"lines"</span>},
+]
+
+match_both = [
+    {<span class="s">"$match"</span>: {<span class="s">"items.category"</span>: <span class="s">"ноутбуки"</span>}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$match"</span>: {<span class="s">"items.category"</span>: <span class="s">"ноутбуки"</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"lines"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $match до $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(match_before):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── $match после $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(match_after):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── $match до и после"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(match_both):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$match до $unwind и после</span></figcaption>
+<pre>mongocxx::pipeline match_before;
+match_before.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"items.category"</span>, <span class="s">"ноутбуки"</span>)));
+match_before.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+match_before.<span class="f">count</span>(<span class="s">"lines"</span>);
+
+mongocxx::pipeline match_after;
+match_after.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+match_after.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"items.category"</span>, <span class="s">"ноутбуки"</span>)));
+match_after.<span class="f">count</span>(<span class="s">"lines"</span>);
+
+mongocxx::pipeline match_both;
+match_both.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"items.category"</span>, <span class="s">"ноутбуки"</span>)));
+match_both.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+match_both.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"items.category"</span>, <span class="s">"ноутбуки"</span>)));
+match_both.<span class="f">count</span>(<span class="s">"lines"</span>);
+
+std::cout &lt;&lt; <span class="s">"── $match до $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(match_before)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── $match после $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(match_after)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── $match до и после"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(match_both)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$match до $unwind и после</span></figcaption>
+<pre>matchBefore := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"items.category"</span>, Value: <span class="s">"ноутбуки"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"lines"</span>}},
+}
+
+matchAfter := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"items.category"</span>, Value: <span class="s">"ноутбуки"</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"lines"</span>}},
+}
+
+matchBoth := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"items.category"</span>, Value: <span class="s">"ноутбуки"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"items.category"</span>, Value: <span class="s">"ноутбуки"</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"lines"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $match до $unwind"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, matchBefore)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $match после $unwind"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, matchAfter)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $match до и после"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, matchBoth)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$match до $unwind и после</span></figcaption>
+<pre>match_before = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items.category"</span> =&gt; <span class="s">"ноутбуки"</span> } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"lines"</span> },
+]
+
+match_after = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items.category"</span> =&gt; <span class="s">"ноутбуки"</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"lines"</span> },
+]
+
+match_both = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items.category"</span> =&gt; <span class="s">"ноутбуки"</span> } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items.category"</span> =&gt; <span class="s">"ноутбуки"</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"lines"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $match до $unwind"</span>
+orders.<span class="f">aggregate</span>(match_before).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── $match после $unwind"</span>
+orders.<span class="f">aggregate</span>(match_after).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── $match до и после"</span>
+orders.<span class="f">aggregate</span>(match_both).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unwind
+{'lines': 154}
+── $match после $unwind
+{'lines': 67}
+── $match до и после
+{'lines': 67}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unwind
+{ "lines" : 154 }
+── $match после $unwind
+{ "lines" : 67 }
+── $match до и после
+{ "lines" : 67 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unwind
+{"lines":154}
+── $match после $unwind
+{"lines":67}
+── $match до и после
+{"lines":67}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unwind
+{"lines"=&gt;154}
+── $match после $unwind
+{"lines"=&gt;67}
+── $match до и после
+{"lines"=&gt;67}</pre>
+        </figure>
+        <p><code>$match</code> до <code>$unwind</code> пропустил 59 заказов с ноутбуками, и после разворота из них вышло 154 позиции. <code>$match</code> после <code>$unwind</code> оставил 67 позиций — только ноутбуки. На схеме — из каких категорий состоят 154 позиции первого конвейера.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>154 позиции 59 заказов с ноутбуками</span><span>$match до $unwind</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Категория позиции</th><th>Позиций</th><th>Проходит $match после $unwind</th></tr></thead>
+              <tbody>
+                <tr class="on"><td>ноутбуки</td><td>67</td><td class="ok">да</td></tr>
+                <tr><td>периферия</td><td>36</td><td class="bad">нет</td></tr>
+                <tr><td>смартфоны</td><td>23</td><td class="bad">нет</td></tr>
+                <tr><td>комплектующие</td><td>16</td><td class="bad">нет</td></tr>
+                <tr><td>аксессуары</td><td>12</td><td class="bad">нет</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Условие до <code>$unwind</code> отобрало заказы целиком, поэтому в потоке остались 87 позиций других категорий. Условие после <code>$unwind</code> убирает их.</p>
+        </div>
+        <p>Третий конвейер даёт те же 67 позиций, что второй. Первый <code>$match</code> в нём сокращает работу: разворачиваются 59 заказов из 120. На коллекции с индексом по <code>items.category</code> этот <code>$match</code> выполняется по индексу (глава 3.2, §8). Второй <code>$match</code> оставляет нужные позиции.</p>
+        <p>Документы после <code>$unwind</code> отличаются только элементом массива. Номер элемента в массиве по умолчанию теряется.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Номер элемента: includeArrayIndex</h2>
+        <p>Строки чека пронумерованы: «1. Ноутбук, 2. Веб-камера, 3. Наушники». После разворота массива номер строки иногда нужен — например, чтобы найти первую позицию каждого заказа.</p>
+        <p>У <code>$unwind</code> есть полная запись — документ параметров. Поле <code>path</code> содержит путь к массиву, а параметр <code>includeArrayIndex</code> — имя нового поля, в которое стадия запишет номер элемента в массиве. Номера начинаются с нуля.</p>
+        <p data-lang="cpp">Полная запись передаётся в метод <code>unwind</code> документом вместо строки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>includeArrayIndex: номер позиции</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$unwind"</span>: {<span class="s">"path"</span>: <span class="s">"$items"</span>, <span class="s">"includeArrayIndex"</span>: <span class="s">"pos"</span>}},
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"pos"</span>, <span class="s">"items.title"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>includeArrayIndex: номер позиции</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">unwind</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"path"</span>, <span class="s">"$items"</span>), <span class="f">kvp</span>(<span class="s">"includeArrayIndex"</span>, <span class="s">"pos"</span>)));
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), {<span class="s">"number"</span>, <span class="s">"pos"</span>, <span class="s">"items.title"</span>});</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>includeArrayIndex: номер позиции</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: bson.D{
+        {Key: <span class="s">"path"</span>, Value: <span class="s">"$items"</span>},
+        {Key: <span class="s">"includeArrayIndex"</span>, Value: <span class="s">"pos"</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="f">show</span>(cursor, <span class="s">"number"</span>, <span class="s">"pos"</span>, <span class="s">"items.title"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>includeArrayIndex: номер позиции</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$unwind"</span> =&gt; { <span class="s">"path"</span> =&gt; <span class="s">"$items"</span>, <span class="s">"includeArrayIndex"</span> =&gt; <span class="s">"pos"</span> } },
+]
+
+<span class="f">show</span>(orders.<span class="f">aggregate</span>(pipeline), <span class="s">"number"</span>, <span class="s">"pos"</span>, <span class="s">"items.title"</span>)</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | 0 | Ноутбук ASUS VivoBook 15
+2026-0002 | 1 | Веб-камера Logitech C920
+2026-0002 | 2 | Наушники Sony WH-1000XM5
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | 0 | Ноутбук ASUS VivoBook 15
+2026-0002 | 1 | Веб-камера Logitech C920
+2026-0002 | 2 | Наушники Sony WH-1000XM5
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | 0 | Ноутбук ASUS VivoBook 15
+2026-0002 | 1 | Веб-камера Logitech C920
+2026-0002 | 2 | Наушники Sony WH-1000XM5
+документов: 3</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>2026-0002 | 0 | Ноутбук ASUS VivoBook 15
+2026-0002 | 1 | Веб-камера Logitech C920
+2026-0002 | 2 | Наушники Sony WH-1000XM5
+документов: 3</pre>
+        </figure>
+        <p>У трёх документов номера 0, 1 и 2 — в том порядке, в каком позиции лежат в массиве. Поле <code>pos</code> добавлено к каждому документу и дальше используется как обычное поле: например, <code>{"$match": {"pos": 0}}</code> оставит первую позицию каждого заказа.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Номер в чеке и номер в массиве</span><span>заказ 2026-0002</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Строка чека</th><th>Позиция</th><th>pos</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Ноутбук ASUS VivoBook 15</td><td>0</td></tr>
+                <tr><td>2</td><td>Веб-камера Logitech C920</td><td>1</td></tr>
+                <tr><td>3</td><td>Наушники Sony WH-1000XM5</td><td>2</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Номер элемента массива на единицу меньше номера строки чека, как индекс списка в Python.</p>
+        </div>
+        <p>Второй параметр полной записи задаёт, что стадия делает с документами без массива.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Документы без массива</h2>
+        <p>Если в стопке есть чек без строк, после разрезания от него не остаётся ни одной полоски. В отчёте о покупках этот покупатель не появится. <code>$unwind</code> поступает так же. Документ без поля, с <code>null</code> или с пустым массивом не даёт ни одного выходного документа и исчезает из потока.</p>
+        <p>Параметр <code>preserveNullAndEmptyArrays</code> со значением <code>true</code> сохраняет такие документы: стадия выпускает каждый из них один раз, без поля массива. Есть и третий случай: поле есть, но это не массив. Тогда <code>$unwind</code> выпускает документ один раз, как массив из одного элемента.</p>
+        <p>У заказов магазина массив <code>items</code> есть всегда. Поле <code>promo</code> — строка с кодом скидки — есть только у 40 заказов из 120. Первый пример разворачивает <code>promo</code> без параметра и с ним.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$unwind по полю, которого нет у части заказов</span></figcaption>
+<pre>promo_plain = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$promo"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+promo_kept = [
+    {<span class="s">"$unwind"</span>: {<span class="s">"path"</span>: <span class="s">"$promo"</span>, <span class="s">"preserveNullAndEmptyArrays"</span>: <span class="k">True</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $unwind по promo"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(promo_plain):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── с preserveNullAndEmptyArrays"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(promo_kept):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$unwind по полю, которого нет у части заказов</span></figcaption>
+<pre>mongocxx::pipeline promo_plain;
+promo_plain.<span class="f">unwind</span>(<span class="s">"$promo"</span>);
+promo_plain.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+mongocxx::pipeline promo_kept;
+promo_kept.<span class="f">unwind</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"path"</span>, <span class="s">"$promo"</span>), <span class="f">kvp</span>(<span class="s">"preserveNullAndEmptyArrays"</span>, <span class="k">true</span>)));
+promo_kept.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+std::cout &lt;&lt; <span class="s">"── $unwind по promo"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(promo_plain)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── с preserveNullAndEmptyArrays"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(promo_kept)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$unwind по полю, которого нет у части заказов</span></figcaption>
+<pre>promoPlain := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$promo"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+promoKept := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: bson.D{
+        {Key: <span class="s">"path"</span>, Value: <span class="s">"$promo"</span>},
+        {Key: <span class="s">"preserveNullAndEmptyArrays"</span>, Value: <span class="k">true</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $unwind по promo"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, promoPlain)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── с preserveNullAndEmptyArrays"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, promoKept)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$unwind по полю, которого нет у части заказов</span></figcaption>
+<pre>promo_plain = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$promo"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+promo_kept = [
+  { <span class="s">"$unwind"</span> =&gt; { <span class="s">"path"</span> =&gt; <span class="s">"$promo"</span>, <span class="s">"preserveNullAndEmptyArrays"</span> =&gt; <span class="k">true</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $unwind по promo"</span>
+orders.<span class="f">aggregate</span>(promo_plain).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── с preserveNullAndEmptyArrays"</span>
+orders.<span class="f">aggregate</span>(promo_kept).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind по promo
+{'orders': 40}
+── с preserveNullAndEmptyArrays
+{'orders': 120}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind по promo
+{ "orders" : 40 }
+── с preserveNullAndEmptyArrays
+{ "orders" : 120 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind по promo
+{"orders":40}
+── с preserveNullAndEmptyArrays
+{"orders":120}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind по promo
+{"orders"=&gt;40}
+── с preserveNullAndEmptyArrays
+{"orders"=&gt;120}</pre>
+        </figure>
+        <p>Без параметра осталось 40 заказов — с кодом скидки. Каждый из них выпущен один раз: строка развернулась как массив из одного элемента. Заказы без поля <code>promo</code> исчезли. С параметром прошли все 120.</p>
+        <p>Пустых массивов в заказах магазина нет. Второй пример создаёт их стадией <code>$set</code> (глава 4.3): у отменённых заказов позиции заменяются пустым массивом, как в отчёте, где отменённые заказы учитываются без товаров. Условие записано выражением <code>$cond</code> из главы 4.2.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>пустые массивы у отменённых заказов</span></figcaption>
+<pre>empty_plain = [
+    {<span class="s">"$set"</span>: {<span class="s">"items"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$status"</span>, <span class="s">"отменён"</span>]}, [], <span class="s">"$items"</span>]}}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+empty_kept = [
+    {<span class="s">"$set"</span>: {<span class="s">"items"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$status"</span>, <span class="s">"отменён"</span>]}, [], <span class="s">"$items"</span>]}}},
+    {<span class="s">"$unwind"</span>: {<span class="s">"path"</span>: <span class="s">"$items"</span>, <span class="s">"preserveNullAndEmptyArrays"</span>: <span class="k">True</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(empty_plain):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── с preserveNullAndEmptyArrays"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(empty_kept):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>пустые массивы у отменённых заказов</span></figcaption>
+<pre>mongocxx::pipeline empty_plain;
+empty_plain.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"items"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+            <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$status"</span>, <span class="s">"отменён"</span>))),
+            <span class="f">make_array</span>(),
+            <span class="s">"$items"</span>))))))));
+empty_plain.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+empty_plain.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+mongocxx::pipeline empty_kept;
+empty_kept.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"items"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+            <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$status"</span>, <span class="s">"отменён"</span>))),
+            <span class="f">make_array</span>(),
+            <span class="s">"$items"</span>))))))));
+empty_kept.<span class="f">unwind</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"path"</span>, <span class="s">"$items"</span>), <span class="f">kvp</span>(<span class="s">"preserveNullAndEmptyArrays"</span>, <span class="k">true</span>)));
+empty_kept.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+std::cout &lt;&lt; <span class="s">"── $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(empty_plain)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── с preserveNullAndEmptyArrays"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(empty_kept)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>пустые массивы у отменённых заказов</span></figcaption>
+<pre>emptyPlain := mongo.Pipeline{
+    {{Key: <span class="s">"$set"</span>, Value: bson.D{
+        {Key: <span class="s">"items"</span>, Value: bson.D{
+            {Key: <span class="s">"$cond"</span>, Value: bson.A{
+                bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$status"</span>, <span class="s">"отменён"</span>}}},
+                bson.A{},
+                <span class="s">"$items"</span>}}}}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+emptyKept := mongo.Pipeline{
+    {{Key: <span class="s">"$set"</span>, Value: bson.D{
+        {Key: <span class="s">"items"</span>, Value: bson.D{
+            {Key: <span class="s">"$cond"</span>, Value: bson.A{
+                bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$status"</span>, <span class="s">"отменён"</span>}}},
+                bson.A{},
+                <span class="s">"$items"</span>}}}}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: bson.D{
+        {Key: <span class="s">"path"</span>, Value: <span class="s">"$items"</span>},
+        {Key: <span class="s">"preserveNullAndEmptyArrays"</span>, Value: <span class="k">true</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $unwind"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, emptyPlain)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── с preserveNullAndEmptyArrays"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, emptyKept)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>пустые массивы у отменённых заказов</span></figcaption>
+<pre>empty_plain = [
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"items"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [
+    { <span class="s">"$eq"</span> =&gt; [<span class="s">"$status"</span>, <span class="s">"отменён"</span>] },
+    [],
+    <span class="s">"$items"</span>,
+  ] } } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+empty_kept = [
+  { <span class="s">"$set"</span> =&gt; { <span class="s">"items"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [
+    { <span class="s">"$eq"</span> =&gt; [<span class="s">"$status"</span>, <span class="s">"отменён"</span>] },
+    [],
+    <span class="s">"$items"</span>,
+  ] } } },
+  { <span class="s">"$unwind"</span> =&gt; { <span class="s">"path"</span> =&gt; <span class="s">"$items"</span>, <span class="s">"preserveNullAndEmptyArrays"</span> =&gt; <span class="k">true</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $unwind"</span>
+orders.<span class="f">aggregate</span>(empty_plain).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── с preserveNullAndEmptyArrays"</span>
+orders.<span class="f">aggregate</span>(empty_kept).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind
+{'docs': 228}
+── с preserveNullAndEmptyArrays
+{'docs': 248}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind
+{ "docs" : 228 }
+── с preserveNullAndEmptyArrays
+{ "docs" : 248 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind
+{"docs":228}
+── с preserveNullAndEmptyArrays
+{"docs":248}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $unwind
+{"docs"=&gt;228}
+── с preserveNullAndEmptyArrays
+{"docs"=&gt;248}</pre>
+        </figure>
+        <p>Без параметра вышло 228 документов: 271 позиция минус 43 позиции 20 отменённых заказов. С параметром — 248: к 228 позициям добавились 20 отменённых заказов, по одному документу без поля <code>items</code>. На схеме сведены все случаи.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что выпускает $unwind для разных документов</span><span>заказы магазина</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Поле у документа</th><th>Без параметра</th><th>preserveNullAndEmptyArrays: true</th><th>Числа примеров</th></tr></thead>
+              <tbody>
+                <tr><td>массив из N элементов</td><td>N документов</td><td>N документов</td><td>228 позиций</td></tr>
+                <tr><td>не массив: строка <code>promo</code></td><td>1 документ</td><td>1 документ</td><td>40 заказов</td></tr>
+                <tr class="no"><td>поля нет</td><td class="bad">0 — документ исчезает</td><td class="ok">1 документ без поля</td><td>80 заказов без <code>promo</code></td></tr>
+                <tr class="no"><td>пустой массив</td><td class="bad">0 — документ исчезает</td><td class="ok">1 документ без поля</td><td>20 отменённых</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Параметр меняет только две нижние строки. <code>null</code> в поле обрабатывается так же, как отсутствие поля.</p>
+        </div>
+        <p>Параметр нужен, когда документ без элементов должен остаться в отчёте, например покупатель без заказов в списке всех покупателей. Все приёмы главы собираются в одну задачу.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Самые продаваемые товары</h2>
+        <p>Магазину нужны три товара, которых продано больше всего штук. Считаются только доставленные заказы. Конвейер собирается из стадий модуля:</p>
+        <ul>
+          <li><code>$match</code> отбирает доставленные заказы — до <code>$unwind</code>, чтобы не разворачивать остальные;</li>
+          <li><code>$unwind</code> разворачивает их позиции;</li>
+          <li><code>$group</code> группирует позиции по названию товара и складывает количества;</li>
+          <li><code>$sort</code> упорядочивает товары по убыванию количества, при равенстве — по названию;</li>
+          <li><code>$limit</code> оставляет три.</li>
+        </ul>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>три самых продаваемых товара</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$items.title"</span>, <span class="s">"qty"</span>: {<span class="s">"$sum"</span>: <span class="s">"$items.qty"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"qty"</span>: -<span class="n">1</span>, <span class="s">"_id"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">3</span>},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>три самых продаваемых товара</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$items.title"</span>),
+    <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$items.qty"</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"qty"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">3</span>);
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>три самых продаваемых товара</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$items.title"</span>},
+        {Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$items.qty"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"qty"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>три самых продаваемых товара</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$items.title"</span>, <span class="s">"qty"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$items.qty"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"qty"</span> =&gt; -<span class="n">1</span>, <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Смартфон Apple iPhone 15', 'qty': 20}
+{'_id': 'Ноутбук Apple MacBook Air 13', 'qty': 19}
+{'_id': 'SSD Samsung 980 1 ТБ', 'qty': 18}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Смартфон Apple iPhone 15", "qty" : 20 }
+{ "_id" : "Ноутбук Apple MacBook Air 13", "qty" : 19 }
+{ "_id" : "SSD Samsung 980 1 ТБ", "qty" : 18 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Смартфон Apple iPhone 15","qty":20}
+{"_id":"Ноутбук Apple MacBook Air 13","qty":19}
+{"_id":"SSD Samsung 980 1 ТБ","qty":18}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Смартфон Apple iPhone 15", "qty"=&gt;20}
+{"_id"=&gt;"Ноутбук Apple MacBook Air 13", "qty"=&gt;19}
+{"_id"=&gt;"SSD Samsung 980 1 ТБ", "qty"=&gt;18}</pre>
+        </figure>
+        <p>Больше всего продано смартфонов Apple iPhone 15 — 20 штук, затем ноутбуков Apple MacBook Air 13 — 19 и SSD Samsung 980 — 18. Двадцать iPhone набраны из десяти доставленных заказов по одной, две или три штуки. На схеме — сколько документов выходит из каждой стадии.</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>$match</b><span>доставленные заказы</span><em>120 → 69</em></div>
+          <div class="pipeline__stage"><b>$unwind</b><span>позиции этих заказов</span><em>69 → 151</em></div>
+          <div class="pipeline__stage"><b>$group</b><span>одна группа на товар</span><em>151 → 21</em></div>
+          <div class="pipeline__stage"><b>$sort</b><span>по убыванию штук</span><em>21 → 21</em></div>
+          <div class="pipeline__stage is-lit"><b>$limit</b><span>первые три</span><em>21 → 3</em></div>
+        </div>
+        <p>Из стадий модуля только после <code>$unwind</code> документов становится больше, чем вошло. Тот же конвейер можно собрать в Compass и увидеть выход каждой стадии.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>$unwind в Compass</h2>
+        <p>В Compass стадия <code>$unwind</code> собирается на вкладке <b>Aggregations</b> так же, как стадии предыдущих глав. На кадре — конвейер из §1: <code>$match</code> по заказу o-0002 и <code>$unwind</code> по <code>items</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/154-orders-unwind.png" alt="Compass, вкладка Aggregations коллекции shop.orders: стадия 1 $match по _id o-0002 с одним документом, стадия 2 $unwind по $items с тремя документами">
+          <figcaption>Compass · стадии <code>$match</code> и <code>$unwind</code> для заказа 2026-0002</figcaption>
+        </figure>
+        <p>Справа от каждой стадии — выборка её выхода. Под <code>$match</code> подпись <b>Sample of 1 document</b>: один заказ целиком, у поля <code>items</code> значение <b>Array (3)</b> — массив из трёх элементов. Под <code>$unwind</code> подпись <b>Sample of 3 documents</b>. У документов одинаковые <code>_id</code>, <code>number</code> и <code>total</code>, а у поля <code>items</code> значение <b>Object (5)</b> — один вложенный документ из пяти полей. В окне видны два документа, третий открывается прокруткой вправо.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unwind": "items"}</code></td><td>Ошибка 28818: путь в <code>$unwind</code> должен начинаться с <code>$</code></td><td><code>{"$unwind": "$items"}</code></td></tr>
+              <tr><td><code>{"$sum": "$total"}</code> после <code>$unwind</code></td><td>Итог заказа повторён в каждой позиции и сложен столько раз, сколько в заказе позиций</td><td>Суммировать поля позиции: <code>{"$sum": {"$multiply": ["$items.qty", "$items.price"]}}</code>, или считать <code>total</code> до <code>$unwind</code></td></tr>
+              <tr><td><code>$match</code> по <code>"items.category"</code> только до <code>$unwind</code></td><td>Отбираются заказы целиком: после разворота в потоке есть и позиции других категорий</td><td>Повторить то же условие после <code>$unwind</code></td></tr>
+              <tr><td><code>$unwind</code> по полю, которого нет у части документов</td><td>Документы без поля, с <code>null</code> или пустым массивом исчезают из потока</td><td><code>{"path": "$promo", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>"includeArrayIndex": "pos"</code></td><td>Номера идут с нуля: у первой позиции заказа <code>pos</code> равно 0</td><td>Для номера с единицы прибавить 1 в следующей стадии</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unwind": "items"}</code></td><td>Ошибка 28818: путь в <code>$unwind</code> должен начинаться с <code>$</code></td><td><code>{"$unwind": "$items"}</code></td></tr>
+              <tr><td><code>{"$sum": "$total"}</code> после <code>$unwind</code></td><td>Итог заказа повторён в каждой позиции и сложен столько раз, сколько в заказе позиций</td><td>Суммировать поля позиции: <code>{"$sum": {"$multiply": ["$items.qty", "$items.price"]}}</code>, или считать <code>total</code> до <code>$unwind</code></td></tr>
+              <tr><td><code>$match</code> по <code>"items.category"</code> только до <code>$unwind</code></td><td>Отбираются заказы целиком: после разворота в потоке есть и позиции других категорий</td><td>Повторить то же условие после <code>$unwind</code></td></tr>
+              <tr><td><code>$unwind</code> по полю, которого нет у части документов</td><td>Документы без поля, с <code>null</code> или пустым массивом исчезают из потока</td><td><code>{"path": "$promo", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>"includeArrayIndex": "pos"</code></td><td>Номера идут с нуля: у первой позиции заказа <code>pos</code> равно 0</td><td>Для номера с единицы прибавить 1 в следующей стадии</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unwind": "items"}</code></td><td>Ошибка 28818: путь в <code>$unwind</code> должен начинаться с <code>$</code></td><td><code>{"$unwind": "$items"}</code></td></tr>
+              <tr><td><code>{"$sum": "$total"}</code> после <code>$unwind</code></td><td>Итог заказа повторён в каждой позиции и сложен столько раз, сколько в заказе позиций</td><td>Суммировать поля позиции: <code>{"$sum": {"$multiply": ["$items.qty", "$items.price"]}}</code>, или считать <code>total</code> до <code>$unwind</code></td></tr>
+              <tr><td><code>$match</code> по <code>"items.category"</code> только до <code>$unwind</code></td><td>Отбираются заказы целиком: после разворота в потоке есть и позиции других категорий</td><td>Повторить то же условие после <code>$unwind</code></td></tr>
+              <tr><td><code>$unwind</code> по полю, которого нет у части документов</td><td>Документы без поля, с <code>null</code> или пустым массивом исчезают из потока</td><td><code>{"path": "$promo", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>"includeArrayIndex": "pos"</code></td><td>Номера идут с нуля: у первой позиции заказа <code>pos</code> равно 0</td><td>Для номера с единицы прибавить 1 в следующей стадии</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unwind": "items"}</code></td><td>Ошибка 28818: путь в <code>$unwind</code> должен начинаться с <code>$</code></td><td><code>{"$unwind": "$items"}</code></td></tr>
+              <tr><td><code>{"$sum": "$total"}</code> после <code>$unwind</code></td><td>Итог заказа повторён в каждой позиции и сложен столько раз, сколько в заказе позиций</td><td>Суммировать поля позиции: <code>{"$sum": {"$multiply": ["$items.qty", "$items.price"]}}</code>, или считать <code>total</code> до <code>$unwind</code></td></tr>
+              <tr><td><code>$match</code> по <code>"items.category"</code> только до <code>$unwind</code></td><td>Отбираются заказы целиком: после разворота в потоке есть и позиции других категорий</td><td>Повторить то же условие после <code>$unwind</code></td></tr>
+              <tr><td><code>$unwind</code> по полю, которого нет у части документов</td><td>Документы без поля, с <code>null</code> или пустым массивом исчезают из потока</td><td><code>{"path": "$promo", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>"includeArrayIndex": "pos"</code></td><td>Номера идут с нуля: у первой позиции заказа <code>pos</code> равно 0</td><td>Для номера с единицы прибавить 1 в следующей стадии</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>Сколько документов выпустит <code>$unwind</code> по <code>items</code> для заказа из четырёх позиций?</summary>
+          <p>Четыре: по одному на каждый элемент массива. Остальные поля заказа повторяются в каждом из них.</p>
+        </details>
+        <details>
+          <summary>Почему сумма <code>total</code> после <code>$unwind</code> больше суммы заказов?</summary>
+          <p>Итог заказа скопирован в каждую его позицию. Заказ из трёх позиций учитывается трижды. После разворота складывают поля позиции: количество, умноженное на цену.</p>
+        </details>
+        <details>
+          <summary>Чем <code>$match</code> по <code>"items.category"</code> до <code>$unwind</code> отличается от такого же <code>$match</code> после?</summary>
+          <p>До разворота условие отбирает заказы, в которых есть подходящая позиция, и заказ проходит со всеми позициями. После разворота условие проверяется у каждой позиции и пропускает только подходящие.</p>
+        </details>
+        <details>
+          <summary>Что происходит с документом без поля массива?</summary>
+          <p>Без параметров он исчезает из потока. С <code>preserveNullAndEmptyArrays: true</code> выходит один раз, без этого поля.</p>
+        </details>
+        <details>
+          <summary>Какое значение <code>includeArrayIndex</code> запишет для первой позиции заказа?</summary>
+          <p>0: номера элементов массива начинаются с нуля.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_6</code> с функцией <code>show</code>. Данные — товары <code>shop.products</code>. У каждого товара массив <code>stock</code>: склады, на которых он лежит, с полями <code>warehouse</code> и <code>qty</code>. Коллекция товаров открывается из базы <code>shop</code> так же, как заказы.</p>
+        <ol class="steps">
+          <li><b>Разворот</b>Развернуть <code>stock</code> и посчитать документы стадией <code>$count</code>.</li>
+          <li><b>Склады</b>Сгруппировать по складу: сколько разных товаров и сколько штук на каждом. Упорядочить по названию склада.</li>
+          <li><b>Один склад</b>Вывести названия товаров, у которых есть запись о складе «Москва-1», и количество каждого на этом складе.</li>
+          <li><b>Первый склад</b>Добавить номер склада в массиве параметром <code>includeArrayIndex</code> и посчитать товары, у которых склад с номером 0 — «Москва-1».</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>У 21 товара 42 записи о складах, поэтому после разворота 42 документа. По складам: Екатеринбург — 9 товаров, 114 штук; Москва-1 — 14 товаров, 230 штук; Москва-2 — 13 товаров, 132 штуки; Санкт-Петербург — 6 товаров, 80 штук. Записей о складе «Москва-1» 14, у трёх товаров количество на нём 0: SSD Samsung 980, блок питания be quiet! и смартфон realme 12 Pro. Для пункта 4 конвейер — <code>$unwind</code> с <code>includeArrayIndex</code>, затем <code>{"$match": {"pos": 0, "stock.warehouse": "Москва-1"}}</code> и <code>$count</code>: 6 товаров.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Развернуть массив</b>
+            <code>{"$unwind": "$items"}</code>
+          </div>
+          <div>
+            <b>Номер элемента</b>
+            <code>{"$unwind": {"path": "$items", "includeArrayIndex": "pos"}}</code>
+          </div>
+          <div>
+            <b>Сохранить документы без массива</b>
+            <code>{"$unwind": {"path": "$promo", "preserveNullAndEmptyArrays": True}}</code>
+          </div>
+          <div>
+            <b>Сумма позиций</b>
+            <code>{"revenue": {"$sum": {"$multiply": ["$items.qty", "$items.price"]}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Развернуть массив</b>
+            <code>pipeline.unwind("$items");</code>
+          </div>
+          <div>
+            <b>Номер элемента</b>
+            <code>pipeline.unwind(make_document(kvp("path", "$items"), kvp("includeArrayIndex", "pos")));</code>
+          </div>
+          <div>
+            <b>Сохранить документы без массива</b>
+            <code>pipeline.unwind(make_document(kvp("path", "$promo"), kvp("preserveNullAndEmptyArrays", true)));</code>
+          </div>
+          <div>
+            <b>Сумма позиций</b>
+            <code>make_document(kvp("revenue", make_document(kvp("$sum", make_document(kvp("$multiply", make_array("$items.qty", "$items.price")))))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Развернуть массив</b>
+            <code>bson.D{{Key: "$unwind", Value: "$items"}}</code>
+          </div>
+          <div>
+            <b>Номер элемента</b>
+            <code>bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$items"}, {Key: "includeArrayIndex", Value: "pos"}}}}</code>
+          </div>
+          <div>
+            <b>Сохранить документы без массива</b>
+            <code>bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$promo"}, {Key: "preserveNullAndEmptyArrays", Value: true}}}}</code>
+          </div>
+          <div>
+            <b>Сумма позиций</b>
+            <code>bson.D{{Key: "revenue", Value: bson.D{{Key: "$sum", Value: bson.D{{Key: "$multiply", Value: bson.A{"$items.qty", "$items.price"}}}}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Развернуть массив</b>
+            <code>{ "$unwind" =&gt; "$items" }</code>
+          </div>
+          <div>
+            <b>Номер элемента</b>
+            <code>{ "$unwind" =&gt; { "path" =&gt; "$items", "includeArrayIndex" =&gt; "pos" } }</code>
+          </div>
+          <div>
+            <b>Сохранить документы без массива</b>
+            <code>{ "$unwind" =&gt; { "path" =&gt; "$promo", "preserveNullAndEmptyArrays" =&gt; true } }</code>
+          </div>
+          <div>
+            <b>Сумма позиций</b>
+            <code>{ "revenue" =&gt; { "$sum" =&gt; { "$multiply" =&gt; ["$items.qty", "$items.price"] } } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Стадия <code>$unwind</code> превращает документ с массивом в столько документов, сколько в массиве элементов. В каждом из них все поля исходного документа, а на месте массива — один элемент. Из 120 заказов магазина получается 271 позиция.</p>
+        <p>После разворота к позициям применяются <code>$match</code>, <code>$group</code>, <code>$sort</code> и <code>$limit</code>. Поля исходного документа повторяются в каждой позиции, поэтому складывать после разворота нужно поля позиции. Условие на поле массива до <code>$unwind</code> отбирает документы целиком, после — отдельные элементы.</p>
+        <p>Полная запись стадии — документ с <code>path</code>. Параметр <code>includeArrayIndex</code> добавляет номер элемента, начиная с нуля. <code>preserveNullAndEmptyArrays</code> сохраняет документы без поля, с <code>null</code> или с пустым массивом. Без него такие документы исчезают из потока.</p>
+
+        <div class="pager"><a href="../29-skip-count/index.html">← 4.5 $skip, $count, $sortByCount</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.6 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

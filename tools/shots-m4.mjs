@@ -399,4 +399,17 @@ await withCompass(async page => {
     await settle(1200);
     await shot('147-orders-sortbycount', 969);
   }
+  // --- 154 · 4.6 §9: стадии $match и $unwind для одного заказа ---------
+  if (need('154-orders-unwind')) {
+    await openCollection('shop', 'orders');
+    await openTab('Aggregations');
+    await setPipeline(`[
+  { $match: { _id: "o-0002" } },
+  { $unwind: "$items" }
+]`);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').first().evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('154-orders-unwind', 969);
+  }
 });

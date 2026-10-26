@@ -1118,7 +1118,7 @@ top3 = sorted_all + [{ <span class="s">"$limit"</span> =&gt; <span class="n">3</
         <h3>Итог главы</h3>
         <p>Стадия <code>$skip</code> пропускает первые N документов потока; вместе с <code>$sort</code> и <code>$limit</code> она выделяет страницу, и порядок «<code>$skip</code>, затем <code>$limit</code>» обязателен. <code>$count</code> выпускает один документ с числом пришедших документов, а на пустом потоке не выпускает ничего. <code>$sortByCount</code> — короткая запись группировки с подсчётом и сортировки по убыванию; при равных числах порядок не задан. Сортировка держит документы в памяти, до 100 МБ на стадию, дальше пишет на диск. <code>$limit</code> сразу за <code>$sort</code> сокращает память до числа документов в пределе — в плане это <code>limitAmount</code>.</p>
 
-        <div class="pager"><a href="../28-group/index.html">← 4.4 $group и аккумуляторы</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../28-group/index.html">← 4.4 $group и аккумуляторы</a><a href="../30-unwind/index.html">4.6 $unwind →</a></div>
 
         <div class="colophon">
           <span>Глава 4.5 · Справочник по MongoDB</span>
