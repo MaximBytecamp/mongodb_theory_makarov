@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.9 $replaceRoot, $replaceWith и $redact · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ до и после $unwind, таблицы, полосы выручки. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .seq { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0 0 6px; list-style: none; font: 400 12.5px/1.4 var(--mono); }
+    .seq li { position: relative; padding: 6px 8px; border: 2px solid var(--ink); background: var(--paper); }
+    .seq li b { display: block; color: var(--ink-faint); font-weight: 400; }
+    .seq li i { display: block; font-style: normal; color: var(--ink-soft); }
+    .seq li em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
+    .seq li.on { background: var(--leaf-pale); border-color: var(--leaf); font-weight: 700; }
+    .strip { margin: 0 0 12px; }
+    .strip b { display: block; margin-bottom: 5px; font: 600 12.5px/1.4 var(--mono); }
+    .strip__bar { display: flex; height: 30px; min-width: 560px; border: 2px solid var(--ink); }
+    .strip__bar i { flex: 1 0 0; min-width: 0; display: grid; place-items: center; border-right: 2px solid var(--ink); background: var(--leaf-pale); font: 700 12px/1 var(--mono); font-style: normal; overflow: hidden; }
+    .strip__bar i:last-child { border-right: 0; }
+    .strip__bar i.gap { background: repeating-linear-gradient(45deg, var(--paper) 0 4px, var(--rule) 4px 6px); }
+    .fan { display: grid; gap: 10px; padding-bottom: 6px; font: 400 12.5px/1.4 var(--mono); }
+    .fan__in, .fan__out { padding: 7px 10px; border: 2px solid var(--ink); background: var(--paper); font-weight: 700; text-align: center; }
+    .fan__out { background: var(--leaf-pale); }
+    .fan__branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .fan__branches > div { padding: 7px 10px; border: 2px dashed var(--ink-soft); }
+    .fan__branches b { display: block; color: var(--violet); }
+    .fan__branches span { display: block; color: var(--ink-soft); }
+    .fan__branches em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
+    .tree, .tree ul { list-style: none; margin: 0; padding: 0; font: 400 12.5px/1.5 var(--mono); }
+    .tree ul { margin: 6px 0 4px 10px; padding-left: 16px; border-left: 2px solid var(--rule); }
+    .tree li { margin: 4px 0; }
+    .tree span { display: inline-block; padding: 2px 8px; border: 2px solid var(--ink); }
+    .tree span.d { background: var(--leaf-pale); }
+    .tree span.p { background: var(--clay-pale); color: var(--clay); text-decoration: line-through; text-decoration-thickness: 1px; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.9</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.9</span>
+          <h1>$replaceRoot, $replaceWith<br>и $redact</h1>
+          <p class="lead">В этой главе разобраны стадии, которые меняют документ целиком. $replaceRoot и $replaceWith ставят на место документа другой документ — вложенный или собранный выражением $mergeObjects. $redact проходит по документу уровень за уровнем и по условию удаляет вложенные документы. Отдельно разобрана ошибка, при которой $redact удаляет больше, чем ожидалось.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$unwind (глава 4.6), $project (глава 4.2), $group (глава 4.4), $cond (глава 4.2), вложенные документы и точечная нотация (глава 2.1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Работать с вложенным документом как с отдельным, собирать документ ответа из частей и убирать из документа вложенные части по условию</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.9-python.zip" download><code>mongodb-glava-4.9-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.9-ruby.zip" download><code>mongodb-glava-4.9-ruby.zip</code></a>, 63 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.9-go.zip" download><code>mongodb-glava-4.9-go.zip</code></a>, 70 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.9-cpp.zip" download><code>mongodb-glava-4.9-cpp.zip</code></a>, 70 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_9.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_9.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_9.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_9.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_9.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_9.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_9.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_9.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_9.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_9.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_9.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_9.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_9.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $replaceRoot</a></li>
+            <li><a href="#s2">$replaceWith и $mergeObjects</a></li>
+            <li><a href="#s3">Стадии после замены документа</a></li>
+            <li><a href="#s4">Позиции заказа как документы</a></li>
+            <li><a href="#s5">Новый корень — только документ</a></li>
+            <li><a href="#s6">Стадия $redact</a></li>
+            <li><a href="#s7">$redact на всей коллекции</a></li>
+            <li><a href="#s8">Условие на каждом уровне</a></li>
+            <li><a href="#s9">$redact в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $replaceRoot</h2>
+        <p>В папке заказа лежат несколько бланков: состав заказа, оплата, доставка. Курьерской службе отдают только бланк доставки — город, способ, срок. Работа службы дальше идёт с этим бланком, без остальной папки.</p>
+        <p>В заказе магазина бланк доставки — вложенный документ <code>delivery</code> с полями <code>city</code>, <code>type</code> и <code>days</code>. <span class="term">Стадия $replaceRoot</span> заменяет каждый документ потока другим документом. Параметр <code>newRoot</code> задаёт новый документ, например путь к вложенному: <code>{"$replaceRoot": {"newRoot": "$delivery"}}</code>. <span class="term">Корень</span> — сам документ верхнего уровня; после стадии корнем становится <code>delivery</code>.</p>
+        <p>Пример отбирает заказ 2026-0002 и заменяет его документом доставки.</p>
+        <p data-lang="cpp">У стадии <code>$replaceRoot</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>replace_root</code>, параметр — документ с полем <code>newRoot</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$replaceRoot: документ доставки вместо заказа</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$replaceRoot"</span>: {<span class="s">"newRoot"</span>: <span class="s">"$delivery"</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$replaceRoot: документ доставки вместо заказа</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">replace_root</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"newRoot"</span>, <span class="s">"$delivery"</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$replaceRoot: документ доставки вместо заказа</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$replaceRoot"</span>, Value: bson.D{{Key: <span class="s">"newRoot"</span>, Value: <span class="s">"$delivery"</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$replaceRoot: документ доставки вместо заказа</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$replaceRoot"</span> =&gt; { <span class="s">"newRoot"</span> =&gt; <span class="s">"$delivery"</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'city': 'Новосибирск', 'type': 'курьер', 'days': 4}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "city" : "Новосибирск", "type" : "курьер", "days" : 4 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"city":"Новосибирск","type":"курьер","days":4}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"city"=&gt;"Новосибирск", "type"=&gt;"курьер", "days"=&gt;4}</pre>
+        </figure>
+        <p>В выходном документе три поля доставки. Остальных полей заказа нет, даже <code>_id</code>: его нет и во вложенном документе. На схеме — заказ до стадии и документ после неё.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказ 2026-0002 до $replaceRoot и после</span><span>10 полей → 3</span></div>
+          <div class="scheme__body">
+            <div class="split">
+              <div><b>до: заказ</b>
+                <div class="card"><span>_id: o-0002</span><span>number: 2026-0002</span><span>customer_id, created, status</span><span>items: [3 позиции]</span><span>total: 163250</span><span>payment: { … }</span><span class="on1">delivery: {</span><span class="in on1">city: Новосибирск</span><span class="in on1">type: курьер</span><span class="in on1">days: 4</span><span class="on1">}</span><span>promo: SPRING10</span></div>
+              </div>
+              <div class="split__arrow">newRoot</div>
+              <div><b>после: документ delivery</b>
+                <div class="card"><span class="on1">city: Новосибирск</span><span class="on1">type: курьер</span><span class="on1">days: 4</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Цветом отмечен вложенный документ, который стал документом потока. Поля заказа вне <code>delivery</code> на выходе стадии не остаются.</p>
+        </div>
+        <p>По документу доставки нельзя понять, к какому заказу он относится. Чтобы сохранить номер, новый документ собирают из нескольких частей.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>$replaceWith и $mergeObjects</h2>
+        <p>На бланк доставки, который уходит курьерам, дописывают номер заказа. Бланк остаётся бланком доставки, но теперь его можно связать с заказом.</p>
+        <p><span class="term">Стадия $replaceWith</span> — короткая запись <code>$replaceRoot</code>: новый документ записывается сразу, без <code>newRoot</code>. <code>{"$replaceWith": "$delivery"}</code> делает то же, что пример §1. Выражение <span class="term">$mergeObjects</span> сливает несколько документов в один: поля берутся из всех документов списка, слева направо. Если поле повторяется, остаётся значение из документа правее.</p>
+        <p>Пример собирает новый документ из номера заказа и документа доставки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$replaceWith и $mergeObjects</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$replaceWith"</span>: {<span class="s">"$mergeObjects"</span>: [{<span class="s">"number"</span>: <span class="s">"$number"</span>}, <span class="s">"$delivery"</span>]}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$replaceWith и $mergeObjects</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$replaceWith"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$mergeObjects"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"number"</span>, <span class="s">"$number"</span>)), <span class="s">"$delivery"</span>))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$replaceWith и $mergeObjects</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$replaceWith"</span>, Value: bson.D{
+        {Key: <span class="s">"$mergeObjects"</span>, Value: bson.A{bson.D{{Key: <span class="s">"number"</span>, Value: <span class="s">"$number"</span>}}, <span class="s">"$delivery"</span>}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$replaceWith и $mergeObjects</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$replaceWith"</span> =&gt; { <span class="s">"$mergeObjects"</span> =&gt; [{ <span class="s">"number"</span> =&gt; <span class="s">"$number"</span> }, <span class="s">"$delivery"</span>] } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0002', 'city': 'Новосибирск', 'type': 'курьер', 'days': 4}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0002", "city" : "Новосибирск", "type" : "курьер", "days" : 4 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0002","city":"Новосибирск","type":"курьер","days":4}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0002", "city"=&gt;"Новосибирск", "type"=&gt;"курьер", "days"=&gt;4}</pre>
+        </figure>
+        <p>В документе четыре поля: <code>number</code> из первого документа списка и три поля доставки из второго. Поля идут в порядке документов списка. На схеме — из чего собран результат.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что сливает $mergeObjects</span><span>2 документа → 1</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Документ списка</th><th>Поля</th><th>В результате</th></tr></thead>
+              <tbody>
+                <tr><td><code>{"number": "$number"}</code></td><td>number: 2026-0002</td><td>number</td></tr>
+                <tr><td><code>"$delivery"</code></td><td>city: Новосибирск, type: курьер, days: 4</td><td>city, type, days</td></tr>
+                <tr class="on"><td>результат</td><td colspan="2">{ number, city, type, days }</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Документ <code>{"number": "$number"}</code> записан в выражении: значение поля берётся из заказа путём <code>"$number"</code>, как в <code>$project</code> (глава 4.2).</p>
+        </div>
+        <p>После замены документ потока — новый документ. Все следующие стадии видят только его поля.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Стадии после замены документа</h2>
+        <p>Служба доставки считает свои бланки: сколько отправлено почтой, сколько в пункты выдачи, и средний срок. Для этого ей хватает бланков, папки заказов не нужны.</p>
+        <p>Пример отбирает 13 заказов в пути, заменяет каждый документом доставки и группирует их по способу доставки. В <code>$group</code> пути записаны без <code>delivery.</code>: <code>"$type"</code> и <code>"$days"</code>, потому что поля доставки теперь лежат на верхнем уровне.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>группировка после $replaceWith</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$replaceWith"</span>: <span class="s">"$delivery"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$type"</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"days"</span>: {<span class="s">"$avg"</span>: <span class="s">"$days"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>группировка после $replaceWith</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$replaceWith"</span>, <span class="s">"$delivery"</span>)));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$type"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"days"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$days"</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>группировка после $replaceWith</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$replaceWith"</span>, Value: <span class="s">"$delivery"</span>}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$type"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"days"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$days"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>группировка после $replaceWith</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$replaceWith"</span> =&gt; <span class="s">"$delivery"</span> },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$type"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"days"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$days"</span> },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'почта', 'orders': 5, 'days': 4.8}
+{'_id': 'пункт выдачи', 'orders': 8, 'days': 2.625}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "почта", "orders" : 5, "days" : 4.7999999999999998224 }
+{ "_id" : "пункт выдачи", "orders" : 8, "days" : 2.625 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"почта","orders":5,"days":4.8}
+{"_id":"пункт выдачи","orders":8,"days":2.625}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"почта", "orders"=&gt;5, "days"=&gt;4.8}
+{"_id"=&gt;"пункт выдачи", "orders"=&gt;8, "days"=&gt;2.625}</pre>
+        </figure>
+        <p>Почтой едут 5 заказов в среднем 4,8 дня, в пункты выдачи — 8 заказов в среднем 2,6 дня. Курьерских доставок среди заказов в пути нет. На схеме — сколько документов выходит из каждой стадии.</p>
+        <p data-lang="cpp">Среднее 4,8 C++ печатает как <code>4.7999999999999998224</code>. Дробное число хранится в двоичном виде, и 4,8 в нём записано приближённо; <code>bsoncxx::to_json</code> печатает это приближение полностью, Python и Go округляют его при печати.</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>$match</b><span>заказы в пути</span><em>120 → 13</em></div>
+          <div class="pipeline__stage is-lit"><b>$replaceWith</b><span>документ доставки вместо заказа</span><em>13 → 13</em></div>
+          <div class="pipeline__stage"><b>$group</b><span>по type</span><em>13 → 2</em></div>
+          <div class="pipeline__stage"><b>$sort</b><span>по _id</span><em>2 → 2</em></div>
+        </div>
+        <p><code>$replaceWith</code> не меняет число документов: каждый документ заменяется ровно одним. Вместе с <code>$unwind</code> из главы 4.6 стадия превращает в отдельные документы элементы массива.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Позиции заказа как документы</h2>
+        <p>После <code>$unwind</code> (глава 4.6) в каждом документе одна позиция заказа, но она лежит в поле <code>items</code>, рядом с полями заказа. Если заказ дальше не нужен, позицию поднимают на верхний уровень: <code>{"$replaceWith": "$items"}</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$unwind и $replaceWith: позиции как документы</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$replaceWith"</span>: <span class="s">"$items"</span>},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$unwind и $replaceWith: позиции как документы</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$replaceWith"</span>, <span class="s">"$items"</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$unwind и $replaceWith: позиции как документы</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$replaceWith"</span>, Value: <span class="s">"$items"</span>}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$unwind и $replaceWith: позиции как документы</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$replaceWith"</span> =&gt; <span class="s">"$items"</span> },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'sku': 'SKU-NB-002', 'title': 'Ноутбук ASUS VivoBook 15', 'category': 'ноутбуки', 'qty': 1, 'price': 51490}
+{'sku': 'SKU-PR-014', 'title': 'Веб-камера Logitech C920', 'category': 'периферия', 'qty': 1, 'price': 6790}
+{'sku': 'SKU-PR-013', 'title': 'Наушники Sony WH-1000XM5', 'category': 'периферия', 'qty': 3, 'price': 34990}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "sku" : "SKU-NB-002", "title" : "Ноутбук ASUS VivoBook 15", "category" : "ноутбуки", "qty" : 1, "price" : 51490 }
+{ "sku" : "SKU-PR-014", "title" : "Веб-камера Logitech C920", "category" : "периферия", "qty" : 1, "price" : 6790 }
+{ "sku" : "SKU-PR-013", "title" : "Наушники Sony WH-1000XM5", "category" : "периферия", "qty" : 3, "price" : 34990 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"sku":"SKU-NB-002","title":"Ноутбук ASUS VivoBook 15","category":"ноутбуки","qty":1,"price":51490}
+{"sku":"SKU-PR-014","title":"Веб-камера Logitech C920","category":"периферия","qty":1,"price":6790}
+{"sku":"SKU-PR-013","title":"Наушники Sony WH-1000XM5","category":"периферия","qty":3,"price":34990}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"sku"=&gt;"SKU-NB-002", "title"=&gt;"Ноутбук ASUS VivoBook 15", "category"=&gt;"ноутбуки", "qty"=&gt;1, "price"=&gt;51490}
+{"sku"=&gt;"SKU-PR-014", "title"=&gt;"Веб-камера Logitech C920", "category"=&gt;"периферия", "qty"=&gt;1, "price"=&gt;6790}
+{"sku"=&gt;"SKU-PR-013", "title"=&gt;"Наушники Sony WH-1000XM5", "category"=&gt;"периферия", "qty"=&gt;3, "price"=&gt;34990}</pre>
+        </figure>
+        <p>Получилось три документа позиций с полями <code>sku</code>, <code>title</code>, <code>category</code>, <code>qty</code> и <code>price</code>, без полей заказа. На схеме — один и тот же документ после <code>$unwind</code> и после <code>$replaceWith</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Первая позиция заказа 2026-0002</span><span>после $unwind и после $replaceWith</span></div>
+          <div class="scheme__body">
+            <div class="split">
+              <div><b>после $unwind</b>
+                <div class="card"><span>_id: o-0002</span><span>number: 2026-0002</span><span>… остальные поля заказа</span><span class="on2">items: {</span><span class="in on2">sku, title, category, qty, price</span><span class="on2">}</span></div>
+              </div>
+              <div class="split__arrow">$replaceWith</div>
+              <div><b>после $replaceWith</b>
+                <div class="card"><span class="on2">sku: SKU-NB-002</span><span class="on2">title: Ноутбук ASUS VivoBook 15</span><span class="on2">category: ноутбуки</span><span class="on2">qty: 1</span><span class="on2">price: 51490</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Путь к названию был <code>items.title</code>, стал <code>title</code>.</p>
+        </div>
+        <p>Новым корнем во всех примерах был документ. Если путь ведёт к значению другого типа или к полю, которого нет, стадия не выполняется.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Новый корень — только документ</h2>
+        <p>Документ потока — всегда документ: строку или число нельзя сделать документом верхнего уровня. Поле <code>promo</code> у заказа — строка с кодом скидки, и у 80 заказов его нет. Пример пробует сделать <code>promo</code> новым корнем.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>newRoot — не документ</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+pipeline = [
+    {<span class="s">"$replaceRoot"</span>: {<span class="s">"newRoot"</span>: <span class="s">"$promo"</span>}},
+]
+
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>newRoot — не документ</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">replace_root</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"newRoot"</span>, <span class="s">"$promo"</span>)));
+
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>newRoot — не документ</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$replaceRoot"</span>, Value: bson.D{{Key: <span class="s">"newRoot"</span>, Value: <span class="s">"$promo"</span>}}}},
+}
+
+_, err := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>newRoot — не документ</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$replaceRoot"</span> =&gt; { <span class="s">"newRoot"</span> =&gt; <span class="s">"$promo"</span> } },
+]
+
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40228
+PlanExecutor error during aggregation :: caused by :: 'newRoot' expression  must evaluate to an object, but resulting value was: MISSING. Type of resulting value: 'missing'. Input document: {}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40228
+PlanExecutor error during aggregation :: caused by :: 'newRoot' expression  must evaluate to an object, but resulting value was: MISSING. Type of resulting value: 'missing'. Input document: {}: server error code 40228: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40228
+PlanExecutor error during aggregation :: caused by :: 'newRoot' expression  must evaluate to an object, but resulting value was: MISSING. Type of resulting value: 'missing'. Input document: {}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>код 40228
+PlanExecutor error during aggregation :: caused by :: 'newRoot' expression  must evaluate to an object, but resulting value was: MISSING. Type of resulting value: 'missing'. Input document: {}</pre>
+        </figure>
+        <p>Сервер завершил запрос ошибкой 40228: выражение <code>newRoot</code> должно давать документ. В тексте ошибки видно, на каком документе это случилось: у первого заказа поля <code>promo</code> нет, значение — <code>MISSING</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Что можно поставить в newRoot</span><span>поля заказа</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Значение</th><th>Тип</th><th>Результат</th></tr></thead>
+              <tbody>
+                <tr><td><code>"$delivery"</code></td><td>документ</td><td class="ok">документ доставки</td></tr>
+                <tr><td><code>{"$mergeObjects": [...]}</code></td><td>документ</td><td class="ok">собранный документ</td></tr>
+                <tr class="no"><td><code>"$promo"</code></td><td>строка или поля нет</td><td class="bad">ошибка 40228</td></tr>
+                <tr class="no"><td><code>"$total"</code></td><td>число</td><td class="bad">ошибка 40228</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Ошибка возникает на первом же документе, для которого выражение не дало документ.</p>
+        </div>
+        <p><code>$replaceRoot</code> и <code>$replaceWith</code> меняют документ целиком. Чтобы убрать из документа отдельные вложенные части, нужна другая стадия.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Стадия $redact</h2>
+        <p>Перед публикацией архивного документа редактор проходит его раздел за разделом. Раздел с пометкой «не публиковать» он вырезает целиком, не читая вложенных пунктов. Раздел без пометки читает дальше, пункт за пунктом. Раздел с пометкой «публиковать целиком» оставляет без проверки.</p>
+        <p><span class="term">Стадия $redact</span> проходит по документу так же. Параметр — выражение, которое на каждом уровне документа возвращает одно из трёх значений:</p>
+        <ul>
+          <li><code>"$$PRUNE"</code> — удалить текущий документ вместе со всем, что в нём лежит;</li>
+          <li><code>"$$DESCEND"</code> — оставить поля текущего уровня и проверить вложенные документы тем же выражением;</li>
+          <li><code>"$$KEEP"</code> — оставить текущий документ целиком, без проверки вложенных.</li>
+        </ul>
+        <p>Уровни — сам документ, его вложенные документы и документы в массивах. Обычно выражение записывают через <code>$cond</code> из главы 4.2. Пример убирает из заказа 2026-0002 позиции категории «периферия»: где <code>category</code> равна «периферия» — <code>$$PRUNE</code>, иначе — <code>$$DESCEND</code>.</p>
+        <p data-lang="cpp">У стадии <code>$redact</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>redact</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$redact: позиции без периферии</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$redact"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$category"</span>, <span class="s">"периферия"</span>]}, <span class="s">"$$PRUNE"</span>, <span class="s">"$$DESCEND"</span>]}},
+    {<span class="s">"$project"</span>: {<span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"items.title"</span>: <span class="n">1</span>, <span class="s">"delivery.city"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$redact: позиции без периферии</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">redact</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$category"</span>, <span class="s">"периферия"</span>))),
+        <span class="s">"$$PRUNE"</span>,
+        <span class="s">"$$DESCEND"</span>))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"items.title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"delivery.city"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$redact: позиции без периферии</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$redact"</span>, Value: bson.D{
+        {Key: <span class="s">"$cond"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$category"</span>, <span class="s">"периферия"</span>}}},
+            <span class="s">"$$PRUNE"</span>,
+            <span class="s">"$$DESCEND"</span>}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"items.title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"delivery.city"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$redact: позиции без периферии</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$redact"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [
+    { <span class="s">"$eq"</span> =&gt; [<span class="s">"$category"</span>, <span class="s">"периферия"</span>] },
+    <span class="s">"$$PRUNE"</span>,
+    <span class="s">"$$DESCEND"</span>,
+  ] } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"items.title"</span> =&gt; <span class="n">1</span>, <span class="s">"delivery.city"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'o-0002', 'number': '2026-0002', 'items': [{'title': 'Ноутбук ASUS VivoBook 15'}], 'delivery': {'city': 'Новосибирск'}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "o-0002", "number" : "2026-0002", "items" : [ { "title" : "Ноутбук ASUS VivoBook 15" } ], "delivery" : { "city" : "Новосибирск" } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"o-0002","number":"2026-0002","items":[{"title":"Ноутбук ASUS VivoBook 15"}],"delivery":{"city":"Новосибирск"}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"o-0002", "number"=&gt;"2026-0002", "items"=&gt;[{"title"=&gt;"Ноутбук ASUS VivoBook 15"}], "delivery"=&gt;{"city"=&gt;"Новосибирск"}}</pre>
+        </figure>
+        <p>В массиве <code>items</code> осталась одна позиция — ноутбук. Две позиции периферии удалены. <code>delivery</code> на месте. На схеме — какое решение принято на каждом уровне документа.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Решения $redact по уровням заказа 2026-0002</span><span>условие: category = «периферия»</span></div>
+          <div class="scheme__body">
+            <ul class="tree">
+              <li><span class="d">заказ — category нет → $$DESCEND</span>
+                <ul>
+                  <li><span class="d">items[0] ноутбук — category «ноутбуки» → $$DESCEND</span></li>
+                  <li><span class="p">items[1] веб-камера — «периферия» → $$PRUNE</span></li>
+                  <li><span class="p">items[2] наушники — «периферия» → $$PRUNE</span></li>
+                  <li><span class="d">payment — category нет → $$DESCEND</span></li>
+                  <li><span class="d">delivery — category нет → $$DESCEND</span></li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+          <p class="scheme__note">Зелёным — уровни, которые остались; красным — удалённые. У заказа, <code>payment</code> и <code>delivery</code> поля <code>category</code> нет, сравнение с «периферией» ложно, и выражение возвращает <code>$$DESCEND</code>.</p>
+        </div>
+        <p>Удалённые позиции исчезли из массива, а сам массив остался. На всей коллекции это видно по числу позиций.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>$redact на всей коллекции</h2>
+        <p>Пример убирает из всех заказов позиции аксессуаров и считает три числа: позиции всего, позиции после <code>$redact</code> и заказы, в которых не осталось ни одной позиции.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>позиции до $redact и после</span></figcaption>
+<pre>lines_all = [
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"lines"</span>},
+]
+
+lines_redacted = [
+    {<span class="s">"$redact"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>]}, <span class="s">"$$PRUNE"</span>, <span class="s">"$$DESCEND"</span>]}},
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"lines"</span>},
+]
+
+orders_empty = [
+    {<span class="s">"$redact"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>]}, <span class="s">"$$PRUNE"</span>, <span class="s">"$$DESCEND"</span>]}},
+    {<span class="s">"$match"</span>: {<span class="s">"items"</span>: {<span class="s">"$size"</span>: <span class="n">0</span>}}},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── позиций всего"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(lines_all):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── позиций без аксессуаров"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(lines_redacted):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── заказов, где не осталось позиций"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(orders_empty):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>позиции до $redact и после</span></figcaption>
+<pre>mongocxx::pipeline lines_all;
+lines_all.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+lines_all.<span class="f">count</span>(<span class="s">"lines"</span>);
+
+mongocxx::pipeline lines_redacted;
+lines_redacted.<span class="f">redact</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>))),
+        <span class="s">"$$PRUNE"</span>,
+        <span class="s">"$$DESCEND"</span>))));
+lines_redacted.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+lines_redacted.<span class="f">count</span>(<span class="s">"lines"</span>);
+
+mongocxx::pipeline orders_empty;
+orders_empty.<span class="f">redact</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>))),
+        <span class="s">"$$PRUNE"</span>,
+        <span class="s">"$$DESCEND"</span>))));
+orders_empty.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"items"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="n">0</span>)))));
+orders_empty.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+std::cout &lt;&lt; <span class="s">"── позиций всего"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(lines_all)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── позиций без аксессуаров"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(lines_redacted)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── заказов, где не осталось позиций"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(orders_empty)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>позиции до $redact и после</span></figcaption>
+<pre>linesAll := mongo.Pipeline{
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"lines"</span>}},
+}
+
+linesRedacted := mongo.Pipeline{
+    {{Key: <span class="s">"$redact"</span>, Value: bson.D{
+        {Key: <span class="s">"$cond"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>}}},
+            <span class="s">"$$PRUNE"</span>,
+            <span class="s">"$$DESCEND"</span>}}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"lines"</span>}},
+}
+
+ordersEmpty := mongo.Pipeline{
+    {{Key: <span class="s">"$redact"</span>, Value: bson.D{
+        {Key: <span class="s">"$cond"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>}}},
+            <span class="s">"$$PRUNE"</span>,
+            <span class="s">"$$DESCEND"</span>}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"items"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="n">0</span>}}}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── позиций всего"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, linesAll)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── позиций без аксессуаров"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, linesRedacted)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── заказов, где не осталось позиций"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, ordersEmpty)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>позиции до $redact и после</span></figcaption>
+<pre>lines_all = [
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"lines"</span> },
+]
+
+lines_redacted = [
+  { <span class="s">"$redact"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [
+    { <span class="s">"$eq"</span> =&gt; [<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>] },
+    <span class="s">"$$PRUNE"</span>,
+    <span class="s">"$$DESCEND"</span>,
+  ] } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"lines"</span> },
+]
+
+orders_empty = [
+  { <span class="s">"$redact"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [
+    { <span class="s">"$eq"</span> =&gt; [<span class="s">"$category"</span>, <span class="s">"аксессуары"</span>] },
+    <span class="s">"$$PRUNE"</span>,
+    <span class="s">"$$DESCEND"</span>,
+  ] } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="n">0</span> } } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── позиций всего"</span>
+orders.<span class="f">aggregate</span>(lines_all).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── позиций без аксессуаров"</span>
+orders.<span class="f">aggregate</span>(lines_redacted).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── заказов, где не осталось позиций"</span>
+orders.<span class="f">aggregate</span>(orders_empty).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── позиций всего
+{'lines': 271}
+── позиций без аксессуаров
+{'lines': 238}
+── заказов, где не осталось позиций
+{'orders': 6}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── позиций всего
+{ "lines" : 271 }
+── позиций без аксессуаров
+{ "lines" : 238 }
+── заказов, где не осталось позиций
+{ "orders" : 6 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── позиций всего
+{"lines":271}
+── позиций без аксессуаров
+{"lines":238}
+── заказов, где не осталось позиций
+{"orders":6}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── позиций всего
+{"lines"=&gt;271}
+── позиций без аксессуаров
+{"lines"=&gt;238}
+── заказов, где не осталось позиций
+{"orders"=&gt;6}</pre>
+        </figure>
+        <p>Позиций было 271, после <code>$redact</code> — 238: удалены 33 позиции аксессуаров (глава 4.6, §3). У 6 заказов в заказе были только аксессуары, и их массив <code>items</code> стал пустым. Сами заказы остались: <code>$redact</code> удалил только вложенные документы.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Позиции и заказы после $redact</span><span>без аксессуаров</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Что считается</th><th>До $redact</th><th>После</th></tr></thead>
+              <tbody>
+                <tr><td>заказов</td><td>120</td><td>120</td></tr>
+                <tr><td>позиций</td><td>271</td><td>238</td></tr>
+                <tr class="no"><td>заказов с пустым items</td><td>0</td><td>6</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Пустой массив после <code>$redact</code> — повод вспомнить главу 4.6, §7: <code>$unwind</code> убирает такие документы из потока, если не указан <code>preserveNullAndEmptyArrays</code>.</p>
+        </div>
+        <p>В обоих примерах условие проверяло поле, которое есть только у позиций. Условие на поле верхнего уровня ведёт себя иначе.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Условие на каждом уровне</h2>
+        <p>Если редактору сказать «публикуй разделы документов дороже ста тысяч и читай их дальше», он дойдёт до пунктов, у которых цены нет, и вырежет их все. <code>$redact</code> проверяет одно и то же выражение на каждом уровне, и поле, которое есть только у заказа, во вложенных документах отсутствует.</p>
+        <p>Пример ставит условие на сумму заказа: <code>total</code> не меньше 100 000 — <code>$$DESCEND</code>, иначе — <code>$$PRUNE</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>условие на поле, которого нет во вложенных документах</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$redact"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$gte"</span>: [<span class="s">"$total"</span>, <span class="n">100000</span>]}, <span class="s">"$$DESCEND"</span>, <span class="s">"$$PRUNE"</span>]}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>условие на поле, которого нет во вложенных документах</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">redact</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="n">100000</span>))),
+        <span class="s">"$$DESCEND"</span>,
+        <span class="s">"$$PRUNE"</span>))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>условие на поле, которого нет во вложенных документах</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$redact"</span>, Value: bson.D{
+        {Key: <span class="s">"$cond"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$gte"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="n">100000</span>}}},
+            <span class="s">"$$DESCEND"</span>,
+            <span class="s">"$$PRUNE"</span>}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>условие на поле, которого нет во вложенных документах</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$redact"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [{ <span class="s">"$gte"</span> =&gt; [<span class="s">"$total"</span>, <span class="n">100000</span>] }, <span class="s">"$$DESCEND"</span>, <span class="s">"$$PRUNE"</span>] } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'o-0002', 'number': '2026-0002', 'customer_id': 'c-007', 'created': datetime.datetime(2026, 4, 15, 17, 0), 'status': 'собирается', 'items': [], 'total': 163250, 'promo': 'SPRING10'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "o-0002", "number" : "2026-0002", "customer_id" : "c-007", "created" : { "$date" : "2026-04-15T17:00:00Z" }, "status" : "собирается", "items" : [ ], "total" : 163250, "promo" : "SPRING10" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"o-0002","number":"2026-0002","customer_id":"c-007","created":{"$date":"2026-04-15T17:00:00Z"},"status":"собирается","items":[],"total":163250,"promo":"SPRING10"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"o-0002", "number"=&gt;"2026-0002", "customer_id"=&gt;"c-007", "created"=&gt;2026-04-15 17:00:00 UTC, "status"=&gt;"собирается", "items"=&gt;[], "total"=&gt;163250, "promo"=&gt;"SPRING10"}</pre>
+        </figure>
+        <p>Заказ 2026-0002 на 163 250 остался, но без <code>payment</code> и <code>delivery</code>, а массив <code>items</code> пуст. На верхнем уровне условие истинно. Во вложенных документах поля <code>total</code> нет, условие ложно, и каждый из них удалён.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Решения $redact по уровням заказа 2026-0002</span><span>условие: total ≥ 100 000</span></div>
+          <div class="scheme__body">
+            <ul class="tree">
+              <li><span class="d">заказ — total 163250 → $$DESCEND</span>
+                <ul>
+                  <li><span class="p">items[0], items[1], items[2] — total нет → $$PRUNE</span></li>
+                  <li><span class="p">payment — total нет → $$PRUNE</span></li>
+                  <li><span class="p">delivery — total нет → $$PRUNE</span></li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+          <p class="scheme__note">С <code>$$KEEP</code> вместо <code>$$DESCEND</code> заказ остался бы целиком: вложенные уровни не проверяются. Тогда стадия работала бы как <code>$match</code> по сумме и оставила бы 59 заказов.</p>
+        </div>
+        <p>Целые документы отбирают стадией <code>$match</code>: она проще и может использовать индекс. <code>$redact</code> нужен, когда убирать надо части документа. Стадия собирается и в Compass.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>$redact в Compass</h2>
+        <p>На кадре — конвейер из §6 на вкладке <b>Aggregations</b>: <code>$match</code> по заказу o-0002 и <code>$redact</code>, который убирает позиции периферии.</p>
+        <figure class="shot">
+          <img src="../../shots/157-orders-redact.png" alt="Compass, вкладка Aggregations коллекции shop.orders: стадия $match по o-0002 с массивом items из трёх элементов, стадия $redact с массивом items из одного элемента">
+          <figcaption>Compass · стадии <code>$match</code> и <code>$redact</code> для заказа 2026-0002</figcaption>
+        </figure>
+        <p>Под обеими стадиями подпись <b>Sample of 1 document</b> — заказ 2026-0002. Под <code>$match</code> у поля <code>items</code> значение <b>Array (3)</b>, под <code>$redact</code> — <b>Array (1)</b>: две позиции периферии удалены. Остальные поля — <code>_id</code>, <code>number</code>, <code>status</code>, <code>total</code> — у обоих документов одинаковы. Поля <code>payment</code> и <code>delivery</code> на кадре ниже края выборки, их видно прокруткой.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$replaceRoot": {"newRoot": "$promo"}}</code></td><td>Ошибка 40228: новым корнем может быть только документ, а <code>promo</code> — строка или поля нет</td><td>Указывать путь к вложенному документу или собирать документ: <code>{"$mergeObjects": [...]}</code></td></tr>
+              <tr><td><code>{"$replaceWith": "$delivery"}</code>, затем <code>$sort</code> по <code>number</code></td><td>Поля <code>number</code> в потоке больше нет: остались только поля доставки</td><td>Перенести нужные поля в новый документ через <code>$mergeObjects</code> или сортировать до замены</td></tr>
+              <tr><td><code>{"$cond": [{"$gte": ["$total", 100000]}, "$$DESCEND", "$$PRUNE"]}</code></td><td>Во вложенных документах поля <code>total</code> нет, условие ложно, и <code>delivery</code>, <code>payment</code> и позиции удаляются</td><td>Условие для <code>$$DESCEND</code> должно быть истинным на всех уровнях, которые нужно сохранить; отбор целых документов — стадией <code>$match</code></td></tr>
+              <tr><td><code>$redact</code> для отбора целых документов</td><td>Работает, но сервер вычисляет выражение для каждого документа и не использует индекс</td><td>Целые документы отбирать стадией <code>$match</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$replaceRoot": {"newRoot": "$promo"}}</code></td><td>Ошибка 40228: новым корнем может быть только документ, а <code>promo</code> — строка или поля нет</td><td>Указывать путь к вложенному документу или собирать документ: <code>{"$mergeObjects": [...]}</code></td></tr>
+              <tr><td><code>{"$replaceWith": "$delivery"}</code>, затем <code>$sort</code> по <code>number</code></td><td>Поля <code>number</code> в потоке больше нет: остались только поля доставки</td><td>Перенести нужные поля в новый документ через <code>$mergeObjects</code> или сортировать до замены</td></tr>
+              <tr><td><code>{"$cond": [{"$gte": ["$total", 100000]}, "$$DESCEND", "$$PRUNE"]}</code></td><td>Во вложенных документах поля <code>total</code> нет, условие ложно, и <code>delivery</code>, <code>payment</code> и позиции удаляются</td><td>Условие для <code>$$DESCEND</code> должно быть истинным на всех уровнях, которые нужно сохранить; отбор целых документов — стадией <code>$match</code></td></tr>
+              <tr><td><code>$redact</code> для отбора целых документов</td><td>Работает, но сервер вычисляет выражение для каждого документа и не использует индекс</td><td>Целые документы отбирать стадией <code>$match</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$replaceRoot": {"newRoot": "$promo"}}</code></td><td>Ошибка 40228: новым корнем может быть только документ, а <code>promo</code> — строка или поля нет</td><td>Указывать путь к вложенному документу или собирать документ: <code>{"$mergeObjects": [...]}</code></td></tr>
+              <tr><td><code>{"$replaceWith": "$delivery"}</code>, затем <code>$sort</code> по <code>number</code></td><td>Поля <code>number</code> в потоке больше нет: остались только поля доставки</td><td>Перенести нужные поля в новый документ через <code>$mergeObjects</code> или сортировать до замены</td></tr>
+              <tr><td><code>{"$cond": [{"$gte": ["$total", 100000]}, "$$DESCEND", "$$PRUNE"]}</code></td><td>Во вложенных документах поля <code>total</code> нет, условие ложно, и <code>delivery</code>, <code>payment</code> и позиции удаляются</td><td>Условие для <code>$$DESCEND</code> должно быть истинным на всех уровнях, которые нужно сохранить; отбор целых документов — стадией <code>$match</code></td></tr>
+              <tr><td><code>$redact</code> для отбора целых документов</td><td>Работает, но сервер вычисляет выражение для каждого документа и не использует индекс</td><td>Целые документы отбирать стадией <code>$match</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$replaceRoot": {"newRoot": "$promo"}}</code></td><td>Ошибка 40228: новым корнем может быть только документ, а <code>promo</code> — строка или поля нет</td><td>Указывать путь к вложенному документу или собирать документ: <code>{"$mergeObjects": [...]}</code></td></tr>
+              <tr><td><code>{"$replaceWith": "$delivery"}</code>, затем <code>$sort</code> по <code>number</code></td><td>Поля <code>number</code> в потоке больше нет: остались только поля доставки</td><td>Перенести нужные поля в новый документ через <code>$mergeObjects</code> или сортировать до замены</td></tr>
+              <tr><td><code>{"$cond": [{"$gte": ["$total", 100000]}, "$$DESCEND", "$$PRUNE"]}</code></td><td>Во вложенных документах поля <code>total</code> нет, условие ложно, и <code>delivery</code>, <code>payment</code> и позиции удаляются</td><td>Условие для <code>$$DESCEND</code> должно быть истинным на всех уровнях, которые нужно сохранить; отбор целых документов — стадией <code>$match</code></td></tr>
+              <tr><td><code>$redact</code> для отбора целых документов</td><td>Работает, но сервер вычисляет выражение для каждого документа и не использует индекс</td><td>Целые документы отбирать стадией <code>$match</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>Какие поля останутся у заказа после <code>{"$replaceWith": "$delivery"}</code>?</summary>
+          <p>Только поля доставки: <code>city</code>, <code>type</code>, <code>days</code>. Даже <code>_id</code> заказа не останется.</p>
+        </details>
+        <details>
+          <summary>Как сохранить номер заказа рядом с полями доставки?</summary>
+          <p><code>{"$replaceWith": {"$mergeObjects": [{"number": "$number"}, "$delivery"]}}</code>.</p>
+        </details>
+        <details>
+          <summary>Почему <code>{"$replaceRoot": {"newRoot": "$total"}}</code> даёт ошибку?</summary>
+          <p><code>total</code> — число, а новым корнем может быть только документ. Ошибка 40228.</p>
+        </details>
+        <details>
+          <summary>Чем <code>$$PRUNE</code> отличается от <code>$$DESCEND</code>?</summary>
+          <p><code>$$PRUNE</code> удаляет текущий уровень вместе со всем вложенным. <code>$$DESCEND</code> оставляет поля текущего уровня и проверяет вложенные документы тем же выражением.</p>
+        </details>
+        <details>
+          <summary>Почему условие на <code>total</code> с <code>$$DESCEND</code> удалило доставку и оплату?</summary>
+          <p>Выражение проверяется на каждом уровне. У вложенных документов поля <code>total</code> нет, условие ложно, и выражение возвращает <code>$$PRUNE</code>.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_9</code>. Данные — <code>shop.orders</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Оплата</b>Заменить каждый доставленный заказ документом <code>payment</code> и посчитать документы по способу оплаты (<code>method</code>).</li>
+          <li><b>Оплата с номером</b>Для заказов в пути в Ярославль вывести документы из номера заказа и полей оплаты, по возрастанию номера.</li>
+          <li><b>Без смартфонов</b>Стадией <code>$redact</code> убрать из всех заказов позиции смартфонов и посчитать оставшиеся позиции.</li>
+          <li><b>Пустые заказы</b>Посчитать заказы, у которых после этого не осталось позиций.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Доставленные заказы по способу оплаты: карта — 37, картой при получении — 19, СБП — 13; всего 69.</p>
+          <p>Заказы в пути в Ярославль: 2026-0033, 2026-0054, 2026-0081 — у всех трёх <code>method</code> «карта», <code>paid</code> true.</p>
+          <p>Без смартфонов осталось 214 позиций из 271: удалено 57. Пустой массив <code>items</code> у 10 заказов.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Вложенный документ вместо документа</b>
+            <code>{"$replaceRoot": {"newRoot": "$delivery"}}</code>
+          </div>
+          <div>
+            <b>Короткая запись</b>
+            <code>{"$replaceWith": "$delivery"}</code>
+          </div>
+          <div>
+            <b>Добавить поля к вложенному</b>
+            <code>{"$replaceWith": {"$mergeObjects": [{"number": "$number"}, "$delivery"]}}</code>
+          </div>
+          <div>
+            <b>Убрать вложенные документы по условию</b>
+            <code>{"$redact": {"$cond": [{"$eq": ["$category", "периферия"]}, "$$PRUNE", "$$DESCEND"]}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Вложенный документ вместо документа</b>
+            <code>pipeline.replace_root(make_document(kvp("newRoot", "$delivery")));</code>
+          </div>
+          <div>
+            <b>Короткая запись</b>
+            <code>pipeline.append_stage(make_document(kvp("$replaceWith", "$delivery")));</code>
+          </div>
+          <div>
+            <b>Добавить поля к вложенному</b>
+            <code>pipeline.append_stage(make_document(kvp("$replaceWith", make_document(kvp("$mergeObjects", make_array(make_document(kvp("number", "$number")), "$delivery"))))));</code>
+          </div>
+          <div>
+            <b>Убрать вложенные документы по условию</b>
+            <code>pipeline.redact(make_document(kvp("$cond", make_array(make_document(kvp("$eq", make_array("$category", "периферия"))), "$$PRUNE", "$$DESCEND"))));</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Вложенный документ вместо документа</b>
+            <code>bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$delivery"}}}}</code>
+          </div>
+          <div>
+            <b>Короткая запись</b>
+            <code>bson.D{{Key: "$replaceWith", Value: "$delivery"}}</code>
+          </div>
+          <div>
+            <b>Добавить поля к вложенному</b>
+            <code>bson.D{{Key: "$replaceWith", Value: bson.D{{Key: "$mergeObjects", Value: bson.A{bson.D{{Key: "number", Value: "$number"}}, "$delivery"}}}}}</code>
+          </div>
+          <div>
+            <b>Убрать вложенные документы по условию</b>
+            <code>bson.D{{Key: "$redact", Value: bson.D{{Key: "$cond", Value: bson.A{bson.D{{Key: "$eq", Value: bson.A{"$category", "периферия"}}}, "$$PRUNE", "$$DESCEND"}}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Вложенный документ вместо документа</b>
+            <code>{ "$replaceRoot" =&gt; { "newRoot" =&gt; "$delivery" } }</code>
+          </div>
+          <div>
+            <b>Короткая запись</b>
+            <code>{ "$replaceWith" =&gt; "$delivery" }</code>
+          </div>
+          <div>
+            <b>Добавить поля к вложенному</b>
+            <code>{ "$replaceWith" =&gt; { "$mergeObjects" =&gt; [{ "number" =&gt; "$number" }, "$delivery"] } }</code>
+          </div>
+          <div>
+            <b>Убрать вложенные документы по условию</b>
+            <code>{ "$redact" =&gt; { "$cond" =&gt; [{ "$eq" =&gt; ["$category", "периферия"] }, "$$PRUNE", "$$DESCEND"] } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$replaceRoot</code> с параметром <code>newRoot</code> и короткая запись <code>$replaceWith</code> заменяют каждый документ потока другим документом: вложенным, как <code>delivery</code>, или собранным выражением <code>$mergeObjects</code>. Число документов не меняется. Новым корнем может быть только документ, иначе — ошибка 40228.</p>
+        <p><code>$redact</code> проверяет одно выражение на каждом уровне документа: на самом документе, вложенных документах и документах в массивах. <code>$$PRUNE</code> удаляет уровень, <code>$$DESCEND</code> оставляет его и проверяет вложенные, <code>$$KEEP</code> оставляет уровень целиком.</p>
+        <p>Условие для <code>$$DESCEND</code> должно быть истинным на всех уровнях, которые нужно сохранить. Целые документы отбирают стадией <code>$match</code>.</p>
+
+        <div class="pager"><a href="../32-bucket-facet/index.html">← 4.8 $bucket, $bucketAuto, $facet</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.9 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

@@ -1139,3 +1139,83 @@ CHEATS["4.8"] = [
     ("Несколько отчётов", cheat_lines({"$facet": {"by_status": [{"$sortByCount": "$status"}],
                                                    "total": [{"$count": "orders"}]}})),
 ]
+
+
+# ── 4.9 $replaceRoot, $replaceWith, $redact ───────────────────────────────
+
+# вложенный документ становится документом потока
+example("4.9", "root", "$replaceRoot: документ доставки вместо заказа", agg_docs([
+    ONE_ORDER,
+    {"$replaceRoot": {"newRoot": "$delivery"}},
+]))
+
+# короткая запись и слияние документов
+example("4.9", "with", "$replaceWith и $mergeObjects", agg_docs([
+    ONE_ORDER,
+    {"$replaceWith": {"$mergeObjects": [{"number": "$number"}, "$delivery"]}},
+]))
+
+# дальше стадии работают с новым документом
+example("4.9", "group", "группировка после $replaceWith", agg_docs([
+    IN_TRANSIT,
+    {"$replaceWith": "$delivery"},
+    {"$group": {"_id": "$type", "orders": {"$sum": 1}, "days": {"$avg": "$days"}}},
+    {"$sort": {"_id": 1}},
+]))
+
+# позиция заказа становится документом
+example("4.9", "items", "$unwind и $replaceWith: позиции как документы", agg_docs([
+    ONE_ORDER,
+    UNWIND,
+    {"$replaceWith": "$items"},
+]))
+
+# новым документом может быть только документ
+NOT_DOC = [{"$replaceRoot": {"newRoot": "$promo"}}]
+example("4.9", "notdoc", "newRoot — не документ", {
+    lang: IMPORT_ERR.get(lang, "") + pipeline(NOT_DOC, lang) + "\n\n" + try_code(lang)
+    for lang in LANGS4})
+
+# $redact убирает позиции одной категории
+NO_PERIPHERY = {"$redact": {"$cond": [{"$eq": ["$category", "периферия"]}, "$$PRUNE", "$$DESCEND"]}}
+example("4.9", "prune", "$redact: позиции без периферии", agg_docs([
+    ONE_ORDER,
+    NO_PERIPHERY,
+    {"$project": {"number": 1, "items.title": 1, "delivery.city": 1}},
+]))
+
+# то же на всей коллекции
+NO_ACCESSORIES = {"$redact": {"$cond": [{"$eq": ["$category", "аксессуары"]}, "$$PRUNE", "$$DESCEND"]}}
+several("4.9", "count", "позиции до $redact и после", [
+    ("позиций всего", "lines_all", [UNWIND, {"$count": "lines"}]),
+    ("позиций без аксессуаров", "lines_redacted", [NO_ACCESSORIES, UNWIND, {"$count": "lines"}]),
+    ("заказов, где не осталось позиций", "orders_empty", [NO_ACCESSORIES, {"$match": {"items": {"$size": 0}}}, {"$count": "orders"}]),
+])
+
+# условие проверяется на каждом уровне
+example("4.9", "trap", "условие на поле, которого нет во вложенных документах", agg_docs([
+    ONE_ORDER,
+    {"$redact": {"$cond": [{"$gte": ["$total", 100000]}, "$$DESCEND", "$$PRUNE"]}},
+]))
+
+ERRORS["4.9"] = [
+    ('<code>{"$replaceRoot": {"newRoot": "$promo"}}</code>',
+     "Ошибка 40228: новым корнем может быть только документ, а <code>promo</code> — строка или поля нет",
+     "Указывать путь к вложенному документу или собирать документ: <code>{\"$mergeObjects\": [...]}</code>"),
+    ('<code>{"$replaceWith": "$delivery"}</code>, затем <code>$sort</code> по <code>number</code>',
+     "Поля <code>number</code> в потоке больше нет: остались только поля доставки",
+     "Перенести нужные поля в новый документ через <code>$mergeObjects</code> или сортировать до замены"),
+    ('<code>{"$cond": [{"$gte": ["$total", 100000]}, "$$DESCEND", "$$PRUNE"]}</code>',
+     "Во вложенных документах поля <code>total</code> нет, условие ложно, и <code>delivery</code>, <code>payment</code> и позиции удаляются",
+     "Условие для <code>$$DESCEND</code> должно быть истинным на всех уровнях, которые нужно сохранить; отбор целых документов — стадией <code>$match</code>"),
+    ("<code>$redact</code> для отбора целых документов",
+     "Работает, но сервер вычисляет выражение для каждого документа и не использует индекс",
+     "Целые документы отбирать стадией <code>$match</code>"),
+]
+
+CHEATS["4.9"] = [
+    ("Вложенный документ вместо документа", cheat_lines({"$replaceRoot": {"newRoot": "$delivery"}})),
+    ("Короткая запись", cheat_lines({"$replaceWith": "$delivery"})),
+    ("Добавить поля к вложенному", cheat_lines({"$replaceWith": {"$mergeObjects": [{"number": "$number"}, "$delivery"]}})),
+    ("Убрать вложенные документы по условию", cheat_lines({"$redact": {"$cond": [{"$eq": ["$category", "периферия"]}, "$$PRUNE", "$$DESCEND"]}})),
+]

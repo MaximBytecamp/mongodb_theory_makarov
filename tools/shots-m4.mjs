@@ -442,4 +442,17 @@ await withCompass(async page => {
     await settle(1200);
     await shot('156-orders-facet', 969);
   }
+  // --- 157 · 4.9 §9: $redact убирает позиции периферии ---------------------
+  if (need('157-orders-redact')) {
+    await openCollection('shop', 'orders');
+    await openTab('Aggregations');
+    await setPipeline(`[
+  { $match: { _id: "o-0002" } },
+  { $redact: { $cond: [{ $eq: ["$category", "периферия"] }, "$$PRUNE", "$$DESCEND"] } }
+]`);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').first().evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('157-orders-redact', 969);
+  }
 });
