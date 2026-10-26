@@ -412,4 +412,18 @@ await withCompass(async page => {
     await settle(1200);
     await shot('154-orders-unwind', 969);
   }
+  // --- 155 · 4.7 §6: $group с $push номеров заказов в пути ----------------
+  if (need('155-orders-push')) {
+    await openCollection('shop', 'orders');
+    await openTab('Aggregations');
+    await setPipeline(`[
+  { $match: { status: "в пути" } },
+  { $sort: { number: 1 } },
+  { $group: { _id: "$delivery.city", numbers: { $push: "$number" } } }
+]`);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').nth(2).evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('155-orders-push', 969);
+  }
 });

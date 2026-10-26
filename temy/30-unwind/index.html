@@ -1533,7 +1533,7 @@ orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">p
         <p>После разворота к позициям применяются <code>$match</code>, <code>$group</code>, <code>$sort</code> и <code>$limit</code>. Поля исходного документа повторяются в каждой позиции, поэтому складывать после разворота нужно поля позиции. Условие на поле массива до <code>$unwind</code> отбирает документы целиком, после — отдельные элементы.</p>
         <p>Полная запись стадии — документ с <code>path</code>. Параметр <code>includeArrayIndex</code> добавляет номер элемента, начиная с нуля. <code>preserveNullAndEmptyArrays</code> сохраняет документы без поля, с <code>null</code> или с пустым массивом. Без него такие документы исчезают из потока.</p>
 
-        <div class="pager"><a href="../29-skip-count/index.html">← 4.5 $skip, $count, $sortByCount</a><a href="../../index.html">Оглавление →</a></div>
+        <div class="pager"><a href="../29-skip-count/index.html">← 4.5 $skip, $count, $sortByCount</a><a href="../31-push-first-last/index.html">4.7 $push, $addToSet, $first, $last →</a></div>
 
         <div class="colophon">
           <span>Глава 4.6 · Справочник по MongoDB</span>

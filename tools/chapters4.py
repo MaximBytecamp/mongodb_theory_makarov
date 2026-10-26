@@ -970,3 +970,80 @@ CHEATS["4.6"] = [
     ("Сохранить документы без массива", cheat_lines({"$unwind": {"path": "$promo", "preserveNullAndEmptyArrays": True}})),
     ("Сумма позиций", cheat_lines({"revenue": {"$sum": {"$multiply": ["$items.qty", "$items.price"]}}})),
 ]
+
+
+# ── 4.7 $push, $addToSet, $first, $last ───────────────────────────────────
+
+IN_TRANSIT = {"$match": {"status": "в пути"}}
+THREE_CUSTOMERS = {"$match": {"customer_id": {"$in": ["c-007", "c-011", "c-018"]}}}
+
+# номера заказов в пути по городам
+example("4.7", "push", "$push: номера заказов в пути по городам", agg_docs([
+    IN_TRANSIT,
+    {"$sort": {"number": 1}},
+    {"$group": {"_id": "$delivery.city", "numbers": {"$push": "$number"}}},
+    {"$sort": {"_id": 1}},
+]))
+
+# в массив кладутся документы
+example("4.7", "push_doc", "$push: документ из двух полей", agg_docs([
+    {"$match": {"status": "в пути", "delivery.city": "Ярославль"}},
+    {"$sort": {"number": 1}},
+    {"$group": {"_id": "$delivery.city", "orders": {"$push": {"number": "$number", "total": "$total"}}}},
+]))
+
+# $push и $addToSet на одних данных
+example("4.7", "set", "$push и $addToSet: категории покупок", agg_docs([
+    {"$match": {"customer_id": "c-007"}},
+    {"$unwind": "$items"},
+    {"$group": {"_id": "$customer_id", "all": {"$push": "$items.category"},
+                "unique": {"$addToSet": "$items.category"}}},
+    {"$project": {"all": 1, "unique": {"$sortArray": {"input": "$unique", "sortBy": 1}}}},
+]))
+
+# первый и последний заказ покупателя
+example("4.7", "first_last", "$first и $last после $sort", agg_docs([
+    THREE_CUSTOMERS,
+    {"$sort": {"created": 1}},
+    {"$group": {"_id": "$customer_id", "orders": {"$sum": 1},
+                "first": {"$first": "$number"}, "last": {"$last": "$number"}}},
+    {"$sort": {"_id": 1}},
+]))
+
+# то же без $sort
+example("4.7", "unsorted", "$first и $last без $sort", agg_docs([
+    THREE_CUSTOMERS,
+    {"$group": {"_id": "$customer_id", "first": {"$first": "$number"}, "last": {"$last": "$number"}}},
+    {"$sort": {"_id": 1}},
+]))
+
+# самый дорогой заказ каждого города
+example("4.7", "top", "самый дорогой заказ города", agg_docs([
+    {"$sort": {"total": -1}},
+    {"$group": {"_id": "$delivery.city", "number": {"$first": "$number"},
+                "total": {"$first": "$total"}, "orders": {"$sum": 1}}},
+    {"$sort": {"total": -1}},
+]))
+
+ERRORS["4.7"] = [
+    ('<code>{"numbers": {"$push": "$number", "$addToSet": "$number"}}</code>',
+     "Ошибка 40238: у поля группы может быть только один аккумулятор",
+     'Каждому аккумулятору — своё поле: <code>"all": {"$push": …}</code>, <code>"unique": {"$addToSet": …}</code>'),
+    ("<code>$first</code> и <code>$last</code> без <code>$sort</code> перед <code>$group</code>",
+     "Берётся первый и последний документ в порядке поступления в стадию; без сортировки этот порядок не задан",
+     'Перед <code>$group</code> поставить <code>$sort</code> по полю, которое задаёт «первый»: <code>{"$sort": {"created": 1}}</code>'),
+    ("Ожидание, что <code>$addToSet</code> вернёт значения по алфавиту",
+     "Порядок элементов в результате <code>$addToSet</code> не задан",
+     "Не полагаться на порядок; если он нужен, собирать <code>$push</code> после <code>$sort</code> по этому полю"),
+    ("<code>$push</code> по всем документам большой коллекции в одну группу",
+     "Массив растёт вместе с коллекцией; документ результата не может быть больше 16 МБ",
+     "Собирать в массив только отобранные <code>$match</code> документы или отдельные поля"),
+]
+
+CHEATS["4.7"] = [
+    ("Массив значений", cheat_lines({"numbers": {"$push": "$number"}})),
+    ("Без повторов", cheat_lines({"categories": {"$addToSet": "$items.category"}})),
+    ("Упорядочить массив", cheat_lines({"$project": {"categories": {"$sortArray": {"input": "$categories", "sortBy": 1}}}})),
+    ("Первый и последний", cheat_lines({"first": {"$first": "$number"}, "last": {"$last": "$number"}})),
+    ("Лучший в группе", {lang: cheat_lines({"$sort": {"total": -1}})[lang] + cheat_lines({"$group": {"_id": "$delivery.city", "top": {"$first": "$number"}}})[lang] for lang in LANGS4}),
+]
