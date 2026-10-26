@@ -1,0 +1,2263 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.10 Скрипт целиком: витрина продаж за квартал · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ до и после $unwind, таблицы, полосы выручки. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .seq { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0 0 6px; list-style: none; font: 400 12.5px/1.4 var(--mono); }
+    .seq li { position: relative; padding: 6px 8px; border: 2px solid var(--ink); background: var(--paper); }
+    .seq li b { display: block; color: var(--ink-faint); font-weight: 400; }
+    .seq li i { display: block; font-style: normal; color: var(--ink-soft); }
+    .seq li em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
+    .seq li.on { background: var(--leaf-pale); border-color: var(--leaf); font-weight: 700; }
+    .strip { margin: 0 0 12px; }
+    .strip b { display: block; margin-bottom: 5px; font: 600 12.5px/1.4 var(--mono); }
+    .strip__bar { display: flex; height: 30px; min-width: 560px; border: 2px solid var(--ink); }
+    .strip__bar i { flex: 1 0 0; min-width: 0; display: grid; place-items: center; border-right: 2px solid var(--ink); background: var(--leaf-pale); font: 700 12px/1 var(--mono); font-style: normal; overflow: hidden; }
+    .strip__bar i:last-child { border-right: 0; }
+    .strip__bar i.gap { background: repeating-linear-gradient(45deg, var(--paper) 0 4px, var(--rule) 4px 6px); }
+    .fan { display: grid; gap: 10px; padding-bottom: 6px; font: 400 12.5px/1.4 var(--mono); }
+    .fan__in, .fan__out { padding: 7px 10px; border: 2px solid var(--ink); background: var(--paper); font-weight: 700; text-align: center; }
+    .fan__out { background: var(--leaf-pale); }
+    .fan__branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .fan__branches > div { padding: 7px 10px; border: 2px dashed var(--ink-soft); }
+    .fan__branches b { display: block; color: var(--violet); }
+    .fan__branches span { display: block; color: var(--ink-soft); }
+    .fan__branches em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
+    .tree, .tree ul { list-style: none; margin: 0; padding: 0; font: 400 12.5px/1.5 var(--mono); }
+    .tree ul { margin: 6px 0 4px 10px; padding-left: 16px; border-left: 2px solid var(--rule); }
+    .tree li { margin: 4px 0; }
+    .tree span { display: inline-block; padding: 2px 8px; border: 2px solid var(--ink); }
+    .tree span.d { background: var(--leaf-pale); }
+    .tree span.p { background: var(--clay-pale); color: var(--clay); text-decoration: line-through; text-decoration-thickness: 1px; }
+    .stack { display: flex; height: 34px; min-width: 520px; border: 2px solid var(--ink); }
+    .stack i { flex: 1 0 0; min-width: 0; display: grid; place-items: center; border-right: 2px solid var(--ink); background: var(--paper); font: 600 12px/1 var(--mono); font-style: normal; white-space: nowrap; overflow: hidden; }
+    .stack i:last-child { border-right: 0; }
+    .stack i.on { background: var(--leaf-bright); }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.10</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.10</span>
+          <h1>Скрипт целиком:<br>витрина продаж за квартал</h1>
+          <p class="lead">В этой главе разобран скрипт sales_showcase из репозитория практик. Он строит отчёт по доставленным заказам магазина за второй квартал 2026 года: выручку по месяцам, городам и категориям, самые продаваемые товары, чеки по суммам, самый дорогой заказ каждого города, оплату и доставку. Каждый раздел отчёта — один конвейер агрегации из стадий глав 4.1–4.9. Скрипт только читает данные.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>Все главы модуля 4: $match, $sort, $limit (4.1), $project (4.2), $group (4.4), $count и $sortByCount (4.5), $unwind (4.6), $first (4.7), $bucket и $facet (4.8)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Собирать отчёт из нескольких конвейеров и читать его как готовый документ для руководителя</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Скрипт только читает базу <code>shop</code>. Сбрасывать базы перед запуском не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.10-python.zip" download><code>mongodb-glava-4.10-python.zip</code></a>, 57 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.10-ruby.zip" download><code>mongodb-glava-4.10-ruby.zip</code></a>, 57 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.10-go.zip" download><code>mongodb-glava-4.10-go.zip</code></a>, 60 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.10-cpp.zip" download><code>mongodb-glava-4.10-cpp.zip</code></a>, 58 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>scripts/sales_showcase.py</code></span><span data-lang="ruby"><code>scripts/sales_showcase.rb</code></span><span data-lang="go"><code>scripts/sales_showcase.go</code></span><span data-lang="cpp"><code>scripts/sales_showcase.cpp</code></span> в репозитории практик — готовая программа, вставлять в неё ничего не нужно.</span></div>
+          <div class="runbox__row"><b>Запуск</b><span>Из корня репозитория практик: <span data-lang="python"><code>docker compose run --rm python scripts/sales_showcase.py</code></span><span data-lang="ruby"><code>docker compose run --rm ruby scripts/sales_showcase.rb</code></span><span data-lang="go"><code>docker compose run --rm go scripts/sales_showcase.go</code></span><span data-lang="cpp"><code>docker compose run --rm cpp scripts/sales_showcase.cpp</code></span>. Запуск на своём сервере — в §12.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Что делает скрипт</a></li>
+            <li><a href="#s2">Подключение и границы квартала</a></li>
+            <li><a href="#s3">Заказы квартала</a></li>
+            <li><a href="#s4">Выручка по месяцам</a></li>
+            <li><a href="#s5">Города</a></li>
+            <li><a href="#s6">Категории и товары</a></li>
+            <li><a href="#s7">Чеки по суммам</a></li>
+            <li><a href="#s8">Самый дорогой заказ города</a></li>
+            <li><a href="#s9">Оплата и доставка</a></li>
+            <li><a href="#s10">Что показал отчёт</a></li>
+            <li><a href="#s11">Скрипт целиком</a></li>
+            <li><a href="#s12">Как запустить</a></li>
+            <li><a href="#s13">Частые ошибки</a></li>
+            <li><a href="#s14">Проверьте себя</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Что делает скрипт</h2>
+        <p>В конце квартала руководитель магазина получает от аналитика одну страницу: сколько продано, в какие месяцы и города, каких товаров больше всего, какие чеки. Каждая строка этой страницы — ответ на отдельный вопрос. Аналитик задаёт базе несколько вопросов подряд и сводит ответы в одну страницу.</p>
+        <p>Скрипт <code>sales_showcase</code> делает то же самое с заказами магазина. <span class="term">Витрина</span> — отчёт, собранный из данных в форме итогов, разбивок и первых мест, которую читает руководитель. Квартал — второй квартал 2026 года, с 1 апреля по 30 июня. Отчёт состоит из восьми разделов, каждый раздел — один конвейер агрегации.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Раздел отчёта</th><th>Стадии</th><th>Глава</th></tr></thead>
+            <tbody>
+              <tr><td>1. Заказы квартала</td><td><code>$match</code>, <code>$sortByCount</code>; <code>$group</code> с <code>_id: null</code>, <code>$project</code> с <code>$round</code></td><td>4.1, 4.4, 4.5</td></tr>
+              <tr><td>2. Выручка по месяцам</td><td><code>$bucket</code> по дате создания</td><td>4.8</td></tr>
+              <tr><td>3. Города</td><td><code>$group</code>, <code>$avg</code>, <code>$round</code>, <code>$sort</code></td><td>4.2, 4.4</td></tr>
+              <tr><td>4. Категории</td><td><code>$unwind</code>, <code>$group</code>, <code>$multiply</code></td><td>4.6</td></tr>
+              <tr><td>5. Пять самых продаваемых товаров</td><td><code>$unwind</code>, <code>$group</code>, <code>$sort</code>, <code>$limit</code></td><td>4.1, 4.6</td></tr>
+              <tr><td>6. Чеки по суммам</td><td><code>$bucket</code> по сумме</td><td>4.8</td></tr>
+              <tr><td>7. Самый дорогой заказ города</td><td><code>$sort</code>, <code>$group</code> с <code>$first</code></td><td>4.7</td></tr>
+              <tr><td>8. Оплата и доставка</td><td><code>$facet</code> с <code>$sortByCount</code> и <code>$count</code></td><td>4.8</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Скрипт ничего не пишет в базы, сбрасывать их перед запуском не нужно. Разделы скрипта разобраны по порядку, начиная с подключения.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Подключение и границы квартала</h2>
+        <p>Начало скрипта — подключение, коллекция <code>orders</code> базы <code>shop</code> и функция <code>title</code>, которая печатает заголовок раздела с подчёркиванием. Две константы задают, какие заказы попадают в отчёт.</p>
+        <ul>
+          <li><code>QUARTER</code> — условие на дату создания: от 1 апреля 2026 года включительно (<code>$gte</code>) до 1 июля, не включая его (<code>$lt</code>). Так в квартал попадает весь день 30 июня, до последней секунды.</li>
+          <li><code>DELIVERED</code> — стадия <code>$match</code> с тем же условием и статусом «доставлен». Она стоит первой в конвейерах разделов 1–8: выручку дают только доставленные заказы.</li>
+        </ul>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>подключение и границы квартала</span></figcaption>
+<pre><span class="k">import</span> os
+<span class="k">from</span> datetime <span class="k">import</span> datetime
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>]
+
+QUARTER = {<span class="s">"created"</span>: {<span class="s">"$gte"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="s">"$lt"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)}}
+DELIVERED = {<span class="s">"$match"</span>: {**QUARTER, <span class="s">"status"</span>: <span class="s">"доставлен"</span>}}
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>подключение и границы квартала</span></figcaption>
+<pre>#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdint&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;iomanip&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;map&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/collection.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/pipeline.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_array;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Число из ответа сервера: суммы приходят как int32 или int64, среднее после $round — как double.</span>
+<span class="k">std</span>::int64_t <span class="f">number</span>(bsoncxx::document::element value) {
+    <span class="k">if</span> (value.<span class="f">type</span>() == bsoncxx::type::k_int32) <span class="k">return</span> value.<span class="f">get_int32</span>().value;
+    <span class="k">if</span> (value.<span class="f">type</span>() == bsoncxx::type::k_double) <span class="k">return</span> static_cast&lt;<span class="k">std</span>::int64_t&gt;(value.<span class="f">get_double</span>().value);
+    <span class="k">return</span> value.<span class="f">get_int64</span>().value;
+}
+
+<span class="k">std</span>::string <span class="f">text</span>(bsoncxx::document::element value) {
+    <span class="k">return</span> <span class="k">std</span>::string{value.<span class="f">get_string</span>().value};
+}
+
+<span class="c">// Начало месяца 2026 года в UTC: миллисекунды от 01.01.1970.</span>
+bsoncxx::types::b_date <span class="f">month_start</span>(<span class="k">std</span>::int64_t ms) {
+    <span class="k">return</span> bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{ms}};
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+    <span class="k">auto</span> orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>];
+
+    <span class="k">auto</span> april = <span class="f">month_start</span>(<span class="n">1775001600000</span>), may = <span class="f">month_start</span>(<span class="n">1777593600000</span>),
+         june = <span class="f">month_start</span>(<span class="n">1780272000000</span>), july = <span class="f">month_start</span>(<span class="n">1782864000000</span>);
+    <span class="k">auto</span> quarter = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"created"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, april), <span class="f">kvp</span>(<span class="s">"$lt"</span>, july))));
+    <span class="k">auto</span> delivered = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"created"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, april), <span class="f">kvp</span>(<span class="s">"$lt"</span>, july))),
+                                   <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>));</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>подключение и границы квартала</span></figcaption>
+<pre><span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"time"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="c">// Число из ответа сервера: суммы приходят как int32 или int64, среднее после $round — как double.</span>
+<span class="k">func</span> <span class="f">number</span>(value bson.RawValue) int64 {
+	switch value.Type {
+	case bson.TypeInt32:
+		<span class="k">return</span> <span class="f">int64</span>(value.<span class="f">Int32</span>())
+	case bson.TypeDouble:
+		<span class="k">return</span> <span class="f">int64</span>(value.<span class="f">Double</span>())
+	}
+	<span class="k">return</span> value.<span class="f">Int64</span>()
+}
+
+<span class="k">func</span> <span class="f">date</span>(year <span class="k">int</span>, month time.Month, day <span class="k">int</span>) time.Time {
+	<span class="k">return</span> time.<span class="f">Date</span>(year, month, day, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+}
+
+<span class="c">// Все документы результата конвейера.</span>
+<span class="k">func</span> <span class="f">run</span>(orders *mongo.Collection, pipeline mongo.Pipeline) []bson.Raw {
+	ctx := context.<span class="f">Background</span>()
+	cursor, err := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	<span class="k">var</span> docs []bson.Raw
+	<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+		docs = <span class="k">append</span>(docs, <span class="k">append</span>(bson.Raw{}, cursor.Current...))
+	}
+	<span class="k">return</span> docs
+}
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(context.<span class="f">Background</span>())
+	orders := client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"orders"</span>)
+
+	quarter := bson.D{{Key: <span class="s">"created"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="f">date</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>)}, {Key: <span class="s">"$lt"</span>, Value: <span class="f">date</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)}}}}
+	delivered := bson.D{{Key: <span class="s">"$match"</span>, Value: <span class="k">append</span>(<span class="k">append</span>(bson.D{}, quarter...), bson.E{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>})}}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>подключение и границы квартала</span></figcaption>
+<pre><span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+orders = client.<span class="f">use</span>(<span class="s">"shop"</span>).database[:orders]
+
+QUARTER = { <span class="s">"created"</span> =&gt; { <span class="s">"$gte"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="s">"$lt"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>) } }.<span class="k">freeze</span>
+DELIVERED = { <span class="s">"$match"</span> =&gt; QUARTER.<span class="f">merge</span>(<span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span>) }.<span class="k">freeze</span>
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <p data-lang="go">В Go конвейер собирается в функции <code>run</code>: она выполняет его и возвращает все документы результата. Функция <code>number</code> читает число из ответа сервера: суммы приходят как <code>int32</code> или <code>int64</code>, а среднее после <code>$round</code> — как <code>double</code>.</p>
+        <p data-lang="cpp">Функция <code>number</code> читает число из ответа сервера: суммы приходят как <code>int32</code> или <code>int64</code>, а среднее после <code>$round</code> — как <code>double</code>. Границы месяцев записаны в миллисекундах от 1 января 1970 года, в UTC.</p>
+        <p>На схеме — границы квартала на шкале времени.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Границы квартала в условии QUARTER</span><span>$gte и $lt</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Момент</th><th>Условие</th><th>В квартале</th></tr></thead>
+              <tbody>
+                <tr><td>31.03.2026 23:59:59</td><td>меньше 1 апреля</td><td class="bad">нет</td></tr>
+                <tr class="on"><td>01.04.2026 00:00:00</td><td><code>$gte</code> 1 апреля — равенство подходит</td><td class="ok">да</td></tr>
+                <tr><td>30.06.2026 18:00:00</td><td>меньше 1 июля</td><td class="ok">да</td></tr>
+                <tr class="no"><td>01.07.2026 00:00:00</td><td><code>$lt</code> 1 июля — равенство не подходит</td><td class="bad">нет</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Время — UTC. Нижняя граница входит в квартал, верхняя — нет, как у корзин <code>$bucket</code> (глава 4.8).</p>
+        </div>
+        <p>Граница с <code>$lt</code> на первый день следующего месяца надёжнее границы «30 июня, 23:59:59»: она не теряет заказы, созданные в последнюю секунду дня. Первый раздел отчёта показывает, какие заказы вообще есть в квартале.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Заказы квартала</h2>
+        <p>Первый конвейер отбирает заказы квартала только по дате и считает их по статусу стадией <code>$sortByCount</code>. Второй конвейер отбирает доставленные заказы и сворачивает их в одну группу: число, выручку и средний чек. Среднее округляется стадией <code>$project</code> с <code>$round</code>, как в главе 4.4.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>раздел 1</span></figcaption>
+<pre><span class="c"># ── 1. Заказы квартала ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([{<span class="s">"$match"</span>: QUARTER}, {<span class="s">"$sortByCount"</span>: <span class="s">"$status"</span>}]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:12} {doc['count']:4}"</span>)
+
+total = <span class="f">next</span>(orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="k">None</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}, <span class="s">"avg"</span>: {<span class="s">"$avg"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$project"</span>: {<span class="s">"orders"</span>: <span class="n">1</span>, <span class="s">"revenue"</span>: <span class="n">1</span>, <span class="s">"avg"</span>: {<span class="s">"$round"</span>: [<span class="s">"$avg"</span>, <span class="n">0</span>]}}},
+]))
+<span class="f">print</span>(f<span class="s">"  доставлено: {total['orders']}, выручка {total['revenue']}, средний чек {int(total['avg'])}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>раздел 1</span></figcaption>
+<pre>    <span class="c">// ── 1. Заказы квартала ────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>);
+
+    mongocxx::pipeline statuses;
+    statuses.<span class="f">match</span>(quarter.<span class="f">view</span>());
+    statuses.<span class="f">sort_by_count</span>(<span class="s">"$status"</span>);
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(statuses)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">12</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">4</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"count"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    mongocxx::pipeline totals;
+    totals.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    totals.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+        <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>))),
+        <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$total"</span>)))));
+    totals.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="n">1</span>),
+                                 <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$round"</span>, <span class="f">make_array</span>(<span class="s">"$avg"</span>, <span class="n">0</span>))))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(totals)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  доставлено: "</span> &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>]) &lt;&lt; <span class="s">", выручка "</span> &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>])
+                  &lt;&lt; <span class="s">", средний чек "</span> &lt;&lt; <span class="f">number</span>(doc[<span class="s">"avg"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>раздел 1</span></figcaption>
+<pre>	<span class="c">// ── 1. Заказы квартала ────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>)
+
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		{{Key: <span class="s">"$match"</span>, Value: quarter}},
+		{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$status"</span>}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %4d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">12</span>), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"count"</span>)))
+	}
+
+	total := <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+			{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+			{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$total"</span>}}}}}},
+		{{Key: <span class="s">"$project"</span>, Value: bson.D{
+			{Key: <span class="s">"orders"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"revenue"</span>, Value: <span class="n">1</span>},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$round"</span>, Value: bson.A{<span class="s">"$avg"</span>, <span class="n">0</span>}}}}}}},
+	})[<span class="n">0</span>]
+	fmt.<span class="f">Printf</span>(<span class="s">"  доставлено: %d, выручка %d, средний чек %d\n"</span>,
+		<span class="f">number</span>(total.<span class="f">Lookup</span>(<span class="s">"orders"</span>)), <span class="f">number</span>(total.<span class="f">Lookup</span>(<span class="s">"revenue"</span>)), <span class="f">number</span>(total.<span class="f">Lookup</span>(<span class="s">"avg"</span>)))</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>раздел 1</span></figcaption>
+<pre><span class="c"># ── 1. Заказы квартала ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>)
+
+orders.<span class="f">aggregate</span>([{ <span class="s">"$match"</span> =&gt; QUARTER }, { <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$status"</span> }]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(12)} #{doc['count'].to_s.rjust(4)}"</span>
+<span class="k">end</span>
+
+total = orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="k">nil</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> }, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+                  <span class="s">"avg"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"orders"</span> =&gt; <span class="n">1</span>, <span class="s">"revenue"</span> =&gt; <span class="n">1</span>, <span class="s">"avg"</span> =&gt; { <span class="s">"$round"</span> =&gt; [<span class="s">"$avg"</span>, <span class="n">0</span>] } } },
+]).first
+<span class="k">puts</span> <span class="s">"  доставлено: #{total['orders']}, выручка #{total['revenue']}, средний чек #{total['avg'].to_i}"</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 1 отчёта</span></figcaption>
+<pre>1. Заказы квартала
+──────────────────
+  доставлен      26
+  отменён        10
+  собирается      8
+  в пути          4
+  доставлено: 26, выручка 2856410, средний чек 109862</pre>
+        </figure>
+        <p>В квартале 48 заказов, доставлены 26. Отчёт дальше строится по этим 26: отменённые и не доставленные заказы выручки не дали. На схеме — как 48 заказов делятся по статусам.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>48 заказов второго квартала</span><span>по статусу</span></div>
+          <div class="scheme__body">
+            <div class="stack"><i class="on" style="flex-grow:26">доставлен · 26</i><i style="flex-grow:10">отменён · 10</i><i style="flex-grow:8">собирается · 8</i><i style="flex-grow:4">4</i></div>
+          </div>
+          <p class="scheme__note">Ширина участка — число заказов. Последний участок — «в пути», 4 заказа. Зелёный участок — 26 доставленных заказов на 2 856 410, по ним строятся разделы 2–8.</p>
+        </div>
+        <p>Выручка 2 856 410 — итог квартала. Следующий раздел делит её по месяцам.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Выручка по месяцам</h2>
+        <p>Чтобы разложить заказы по месяцам, нужен ключ «месяц». В модуле 4 нет выражения, которое достаёт месяц из даты, но есть <code>$bucket</code> из главы 4.8: границы корзин можно задать датами. Корзины с границами 1 апреля, 1 мая, 1 июня и 1 июля — это три месяца квартала.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>раздел 2</span></figcaption>
+<pre><span class="c"># ── 2. Выручка по месяцам ─────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>)
+
+months = orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$bucket"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$created"</span>,
+                 <span class="s">"boundaries"</span>: [<span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">5</span>, <span class="n">1</span>), <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">6</span>, <span class="n">1</span>), <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)],
+                 <span class="s">"output"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}}},
+])
+<span class="k">for</span> name, doc <span class="k">in</span> <span class="f">zip</span>([<span class="s">"апрель"</span>, <span class="s">"май"</span>, <span class="s">"июнь"</span>], months):
+    <span class="f">print</span>(f<span class="s">"  {name:12} {doc['orders']:4} {doc['revenue']:10}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>раздел 2</span></figcaption>
+<pre>    <span class="c">// ── 2. Выручка по месяцам ─────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>);
+
+    mongocxx::pipeline months;
+    months.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    months.<span class="f">bucket</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$created"</span>),
+        <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(april, may, june, july)),
+        <span class="f">kvp</span>(<span class="s">"output"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+                                    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))))));
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; names{<span class="s">"апрель"</span>, <span class="s">"май"</span>, <span class="s">"июнь"</span>};
+    <span class="k">std</span>::size_t i = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(months)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(names[i++], <span class="n">12</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">4</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>]) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>раздел 2</span></figcaption>
+<pre>	<span class="c">// ── 2. Выручка по месяцам ─────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>)
+
+	months := <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+			{Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$created"</span>},
+			{Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="f">date</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="f">date</span>(<span class="n">2026</span>, <span class="n">5</span>, <span class="n">1</span>), <span class="f">date</span>(<span class="n">2026</span>, <span class="n">6</span>, <span class="n">1</span>), <span class="f">date</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)}},
+			{Key: <span class="s">"output"</span>, Value: bson.D{
+				{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+				{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}}}},
+	})
+	<span class="k">for</span> i, name := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"апрель"</span>, <span class="s">"май"</span>, <span class="s">"июнь"</span>} {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %4d %10d\n"</span>, <span class="f">pad</span>(name, <span class="n">12</span>), <span class="f">number</span>(months[i].<span class="f">Lookup</span>(<span class="s">"orders"</span>)), <span class="f">number</span>(months[i].<span class="f">Lookup</span>(<span class="s">"revenue"</span>)))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>раздел 2</span></figcaption>
+<pre><span class="c"># ── 2. Выручка по месяцам ─────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>)
+
+months = orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$bucket"</span> =&gt; { <span class="s">"groupBy"</span> =&gt; <span class="s">"$created"</span>,
+                   <span class="s">"boundaries"</span> =&gt; [Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">5</span>, <span class="n">1</span>), Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">6</span>, <span class="n">1</span>), Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)],
+                   <span class="s">"output"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> }, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } } },
+]).to_a
+%w[апрель май июнь].<span class="f">zip</span>(months).<span class="k">each</span> <span class="k">do</span> |name, doc|
+  <span class="k">puts</span> <span class="s">"  #{name.ljust(12)} #{doc['orders'].to_s.rjust(4)} #{doc['revenue'].to_s.rjust(10)}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 2 отчёта</span></figcaption>
+<pre>2. Выручка по месяцам
+─────────────────────
+  апрель          7     553220
+  май            11    1382090
+  июнь            8     921100</pre>
+        </figure>
+        <p><code>_id</code> корзины — дата её нижней границы. Названия месяцев скрипт берёт из своего списка по порядку: <code>$bucket</code> выпускает корзины по возрастанию границ, и пустых корзин он не выпускает. В этом квартале пустых месяцев нет. На схеме — выручка месяцев в одном масштабе.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выручка по месяцам</span><span>2 856 410 за квартал</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>апрель · 7 заказов</span><i><b style="width:40%"></b></i><span>553 220</span></div>
+              <div><span>май · 11 заказов</span><i><b class="on" style="width:100%"></b></i><span>1 382 090</span></div>
+              <div><span>июнь · 8 заказов</span><i><b style="width:66.6%"></b></i><span>921 100</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Май дал почти половину выручки квартала — 1 382 090 из 2 856 410.</p>
+        </div>
+        <p>Если месяц окажется пустым, список названий сдвинется. Для такого случая к <code>$bucket</code> добавляют <code>output</code> с полем даты и печатают месяц по нему. Следующий раздел делит выручку по городам.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Города</h2>
+        <p>Конвейер группирует доставленные заказы по городу и считает три числа: заказы, выручку и средний чек. Средний чек — <code>$avg</code> по сумме заказа, округлённый в <code>$project</code>. Города упорядочены по выручке.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>раздел 3</span></figcaption>
+<pre><span class="c"># ── 3. Города ─────────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Города"</span>)
+
+<span class="f">print</span>(f<span class="s">"  {'город':16} {'заказов':&gt;7} {'выручка':&gt;10} {'средний чек':&gt;12}"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+                <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}, <span class="s">"avg"</span>: {<span class="s">"$avg"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$project"</span>: {<span class="s">"orders"</span>: <span class="n">1</span>, <span class="s">"revenue"</span>: <span class="n">1</span>, <span class="s">"avg"</span>: {<span class="s">"$round"</span>: [<span class="s">"$avg"</span>, <span class="n">0</span>]}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:16} {doc['orders']:7} {doc['revenue']:10} {int(doc['avg']):12}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>раздел 3</span></figcaption>
+<pre>    <span class="c">// ── 3. Города ─────────────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Города"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"заказов"</span>, <span class="n">7</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"выручка"</span>, <span class="n">10</span>) &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; <span class="f">right</span>(<span class="s">"средний чек"</span>, <span class="n">12</span>) &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::pipeline cities;
+    cities.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    cities.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+        <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>))),
+        <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$total"</span>)))));
+    cities.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="n">1</span>),
+                                 <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$round"</span>, <span class="f">make_array</span>(<span class="s">"$avg"</span>, <span class="n">0</span>))))));
+    cities.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(cities)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">7</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>]) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>]) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">12</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"avg"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>раздел 3</span></figcaption>
+<pre>	<span class="c">// ── 3. Города ─────────────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Города"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %7s %10s %12s\n"</span>, <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>), <span class="s">"заказов"</span>, <span class="s">"выручка"</span>, <span class="s">"средний чек"</span>)
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+			{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+			{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$total"</span>}}}}}},
+		{{Key: <span class="s">"$project"</span>, Value: bson.D{
+			{Key: <span class="s">"orders"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"revenue"</span>, Value: <span class="n">1</span>},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$round"</span>, Value: bson.A{<span class="s">"$avg"</span>, <span class="n">0</span>}}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %7d %10d %12d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">16</span>),
+			<span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"orders"</span>)), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"revenue"</span>)), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"avg"</span>)))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>раздел 3</span></figcaption>
+<pre><span class="c"># ── 3. Города ─────────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Города"</span>)
+
+<span class="k">puts</span> <span class="s">"  #{'город'.ljust(16)} #{'заказов'.rjust(7)} #{'выручка'.rjust(10)} #{'средний чек'.rjust(12)}"</span>
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+                  <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> }, <span class="s">"avg"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"orders"</span> =&gt; <span class="n">1</span>, <span class="s">"revenue"</span> =&gt; <span class="n">1</span>, <span class="s">"avg"</span> =&gt; { <span class="s">"$round"</span> =&gt; [<span class="s">"$avg"</span>, <span class="n">0</span>] } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(16)} #{doc['orders'].to_s.rjust(7)} #{doc['revenue'].to_s.rjust(10)} #{doc['avg'].to_i.to_s.rjust(12)}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 3 отчёта</span></figcaption>
+<pre>3. Города
+─────────
+  город            заказов    выручка  средний чек
+  Новосибирск            5     726470       145294
+  Екатеринбург           7     626020        89431
+  Ярославль              5     584950       116990
+  Москва                 6     517580        86263
+  Санкт-Петербург        3     401390       133797</pre>
+        </figure>
+        <p>Больше всех выручки у Новосибирска — 726 470 при пяти заказах: средний чек там 145 294. В Екатеринбурге заказов больше, семь, но чек меньше — 89 431. На схеме выручка и число заказов городов рядом.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Города: выручка и заказы</span><span>26 доставленных заказов</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>Новосибирск · 5 заказов</span><i><b class="on" style="width:100%"></b></i><span>726 470</span></div>
+              <div><span>Екатеринбург · 7 заказов</span><i><b style="width:86.2%"></b></i><span>626 020</span></div>
+              <div><span>Ярославль · 5 заказов</span><i><b style="width:80.5%"></b></i><span>584 950</span></div>
+              <div><span>Москва · 6 заказов</span><i><b style="width:71.2%"></b></i><span>517 580</span></div>
+              <div><span>Санкт-Петербург · 3 заказа</span><i><b style="width:55.3%"></b></i><span>401 390</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Порядок городов по выручке не совпадает с порядком по числу заказов: выручку определяет и средний чек.</p>
+        </div>
+        <p>Города — свойство заказа. Категории и товары записаны у позиций, и для них нужен <code>$unwind</code>.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Категории и товары</h2>
+        <p>Раздел 4 разворачивает позиции доставленных заказов и группирует их по категории: штуки — сумма <code>items.qty</code>, выручка — сумма количества, умноженного на цену. Выручка считается по полям позиции. Поле <code>total</code> для этого не годится: после <code>$unwind</code> итог заказа повторён в каждой позиции (глава 4.6, §4).</p>
+        <p>Раздел 5 так же разворачивает позиции, группирует их по названию товара и оставляет пять товаров с наибольшим числом штук. Вторым ключом сортировки стоит название: у двух пар товаров число штук одинаковое, и без второго ключа их порядок не задан.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>разделы 4 и 5</span></figcaption>
+<pre><span class="c"># ── 4. Категории ──────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Категории"</span>)
+
+<span class="f">print</span>(f<span class="s">"  {'категория':16} {'штук':&gt;5} {'выручка':&gt;10}"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$items.category"</span>, <span class="s">"qty"</span>: {<span class="s">"$sum"</span>: <span class="s">"$items.qty"</span>},
+                <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>]}}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:16} {doc['qty']:5} {doc['revenue']:10}"</span>)
+
+<span class="c"># ── 5. Пять самых продаваемых товаров ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>)
+
+<span class="k">for</span> place, doc <span class="k">in</span> <span class="f">enumerate</span>(orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$items.title"</span>, <span class="s">"qty"</span>: {<span class="s">"$sum"</span>: <span class="s">"$items.qty"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"qty"</span>: -<span class="n">1</span>, <span class="s">"_id"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">5</span>},
+]), <span class="n">1</span>):
+    <span class="f">print</span>(f<span class="s">"  {place}. {doc['_id']:32} {doc['qty']:3} шт."</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>разделы 4 и 5</span></figcaption>
+<pre>    <span class="c">// ── 4. Категории ──────────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Категории"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"штук"</span>, <span class="n">5</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"выручка"</span>, <span class="n">10</span>) &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::pipeline categories;
+    categories.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    categories.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+    categories.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$items.category"</span>),
+        <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$items.qty"</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>))))))));
+    categories.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(categories)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">5</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"qty"</span>]) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 5. Пять самых продаваемых товаров ─────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>);
+
+    mongocxx::pipeline top;
+    top.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    top.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+    top.<span class="f">group</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$items.title"</span>), <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$items.qty"</span>)))));
+    top.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"qty"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+    top.<span class="f">limit</span>(<span class="n">5</span>);
+    <span class="k">int</span> place = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(top)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; ++place &lt;&lt; <span class="s">". "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">32</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">3</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"qty"</span>])
+                  &lt;&lt; <span class="s">" шт."</span> &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>разделы 4 и 5</span></figcaption>
+<pre>	<span class="c">// ── 4. Категории ──────────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Категории"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %5s %10s\n"</span>, <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">16</span>), <span class="s">"штук"</span>, <span class="s">"выручка"</span>)
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$items.category"</span>},
+			{Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$items.qty"</span>}}},
+			{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>}}}}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %5d %10d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">16</span>),
+			<span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"qty"</span>)), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"revenue"</span>)))
+	}
+
+	<span class="c">// ── 5. Пять самых продаваемых товаров ─────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>)
+
+	<span class="k">for</span> i, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$items.title"</span>},
+			{Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$items.qty"</span>}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"qty"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+		{{Key: <span class="s">"$limit"</span>, Value: <span class="n">5</span>}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %d. %s %3d шт.\n"</span>, i+<span class="n">1</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">32</span>), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"qty"</span>)))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>разделы 4 и 5</span></figcaption>
+<pre><span class="c"># ── 4. Категории ──────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Категории"</span>)
+
+<span class="k">puts</span> <span class="s">"  #{'категория'.ljust(16)} #{'штук'.rjust(5)} #{'выручка'.rjust(10)}"</span>
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$items.category"</span>, <span class="s">"qty"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$items.qty"</span> },
+                  <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>] } } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(16)} #{doc['qty'].to_s.rjust(5)} #{doc['revenue'].to_s.rjust(10)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 5. Пять самых продаваемых товаров ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>)
+
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$items.title"</span>, <span class="s">"qty"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$items.qty"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"qty"</span> =&gt; -<span class="n">1</span>, <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">5</span> },
+]).each_with_index <span class="k">do</span> |doc, i|
+  <span class="k">puts</span> <span class="s">"  #{i + 1}. #{doc['_id'].ljust(32)} #{doc['qty'].to_s.rjust(3)} шт."</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>разделы 4 и 5 отчёта</span></figcaption>
+<pre>4. Категории
+────────────
+  категория         штук    выручка
+  ноутбуки            19    1562630
+  смартфоны           13     585870
+  комплектующие       25     344050
+  периферия           21     329890
+  аксессуары          13      33970
+
+5. Пять самых продаваемых товаров
+─────────────────────────────────
+  1. SSD Samsung 980 1 ТБ              15 шт.
+  2. Клавиатура Keychron K2             7 шт.
+  3. Ноутбук Apple MacBook Air 13       7 шт.
+  4. Ноутбук ASUS VivoBook 15           6 шт.
+  5. Рюкзак для ноутбука Xiaomi         6 шт.</pre>
+        </figure>
+        <p>Ноутбуки дали 1 562 630 — больше половины выручки квартала. Штук больше всего у комплектующих, 25, а выручка у них в четыре с половиной раза меньше. Самый продаваемый товар — SSD Samsung 980: 15 штук. Клавиатура Keychron K2 и MacBook Air 13 продали по 7 штук и стоят по алфавиту.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Категории: штуки и выручка</span><span>91 штука в 26 заказах</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>ноутбуки · 19 шт.</span><i><b class="on" style="width:100%"></b></i><span>1 562 630</span></div>
+              <div><span>смартфоны · 13 шт.</span><i><b style="width:37.5%"></b></i><span>585 870</span></div>
+              <div><span>комплектующие · 25 шт.</span><i><b style="width:22%"></b></i><span>344 050</span></div>
+              <div><span>периферия · 21 шт.</span><i><b style="width:21.1%"></b></i><span>329 890</span></div>
+              <div><span>аксессуары · 13 шт.</span><i><b style="width:2.2%"></b></i><span>33 970</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Выручка категорий вместе — 2 856 410, столько же, сколько сумма <code>total</code> доставленных заказов в разделе 1.</p>
+        </div>
+        <p>Категории показывают, что продаётся. Следующий раздел показывает, какими чеками.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Чеки по суммам</h2>
+        <p>Раздел 6 раскладывает доставленные заказы по суммам стадией <code>$bucket</code> с границами 0, 10 000, 50 000, 200 000 и 500 000. Подписи корзин скрипт берёт из словаря по <code>_id</code> корзины — нижней границе.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>раздел 6</span></figcaption>
+<pre><span class="c"># ── 6. Чеки по суммам ─────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>)
+
+LABELS = {<span class="n">0</span>: <span class="s">"до 10 000"</span>, <span class="n">10000</span>: <span class="s">"10 000 — 50 000"</span>, <span class="n">50000</span>: <span class="s">"50 000 — 200 000"</span>, <span class="n">200000</span>: <span class="s">"от 200 000"</span>}
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$bucket"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$total"</span>, <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+                 <span class="s">"output"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {LABELS[doc['_id']]:18} {doc['orders']:4}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>раздел 6</span></figcaption>
+<pre>    <span class="c">// ── 6. Чеки по суммам ─────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>);
+
+    <span class="k">std</span>::map&lt;<span class="k">std</span>::int64_t, <span class="k">std</span>::string&gt; labels{
+        {<span class="n">0</span>, <span class="s">"до 10 000"</span>}, {<span class="n">10000</span>, <span class="s">"10 000 — 50 000"</span>}, {<span class="n">50000</span>, <span class="s">"50 000 — 200 000"</span>}, {<span class="n">200000</span>, <span class="s">"от 200 000"</span>}};
+    mongocxx::pipeline checks;
+    checks.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    checks.<span class="f">bucket</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+        <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>)),
+        <span class="f">kvp</span>(<span class="s">"output"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(checks)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(labels[<span class="f">number</span>(doc[<span class="s">"_id"</span>])], <span class="n">18</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">4</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>])
+                  &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>раздел 6</span></figcaption>
+<pre>	<span class="c">// ── 6. Чеки по суммам ─────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>)
+
+	labels := map[int64]<span class="k">string</span>{<span class="n">0</span>: <span class="s">"до 10 000"</span>, <span class="n">10000</span>: <span class="s">"10 000 — 50 000"</span>, <span class="n">50000</span>: <span class="s">"50 000 — 200 000"</span>, <span class="n">200000</span>: <span class="s">"от 200 000"</span>}
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+			{Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+			{Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>}},
+			{Key: <span class="s">"output"</span>, Value: bson.D{{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %4d\n"</span>, <span class="f">pad</span>(labels[<span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>))], <span class="n">18</span>), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"orders"</span>)))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>раздел 6</span></figcaption>
+<pre><span class="c"># ── 6. Чеки по суммам ─────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>)
+
+LABELS = { <span class="n">0</span> =&gt; <span class="s">"до 10 000"</span>, <span class="n">10000</span> =&gt; <span class="s">"10 000 — 50 000"</span>, <span class="n">50000</span> =&gt; <span class="s">"50 000 — 200 000"</span>, <span class="n">200000</span> =&gt; <span class="s">"от 200 000"</span> }.<span class="k">freeze</span>
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$bucket"</span> =&gt; { <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>, <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+                   <span class="s">"output"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{LABELS[doc['_id']].ljust(18)} #{doc['orders'].to_s.rjust(4)}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 6 отчёта</span></figcaption>
+<pre>6. Чеки по суммам
+─────────────────
+  до 10 000             1
+  10 000 — 50 000       7
+  50 000 — 200 000     14
+  от 200 000            4</pre>
+        </figure>
+        <p>Больше половины заказов — 14 из 26 — на сумму от 50 000 до 200 000. Заказ до 10 000 один. Самый дорогой заказ квартала стоит 344 970, поэтому последней границы 500 000 хватает, и <code>default</code> не нужен.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>26 чеков по суммам</span><span>$bucket</span></div>
+          <div class="scheme__body">
+            <div class="stack"><i style="flex-grow:1">1</i><i style="flex-grow:7">10–50 тыс. · 7</i><i class="on" style="flex-grow:14">50–200 тыс. · 14</i><i style="flex-grow:4">от 200 тыс. · 4</i></div>
+          </div>
+          <p class="scheme__note">Ширина участка — число заказов. Первый участок — один заказ до 10 000.</p>
+        </div>
+        <p>Корзины показывают, сколько крупных заказов. Номера самых крупных заказов показывает следующий раздел.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Самый дорогой заказ города</h2>
+        <p>Раздел 7 — приём из главы 4.7, §5. Заказы сортируются по сумме по убыванию, затем группируются по городу. <code>$first</code> берёт номер и сумму первого заказа группы — самого дорогого. Последняя стадия упорядочивает города по этой сумме.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>раздел 7</span></figcaption>
+<pre><span class="c"># ── 7. Самый дорогой заказ города ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"number"</span>: {<span class="s">"$first"</span>: <span class="s">"$number"</span>}, <span class="s">"total"</span>: {<span class="s">"$first"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:16} {doc['number']}  {doc['total']:8}"</span>)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>раздел 7</span></figcaption>
+<pre>    <span class="c">// ── 7. Самый дорогой заказ города ─────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>);
+
+    mongocxx::pipeline best;
+    best.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    best.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+    best.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+        <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$first"</span>, <span class="s">"$number"</span>))),
+        <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$first"</span>, <span class="s">"$total"</span>)))));
+    best.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(best)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">text</span>(doc[<span class="s">"number"</span>]) &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">8</span>)
+                  &lt;&lt; <span class="f">number</span>(doc[<span class="s">"total"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>раздел 7</span></figcaption>
+<pre>	<span class="c">// ── 7. Самый дорогой заказ города ─────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>)
+
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+			{Key: <span class="s">"number"</span>, Value: bson.D{{Key: <span class="s">"$first"</span>, Value: <span class="s">"$number"</span>}}},
+			{Key: <span class="s">"total"</span>, Value: bson.D{{Key: <span class="s">"$first"</span>, Value: <span class="s">"$total"</span>}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s  %8d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">16</span>),
+			doc.<span class="f">Lookup</span>(<span class="s">"number"</span>).<span class="f">StringValue</span>(), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"total"</span>)))
+	}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>раздел 7</span></figcaption>
+<pre><span class="c"># ── 7. Самый дорогой заказ города ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>)
+
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"number"</span> =&gt; { <span class="s">"$first"</span> =&gt; <span class="s">"$number"</span> }, <span class="s">"total"</span> =&gt; { <span class="s">"$first"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(16)} #{doc['number']}  #{doc['total'].to_s.rjust(8)}"</span>
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 7 отчёта</span></figcaption>
+<pre>7. Самый дорогой заказ города
+─────────────────────────────
+  Ярославль        2026-0052    344970
+  Москва           2026-0029    289360
+  Санкт-Петербург  2026-0024    274960
+  Новосибирск      2026-0067    253650
+  Екатеринбург     2026-0017    191830</pre>
+        </figure>
+        <p>Самый дорогой заказ квартала — в Ярославле: 2026-0052 на 344 970. Он один составляет больше половины выручки Ярославля, 584 950. В Новосибирске, где выручка наибольшая, самый дорогой заказ меньше — 253 650: выручка там набрана несколькими крупными заказами.</p>
+        <p>На схеме — доля самого дорогого заказа в выручке своего города.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Самый дорогой заказ и выручка города</span><span>раздел 7 и раздел 3</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Город</th><th>Самый дорогой заказ</th><th>Выручка города</th><th>Доля заказа</th></tr></thead>
+              <tbody>
+                <tr class="on"><td>Ярославль</td><td>2026-0052 · 344 970</td><td>584 950</td><td>59%</td></tr>
+                <tr><td>Москва</td><td>2026-0029 · 289 360</td><td>517 580</td><td>56%</td></tr>
+                <tr><td>Санкт-Петербург</td><td>2026-0024 · 274 960</td><td>401 390</td><td>69%</td></tr>
+                <tr><td>Новосибирск</td><td>2026-0067 · 253 650</td><td>726 470</td><td>35%</td></tr>
+                <tr><td>Екатеринбург</td><td>2026-0017 · 191 830</td><td>626 020</td><td>31%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Доля посчитана по выводу разделов 3 и 7: сумма заказа, делённая на выручку города, округлённая до процента. В Санкт-Петербурге один заказ дал больше двух третей выручки.</p>
+        </div>
+        <p>Последний раздел отвечает на вопросы о способах оплаты и доставки одним запросом.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Оплата и доставка</h2>
+        <p>Раздел 8 — стадия <code>$facet</code> из главы 4.8 с тремя ветками. Ветка <code>payment</code> считает заказы по способу оплаты, <code>delivery</code> — по способу доставки. Ветка <code>promo</code> считает заказы с кодом скидки. Скрипт получает один документ и печатает три строки.</p>
+        <p>Ветка <code>promo</code> заканчивается стадией <code>$count</code>. Если заказов с кодом нет, <code>$count</code> не выпускает документа (глава 4.5, §4), массив <code>promo</code> пуст, и скрипт печатает 0.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python" data-run="no">
+            <figcaption><span>Python · PyMongo</span><span>раздел 8</span></figcaption>
+<pre><span class="c"># ── 8. Оплата и доставка ──────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>)
+
+facets = <span class="f">next</span>(orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$facet"</span>: {
+        <span class="s">"payment"</span>: [{<span class="s">"$sortByCount"</span>: <span class="s">"$payment.method"</span>}],
+        <span class="s">"delivery"</span>: [{<span class="s">"$sortByCount"</span>: <span class="s">"$delivery.type"</span>}],
+        <span class="s">"promo"</span>: [{<span class="s">"$match"</span>: {<span class="s">"promo"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}}, {<span class="s">"$count"</span>: <span class="s">"orders"</span>}],
+    }},
+]))
+<span class="f">print</span>(<span class="s">"  оплата:   "</span> + <span class="s">", "</span>.<span class="f">join</span>(f<span class="s">"{d['_id']} {d['count']}"</span> <span class="k">for</span> d <span class="k">in</span> facets[<span class="s">"payment"</span>]))
+<span class="f">print</span>(<span class="s">"  доставка: "</span> + <span class="s">", "</span>.<span class="f">join</span>(f<span class="s">"{d['_id']} {d['count']}"</span> <span class="k">for</span> d <span class="k">in</span> facets[<span class="s">"delivery"</span>]))
+<span class="f">print</span>(f<span class="s">"  с кодом скидки: {facets['promo'][0]['orders'] if facets['promo'] else 0}"</span>)
+
+client.<span class="f">close</span>()</pre>
+          </figure>
+          <figure class="code" data-lang="cpp" data-run="no">
+            <figcaption><span>C++ · mongocxx</span><span>раздел 8</span></figcaption>
+<pre>    <span class="c">// ── 8. Оплата и доставка ──────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>);
+
+    mongocxx::pipeline summary;
+    summary.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    summary.<span class="f">facet</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"payment"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sortByCount"</span>, <span class="s">"$payment.method"</span>)))),
+        <span class="f">kvp</span>(<span class="s">"delivery"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sortByCount"</span>, <span class="s">"$delivery.type"</span>)))),
+        <span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>)))))),
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$count"</span>, <span class="s">"orders"</span>))))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(summary)) {
+        <span class="k">auto</span> line = [&amp;](<span class="k">const</span> char* field) {
+            <span class="k">std</span>::string out;
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; group : doc[field].<span class="f">get_array</span>().value) {
+                <span class="k">auto</span> g = group.<span class="f">get_document</span>().value;
+                <span class="k">if</span> (!out.<span class="f">empty</span>()) out += <span class="s">", "</span>;
+                out += <span class="f">text</span>(g[<span class="s">"_id"</span>]) + <span class="s">" "</span> + <span class="k">std</span>::<span class="f">to_string</span>(<span class="f">number</span>(g[<span class="s">"count"</span>]));
+            }
+            <span class="k">return</span> out;
+        };
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  оплата:   "</span> &lt;&lt; <span class="f">line</span>(<span class="s">"payment"</span>) &lt;&lt; <span class="k">std</span>::endl;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  доставка: "</span> &lt;&lt; <span class="f">line</span>(<span class="s">"delivery"</span>) &lt;&lt; <span class="k">std</span>::endl;
+        <span class="k">auto</span> promo = doc[<span class="s">"promo"</span>].<span class="f">get_array</span>().value;
+        <span class="k">std</span>::int64_t with_promo = promo.<span class="f">begin</span>() == promo.<span class="f">end</span>() ? <span class="n">0</span> : <span class="f">number</span>(promo.<span class="f">begin</span>()-&gt;<span class="f">get_document</span>().value[<span class="s">"orders"</span>]);
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  с кодом скидки: "</span> &lt;&lt; with_promo &lt;&lt; <span class="k">std</span>::endl;
+    }
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go" data-run="no">
+            <figcaption><span>Go · mongo-driver</span><span>раздел 8</span></figcaption>
+<pre>	<span class="c">// ── 8. Оплата и доставка ──────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>)
+
+	facets := <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$facet"</span>, Value: bson.D{
+			{Key: <span class="s">"payment"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$payment.method"</span>}}}},
+			{Key: <span class="s">"delivery"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$delivery.type"</span>}}}},
+			{Key: <span class="s">"promo"</span>, Value: bson.A{
+				bson.D{{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"promo"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}}}},
+				bson.D{{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}}}}}}},
+	})[<span class="n">0</span>]
+	line := <span class="k">func</span>(field <span class="k">string</span>) <span class="k">string</span> {
+		values, _ := facets.<span class="f">Lookup</span>(field).<span class="f">Array</span>().<span class="f">Values</span>()
+		parts := []<span class="k">string</span>{}
+		<span class="k">for</span> _, value := <span class="k">range</span> values {
+			group := value.<span class="f">Document</span>()
+			parts = <span class="k">append</span>(parts, fmt.<span class="f">Sprintf</span>(<span class="s">"%s %d"</span>, group.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="f">number</span>(group.<span class="f">Lookup</span>(<span class="s">"count"</span>))))
+		}
+		<span class="k">return</span> strings.<span class="f">Join</span>(parts, <span class="s">", "</span>)
+	}
+	fmt.<span class="f">Println</span>(<span class="s">"  оплата:   "</span> + <span class="f">line</span>(<span class="s">"payment"</span>))
+	fmt.<span class="f">Println</span>(<span class="s">"  доставка: "</span> + <span class="f">line</span>(<span class="s">"delivery"</span>))
+	promo, _ := facets.<span class="f">Lookup</span>(<span class="s">"promo"</span>).<span class="f">Array</span>().<span class="f">Values</span>()
+	withPromo := <span class="f">int64</span>(<span class="n">0</span>)
+	<span class="k">if</span> <span class="f">len</span>(promo) &gt; <span class="n">0</span> {
+		withPromo = <span class="f">number</span>(promo[<span class="n">0</span>].<span class="f">Document</span>().<span class="f">Lookup</span>(<span class="s">"orders"</span>))
+	}
+	fmt.<span class="f">Printf</span>(<span class="s">"  с кодом скидки: %d\n"</span>, withPromo)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby" data-run="no">
+            <figcaption><span>Ruby · mongo</span><span>раздел 8</span></figcaption>
+<pre><span class="c"># ── 8. Оплата и доставка ──────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>)
+
+facets = orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$facet"</span> =&gt; {
+    <span class="s">"payment"</span> =&gt; [{ <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$payment.method"</span> }],
+    <span class="s">"delivery"</span> =&gt; [{ <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$delivery.type"</span> }],
+    <span class="s">"promo"</span> =&gt; [{ <span class="s">"$match"</span> =&gt; { <span class="s">"promo"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } } }, { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> }],
+  } },
+]).first
+<span class="k">puts</span> <span class="s">"  оплата:   "</span> + facets[<span class="s">"payment"</span>].map { |d| <span class="s">"#{d['_id']} #{d['count']}"</span> }.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"  доставка: "</span> + facets[<span class="s">"delivery"</span>].map { |d| <span class="s">"#{d['_id']} #{d['count']}"</span> }.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"  с кодом скидки: #{facets['promo'].empty? ? 0 : facets['promo'][0]['orders']}"</span>
+
+client.close</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>раздел 8 отчёта</span></figcaption>
+<pre>8. Оплата и доставка
+────────────────────
+  оплата:   карта 15, СБП 6, картой при получении 5
+  доставка: пункт выдачи 14, курьер 7, почта 5
+  с кодом скидки: 8</pre>
+        </figure>
+        <p>Картой заплачено 15 заказов из 26, в пункт выдачи доставлено 14. С кодом скидки 8 заказов. Во всех трёх ветках итог — 26: каждая ветка получила все доставленные заказы квартала.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Один $facet, три ветки</span><span>26 заказов → 1 документ</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Ветка</th><th>Результат</th><th>Сумма</th></tr></thead>
+              <tbody>
+                <tr><td>payment</td><td>карта 15, СБП 6, картой при получении 5</td><td>26</td></tr>
+                <tr><td>delivery</td><td>пункт выдачи 14, курьер 7, почта 5</td><td>26</td></tr>
+                <tr><td>promo</td><td>с кодом скидки 8</td><td>8 из 26</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Ветки независимы, как в главе 4.8, §7: <code>$match</code> ветки <code>promo</code> не уменьшает поток двух других.</p>
+        </div>
+        <p>Восемь разделов напечатаны. Ниже — что из них следует для магазина.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Что показал отчёт</h2>
+        <p>Отчёт отвечает на вопросы руководителя числами. Сводка по разделам:</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Вопрос</th><th>Ответ отчёта</th><th>Раздел</th></tr></thead>
+            <tbody>
+              <tr><td>Сколько продано за квартал</td><td>26 доставленных заказов на 2 856 410, средний чек 109 862</td><td>1</td></tr>
+              <tr><td>Какой месяц лучший</td><td>май: 11 заказов, 1 382 090 — почти половина квартала</td><td>2</td></tr>
+              <tr><td>Где выручка больше</td><td>Новосибирск: 726 470 при пяти заказах</td><td>3</td></tr>
+              <tr><td>Что приносит выручку</td><td>ноутбуки: 1 562 630, больше половины</td><td>4</td></tr>
+              <tr><td>Что продаётся штуками</td><td>SSD Samsung 980: 15 штук</td><td>5</td></tr>
+              <tr><td>Какие чеки</td><td>14 из 26 — от 50 000 до 200 000</td><td>6</td></tr>
+              <tr><td>Самый крупный заказ</td><td>2026-0052 в Ярославле, 344 970</td><td>7</td></tr>
+              <tr><td>Как платят и получают</td><td>картой — 15, в пункте выдачи — 14, с кодом скидки — 8</td><td>8</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Каждое число таблицы можно проверить отдельным конвейером из главы, где разобрана его стадия. Скрипт целиком приведён ниже.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Скрипт целиком</h2>
+        <p>Ниже — тот же файл без пропусков, а под ним вывод его запуска на стенде курса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>весь скрипт</span></figcaption>
+<pre><span class="s">""</span>"Витрина продаж за квартал: конвейеры агрегации из модуля <span class="n">4</span>.
+
+Скрипт строит отчёт по заказам магазина за второй квартал <span class="n">2026</span> года
+(апрель — июнь): статусы, выручка по месяцам и городам, категории и товары,
+чеки по суммам, самый дорогой заказ каждого города, оплата и доставка.
+Базы только читаются.
+
+    cd scripts
+    python3 sales_showcase.py
+
+    docker compose run --rm python scripts/sales_showcase.py    <span class="c"># в контейнере</span>
+<span class="s">""</span>"
+
+<span class="k">import</span> os
+<span class="k">from</span> datetime <span class="k">import</span> datetime
+
+<span class="k">from</span> pymongo <span class="k">import</span> MongoClient
+
+client = <span class="f">MongoClient</span>(os.environ.<span class="f">get</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>]
+
+QUARTER = {<span class="s">"created"</span>: {<span class="s">"$gte"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="s">"$lt"</span>: <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)}}
+DELIVERED = {<span class="s">"$match"</span>: {**QUARTER, <span class="s">"status"</span>: <span class="s">"доставлен"</span>}}
+
+
+<span class="k">def</span> <span class="f">title</span>(text):
+    <span class="f">print</span>(<span class="s">"\n"</span> + text)
+    <span class="f">print</span>(<span class="s">"─"</span> * <span class="f">len</span>(text))
+
+
+<span class="c"># ── 1. Заказы квартала ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([{<span class="s">"$match"</span>: QUARTER}, {<span class="s">"$sortByCount"</span>: <span class="s">"$status"</span>}]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:12} {doc['count']:4}"</span>)
+
+total = <span class="f">next</span>(orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="k">None</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}, <span class="s">"avg"</span>: {<span class="s">"$avg"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$project"</span>: {<span class="s">"orders"</span>: <span class="n">1</span>, <span class="s">"revenue"</span>: <span class="n">1</span>, <span class="s">"avg"</span>: {<span class="s">"$round"</span>: [<span class="s">"$avg"</span>, <span class="n">0</span>]}}},
+]))
+<span class="f">print</span>(f<span class="s">"  доставлено: {total['orders']}, выручка {total['revenue']}, средний чек {int(total['avg'])}"</span>)
+
+<span class="c"># ── 2. Выручка по месяцам ─────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>)
+
+months = orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$bucket"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$created"</span>,
+                 <span class="s">"boundaries"</span>: [<span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">5</span>, <span class="n">1</span>), <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">6</span>, <span class="n">1</span>), <span class="f">datetime</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)],
+                 <span class="s">"output"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}}}},
+])
+<span class="k">for</span> name, doc <span class="k">in</span> <span class="f">zip</span>([<span class="s">"апрель"</span>, <span class="s">"май"</span>, <span class="s">"июнь"</span>], months):
+    <span class="f">print</span>(f<span class="s">"  {name:12} {doc['orders']:4} {doc['revenue']:10}"</span>)
+
+<span class="c"># ── 3. Города ─────────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Города"</span>)
+
+<span class="f">print</span>(f<span class="s">"  {'город':16} {'заказов':&gt;7} {'выручка':&gt;10} {'средний чек':&gt;12}"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+                <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}, <span class="s">"avg"</span>: {<span class="s">"$avg"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$project"</span>: {<span class="s">"orders"</span>: <span class="n">1</span>, <span class="s">"revenue"</span>: <span class="n">1</span>, <span class="s">"avg"</span>: {<span class="s">"$round"</span>: [<span class="s">"$avg"</span>, <span class="n">0</span>]}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:16} {doc['orders']:7} {doc['revenue']:10} {int(doc['avg']):12}"</span>)
+
+<span class="c"># ── 4. Категории ──────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Категории"</span>)
+
+<span class="f">print</span>(f<span class="s">"  {'категория':16} {'штук':&gt;5} {'выручка':&gt;10}"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$items.category"</span>, <span class="s">"qty"</span>: {<span class="s">"$sum"</span>: <span class="s">"$items.qty"</span>},
+                <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>]}}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:16} {doc['qty']:5} {doc['revenue']:10}"</span>)
+
+<span class="c"># ── 5. Пять самых продаваемых товаров ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>)
+
+<span class="k">for</span> place, doc <span class="k">in</span> <span class="f">enumerate</span>(orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$unwind"</span>: <span class="s">"$items"</span>},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$items.title"</span>, <span class="s">"qty"</span>: {<span class="s">"$sum"</span>: <span class="s">"$items.qty"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"qty"</span>: -<span class="n">1</span>, <span class="s">"_id"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">5</span>},
+]), <span class="n">1</span>):
+    <span class="f">print</span>(f<span class="s">"  {place}. {doc['_id']:32} {doc['qty']:3} шт."</span>)
+
+<span class="c"># ── 6. Чеки по суммам ─────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>)
+
+LABELS = {<span class="n">0</span>: <span class="s">"до 10 000"</span>, <span class="n">10000</span>: <span class="s">"10 000 — 50 000"</span>, <span class="n">50000</span>: <span class="s">"50 000 — 200 000"</span>, <span class="n">200000</span>: <span class="s">"от 200 000"</span>}
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$bucket"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$total"</span>, <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+                 <span class="s">"output"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {LABELS[doc['_id']]:18} {doc['orders']:4}"</span>)
+
+<span class="c"># ── 7. Самый дорогой заказ города ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>)
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"number"</span>: {<span class="s">"$first"</span>: <span class="s">"$number"</span>}, <span class="s">"total"</span>: {<span class="s">"$first"</span>: <span class="s">"$total"</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+]):
+    <span class="f">print</span>(f<span class="s">"  {doc['_id']:16} {doc['number']}  {doc['total']:8}"</span>)
+
+<span class="c"># ── 8. Оплата и доставка ──────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>)
+
+facets = <span class="f">next</span>(orders.<span class="f">aggregate</span>([
+    DELIVERED,
+    {<span class="s">"$facet"</span>: {
+        <span class="s">"payment"</span>: [{<span class="s">"$sortByCount"</span>: <span class="s">"$payment.method"</span>}],
+        <span class="s">"delivery"</span>: [{<span class="s">"$sortByCount"</span>: <span class="s">"$delivery.type"</span>}],
+        <span class="s">"promo"</span>: [{<span class="s">"$match"</span>: {<span class="s">"promo"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}}, {<span class="s">"$count"</span>: <span class="s">"orders"</span>}],
+    }},
+]))
+<span class="f">print</span>(<span class="s">"  оплата:   "</span> + <span class="s">", "</span>.<span class="f">join</span>(f<span class="s">"{d['_id']} {d['count']}"</span> <span class="k">for</span> d <span class="k">in</span> facets[<span class="s">"payment"</span>]))
+<span class="f">print</span>(<span class="s">"  доставка: "</span> + <span class="s">", "</span>.<span class="f">join</span>(f<span class="s">"{d['_id']} {d['count']}"</span> <span class="k">for</span> d <span class="k">in</span> facets[<span class="s">"delivery"</span>]))
+<span class="f">print</span>(f<span class="s">"  с кодом скидки: {facets['promo'][0]['orders'] if facets['promo'] else 0}"</span>)
+
+client.<span class="f">close</span>()
+</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>весь скрипт</span></figcaption>
+<pre><span class="c">// Витрина продаж за квартал: конвейеры агрегации из модуля 4.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт строит отчёт по заказам магазина за второй квартал 2026 года</span>
+<span class="c">// (апрель — июнь): статусы, выручка по месяцам и городам, категории и товары,</span>
+<span class="c">// чеки по суммам, самый дорогой заказ каждого города, оплата и доставка.</span>
+<span class="c">// Базы только читаются.</span>
+<span class="c">//</span>
+<span class="c">//     cd scripts</span>
+<span class="c">//     g++ -std=c++17 sales_showcase.cpp -o sales_showcase $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./sales_showcase</span>
+<span class="c">//</span>
+<span class="c">//     docker compose run --rm cpp scripts/sales_showcase.cpp    # в контейнере</span>
+
+#<span class="k">include</span> &lt;chrono&gt;
+#<span class="k">include</span> &lt;cstdint&gt;
+#<span class="k">include</span> &lt;cstdlib&gt;
+#<span class="k">include</span> &lt;iomanip&gt;
+#<span class="k">include</span> &lt;iostream&gt;
+#<span class="k">include</span> &lt;map&gt;
+#<span class="k">include</span> &lt;string&gt;
+#<span class="k">include</span> &lt;vector&gt;
+
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/array.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/document.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/builder/basic/kvp.hpp&gt;
+#<span class="k">include</span> &lt;bsoncxx/types.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/client.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/collection.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/instance.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/pipeline.hpp&gt;
+#<span class="k">include</span> &lt;mongocxx/uri.hpp&gt;
+
+<span class="k">using</span> bsoncxx::builder::basic::kvp;
+<span class="k">using</span> bsoncxx::builder::basic::make_array;
+<span class="k">using</span> bsoncxx::builder::basic::make_document;
+
+<span class="k">int</span> <span class="f">simvolov</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">int</span> n = <span class="n">0</span>;
+    <span class="k">for</span> (unsigned char c : text)
+        <span class="k">if</span> ((c &amp; 0xC0) != 0x80) ++n;
+    <span class="k">return</span> n;
+}
+
+<span class="k">std</span>::string <span class="f">pad</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? text + <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) : text;
+}
+
+<span class="k">std</span>::string <span class="f">right</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text, <span class="k">int</span> width) {
+    <span class="k">int</span> add = width - <span class="f">simvolov</span>(text);
+    <span class="k">return</span> add &gt; <span class="n">0</span> ? <span class="k">std</span>::<span class="f">string</span>(add, <span class="s">' '</span>) + text : text;
+}
+
+<span class="k">void</span> <span class="f">title</span>(<span class="k">const</span> <span class="k">std</span>::string&amp; text) {
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"\n"</span> &lt;&lt; text &lt;&lt; <span class="s">"\n"</span>;
+    <span class="k">for</span> (<span class="k">int</span> i = <span class="n">0</span>; i &lt; <span class="f">simvolov</span>(text); ++i) <span class="k">std</span>::cout &lt;&lt; <span class="s">"─"</span>;
+    <span class="k">std</span>::cout &lt;&lt; <span class="k">std</span>::endl;
+}
+
+<span class="c">// Число из ответа сервера: суммы приходят как int32 или int64, среднее после $round — как double.</span>
+<span class="k">std</span>::int64_t <span class="f">number</span>(bsoncxx::document::element value) {
+    <span class="k">if</span> (value.<span class="f">type</span>() == bsoncxx::type::k_int32) <span class="k">return</span> value.<span class="f">get_int32</span>().value;
+    <span class="k">if</span> (value.<span class="f">type</span>() == bsoncxx::type::k_double) <span class="k">return</span> static_cast&lt;<span class="k">std</span>::int64_t&gt;(value.<span class="f">get_double</span>().value);
+    <span class="k">return</span> value.<span class="f">get_int64</span>().value;
+}
+
+<span class="k">std</span>::string <span class="f">text</span>(bsoncxx::document::element value) {
+    <span class="k">return</span> <span class="k">std</span>::string{value.<span class="f">get_string</span>().value};
+}
+
+<span class="c">// Начало месяца 2026 года в UTC: миллисекунды от 01.01.1970.</span>
+bsoncxx::types::b_date <span class="f">month_start</span>(<span class="k">std</span>::int64_t ms) {
+    <span class="k">return</span> bsoncxx::types::b_date{<span class="k">std</span>::chrono::milliseconds{ms}};
+}
+
+<span class="k">int</span> <span class="f">main</span>() {
+    mongocxx::instance instance{};
+    <span class="k">const</span> char* env = <span class="k">std</span>::<span class="f">getenv</span>(<span class="s">"MONGO_URI"</span>);
+    mongocxx::client client{mongocxx::uri{env ? env : <span class="s">"mongodb://localhost:27017"</span>}};
+    <span class="k">auto</span> orders = client[<span class="s">"shop"</span>][<span class="s">"orders"</span>];
+
+    <span class="k">auto</span> april = <span class="f">month_start</span>(<span class="n">1775001600000</span>), may = <span class="f">month_start</span>(<span class="n">1777593600000</span>),
+         june = <span class="f">month_start</span>(<span class="n">1780272000000</span>), july = <span class="f">month_start</span>(<span class="n">1782864000000</span>);
+    <span class="k">auto</span> quarter = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"created"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, april), <span class="f">kvp</span>(<span class="s">"$lt"</span>, july))));
+    <span class="k">auto</span> delivered = <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"created"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, april), <span class="f">kvp</span>(<span class="s">"$lt"</span>, july))),
+                                   <span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>));
+
+    <span class="c">// ── 1. Заказы квартала ────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>);
+
+    mongocxx::pipeline statuses;
+    statuses.<span class="f">match</span>(quarter.<span class="f">view</span>());
+    statuses.<span class="f">sort_by_count</span>(<span class="s">"$status"</span>);
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(statuses)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">12</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">4</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"count"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    mongocxx::pipeline totals;
+    totals.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    totals.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, bsoncxx::types::b_null{}),
+        <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>))),
+        <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$total"</span>)))));
+    totals.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="n">1</span>),
+                                 <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$round"</span>, <span class="f">make_array</span>(<span class="s">"$avg"</span>, <span class="n">0</span>))))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(totals)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  доставлено: "</span> &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>]) &lt;&lt; <span class="s">", выручка "</span> &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>])
+                  &lt;&lt; <span class="s">", средний чек "</span> &lt;&lt; <span class="f">number</span>(doc[<span class="s">"avg"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 2. Выручка по месяцам ─────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>);
+
+    mongocxx::pipeline months;
+    months.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    months.<span class="f">bucket</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$created"</span>),
+        <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(april, may, june, july)),
+        <span class="f">kvp</span>(<span class="s">"output"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+                                    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))))));
+    <span class="k">std</span>::vector&lt;<span class="k">std</span>::string&gt; names{<span class="s">"апрель"</span>, <span class="s">"май"</span>, <span class="s">"июнь"</span>};
+    <span class="k">std</span>::size_t i = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(months)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(names[i++], <span class="n">12</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">4</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>]) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 3. Города ─────────────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"3. Города"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"заказов"</span>, <span class="n">7</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"выручка"</span>, <span class="n">10</span>) &lt;&lt; <span class="s">" "</span>
+              &lt;&lt; <span class="f">right</span>(<span class="s">"средний чек"</span>, <span class="n">12</span>) &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::pipeline cities;
+    cities.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    cities.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+        <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>))),
+        <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$total"</span>)))));
+    cities.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="n">1</span>),
+                                 <span class="f">kvp</span>(<span class="s">"avg"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$round"</span>, <span class="f">make_array</span>(<span class="s">"$avg"</span>, <span class="n">0</span>))))));
+    cities.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(cities)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">7</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>]) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>]) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">12</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"avg"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 4. Категории ──────────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"4. Категории"</span>);
+
+    <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"штук"</span>, <span class="n">5</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">right</span>(<span class="s">"выручка"</span>, <span class="n">10</span>) &lt;&lt; <span class="k">std</span>::endl;
+    mongocxx::pipeline categories;
+    categories.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    categories.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+    categories.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$items.category"</span>),
+        <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$items.qty"</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>))))))));
+    categories.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(categories)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">5</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"qty"</span>]) &lt;&lt; <span class="s">" "</span>
+                  &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">10</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"revenue"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 5. Пять самых продаваемых товаров ─────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>);
+
+    mongocxx::pipeline top;
+    top.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    top.<span class="f">unwind</span>(<span class="s">"$items"</span>);
+    top.<span class="f">group</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$items.title"</span>), <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$items.qty"</span>)))));
+    top.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"qty"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+    top.<span class="f">limit</span>(<span class="n">5</span>);
+    <span class="k">int</span> place = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(top)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; ++place &lt;&lt; <span class="s">". "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">32</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">3</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"qty"</span>])
+                  &lt;&lt; <span class="s">" шт."</span> &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 6. Чеки по суммам ─────────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>);
+
+    <span class="k">std</span>::map&lt;<span class="k">std</span>::int64_t, <span class="k">std</span>::string&gt; labels{
+        {<span class="n">0</span>, <span class="s">"до 10 000"</span>}, {<span class="n">10000</span>, <span class="s">"10 000 — 50 000"</span>}, {<span class="n">50000</span>, <span class="s">"50 000 — 200 000"</span>}, {<span class="n">200000</span>, <span class="s">"от 200 000"</span>}};
+    mongocxx::pipeline checks;
+    checks.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    checks.<span class="f">bucket</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+        <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>)),
+        <span class="f">kvp</span>(<span class="s">"output"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(checks)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(labels[<span class="f">number</span>(doc[<span class="s">"_id"</span>])], <span class="n">18</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">4</span>) &lt;&lt; <span class="f">number</span>(doc[<span class="s">"orders"</span>])
+                  &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 7. Самый дорогой заказ города ─────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>);
+
+    mongocxx::pipeline best;
+    best.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    best.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+    best.<span class="f">group</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+        <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$first"</span>, <span class="s">"$number"</span>))),
+        <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$first"</span>, <span class="s">"$total"</span>)))));
+    best.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(best)) {
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="f">pad</span>(<span class="f">text</span>(doc[<span class="s">"_id"</span>]), <span class="n">16</span>) &lt;&lt; <span class="s">" "</span> &lt;&lt; <span class="f">text</span>(doc[<span class="s">"number"</span>]) &lt;&lt; <span class="s">"  "</span> &lt;&lt; <span class="k">std</span>::<span class="f">setw</span>(<span class="n">8</span>)
+                  &lt;&lt; <span class="f">number</span>(doc[<span class="s">"total"</span>]) &lt;&lt; <span class="k">std</span>::endl;
+    }
+
+    <span class="c">// ── 8. Оплата и доставка ──────────────────────────────────────────────</span>
+    <span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>);
+
+    mongocxx::pipeline summary;
+    summary.<span class="f">match</span>(delivered.<span class="f">view</span>());
+    summary.<span class="f">facet</span>(<span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"payment"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sortByCount"</span>, <span class="s">"$payment.method"</span>)))),
+        <span class="f">kvp</span>(<span class="s">"delivery"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sortByCount"</span>, <span class="s">"$delivery.type"</span>)))),
+        <span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>)))))),
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$count"</span>, <span class="s">"orders"</span>))))));
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(summary)) {
+        <span class="k">auto</span> line = [&amp;](<span class="k">const</span> char* field) {
+            <span class="k">std</span>::string out;
+            <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; group : doc[field].<span class="f">get_array</span>().value) {
+                <span class="k">auto</span> g = group.<span class="f">get_document</span>().value;
+                <span class="k">if</span> (!out.<span class="f">empty</span>()) out += <span class="s">", "</span>;
+                out += <span class="f">text</span>(g[<span class="s">"_id"</span>]) + <span class="s">" "</span> + <span class="k">std</span>::<span class="f">to_string</span>(<span class="f">number</span>(g[<span class="s">"count"</span>]));
+            }
+            <span class="k">return</span> out;
+        };
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  оплата:   "</span> &lt;&lt; <span class="f">line</span>(<span class="s">"payment"</span>) &lt;&lt; <span class="k">std</span>::endl;
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  доставка: "</span> &lt;&lt; <span class="f">line</span>(<span class="s">"delivery"</span>) &lt;&lt; <span class="k">std</span>::endl;
+        <span class="k">auto</span> promo = doc[<span class="s">"promo"</span>].<span class="f">get_array</span>().value;
+        <span class="k">std</span>::int64_t with_promo = promo.<span class="f">begin</span>() == promo.<span class="f">end</span>() ? <span class="n">0</span> : <span class="f">number</span>(promo.<span class="f">begin</span>()-&gt;<span class="f">get_document</span>().value[<span class="s">"orders"</span>]);
+        <span class="k">std</span>::cout &lt;&lt; <span class="s">"  с кодом скидки: "</span> &lt;&lt; with_promo &lt;&lt; <span class="k">std</span>::endl;
+    }
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>весь скрипт</span></figcaption>
+<pre><span class="c">// Витрина продаж за квартал: конвейеры агрегации из модуля 4.</span>
+<span class="c">//</span>
+<span class="c">// Скрипт строит отчёт по заказам магазина за второй квартал 2026 года</span>
+<span class="c">// (апрель — июнь): статусы, выручка по месяцам и городам, категории и товары,</span>
+<span class="c">// чеки по суммам, самый дорогой заказ каждого города, оплата и доставка.</span>
+<span class="c">// Базы только читаются.</span>
+<span class="c">//</span>
+<span class="c">//	cd scripts</span>
+<span class="c">//	go run sales_showcase.go</span>
+<span class="c">//</span>
+<span class="c">//	docker compose run --rm go scripts/sales_showcase.go    # в контейнере</span>
+<span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"context"</span>
+	<span class="s">"fmt"</span>
+	<span class="s">"log"</span>
+	<span class="s">"os"</span>
+	<span class="s">"strings"</span>
+	<span class="s">"time"</span>
+	<span class="s">"unicode/utf8"</span>
+
+	<span class="s">"go.mongodb.org/mongo-driver/v2/bson"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo"</span>
+	<span class="s">"go.mongodb.org/mongo-driver/v2/mongo/options"</span>
+)
+
+<span class="k">func</span> <span class="f">pad</span>(text <span class="k">string</span>, width <span class="k">int</span>) <span class="k">string</span> {
+	<span class="k">if</span> n := utf8.<span class="f">RuneCountInString</span>(text); n &lt; width {
+		<span class="k">return</span> text + strings.<span class="f">Repeat</span>(<span class="s">" "</span>, width-n)
+	}
+	<span class="k">return</span> text
+}
+
+<span class="k">func</span> <span class="f">title</span>(text <span class="k">string</span>) {
+	fmt.<span class="f">Println</span>(<span class="s">"\n"</span> + text)
+	fmt.<span class="f">Println</span>(strings.<span class="f">Repeat</span>(<span class="s">"─"</span>, utf8.<span class="f">RuneCountInString</span>(text)))
+}
+
+<span class="c">// Число из ответа сервера: суммы приходят как int32 или int64, среднее после $round — как double.</span>
+<span class="k">func</span> <span class="f">number</span>(value bson.RawValue) int64 {
+	switch value.Type {
+	case bson.TypeInt32:
+		<span class="k">return</span> <span class="f">int64</span>(value.<span class="f">Int32</span>())
+	case bson.TypeDouble:
+		<span class="k">return</span> <span class="f">int64</span>(value.<span class="f">Double</span>())
+	}
+	<span class="k">return</span> value.<span class="f">Int64</span>()
+}
+
+<span class="k">func</span> <span class="f">date</span>(year <span class="k">int</span>, month time.Month, day <span class="k">int</span>) time.Time {
+	<span class="k">return</span> time.<span class="f">Date</span>(year, month, day, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, time.UTC)
+}
+
+<span class="c">// Все документы результата конвейера.</span>
+<span class="k">func</span> <span class="f">run</span>(orders *mongo.Collection, pipeline mongo.Pipeline) []bson.Raw {
+	ctx := context.<span class="f">Background</span>()
+	cursor, err := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	<span class="k">var</span> docs []bson.Raw
+	<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+		docs = <span class="k">append</span>(docs, <span class="k">append</span>(bson.Raw{}, cursor.Current...))
+	}
+	<span class="k">return</span> docs
+}
+
+<span class="k">func</span> <span class="f">main</span>() {
+	uri := os.<span class="f">Getenv</span>(<span class="s">"MONGO_URI"</span>)
+	<span class="k">if</span> uri == <span class="s">""</span> {
+		uri = <span class="s">"mongodb://localhost:27017"</span>
+	}
+	client, err := mongo.<span class="f">Connect</span>(options.<span class="f">Client</span>().<span class="f">ApplyURI</span>(uri))
+	<span class="k">if</span> err != <span class="k">nil</span> {
+		log.<span class="f">Fatal</span>(err)
+	}
+	<span class="k">defer</span> client.<span class="f">Disconnect</span>(context.<span class="f">Background</span>())
+	orders := client.<span class="f">Database</span>(<span class="s">"shop"</span>).<span class="f">Collection</span>(<span class="s">"orders"</span>)
+
+	quarter := bson.D{{Key: <span class="s">"created"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="f">date</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>)}, {Key: <span class="s">"$lt"</span>, Value: <span class="f">date</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)}}}}
+	delivered := bson.D{{Key: <span class="s">"$match"</span>, Value: <span class="k">append</span>(<span class="k">append</span>(bson.D{}, quarter...), bson.E{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>})}}
+
+	<span class="c">// ── 1. Заказы квартала ────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>)
+
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		{{Key: <span class="s">"$match"</span>, Value: quarter}},
+		{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$status"</span>}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %4d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">12</span>), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"count"</span>)))
+	}
+
+	total := <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="k">nil</span>},
+			{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+			{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$total"</span>}}}}}},
+		{{Key: <span class="s">"$project"</span>, Value: bson.D{
+			{Key: <span class="s">"orders"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"revenue"</span>, Value: <span class="n">1</span>},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$round"</span>, Value: bson.A{<span class="s">"$avg"</span>, <span class="n">0</span>}}}}}}},
+	})[<span class="n">0</span>]
+	fmt.<span class="f">Printf</span>(<span class="s">"  доставлено: %d, выручка %d, средний чек %d\n"</span>,
+		<span class="f">number</span>(total.<span class="f">Lookup</span>(<span class="s">"orders"</span>)), <span class="f">number</span>(total.<span class="f">Lookup</span>(<span class="s">"revenue"</span>)), <span class="f">number</span>(total.<span class="f">Lookup</span>(<span class="s">"avg"</span>)))
+
+	<span class="c">// ── 2. Выручка по месяцам ─────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>)
+
+	months := <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+			{Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$created"</span>},
+			{Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="f">date</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="f">date</span>(<span class="n">2026</span>, <span class="n">5</span>, <span class="n">1</span>), <span class="f">date</span>(<span class="n">2026</span>, <span class="n">6</span>, <span class="n">1</span>), <span class="f">date</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)}},
+			{Key: <span class="s">"output"</span>, Value: bson.D{
+				{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+				{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}}}},
+	})
+	<span class="k">for</span> i, name := <span class="k">range</span> []<span class="k">string</span>{<span class="s">"апрель"</span>, <span class="s">"май"</span>, <span class="s">"июнь"</span>} {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %4d %10d\n"</span>, <span class="f">pad</span>(name, <span class="n">12</span>), <span class="f">number</span>(months[i].<span class="f">Lookup</span>(<span class="s">"orders"</span>)), <span class="f">number</span>(months[i].<span class="f">Lookup</span>(<span class="s">"revenue"</span>)))
+	}
+
+	<span class="c">// ── 3. Города ─────────────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"3. Города"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %7s %10s %12s\n"</span>, <span class="f">pad</span>(<span class="s">"город"</span>, <span class="n">16</span>), <span class="s">"заказов"</span>, <span class="s">"выручка"</span>, <span class="s">"средний чек"</span>)
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+			{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+			{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$total"</span>}}}}}},
+		{{Key: <span class="s">"$project"</span>, Value: bson.D{
+			{Key: <span class="s">"orders"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"revenue"</span>, Value: <span class="n">1</span>},
+			{Key: <span class="s">"avg"</span>, Value: bson.D{{Key: <span class="s">"$round"</span>, Value: bson.A{<span class="s">"$avg"</span>, <span class="n">0</span>}}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %7d %10d %12d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">16</span>),
+			<span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"orders"</span>)), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"revenue"</span>)), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"avg"</span>)))
+	}
+
+	<span class="c">// ── 4. Категории ──────────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"4. Категории"</span>)
+
+	fmt.<span class="f">Printf</span>(<span class="s">"  %s %5s %10s\n"</span>, <span class="f">pad</span>(<span class="s">"категория"</span>, <span class="n">16</span>), <span class="s">"штук"</span>, <span class="s">"выручка"</span>)
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$items.category"</span>},
+			{Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$items.qty"</span>}}},
+			{Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>}}}}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %5d %10d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">16</span>),
+			<span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"qty"</span>)), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"revenue"</span>)))
+	}
+
+	<span class="c">// ── 5. Пять самых продаваемых товаров ─────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>)
+
+	<span class="k">for</span> i, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$items"</span>}},
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$items.title"</span>},
+			{Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$items.qty"</span>}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"qty"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+		{{Key: <span class="s">"$limit"</span>, Value: <span class="n">5</span>}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %d. %s %3d шт.\n"</span>, i+<span class="n">1</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">32</span>), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"qty"</span>)))
+	}
+
+	<span class="c">// ── 6. Чеки по суммам ─────────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>)
+
+	labels := map[int64]<span class="k">string</span>{<span class="n">0</span>: <span class="s">"до 10 000"</span>, <span class="n">10000</span>: <span class="s">"10 000 — 50 000"</span>, <span class="n">50000</span>: <span class="s">"50 000 — 200 000"</span>, <span class="n">200000</span>: <span class="s">"от 200 000"</span>}
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+			{Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+			{Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>}},
+			{Key: <span class="s">"output"</span>, Value: bson.D{{Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %4d\n"</span>, <span class="f">pad</span>(labels[<span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>))], <span class="n">18</span>), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"orders"</span>)))
+	}
+
+	<span class="c">// ── 7. Самый дорогой заказ города ─────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>)
+
+	<span class="k">for</span> _, doc := <span class="k">range</span> <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+		{{Key: <span class="s">"$group"</span>, Value: bson.D{
+			{Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+			{Key: <span class="s">"number"</span>, Value: bson.D{{Key: <span class="s">"$first"</span>, Value: <span class="s">"$number"</span>}}},
+			{Key: <span class="s">"total"</span>, Value: bson.D{{Key: <span class="s">"$first"</span>, Value: <span class="s">"$total"</span>}}}}}},
+		{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+	}) {
+		fmt.<span class="f">Printf</span>(<span class="s">"  %s %s  %8d\n"</span>, <span class="f">pad</span>(doc.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="n">16</span>),
+			doc.<span class="f">Lookup</span>(<span class="s">"number"</span>).<span class="f">StringValue</span>(), <span class="f">number</span>(doc.<span class="f">Lookup</span>(<span class="s">"total"</span>)))
+	}
+
+	<span class="c">// ── 8. Оплата и доставка ──────────────────────────────────────────────</span>
+	<span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>)
+
+	facets := <span class="f">run</span>(orders, mongo.Pipeline{
+		delivered,
+		{{Key: <span class="s">"$facet"</span>, Value: bson.D{
+			{Key: <span class="s">"payment"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$payment.method"</span>}}}},
+			{Key: <span class="s">"delivery"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$delivery.type"</span>}}}},
+			{Key: <span class="s">"promo"</span>, Value: bson.A{
+				bson.D{{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"promo"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}}}},
+				bson.D{{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}}}}}}},
+	})[<span class="n">0</span>]
+	line := <span class="k">func</span>(field <span class="k">string</span>) <span class="k">string</span> {
+		values, _ := facets.<span class="f">Lookup</span>(field).<span class="f">Array</span>().<span class="f">Values</span>()
+		parts := []<span class="k">string</span>{}
+		<span class="k">for</span> _, value := <span class="k">range</span> values {
+			group := value.<span class="f">Document</span>()
+			parts = <span class="k">append</span>(parts, fmt.<span class="f">Sprintf</span>(<span class="s">"%s %d"</span>, group.<span class="f">Lookup</span>(<span class="s">"_id"</span>).<span class="f">StringValue</span>(), <span class="f">number</span>(group.<span class="f">Lookup</span>(<span class="s">"count"</span>))))
+		}
+		<span class="k">return</span> strings.<span class="f">Join</span>(parts, <span class="s">", "</span>)
+	}
+	fmt.<span class="f">Println</span>(<span class="s">"  оплата:   "</span> + <span class="f">line</span>(<span class="s">"payment"</span>))
+	fmt.<span class="f">Println</span>(<span class="s">"  доставка: "</span> + <span class="f">line</span>(<span class="s">"delivery"</span>))
+	promo, _ := facets.<span class="f">Lookup</span>(<span class="s">"promo"</span>).<span class="f">Array</span>().<span class="f">Values</span>()
+	withPromo := <span class="f">int64</span>(<span class="n">0</span>)
+	<span class="k">if</span> <span class="f">len</span>(promo) &gt; <span class="n">0</span> {
+		withPromo = <span class="f">number</span>(promo[<span class="n">0</span>].<span class="f">Document</span>().<span class="f">Lookup</span>(<span class="s">"orders"</span>))
+	}
+	fmt.<span class="f">Printf</span>(<span class="s">"  с кодом скидки: %d\n"</span>, withPromo)
+}
+</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>весь скрипт</span></figcaption>
+<pre><span class="c"># Витрина продаж за квартал: конвейеры агрегации из модуля 4.</span>
+<span class="c">#</span>
+<span class="c"># Скрипт строит отчёт по заказам магазина за второй квартал 2026 года</span>
+<span class="c"># (апрель — июнь): статусы, выручка по месяцам и городам, категории и товары,</span>
+<span class="c"># чеки по суммам, самый дорогой заказ каждого города, оплата и доставка.</span>
+<span class="c"># Базы только читаются.</span>
+<span class="c">#</span>
+<span class="c">#     cd scripts</span>
+<span class="c">#     ruby sales_showcase.rb</span>
+<span class="c">#</span>
+<span class="c">#     docker compose run --rm ruby scripts/sales_showcase.rb    # в контейнере</span>
+
+<span class="k">require</span> <span class="s">"mongo"</span>
+
+Mongo::Logger.logger.level = Logger::WARN
+
+client = Mongo::Client.<span class="f">new</span>(ENV.<span class="f">fetch</span>(<span class="s">"MONGO_URI"</span>, <span class="s">"mongodb://localhost:27017/"</span>))
+orders = client.<span class="f">use</span>(<span class="s">"shop"</span>).database[:orders]
+
+QUARTER = { <span class="s">"created"</span> =&gt; { <span class="s">"$gte"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), <span class="s">"$lt"</span> =&gt; Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>) } }.<span class="k">freeze</span>
+DELIVERED = { <span class="s">"$match"</span> =&gt; QUARTER.<span class="f">merge</span>(<span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span>) }.<span class="k">freeze</span>
+
+<span class="k">def</span> <span class="f">title</span>(text)
+  <span class="k">puts</span> <span class="s">"\n"</span> + text
+  <span class="k">puts</span> <span class="s">"─"</span> * text.length
+<span class="k">end</span>
+
+<span class="c"># ── 1. Заказы квартала ────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"1. Заказы квартала"</span>)
+
+orders.<span class="f">aggregate</span>([{ <span class="s">"$match"</span> =&gt; QUARTER }, { <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$status"</span> }]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(12)} #{doc['count'].to_s.rjust(4)}"</span>
+<span class="k">end</span>
+
+total = orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="k">nil</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> }, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+                  <span class="s">"avg"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"orders"</span> =&gt; <span class="n">1</span>, <span class="s">"revenue"</span> =&gt; <span class="n">1</span>, <span class="s">"avg"</span> =&gt; { <span class="s">"$round"</span> =&gt; [<span class="s">"$avg"</span>, <span class="n">0</span>] } } },
+]).first
+<span class="k">puts</span> <span class="s">"  доставлено: #{total['orders']}, выручка #{total['revenue']}, средний чек #{total['avg'].to_i}"</span>
+
+<span class="c"># ── 2. Выручка по месяцам ─────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"2. Выручка по месяцам"</span>)
+
+months = orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$bucket"</span> =&gt; { <span class="s">"groupBy"</span> =&gt; <span class="s">"$created"</span>,
+                   <span class="s">"boundaries"</span> =&gt; [Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">4</span>, <span class="n">1</span>), Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">5</span>, <span class="n">1</span>), Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">6</span>, <span class="n">1</span>), Time.<span class="f">utc</span>(<span class="n">2026</span>, <span class="n">7</span>, <span class="n">1</span>)],
+                   <span class="s">"output"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> }, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } } } },
+]).to_a
+%w[апрель май июнь].<span class="f">zip</span>(months).<span class="k">each</span> <span class="k">do</span> |name, doc|
+  <span class="k">puts</span> <span class="s">"  #{name.ljust(12)} #{doc['orders'].to_s.rjust(4)} #{doc['revenue'].to_s.rjust(10)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 3. Города ─────────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"3. Города"</span>)
+
+<span class="k">puts</span> <span class="s">"  #{'город'.ljust(16)} #{'заказов'.rjust(7)} #{'выручка'.rjust(10)} #{'средний чек'.rjust(12)}"</span>
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+                  <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> }, <span class="s">"avg"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"orders"</span> =&gt; <span class="n">1</span>, <span class="s">"revenue"</span> =&gt; <span class="n">1</span>, <span class="s">"avg"</span> =&gt; { <span class="s">"$round"</span> =&gt; [<span class="s">"$avg"</span>, <span class="n">0</span>] } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(16)} #{doc['orders'].to_s.rjust(7)} #{doc['revenue'].to_s.rjust(10)} #{doc['avg'].to_i.to_s.rjust(12)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 4. Категории ──────────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"4. Категории"</span>)
+
+<span class="k">puts</span> <span class="s">"  #{'категория'.ljust(16)} #{'штук'.rjust(5)} #{'выручка'.rjust(10)}"</span>
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$items.category"</span>, <span class="s">"qty"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$items.qty"</span> },
+                  <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$items.qty"</span>, <span class="s">"$items.price"</span>] } } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(16)} #{doc['qty'].to_s.rjust(5)} #{doc['revenue'].to_s.rjust(10)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 5. Пять самых продаваемых товаров ─────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"5. Пять самых продаваемых товаров"</span>)
+
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$items"</span> },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$items.title"</span>, <span class="s">"qty"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$items.qty"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"qty"</span> =&gt; -<span class="n">1</span>, <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">5</span> },
+]).each_with_index <span class="k">do</span> |doc, i|
+  <span class="k">puts</span> <span class="s">"  #{i + 1}. #{doc['_id'].ljust(32)} #{doc['qty'].to_s.rjust(3)} шт."</span>
+<span class="k">end</span>
+
+<span class="c"># ── 6. Чеки по суммам ─────────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"6. Чеки по суммам"</span>)
+
+LABELS = { <span class="n">0</span> =&gt; <span class="s">"до 10 000"</span>, <span class="n">10000</span> =&gt; <span class="s">"10 000 — 50 000"</span>, <span class="n">50000</span> =&gt; <span class="s">"50 000 — 200 000"</span>, <span class="n">200000</span> =&gt; <span class="s">"от 200 000"</span> }.<span class="k">freeze</span>
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$bucket"</span> =&gt; { <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>, <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+                   <span class="s">"output"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{LABELS[doc['_id']].ljust(18)} #{doc['orders'].to_s.rjust(4)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 7. Самый дорогой заказ города ─────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"7. Самый дорогой заказ города"</span>)
+
+orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"number"</span> =&gt; { <span class="s">"$first"</span> =&gt; <span class="s">"$number"</span> }, <span class="s">"total"</span> =&gt; { <span class="s">"$first"</span> =&gt; <span class="s">"$total"</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+]).<span class="k">each</span> <span class="k">do</span> |doc|
+  <span class="k">puts</span> <span class="s">"  #{doc['_id'].ljust(16)} #{doc['number']}  #{doc['total'].to_s.rjust(8)}"</span>
+<span class="k">end</span>
+
+<span class="c"># ── 8. Оплата и доставка ──────────────────────────────────────────────────</span>
+<span class="f">title</span>(<span class="s">"8. Оплата и доставка"</span>)
+
+facets = orders.<span class="f">aggregate</span>([
+  DELIVERED,
+  { <span class="s">"$facet"</span> =&gt; {
+    <span class="s">"payment"</span> =&gt; [{ <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$payment.method"</span> }],
+    <span class="s">"delivery"</span> =&gt; [{ <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$delivery.type"</span> }],
+    <span class="s">"promo"</span> =&gt; [{ <span class="s">"$match"</span> =&gt; { <span class="s">"promo"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } } }, { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> }],
+  } },
+]).first
+<span class="k">puts</span> <span class="s">"  оплата:   "</span> + facets[<span class="s">"payment"</span>].map { |d| <span class="s">"#{d['_id']} #{d['count']}"</span> }.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"  доставка: "</span> + facets[<span class="s">"delivery"</span>].map { |d| <span class="s">"#{d['_id']} #{d['count']}"</span> }.<span class="f">join</span>(<span class="s">", "</span>)
+<span class="k">puts</span> <span class="s">"  с кодом скидки: #{facets['promo'].empty? ? 0 : facets['promo'][0]['orders']}"</span>
+
+client.close
+</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Заказы квартала
+──────────────────
+  доставлен      26
+  отменён        10
+  собирается      8
+  в пути          4
+  доставлено: 26, выручка 2856410, средний чек 109862
+
+2. Выручка по месяцам
+─────────────────────
+  апрель          7     553220
+  май            11    1382090
+  июнь            8     921100
+
+3. Города
+─────────
+  город            заказов    выручка  средний чек
+  Новосибирск            5     726470       145294
+  Екатеринбург           7     626020        89431
+  Ярославль              5     584950       116990
+  Москва                 6     517580        86263
+  Санкт-Петербург        3     401390       133797
+
+4. Категории
+────────────
+  категория         штук    выручка
+  ноутбуки            19    1562630
+  смартфоны           13     585870
+  комплектующие       25     344050
+  периферия           21     329890
+  аксессуары          13      33970
+
+5. Пять самых продаваемых товаров
+─────────────────────────────────
+  1. SSD Samsung 980 1 ТБ              15 шт.
+  2. Клавиатура Keychron K2             7 шт.
+  3. Ноутбук Apple MacBook Air 13       7 шт.
+  4. Ноутбук ASUS VivoBook 15           6 шт.
+  5. Рюкзак для ноутбука Xiaomi         6 шт.
+
+6. Чеки по суммам
+─────────────────
+  до 10 000             1
+  10 000 — 50 000       7
+  50 000 — 200 000     14
+  от 200 000            4
+
+7. Самый дорогой заказ города
+─────────────────────────────
+  Ярославль        2026-0052    344970
+  Москва           2026-0029    289360
+  Санкт-Петербург  2026-0024    274960
+  Новосибирск      2026-0067    253650
+  Екатеринбург     2026-0017    191830
+
+8. Оплата и доставка
+────────────────────
+  оплата:   карта 15, СБП 6, картой при получении 5
+  доставка: пункт выдачи 14, курьер 7, почта 5
+  с кодом скидки: 8</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Заказы квартала
+──────────────────
+  доставлен      26
+  отменён        10
+  собирается      8
+  в пути          4
+  доставлено: 26, выручка 2856410, средний чек 109862
+
+2. Выручка по месяцам
+─────────────────────
+  апрель          7     553220
+  май            11    1382090
+  июнь            8     921100
+
+3. Города
+─────────
+  город            заказов    выручка  средний чек
+  Новосибирск            5     726470       145294
+  Екатеринбург           7     626020        89431
+  Ярославль              5     584950       116990
+  Москва                 6     517580        86263
+  Санкт-Петербург        3     401390       133797
+
+4. Категории
+────────────
+  категория         штук    выручка
+  ноутбуки            19    1562630
+  смартфоны           13     585870
+  комплектующие       25     344050
+  периферия           21     329890
+  аксессуары          13      33970
+
+5. Пять самых продаваемых товаров
+─────────────────────────────────
+  1. SSD Samsung 980 1 ТБ              15 шт.
+  2. Клавиатура Keychron K2             7 шт.
+  3. Ноутбук Apple MacBook Air 13       7 шт.
+  4. Ноутбук ASUS VivoBook 15           6 шт.
+  5. Рюкзак для ноутбука Xiaomi         6 шт.
+
+6. Чеки по суммам
+─────────────────
+  до 10 000             1
+  10 000 — 50 000       7
+  50 000 — 200 000     14
+  от 200 000            4
+
+7. Самый дорогой заказ города
+─────────────────────────────
+  Ярославль        2026-0052    344970
+  Москва           2026-0029    289360
+  Санкт-Петербург  2026-0024    274960
+  Новосибирск      2026-0067    253650
+  Екатеринбург     2026-0017    191830
+
+8. Оплата и доставка
+────────────────────
+  оплата:   карта 15, СБП 6, картой при получении 5
+  доставка: пункт выдачи 14, курьер 7, почта 5
+  с кодом скидки: 8</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Заказы квартала
+──────────────────
+  доставлен      26
+  отменён        10
+  собирается      8
+  в пути          4
+  доставлено: 26, выручка 2856410, средний чек 109862
+
+2. Выручка по месяцам
+─────────────────────
+  апрель          7     553220
+  май            11    1382090
+  июнь            8     921100
+
+3. Города
+─────────
+  город            заказов    выручка  средний чек
+  Новосибирск            5     726470       145294
+  Екатеринбург           7     626020        89431
+  Ярославль              5     584950       116990
+  Москва                 6     517580        86263
+  Санкт-Петербург        3     401390       133797
+
+4. Категории
+────────────
+  категория         штук    выручка
+  ноутбуки            19    1562630
+  смартфоны           13     585870
+  комплектующие       25     344050
+  периферия           21     329890
+  аксессуары          13      33970
+
+5. Пять самых продаваемых товаров
+─────────────────────────────────
+  1. SSD Samsung 980 1 ТБ              15 шт.
+  2. Клавиатура Keychron K2             7 шт.
+  3. Ноутбук Apple MacBook Air 13       7 шт.
+  4. Ноутбук ASUS VivoBook 15           6 шт.
+  5. Рюкзак для ноутбука Xiaomi         6 шт.
+
+6. Чеки по суммам
+─────────────────
+  до 10 000             1
+  10 000 — 50 000       7
+  50 000 — 200 000     14
+  от 200 000            4
+
+7. Самый дорогой заказ города
+─────────────────────────────
+  Ярославль        2026-0052    344970
+  Москва           2026-0029    289360
+  Санкт-Петербург  2026-0024    274960
+  Новосибирск      2026-0067    253650
+  Екатеринбург     2026-0017    191830
+
+8. Оплата и доставка
+────────────────────
+  оплата:   карта 15, СБП 6, картой при получении 5
+  доставка: пункт выдачи 14, курьер 7, почта 5
+  с кодом скидки: 8</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>
+1. Заказы квартала
+──────────────────
+  доставлен      26
+  отменён        10
+  собирается      8
+  в пути          4
+  доставлено: 26, выручка 2856410, средний чек 109862
+
+2. Выручка по месяцам
+─────────────────────
+  апрель          7     553220
+  май            11    1382090
+  июнь            8     921100
+
+3. Города
+─────────
+  город            заказов    выручка  средний чек
+  Новосибирск            5     726470       145294
+  Екатеринбург           7     626020        89431
+  Ярославль              5     584950       116990
+  Москва                 6     517580        86263
+  Санкт-Петербург        3     401390       133797
+
+4. Категории
+────────────
+  категория         штук    выручка
+  ноутбуки            19    1562630
+  смартфоны           13     585870
+  комплектующие       25     344050
+  периферия           21     329890
+  аксессуары          13      33970
+
+5. Пять самых продаваемых товаров
+─────────────────────────────────
+  1. SSD Samsung 980 1 ТБ              15 шт.
+  2. Клавиатура Keychron K2             7 шт.
+  3. Ноутбук Apple MacBook Air 13       7 шт.
+  4. Ноутбук ASUS VivoBook 15           6 шт.
+  5. Рюкзак для ноутбука Xiaomi         6 шт.
+
+6. Чеки по суммам
+─────────────────
+  до 10 000             1
+  10 000 — 50 000       7
+  50 000 — 200 000     14
+  от 200 000            4
+
+7. Самый дорогой заказ города
+─────────────────────────────
+  Ярославль        2026-0052    344970
+  Москва           2026-0029    289360
+  Санкт-Петербург  2026-0024    274960
+  Новосибирск      2026-0067    253650
+  Екатеринбург     2026-0017    191830
+
+8. Оплата и доставка
+────────────────────
+  оплата:   карта 15, СБП 6, картой при получении 5
+  доставка: пункт выдачи 14, курьер 7, почта 5
+  с кодом скидки: 8</pre>
+        </figure>
+
+        <h2 id="s12"><span class="sec">§12</span>Как запустить</h2>
+        <p>Скрипт лежит в репозитории практик, в папке <code>scripts</code>. Он только читает базу <code>shop</code>, поэтому при повторном запуске вывод будет тем же.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск на своём сервере</span></figcaption>
+<pre>python3 scripts/sales_showcase.py
+ruby scripts/sales_showcase.rb
+go run scripts/sales_showcase.go
+g++ -std=c++<span class="n">17</span> scripts/sales_showcase.cpp -o showcase $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./showcase</pre>
+        </figure>
+        <figure class="code" data-run="no">
+          <figcaption><span>Терминал · из корня репозитория</span><span>запуск в контейнере</span></figcaption>
+<pre>docker compose run --rm python scripts/sales_showcase.py
+docker compose run --rm ruby   scripts/sales_showcase.rb
+docker compose run --rm go     scripts/sales_showcase.go
+docker compose run --rm cpp    scripts/sales_showcase.cpp</pre>
+        </figure>
+        <p>Чтобы построить витрину за другой квартал, меняют даты в двух местах: в условии <code>QUARTER</code> и в границах <code>$bucket</code> раздела 2. Вместе с ними меняют список названий месяцев.</p>
+
+        <h2 id="s13"><span class="sec">§13</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"$lte": 30 июня 2026</code> в условии квартала</td><td>Дата без времени — полночь 30 июня; заказы, созданные 30 июня днём, в отчёт не попадают</td><td><code>"$lt"</code> на 1 июля</td></tr>
+              <tr><td>Выручка категорий через <code>{"$sum": "$total"}</code> после <code>$unwind</code></td><td>Итог заказа учитывается столько раз, сколько в заказе позиций</td><td>Сумма <code>$multiply</code> количества и цены позиции</td></tr>
+              <tr><td>Топ товаров без второго ключа сортировки</td><td>Товары с одинаковым числом штук могут меняться местами между запусками, а пятое место — достаться другому товару</td><td><code>{"$sort": {"qty": -1, "_id": 1}}</code></td></tr>
+              <tr><td>Названия месяцев из списка, когда в одном из месяцев нет заказов</td><td><code>$bucket</code> не выпускает пустую корзину, и названия сдвигаются</td><td>Печатать месяц по <code>_id</code> корзины — её нижней границе</td></tr>
+              <tr><td><code>facets["promo"][0]["orders"]</code> без проверки</td><td>Если заказов с кодом нет, массив <code>promo</code> пуст, и программа завершается ошибкой</td><td>Проверить, что массив не пуст; иначе считать 0</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s14"><span class="sec">§14</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему верхняя граница квартала записана как <code>$lt</code> 1 июля?</summary>
+          <p>Дата 30 июня без времени — это полночь, начало дня. Условие <code>$lte</code> по ней отбросит заказы, созданные 30 июня позже полуночи. <code>$lt</code> на 1 июля берёт весь последний день.</p>
+        </details>
+        <details>
+          <summary>Как раздел 2 получает месяцы, если в модуле нет выражения для месяца даты?</summary>
+          <p>Стадией <code>$bucket</code> с границами-датами: 1 апреля, 1 мая, 1 июня и 1 июля. Каждая корзина — один месяц.</p>
+        </details>
+        <details>
+          <summary>Почему выручка категорий считается по <code>qty</code> и <code>price</code>?</summary>
+          <p>После <code>$unwind</code> поле <code>total</code> повторено в каждой позиции заказа, и сумма завысится. Количество, умноженное на цену, относится к самой позиции.</p>
+        </details>
+        <details>
+          <summary>Зачем в топе товаров второй ключ сортировки?</summary>
+          <p>У двух пар товаров одинаковое число штук. Второй ключ — название — делает порядок однозначным, и пятое место не меняется от запуска к запуску.</p>
+        </details>
+        <details>
+          <summary>Что напечатает раздел 8, если в квартале нет заказов с кодом скидки?</summary>
+          <p>«с кодом скидки: 0». Ветка <code>promo</code> вернёт пустой массив, и скрипт проверяет это перед чтением.</p>
+        </details>
+
+        <h3>Итог главы</h3>
+        <p>Скрипт <code>sales_showcase</code> собирает витрину продаж за квартал из восьми конвейеров. Каждый начинается с одного и того же <code>$match</code>: квартал от 1 апреля включительно до 1 июля и статус «доставлен».</p>
+        <p>Месяцы получены стадией <code>$bucket</code> с границами-датами, города и итоги — <code>$group</code>, категории и товары — <code>$unwind</code> и <code>$group</code> по полям позиции. Самый дорогой заказ города найден парой <code>$sort</code> и <code>$first</code>, оплата и доставка — одним <code>$facet</code>.</p>
+        <p>Отчёт отвечает на вопросы руководителя числами: 26 заказов на 2 856 410, лучший месяц — май, больше половины выручки дают ноутбуки. На этом разобраны все стадии модуля 4.</p>
+
+        <div class="pager"><a href="../33-replace-redact/index.html">← 4.9 $replaceRoot, $replaceWith, $redact</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.10 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
