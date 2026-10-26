@@ -28,7 +28,7 @@
     .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
     .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
     .steps > li > b:first-child { display: block; margin-bottom: 3px; }
-    /* Схемы главы: документ до и после $unwind, таблицы, полосы выручки. */
+    /* Схемы главы: документ до и после замены, таблицы, дерево решений $redact. */
     .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
     .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
     .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
@@ -39,7 +39,8 @@
     .split__arrow::after { content: " →"; }
     .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
     .split .card .in { padding-left: 14px; }
-    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    .on1 { background: #C8EEDA; }
+    .on2 { background: #E4DDF5; }
     table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
     table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
     table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
@@ -47,32 +48,6 @@
     table.mt tr.no td { background: var(--clay-pale); }
     table.mt td.ok { color: var(--leaf); font-weight: 700; }
     table.mt td.bad { color: var(--clay); font-weight: 700; }
-    .dist { display: grid; gap: 7px; }
-    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
-    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
-    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
-    .dist i b.on { background: var(--leaf-bright); }
-    .dist > div > span:last-child { text-align: right; font-weight: 700; }
-    .seq { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0 0 6px; list-style: none; font: 400 12.5px/1.4 var(--mono); }
-    .seq li { position: relative; padding: 6px 8px; border: 2px solid var(--ink); background: var(--paper); }
-    .seq li b { display: block; color: var(--ink-faint); font-weight: 400; }
-    .seq li i { display: block; font-style: normal; color: var(--ink-soft); }
-    .seq li em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
-    .seq li.on { background: var(--leaf-pale); border-color: var(--leaf); font-weight: 700; }
-    .strip { margin: 0 0 12px; }
-    .strip b { display: block; margin-bottom: 5px; font: 600 12.5px/1.4 var(--mono); }
-    .strip__bar { display: flex; height: 30px; min-width: 560px; border: 2px solid var(--ink); }
-    .strip__bar i { flex: 1 0 0; min-width: 0; display: grid; place-items: center; border-right: 2px solid var(--ink); background: var(--leaf-pale); font: 700 12px/1 var(--mono); font-style: normal; overflow: hidden; }
-    .strip__bar i:last-child { border-right: 0; }
-    .strip__bar i.gap { background: repeating-linear-gradient(45deg, var(--paper) 0 4px, var(--rule) 4px 6px); }
-    .fan { display: grid; gap: 10px; padding-bottom: 6px; font: 400 12.5px/1.4 var(--mono); }
-    .fan__in, .fan__out { padding: 7px 10px; border: 2px solid var(--ink); background: var(--paper); font-weight: 700; text-align: center; }
-    .fan__out { background: var(--leaf-pale); }
-    .fan__branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
-    .fan__branches > div { padding: 7px 10px; border: 2px dashed var(--ink-soft); }
-    .fan__branches b { display: block; color: var(--violet); }
-    .fan__branches span { display: block; color: var(--ink-soft); }
-    .fan__branches em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
     .tree, .tree ul { list-style: none; margin: 0; padding: 0; font: 400 12.5px/1.5 var(--mono); }
     .tree ul { margin: 6px 0 4px 10px; padding-left: 16px; border-left: 2px solid var(--rule); }
     .tree li { margin: 4px 0; }
@@ -80,7 +55,7 @@
     .tree span.d { background: var(--leaf-pale); }
     .tree span.p { background: var(--clay-pale); color: var(--clay); text-decoration: line-through; text-decoration-thickness: 1px; }
     @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
-    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } }
   </style>
 </head>
 <body>
