@@ -1047,3 +1047,95 @@ CHEATS["4.7"] = [
     ("Первый и последний", cheat_lines({"first": {"$first": "$number"}, "last": {"$last": "$number"}})),
     ("Лучший в группе", {lang: cheat_lines({"$sort": {"total": -1}})[lang] + cheat_lines({"$group": {"_id": "$delivery.city", "top": {"$first": "$number"}}})[lang] for lang in LANGS4}),
 ]
+
+
+# ── 4.8 $bucket, $bucketAuto, $facet ──────────────────────────────────────
+
+BOUNDS = [0, 10000, 50000, 100000, 200000, 500000]
+
+# корзины по сумме заказа
+example("4.8", "bucket", "$bucket: заказы по диапазонам суммы", agg_docs([
+    {"$bucket": {"groupBy": "$total", "boundaries": BOUNDS}},
+]))
+
+# свои поля корзины
+example("4.8", "output", "$bucket с полями output", agg_docs([
+    {"$bucket": {"groupBy": "$total", "boundaries": BOUNDS,
+                 "output": {"orders": {"$sum": 1}, "revenue": {"$sum": "$total"}}}},
+]))
+
+# документы вне границ
+NO_DEFAULT = [{"$bucket": {"groupBy": "$total", "boundaries": BOUNDS[:-1]}}]
+WITH_DEFAULT = [{"$bucket": {"groupBy": "$total", "boundaries": BOUNDS[:-1], "default": "200000 и больше"}}]
+example("4.8", "default", "документы вне границ и default", {
+    lang: IMPORT_ERR.get(lang, "")
+    + pipeline(NO_DEFAULT, lang, gvar("no_default", lang)) + "\n\n"
+    + pipeline(WITH_DEFAULT, lang, gvar("with_default", lang)) + "\n\n"
+    + title_code(lang, "без default") + "\n" + try_code(lang, var=gvar("no_default", lang)) + "\n\n"
+    + title_code(lang, "с default") + "\n" + docs_code(lang, var=gvar("with_default", lang))
+    for lang in LANGS4})
+
+# сервер сам выбирает границы
+example("4.8", "auto", "$bucketAuto: четыре корзины", agg_docs([
+    {"$bucketAuto": {"groupBy": "$total", "buckets": 4}},
+]))
+
+# округлённые границы
+example("4.8", "granularity", "$bucketAuto с granularity", agg_docs([
+    {"$bucketAuto": {"groupBy": "$total", "buckets": 4, "granularity": "1-2-5"}},
+]))
+
+# несколько отчётов в одном запросе
+example("4.8", "facet", "$facet: три отчёта по заказам", agg_docs([
+    {"$facet": {
+        "by_status": [{"$sortByCount": "$status"}],
+        "by_city": [{"$group": {"_id": "$delivery.city", "orders": {"$sum": 1}}}, {"$sort": {"_id": 1}}],
+        "top": [{"$sort": {"total": -1}}, {"$limit": 3}, {"$project": {"_id": 0, "number": 1, "total": 1}}],
+    }},
+]))
+
+# ветки $facet не влияют друг на друга
+example("4.8", "branches", "ветки $facet получают один и тот же поток", agg_docs([
+    {"$facet": {
+        "all": [{"$count": "orders"}],
+        "delivered": [{"$match": {"status": "доставлен"}}, {"$count": "orders"}],
+        "cancelled": [{"$match": {"status": "отменён"}}, {"$count": "orders"}],
+    }},
+]))
+
+# сводка по доставленным заказам
+example("4.8", "report", "$match до $facet: сводка доставленных", agg_docs([
+    DELIVERED,
+    {"$facet": {
+        "total": [{"$count": "orders"}],
+        "by_price": [{"$bucket": {"groupBy": "$total", "boundaries": [0, 50000, 200000, 500000],
+                                  "output": {"orders": {"$sum": 1}}}}],
+        "by_city": [{"$sortByCount": "$delivery.city"}],
+    }},
+]))
+
+ERRORS["4.8"] = [
+    ('<code>"boundaries": [0, 50000, 10000]</code>',
+     "Ошибка 40194: границы должны идти по возрастанию",
+     "Записать границы от меньшей к большей"),
+    ("Документ со значением вне всех границ, параметра <code>default</code> нет",
+     "Ошибка 40066: документу не нашлось корзины, и запрос завершается",
+     '<code>"default": "200000 и больше"</code> — корзина для всех значений вне границ'),
+    ("Ожидание, что верхняя граница входит в корзину",
+     "Корзина с <code>_id</code> 10000 берёт значения от 10000 включительно до 50000, не включая 50000",
+     "Последнюю границу ставить больше наибольшего значения"),
+    ('<code>{"$bucketAuto": {"groupBy": "$total", "buckets": 4, "granularity": "1-2-5"}}</code>',
+     "Корзин получается три: с округлением границ сервер может вернуть меньше корзин, чем запрошено",
+     "Считать <code>buckets</code> желаемым числом корзин и проверять результат"),
+    ("<code>$facet</code> внутри ветки <code>$facet</code>",
+     "Ошибка 40600: вложенный <code>$facet</code> запрещён",
+     "Собрать все ветки в одной стадии <code>$facet</code>"),
+]
+
+CHEATS["4.8"] = [
+    ("Корзины по границам", cheat_lines({"$bucket": {"groupBy": "$total", "boundaries": [0, 50000, 200000, 500000]}})),
+    ("Корзина для остальных", cheat_lines({"default": "другое"})),
+    ("Корзины автоматически", cheat_lines({"$bucketAuto": {"groupBy": "$total", "buckets": 4}})),
+    ("Несколько отчётов", cheat_lines({"$facet": {"by_status": [{"$sortByCount": "$status"}],
+                                                   "total": [{"$count": "orders"}]}})),
+]

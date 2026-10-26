@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>4.8 $bucket, $bucketAuto и $facet · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ до и после $unwind, таблицы, полосы выручки. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .seq { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0 0 6px; list-style: none; font: 400 12.5px/1.4 var(--mono); }
+    .seq li { position: relative; padding: 6px 8px; border: 2px solid var(--ink); background: var(--paper); }
+    .seq li b { display: block; color: var(--ink-faint); font-weight: 400; }
+    .seq li i { display: block; font-style: normal; color: var(--ink-soft); }
+    .seq li em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
+    .seq li.on { background: var(--leaf-pale); border-color: var(--leaf); font-weight: 700; }
+    .strip { margin: 0 0 12px; }
+    .strip b { display: block; margin-bottom: 5px; font: 600 12.5px/1.4 var(--mono); }
+    .strip__bar { display: flex; height: 30px; min-width: 560px; border: 2px solid var(--ink); }
+    .strip__bar i { flex: 1 0 0; min-width: 0; display: grid; place-items: center; border-right: 2px solid var(--ink); background: var(--leaf-pale); font: 700 12px/1 var(--mono); font-style: normal; overflow: hidden; }
+    .strip__bar i:last-child { border-right: 0; }
+    .strip__bar i.gap { background: repeating-linear-gradient(45deg, var(--paper) 0 4px, var(--rule) 4px 6px); }
+    .fan { display: grid; gap: 10px; padding-bottom: 6px; font: 400 12.5px/1.4 var(--mono); }
+    .fan__in, .fan__out { padding: 7px 10px; border: 2px solid var(--ink); background: var(--paper); font-weight: 700; text-align: center; }
+    .fan__out { background: var(--leaf-pale); }
+    .fan__branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .fan__branches > div { padding: 7px 10px; border: 2px dashed var(--ink-soft); }
+    .fan__branches b { display: block; color: var(--violet); }
+    .fan__branches span { display: block; color: var(--ink-soft); }
+    .fan__branches em { display: block; margin-top: 3px; font-style: normal; font-weight: 700; color: var(--leaf); }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Конвейер агрегации</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · конвейер агрегации</p>
+          <p class="running__folio">4.8</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">4.8</span>
+          <h1>$bucket, $bucketAuto<br>и $facet</h1>
+          <p class="lead">В этой главе разобраны три стадии. $bucket раскладывает документы по диапазонам значений, границы которых задаются заранее. $bucketAuto выбирает границы сам так, чтобы в диапазонах было поровну документов. $facet выполняет несколько конвейеров над одним и тем же потоком и собирает их результаты в один документ — так за один запрос строится сводка из нескольких отчётов.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$group и аккумуляторы (глава 4.4), $count и $sortByCount (глава 4.5), $push (глава 4.7), $match, $sort, $limit (глава 4.1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Делить документы на ценовые и другие диапазоны и получать несколько отчётов по коллекции одним запросом</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-4.8-python.zip" download><code>mongodb-glava-4.8-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-4.8-ruby.zip" download><code>mongodb-glava-4.8-ruby.zip</code></a>, 63 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-4.8-go.zip" download><code>mongodb-glava-4.8-go.zip</code></a>, 70 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-4.8-cpp.zip" download><code>mongodb-glava-4.8-cpp.zip</code></a>, 70 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch4_8.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch4_8.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch4_8.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch4_8.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch4_8.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch4_8.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch4_8.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch4_8.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch4_8.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch4_8.go</code> · в Docker: <code>docker compose run --rm go lessons/ch4_8.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch4_8.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch4_8.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $bucket</a></li>
+            <li><a href="#s2">Поля корзины: output</a></li>
+            <li><a href="#s3">Значения вне границ: default</a></li>
+            <li><a href="#s4">Стадия $bucketAuto</a></li>
+            <li><a href="#s5">Округлённые границы: granularity</a></li>
+            <li><a href="#s6">Стадия $facet</a></li>
+            <li><a href="#s7">Ветки $facet получают один поток</a></li>
+            <li><a href="#s8">Сводка одним запросом</a></li>
+            <li><a href="#s9">$facet в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $bucket</h2>
+        <p>На почте посылки раскладывают по весу: до 1 кг, от 1 до 5 кг, от 5 до 10 кг. Каждая посылка попадает на одну полку, и по полкам видно, каких посылок больше. Граница полки известна заранее, её выбирает почта.</p>
+        <p><span class="term">Стадия $bucket</span> раскладывает документы по <span class="term">корзинам</span> — диапазонам значений выражения. Параметр <code>groupBy</code> — выражение, по которому раскладываются документы, например <code>"$total"</code>. Параметр <code>boundaries</code> — границы корзин по возрастанию. Каждая корзина берёт значения от своей границы включительно до следующей, не включая её. Из каждой корзины стадия выпускает один документ: <code>_id</code> — нижняя граница, <code>count</code> — число документов.</p>
+        <p>Пример раскладывает 120 заказов по сумме: до 10 000, от 10 000 до 50 000, до 100 000, до 200 000 и до 500 000.</p>
+        <p data-lang="cpp">У стадии <code>$bucket</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>bucket</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$bucket: заказы по диапазонам суммы</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$bucket"</span>: {
+        <span class="s">"groupBy"</span>: <span class="s">"$total"</span>,
+        <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$bucket: заказы по диапазонам суммы</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">bucket</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+    <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$bucket: заказы по диапазонам суммы</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+        {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+        {Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$bucket: заказы по диапазонам суммы</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$bucket"</span> =&gt; {
+    <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>,
+    <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 0, 'count': 14}
+{'_id': 10000, 'count': 23}
+{'_id': 50000, 'count': 24}
+{'_id': 100000, 'count': 29}
+{'_id': 200000, 'count': 30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : 0, "count" : 14 }
+{ "_id" : 10000, "count" : 23 }
+{ "_id" : 50000, "count" : 24 }
+{ "_id" : 100000, "count" : 29 }
+{ "_id" : 200000, "count" : 30 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":0,"count":14}
+{"_id":10000,"count":23}
+{"_id":50000,"count":24}
+{"_id":100000,"count":29}
+{"_id":200000,"count":30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;0, "count"=&gt;14}
+{"_id"=&gt;10000, "count"=&gt;23}
+{"_id"=&gt;50000, "count"=&gt;24}
+{"_id"=&gt;100000, "count"=&gt;29}
+{"_id"=&gt;200000, "count"=&gt;30}</pre>
+        </figure>
+        <p>Стадия выпустила пять документов, по одному на корзину. На схеме — какие суммы попали в каждую корзину.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Корзины по сумме заказа</span><span>120 заказов</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>_id корзины</th><th>Суммы в корзине</th><th>Заказов</th></tr></thead>
+              <tbody>
+                <tr><td>0</td><td>от 0 до 9 999</td><td>14</td></tr>
+                <tr><td>10000</td><td>от 10 000 до 49 999</td><td>23</td></tr>
+                <tr><td>50000</td><td>от 50 000 до 99 999</td><td>24</td></tr>
+                <tr><td>100000</td><td>от 100 000 до 199 999</td><td>29</td></tr>
+                <tr><td>200000</td><td>от 200 000 до 499 999</td><td>30</td></tr>
+                <tr class="on"><td>всего</td><td>шесть границ — пять корзин</td><td>120</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Последняя граница, 500 000, нижней границей корзины не становится: она закрывает последнюю корзину. Самый дорогой заказ — 457 930, поэтому все заказы попали в корзины.</p>
+        </div>
+        <p>По умолчанию в документе корзины одно поле с числом — <code>count</code>. Другие числа задаются так же, как в <code>$group</code>.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Поля корзины: output</h2>
+        <p><code>$bucket</code> — это группировка, в которой ключ группы — диапазон. Поэтому поля корзины задаются аккумуляторами из главы 4.4 в параметре <code>output</code>. Если <code>output</code> есть, поля <code>count</code> в результате нет: каждое поле перечисляется явно.</p>
+        <p>Пример считает в каждой корзине заказы и выручку.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$bucket с полями output</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$bucket"</span>: {
+        <span class="s">"groupBy"</span>: <span class="s">"$total"</span>,
+        <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+        <span class="s">"output"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}, <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$bucket с полями output</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">bucket</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+    <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>)),
+    <span class="f">kvp</span>(<span class="s">"output"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+        <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$bucket с полями output</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+        {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+        {Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>}},
+        {Key: <span class="s">"output"</span>, Value: bson.D{
+            {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+            {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$bucket с полями output</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$bucket"</span> =&gt; {
+    <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>,
+    <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+    <span class="s">"output"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> }, <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 0, 'orders': 14, 'revenue': 82890}
+{'_id': 10000, 'orders': 23, 'revenue': 656280}
+{'_id': 50000, 'orders': 24, 'revenue': 1732110}
+{'_id': 100000, 'orders': 29, 'revenue': 4298090}
+{'_id': 200000, 'orders': 30, 'revenue': 8616940}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : 0, "orders" : 14, "revenue" : 82890 }
+{ "_id" : 10000, "orders" : 23, "revenue" : 656280 }
+{ "_id" : 50000, "orders" : 24, "revenue" : 1732110 }
+{ "_id" : 100000, "orders" : 29, "revenue" : 4298090 }
+{ "_id" : 200000, "orders" : 30, "revenue" : 8616940 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":0,"orders":14,"revenue":82890}
+{"_id":10000,"orders":23,"revenue":656280}
+{"_id":50000,"orders":24,"revenue":1732110}
+{"_id":100000,"orders":29,"revenue":4298090}
+{"_id":200000,"orders":30,"revenue":8616940}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;0, "orders"=&gt;14, "revenue"=&gt;82890}
+{"_id"=&gt;10000, "orders"=&gt;23, "revenue"=&gt;656280}
+{"_id"=&gt;50000, "orders"=&gt;24, "revenue"=&gt;1732110}
+{"_id"=&gt;100000, "orders"=&gt;29, "revenue"=&gt;4298090}
+{"_id"=&gt;200000, "orders"=&gt;30, "revenue"=&gt;8616940}</pre>
+        </figure>
+        <p>Заказов от 200 000 — 30 из 120, четверть. Выручки они дают 8 616 940 из 15 386 310, больше половины. На схеме выручка корзин показана полосами в одном масштабе.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выручка по корзинам</span><span>всего 15 386 310</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>0 · 14 заказов</span><i><b style="width:1%"></b></i><span>82 890</span></div>
+              <div><span>10000 · 23 заказа</span><i><b style="width:7.6%"></b></i><span>656 280</span></div>
+              <div><span>50000 · 24 заказа</span><i><b style="width:20.1%"></b></i><span>1 732 110</span></div>
+              <div><span>100000 · 29 заказов</span><i><b style="width:49.9%"></b></i><span>4 298 090</span></div>
+              <div><span>200000 · 30 заказов</span><i><b class="on" style="width:100%"></b></i><span>8 616 940</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Число заказов в корзинах растёт медленно, от 14 до 30, а выручка — в сто раз: в дорогих корзинах каждый заказ крупнее.</p>
+        </div>
+        <p>Все суммы попали в корзины, потому что последняя граница больше самого дорогого заказа. Если граница меньше, часть документов останется без корзины.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Значения вне границ: default</h2>
+        <p>Если на почте нет полки для посылок тяжелее 10 кг, такую посылку некуда положить. Для неё заводят полку «остальное». У <code>$bucket</code> такая полка задаётся параметром <code>default</code>: его значение становится <code>_id</code> корзины для всех документов вне границ.</p>
+        <p>Пример выполняет конвейер с границами до 200 000 дважды: без <code>default</code> и с ним.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>документы вне границ и default</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+no_default = [
+    {<span class="s">"$bucket"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$total"</span>, <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>]}},
+]
+
+with_default = [
+    {<span class="s">"$bucket"</span>: {
+        <span class="s">"groupBy"</span>: <span class="s">"$total"</span>,
+        <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>],
+        <span class="s">"default"</span>: <span class="s">"200000 и больше"</span>,
+    }},
+]
+
+<span class="f">print</span>(<span class="s">"── без default"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(no_default):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── с default"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(with_default):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>документы вне границ и default</span></figcaption>
+<pre>mongocxx::pipeline no_default;
+no_default.<span class="f">bucket</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+    <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>))));
+
+mongocxx::pipeline with_default;
+with_default.<span class="f">bucket</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+    <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>)),
+    <span class="f">kvp</span>(<span class="s">"default"</span>, <span class="s">"200000 и больше"</span>)));
+
+std::cout &lt;&lt; <span class="s">"── без default"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(no_default)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── с default"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(with_default)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>документы вне границ и default</span></figcaption>
+<pre>noDefault := mongo.Pipeline{
+    {{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+        {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+        {Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>}}}}},
+}
+
+withDefault := mongo.Pipeline{
+    {{Key: <span class="s">"$bucket"</span>, Value: bson.D{
+        {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+        {Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>}},
+        {Key: <span class="s">"default"</span>, Value: <span class="s">"200000 и больше"</span>}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── без default"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, noDefault)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── с default"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, withDefault)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>документы вне границ и default</span></figcaption>
+<pre>no_default = [
+  { <span class="s">"$bucket"</span> =&gt; {
+    <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>,
+    <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>],
+  } },
+]
+
+with_default = [
+  { <span class="s">"$bucket"</span> =&gt; {
+    <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>,
+    <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">10000</span>, <span class="n">50000</span>, <span class="n">100000</span>, <span class="n">200000</span>],
+    <span class="s">"default"</span> =&gt; <span class="s">"200000 и больше"</span>,
+  } },
+]
+
+<span class="k">puts</span> <span class="s">"── без default"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(no_default).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── с default"</span>
+orders.<span class="f">aggregate</span>(with_default).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без default
+код 40066
+PlanExecutor error during aggregation :: caused by :: $switch could not find a matching branch for an input, and no default was specified.
+── с default
+{'_id': 0, 'count': 14}
+{'_id': 10000, 'count': 23}
+{'_id': 50000, 'count': 24}
+{'_id': 100000, 'count': 29}
+{'_id': '200000 и больше', 'count': 30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без default
+код 40066
+PlanExecutor error during aggregation :: caused by :: $switch could not find a matching branch for an input, and no default was specified.: server error code 40066: generic server error
+── с default
+{ "_id" : 0, "count" : 14 }
+{ "_id" : 10000, "count" : 23 }
+{ "_id" : 50000, "count" : 24 }
+{ "_id" : 100000, "count" : 29 }
+{ "_id" : "200000 и больше", "count" : 30 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без default
+код 40066
+PlanExecutor error during aggregation :: caused by :: $switch could not find a matching branch for an input, and no default was specified.
+── с default
+{"_id":0,"count":14}
+{"_id":10000,"count":23}
+{"_id":50000,"count":24}
+{"_id":100000,"count":29}
+{"_id":"200000 и больше","count":30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без default
+код 40066
+PlanExecutor error during aggregation :: caused by :: $switch could not find a matching branch for an input, and no default was specified.
+── с default
+{"_id"=&gt;0, "count"=&gt;14}
+{"_id"=&gt;10000, "count"=&gt;23}
+{"_id"=&gt;50000, "count"=&gt;24}
+{"_id"=&gt;100000, "count"=&gt;29}
+{"_id"=&gt;"200000 и больше", "count"=&gt;30}</pre>
+        </figure>
+        <p>Без <code>default</code> сервер завершил запрос ошибкой 40066. Текст ошибки говорит о выражении <code>$switch</code>: стадия <code>$bucket</code> выполняется через него, и для 30 заказов от 200 000 подходящей ветки нет. С <code>default</code> эти 30 заказов попали в корзину «200000 и больше».</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Границы до 200 000</span><span>30 заказов вне границ</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Корзина</th><th>Без default</th><th>С default</th></tr></thead>
+              <tbody>
+                <tr><td>0 … 100000</td><td>14 + 23 + 24 + 29 = 90</td><td>90</td></tr>
+                <tr class="no"><td>суммы от 200 000</td><td class="bad">нет корзины — ошибка 40066</td><td class="ok">«200000 и больше»: 30</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Ошибка возникает при выполнении, на первом документе вне границ. На других данных тот же конвейер может отработать без ошибки.</p>
+        </div>
+        <p>Границы <code>$bucket</code> выбирает человек. Если неизвестно, как распределены значения, границы удобнее поручить серверу.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Стадия $bucketAuto</h2>
+        <p>Чтобы разделить класс на четыре равные команды по росту, учеников выстраивают по росту и делят строй на четыре части. Границы между командами получаются сами: рост последнего ученика каждой части.</p>
+        <p><span class="term">Стадия $bucketAuto</span> делает так же. Параметр <code>buckets</code> — сколько корзин нужно. Сервер упорядочивает документы по <code>groupBy</code> и выбирает границы так, чтобы в корзинах было примерно поровну документов. <code>_id</code> корзины — документ с полями <code>min</code> и <code>max</code>: нижняя граница и верхняя.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$bucketAuto: четыре корзины</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$bucketAuto"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$total"</span>, <span class="s">"buckets"</span>: <span class="n">4</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$bucketAuto: четыре корзины</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">bucket_auto</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>), <span class="f">kvp</span>(<span class="s">"buckets"</span>, <span class="n">4</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$bucketAuto: четыре корзины</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$bucketAuto"</span>, Value: bson.D{
+        {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+        {Key: <span class="s">"buckets"</span>, Value: <span class="n">4</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$bucketAuto: четыре корзины</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$bucketAuto"</span> =&gt; { <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>, <span class="s">"buckets"</span> =&gt; <span class="n">4</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': {'min': 2370, 'max': 38990}, 'count': 30}
+{'_id': {'min': 38990, 'max': 99750}, 'count': 30}
+{'_id': {'min': 99750, 'max': 205150}, 'count': 30}
+{'_id': {'min': 205150, 'max': 457930}, 'count': 30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : { "min" : 2370, "max" : 38990 }, "count" : 30 }
+{ "_id" : { "min" : 38990, "max" : 99750 }, "count" : 30 }
+{ "_id" : { "min" : 99750, "max" : 205150 }, "count" : 30 }
+{ "_id" : { "min" : 205150, "max" : 457930 }, "count" : 30 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":{"min":2370,"max":38990},"count":30}
+{"_id":{"min":38990,"max":99750},"count":30}
+{"_id":{"min":99750,"max":205150},"count":30}
+{"_id":{"min":205150,"max":457930},"count":30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;{"min"=&gt;2370, "max"=&gt;38990}, "count"=&gt;30}
+{"_id"=&gt;{"min"=&gt;38990, "max"=&gt;99750}, "count"=&gt;30}
+{"_id"=&gt;{"min"=&gt;99750, "max"=&gt;205150}, "count"=&gt;30}
+{"_id"=&gt;{"min"=&gt;205150, "max"=&gt;457930}, "count"=&gt;30}</pre>
+        </figure>
+        <p>Четыре корзины по 30 заказов. Граница <code>max</code> каждой корзины равна <code>min</code> следующей и в корзину не входит. Исключение — последняя корзина: её <code>max</code> 457 930 — самая большая сумма, и этот заказ в ней. На схеме — корзины <code>$bucket</code> и <code>$bucketAuto</code> на одной шкале сумм.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Те же 120 заказов, два способа разбить</span><span>шкала от 0 до 500 000</span></div>
+          <div class="scheme__body">
+            <div class="strip"><b>$bucket: границы заданы</b>
+              <div class="strip__bar"><i style="flex-grow:10000">14</i><i style="flex-grow:40000">23</i><i style="flex-grow:50000">24</i><i style="flex-grow:100000">29</i><i style="flex-grow:300000">30</i></div>
+            </div>
+            <div class="strip"><b>$bucketAuto: поровну документов</b>
+              <div class="strip__bar"><i class="gap" style="flex-grow:2370"></i><i style="flex-grow:36620">30</i><i style="flex-grow:60760">30</i><i style="flex-grow:105400">30</i><i style="flex-grow:252780">30</i><i class="gap" style="flex-grow:42070"></i></div>
+            </div>
+          </div>
+          <p class="scheme__note">Ширина участка — диапазон сумм, число — заказов в нём. У <code>$bucket</code> ширина задана, а число разное. У <code>$bucketAuto</code> число одинаковое, а ширина разная: дешёвых заказов много на узком участке, дорогих мало на широком. Пустые участки — суммы до 2370 и от 457 930 до 500 000, заказов там нет.</p>
+        </div>
+        <p>Границы <code>$bucketAuto</code> — точные суммы заказов: 38 990, 99 750, 205 150. В отчёте их удобнее читать круглыми.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Округлённые границы: granularity</h2>
+        <p>Ценники в магазине ставят на полки «до 1 000», «до 2 000», «до 5 000»: такие числа легко запомнить. Параметр <code>granularity</code> стадии <code>$bucketAuto</code> округляет границы до чисел из заданного ряда. Ряд <code>"1-2-5"</code> — это 1, 2, 5, 10, 20, 50 и так далее, каждый раз в десять раз больше.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$bucketAuto с granularity</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$bucketAuto"</span>: {<span class="s">"groupBy"</span>: <span class="s">"$total"</span>, <span class="s">"buckets"</span>: <span class="n">4</span>, <span class="s">"granularity"</span>: <span class="s">"1-2-5"</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$bucketAuto с granularity</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">bucket_auto</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+    <span class="f">kvp</span>(<span class="s">"buckets"</span>, <span class="n">4</span>),
+    <span class="f">kvp</span>(<span class="s">"granularity"</span>, <span class="s">"1-2-5"</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$bucketAuto с granularity</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$bucketAuto"</span>, Value: bson.D{
+        {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+        {Key: <span class="s">"buckets"</span>, Value: <span class="n">4</span>},
+        {Key: <span class="s">"granularity"</span>, Value: <span class="s">"1-2-5"</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$bucketAuto с granularity</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$bucketAuto"</span> =&gt; { <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>, <span class="s">"buckets"</span> =&gt; <span class="n">4</span>, <span class="s">"granularity"</span> =&gt; <span class="s">"1-2-5"</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': {'min': 2000.0, 'max': 50000.0}, 'count': 37}
+{'_id': {'min': 50000.0, 'max': 200000.0}, 'count': 53}
+{'_id': {'min': 200000.0, 'max': 500000.0}, 'count': 30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : { "min" : 2000.0, "max" : 50000.0 }, "count" : 37 }
+{ "_id" : { "min" : 50000.0, "max" : 200000.0 }, "count" : 53 }
+{ "_id" : { "min" : 200000.0, "max" : 500000.0 }, "count" : 30 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":{"min":2000.0,"max":50000.0},"count":37}
+{"_id":{"min":50000.0,"max":200000.0},"count":53}
+{"_id":{"min":200000.0,"max":500000.0},"count":30}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;{"min"=&gt;2000.0, "max"=&gt;50000.0}, "count"=&gt;37}
+{"_id"=&gt;{"min"=&gt;50000.0, "max"=&gt;200000.0}, "count"=&gt;53}
+{"_id"=&gt;{"min"=&gt;200000.0, "max"=&gt;500000.0}, "count"=&gt;30}</pre>
+        </figure>
+        <p>Границы стали круглыми: 2000, 50 000, 200 000, 500 000. Корзин получилось три, хотя запрошено четыре: при округлении границ сервер может вернуть меньше корзин, чем указано в <code>buckets</code>. В корзинах теперь не поровну: 37, 53 и 30 заказов. Границы выведены дробными числами — 2000.0, 50000.0: их вычисляет сервер, в документах таких сумм нет.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>$bucketAuto с granularity "1-2-5"</span><span>запрошено 4, получено 3</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Без granularity</th><th>Заказов</th><th>С granularity "1-2-5"</th><th>Заказов</th></tr></thead>
+              <tbody>
+                <tr><td>2370 — 38 990</td><td>30</td><td rowspan="2">2000 — 50 000</td><td rowspan="2">37</td></tr>
+                <tr><td>38 990 — 99 750</td><td>30</td></tr>
+                <tr><td>99 750 — 205 150</td><td>30</td><td>50 000 — 200 000</td><td>53</td></tr>
+                <tr><td>205 150 — 457 930</td><td>30</td><td>200 000 — 500 000</td><td>30</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Строки слева и справа сопоставлены по диапазонам приблизительно: границы разные, поэтому корзины не совпадают один к одному. <code>buckets</code> — желаемое число корзин; с <code>granularity</code> их может стать меньше.</p>
+        </div>
+        <p>Корзины — один отчёт по коллекции. Сводка для руководителя состоит из нескольких отчётов, и каждый из них — свой конвейер.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Стадия $facet</h2>
+        <p>Кладовщик идёт по складу с тремя бланками: в один записывает товары по категориям, в другой — по поставщикам, в третий — самые дорогие. Склад он обходит один раз, а бланков на выходе три.</p>
+        <p><span class="term">Стадия $facet</span> выполняет несколько конвейеров над одним входным потоком. Параметр — документ: имя поля → список стадий. Каждый список называется <span class="term">веткой</span>. Стадия выпускает один документ; в нём под именем каждой ветки — массив документов, которые вернула эта ветка.</p>
+        <p>Пример строит в одном запросе три отчёта: заказы по статусу, заказы по городам и три самых дорогих заказа.</p>
+        <p data-lang="cpp">У стадии <code>$facet</code> в <code>mongocxx::pipeline</code> есть свой метод — <code>facet</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$facet: три отчёта по заказам</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$facet"</span>: {
+        <span class="s">"by_status"</span>: [{<span class="s">"$sortByCount"</span>: <span class="s">"$status"</span>}],
+        <span class="s">"by_city"</span>: [
+            {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+            {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+        ],
+        <span class="s">"top"</span>: [
+            {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>}},
+            {<span class="s">"$limit"</span>: <span class="n">3</span>},
+            {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>}},
+        ],
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$facet: три отчёта по заказам</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">facet</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"by_status"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sortByCount"</span>, <span class="s">"$status"</span>)))),
+    <span class="f">kvp</span>(<span class="s">"by_city"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$group"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+                <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))))),
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)))))),
+    <span class="f">kvp</span>(<span class="s">"top"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>)))),
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$limit"</span>, <span class="n">3</span>)),
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$project"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$facet: три отчёта по заказам</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$facet"</span>, Value: bson.D{
+        {Key: <span class="s">"by_status"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$status"</span>}}}},
+        {Key: <span class="s">"by_city"</span>, Value: bson.A{
+            bson.D{
+                {Key: <span class="s">"$group"</span>, Value: bson.D{
+                    {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+                    {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+            bson.D{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}}}},
+        {Key: <span class="s">"top"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}}}},
+            bson.D{{Key: <span class="s">"$limit"</span>, Value: <span class="n">3</span>}},
+            bson.D{
+                {Key: <span class="s">"$project"</span>, Value: bson.D{
+                    {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+                    {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+                    {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$facet: три отчёта по заказам</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$facet"</span> =&gt; {
+    <span class="s">"by_status"</span> =&gt; [{ <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$status"</span> }],
+    <span class="s">"by_city"</span> =&gt; [
+      { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+      { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+    ],
+    <span class="s">"top"</span> =&gt; [
+      { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span> } },
+      { <span class="s">"$limit"</span> =&gt; <span class="n">3</span> },
+      { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"total"</span> =&gt; <span class="n">1</span> } },
+    ],
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'by_status': [{'_id': 'доставлен', 'count': 69}, {'_id': 'отменён', 'count': 20}, {'_id': 'собирается', 'count': 18}, {'_id': 'в пути', 'count': 13}], 'by_city': [{'_id': 'Екатеринбург', 'orders': 28}, {'_id': 'Москва', 'orders': 18}, {'_id': 'Новосибирск', 'orders': 35}, {'_id': 'Санкт-Петербург', 'orders': 18}, {'_id': 'Ярославль', 'orders': 21}], 'top': [{'number': '2026-0120', 'total': 457930}, {'number': '2026-0063', 'total': 413410}, {'number': '2026-0115', 'total': 392660}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "by_status" : [ { "_id" : "доставлен", "count" : 69 }, { "_id" : "отменён", "count" : 20 }, { "_id" : "собирается", "count" : 18 }, { "_id" : "в пути", "count" : 13 } ], "by_city" : [ { "_id" : "Екатеринбург", "orders" : 28 }, { "_id" : "Москва", "orders" : 18 }, { "_id" : "Новосибирск", "orders" : 35 }, { "_id" : "Санкт-Петербург", "orders" : 18 }, { "_id" : "Ярославль", "orders" : 21 } ], "top" : [ { "number" : "2026-0120", "total" : 457930 }, { "number" : "2026-0063", "total" : 413410 }, { "number" : "2026-0115", "total" : 392660 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"by_status":[{"_id":"доставлен","count":69},{"_id":"отменён","count":20},{"_id":"собирается","count":18},{"_id":"в пути","count":13}],"by_city":[{"_id":"Екатеринбург","orders":28},{"_id":"Москва","orders":18},{"_id":"Новосибирск","orders":35},{"_id":"Санкт-Петербург","orders":18},{"_id":"Ярославль","orders":21}],"top":[{"number":"2026-0120","total":457930},{"number":"2026-0063","total":413410},{"number":"2026-0115","total":392660}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"by_status"=&gt;[{"_id"=&gt;"доставлен", "count"=&gt;69}, {"_id"=&gt;"отменён", "count"=&gt;20}, {"_id"=&gt;"собирается", "count"=&gt;18}, {"_id"=&gt;"в пути", "count"=&gt;13}], "by_city"=&gt;[{"_id"=&gt;"Екатеринбург", "orders"=&gt;28}, {"_id"=&gt;"Москва", "orders"=&gt;18}, {"_id"=&gt;"Новосибирск", "orders"=&gt;35}, {"_id"=&gt;"Санкт-Петербург", "orders"=&gt;18}, {"_id"=&gt;"Ярославль", "orders"=&gt;21}], "top"=&gt;[{"number"=&gt;"2026-0120", "total"=&gt;457930}, {"number"=&gt;"2026-0063", "total"=&gt;413410}, {"number"=&gt;"2026-0115", "total"=&gt;392660}]}</pre>
+        </figure>
+        <p>Результат — один документ с тремя полями-массивами. В <code>by_status</code> четыре документа, в <code>by_city</code> — пять, в <code>top</code> — три. На схеме — как поток расходится по веткам.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Один поток, три ветки</span><span>120 → 1 документ</span></div>
+          <div class="scheme__body">
+            <div class="fan">
+              <div class="fan__in">120 заказов</div>
+              <div class="fan__branches">
+                <div><b>by_status</b><span>$sortByCount</span><em>120 → 4</em></div>
+                <div><b>by_city</b><span>$group, $sort</span><em>120 → 5</em></div>
+                <div><b>top</b><span>$sort, $limit, $project</span><em>120 → 3</em></div>
+              </div>
+              <div class="fan__out">1 документ: { by_status: [4], by_city: [5], top: [3] }</div>
+            </div>
+          </div>
+          <p class="scheme__note">Каждая ветка получает все 120 заказов. Число в квадратных скобках — длина массива в выходном документе.</p>
+        </div>
+        <p>Каждая ветка начинает со всего входного потока. Что одна ветка отбросила, остаётся доступным для других.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Ветки $facet получают один поток</h2>
+        <p>Пример считает в трёх ветках все заказы, доставленные и отменённые. В двух ветках перед <code>$count</code> стоит свой <code>$match</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>ветки $facet получают один и тот же поток</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$facet"</span>: {
+        <span class="s">"all"</span>: [{<span class="s">"$count"</span>: <span class="s">"orders"</span>}],
+        <span class="s">"delivered"</span>: [{<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}}, {<span class="s">"$count"</span>: <span class="s">"orders"</span>}],
+        <span class="s">"cancelled"</span>: [{<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"отменён"</span>}}, {<span class="s">"$count"</span>: <span class="s">"orders"</span>}],
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>ветки $facet получают один и тот же поток</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">facet</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"all"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$count"</span>, <span class="s">"orders"</span>)))),
+    <span class="f">kvp</span>(<span class="s">"delivered"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)))),
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$count"</span>, <span class="s">"orders"</span>)))),
+    <span class="f">kvp</span>(<span class="s">"cancelled"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"отменён"</span>)))),
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$count"</span>, <span class="s">"orders"</span>))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>ветки $facet получают один и тот же поток</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$facet"</span>, Value: bson.D{
+        {Key: <span class="s">"all"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}}}},
+        {Key: <span class="s">"delivered"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+            bson.D{{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}}}},
+        {Key: <span class="s">"cancelled"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"отменён"</span>}}}},
+            bson.D{{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>ветки $facet получают один и тот же поток</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$facet"</span> =&gt; {
+    <span class="s">"all"</span> =&gt; [{ <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> }],
+    <span class="s">"delivered"</span> =&gt; [
+      { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+      { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+    ],
+    <span class="s">"cancelled"</span> =&gt; [{ <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"отменён"</span> } }, { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> }],
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'all': [{'orders': 120}], 'delivered': [{'orders': 69}], 'cancelled': [{'orders': 20}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "all" : [ { "orders" : 120 } ], "delivered" : [ { "orders" : 69 } ], "cancelled" : [ { "orders" : 20 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"all":[{"orders":120}],"delivered":[{"orders":69}],"cancelled":[{"orders":20}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"all"=&gt;[{"orders"=&gt;120}], "delivered"=&gt;[{"orders"=&gt;69}], "cancelled"=&gt;[{"orders"=&gt;20}]}</pre>
+        </figure>
+        <p>Все заказы — 120, доставленные — 69, отменённые — 20. <code>$match</code> ветки <code>delivered</code> не уменьшил поток ветки <code>cancelled</code>: ветки независимы. Если бы стадии стояли подряд в одном конвейере, после отбора доставленных отменённых бы не осталось.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Три ветки и один конвейер</span><span>те же стадии</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Стадии</th><th>В ветках $facet</th><th>Подряд в одном конвейере</th></tr></thead>
+              <tbody>
+                <tr><td>$count</td><td>120</td><td>120</td></tr>
+                <tr><td>$match доставлен, $count</td><td>69</td><td>поток уже заменён документом $count</td></tr>
+                <tr><td>$match отменён, $count</td><td class="ok">20</td><td class="bad">0 — отменённых среди доставленных нет</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Каждая ветка начинается со входа стадии <code>$facet</code>.</p>
+        </div>
+        <p>Отбор, общий для всех веток, ставят до <code>$facet</code>: тогда он выполняется один раз.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Сводка одним запросом</h2>
+        <p>Руководителю нужна сводка по доставленным заказам: сколько их, как они распределены по сумме и по городам. Пример отбирает доставленные заказы стадией <code>$match</code> и передаёт их в <code>$facet</code> с тремя ветками: <code>$count</code>, <code>$bucket</code> с тремя корзинами и <code>$sortByCount</code> по городу.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$match до $facet: сводка доставленных</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$facet"</span>: {
+        <span class="s">"total"</span>: [{<span class="s">"$count"</span>: <span class="s">"orders"</span>}],
+        <span class="s">"by_price"</span>: [
+            {<span class="s">"$bucket"</span>: {
+                <span class="s">"groupBy"</span>: <span class="s">"$total"</span>,
+                <span class="s">"boundaries"</span>: [<span class="n">0</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+                <span class="s">"output"</span>: {<span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}},
+            }},
+        ],
+        <span class="s">"by_city"</span>: [{<span class="s">"$sortByCount"</span>: <span class="s">"$delivery.city"</span>}],
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$match до $facet: сводка доставленных</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">facet</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$count"</span>, <span class="s">"orders"</span>)))),
+    <span class="f">kvp</span>(<span class="s">"by_price"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$bucket"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"groupBy"</span>, <span class="s">"$total"</span>),
+                <span class="f">kvp</span>(<span class="s">"boundaries"</span>, <span class="f">make_array</span>(<span class="n">0</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>)),
+                <span class="f">kvp</span>(<span class="s">"output"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))))))))),
+    <span class="f">kvp</span>(<span class="s">"by_city"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sortByCount"</span>, <span class="s">"$delivery.city"</span>))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$match до $facet: сводка доставленных</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$facet"</span>, Value: bson.D{
+        {Key: <span class="s">"total"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}}}},
+        {Key: <span class="s">"by_price"</span>, Value: bson.A{
+            bson.D{
+                {Key: <span class="s">"$bucket"</span>, Value: bson.D{
+                    {Key: <span class="s">"groupBy"</span>, Value: <span class="s">"$total"</span>},
+                    {Key: <span class="s">"boundaries"</span>, Value: bson.A{<span class="n">0</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>}},
+                    {Key: <span class="s">"output"</span>, Value: bson.D{
+                        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}}}}}},
+        {Key: <span class="s">"by_city"</span>, Value: bson.A{bson.D{{Key: <span class="s">"$sortByCount"</span>, Value: <span class="s">"$delivery.city"</span>}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$match до $facet: сводка доставленных</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$facet"</span> =&gt; {
+    <span class="s">"total"</span> =&gt; [{ <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> }],
+    <span class="s">"by_price"</span> =&gt; [
+      { <span class="s">"$bucket"</span> =&gt; {
+        <span class="s">"groupBy"</span> =&gt; <span class="s">"$total"</span>,
+        <span class="s">"boundaries"</span> =&gt; [<span class="n">0</span>, <span class="n">50000</span>, <span class="n">200000</span>, <span class="n">500000</span>],
+        <span class="s">"output"</span> =&gt; { <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } },
+      } },
+    ],
+    <span class="s">"by_city"</span> =&gt; [{ <span class="s">"$sortByCount"</span> =&gt; <span class="s">"$delivery.city"</span> }],
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'total': [{'orders': 69}], 'by_price': [{'_id': 0, 'orders': 24}, {'_id': 50000, 'orders': 28}, {'_id': 200000, 'orders': 17}], 'by_city': [{'_id': 'Новосибирск', 'count': 17}, {'_id': 'Екатеринбург', 'count': 16}, {'_id': 'Ярославль', 'count': 14}, {'_id': 'Москва', 'count': 12}, {'_id': 'Санкт-Петербург', 'count': 10}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "total" : [ { "orders" : 69 } ], "by_price" : [ { "_id" : 0, "orders" : 24 }, { "_id" : 50000, "orders" : 28 }, { "_id" : 200000, "orders" : 17 } ], "by_city" : [ { "_id" : "Новосибирск", "count" : 17 }, { "_id" : "Екатеринбург", "count" : 16 }, { "_id" : "Ярославль", "count" : 14 }, { "_id" : "Москва", "count" : 12 }, { "_id" : "Санкт-Петербург", "count" : 10 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"total":[{"orders":69}],"by_price":[{"_id":0,"orders":24},{"_id":50000,"orders":28},{"_id":200000,"orders":17}],"by_city":[{"_id":"Новосибирск","count":17},{"_id":"Екатеринбург","count":16},{"_id":"Ярославль","count":14},{"_id":"Москва","count":12},{"_id":"Санкт-Петербург","count":10}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"total"=&gt;[{"orders"=&gt;69}], "by_price"=&gt;[{"_id"=&gt;0, "orders"=&gt;24}, {"_id"=&gt;50000, "orders"=&gt;28}, {"_id"=&gt;200000, "orders"=&gt;17}], "by_city"=&gt;[{"_id"=&gt;"Новосибирск", "count"=&gt;17}, {"_id"=&gt;"Екатеринбург", "count"=&gt;16}, {"_id"=&gt;"Ярославль", "count"=&gt;14}, {"_id"=&gt;"Москва", "count"=&gt;12}, {"_id"=&gt;"Санкт-Петербург", "count"=&gt;10}]}</pre>
+        </figure>
+        <p>Доставленных заказов 69. По сумме: 24 до 50 000, 28 от 50 000 до 200 000, 17 дороже. По городам первым идёт Новосибирск — 17. В каждой ветке сумма чисел — 69: каждая ветка получила все доставленные заказы.</p>
+        <div class="pipeline">
+          <div class="pipeline__stage"><b>$match</b><span>доставленные</span><em>120 → 69</em></div>
+          <div class="pipeline__stage is-lit"><b>$facet</b><span>total · by_price · by_city</span><em>69 → 1</em></div>
+        </div>
+        <p>Один документ сводки можно отдать в программу отчёта целиком. Стадия <code>$facet</code> собирается и в Compass.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>$facet в Compass</h2>
+        <p>На кадре — конвейер из §6 на вкладке <b>Aggregations</b>: одна стадия <code>$facet</code> с тремя ветками.</p>
+        <figure class="shot">
+          <img src="../../shots/156-orders-facet.png" alt="Compass, вкладка Aggregations коллекции shop.orders: стадия $facet с ветками by_status, by_city и top и выборка из одного документа">
+          <figcaption>Compass · стадия <code>$facet</code> с тремя ветками</figcaption>
+        </figure>
+        <p>Слева — параметр стадии: три ветки <code>by_status</code>, <code>by_city</code> и <code>top</code>, у каждой свой список стадий в квадратных скобках. Справа подпись <b>Sample of 1 document</b>: стадия выпустила один документ. В нём три поля со значениями <b>Array (4)</b>, <b>Array (5)</b> и <b>Array (3)</b> — те же длины массивов, что на схеме §6. Стрелка слева от поля раскрывает массив.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"boundaries": [0, 50000, 10000]</code></td><td>Ошибка 40194: границы должны идти по возрастанию</td><td>Записать границы от меньшей к большей</td></tr>
+              <tr><td>Документ со значением вне всех границ, параметра <code>default</code> нет</td><td>Ошибка 40066: документу не нашлось корзины, и запрос завершается</td><td><code>"default": "200000 и больше"</code> — корзина для всех значений вне границ</td></tr>
+              <tr><td>Ожидание, что верхняя граница входит в корзину</td><td>Корзина с <code>_id</code> 10000 берёт значения от 10000 включительно до 50000, не включая 50000</td><td>Последнюю границу ставить больше наибольшего значения</td></tr>
+              <tr><td><code>{"$bucketAuto": {"groupBy": "$total", "buckets": 4, "granularity": "1-2-5"}}</code></td><td>Корзин получается три: с округлением границ сервер может вернуть меньше корзин, чем запрошено</td><td>Считать <code>buckets</code> желаемым числом корзин и проверять результат</td></tr>
+              <tr><td><code>$facet</code> внутри ветки <code>$facet</code></td><td>Ошибка 40600: вложенный <code>$facet</code> запрещён</td><td>Собрать все ветки в одной стадии <code>$facet</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"boundaries": [0, 50000, 10000]</code></td><td>Ошибка 40194: границы должны идти по возрастанию</td><td>Записать границы от меньшей к большей</td></tr>
+              <tr><td>Документ со значением вне всех границ, параметра <code>default</code> нет</td><td>Ошибка 40066: документу не нашлось корзины, и запрос завершается</td><td><code>"default": "200000 и больше"</code> — корзина для всех значений вне границ</td></tr>
+              <tr><td>Ожидание, что верхняя граница входит в корзину</td><td>Корзина с <code>_id</code> 10000 берёт значения от 10000 включительно до 50000, не включая 50000</td><td>Последнюю границу ставить больше наибольшего значения</td></tr>
+              <tr><td><code>{"$bucketAuto": {"groupBy": "$total", "buckets": 4, "granularity": "1-2-5"}}</code></td><td>Корзин получается три: с округлением границ сервер может вернуть меньше корзин, чем запрошено</td><td>Считать <code>buckets</code> желаемым числом корзин и проверять результат</td></tr>
+              <tr><td><code>$facet</code> внутри ветки <code>$facet</code></td><td>Ошибка 40600: вложенный <code>$facet</code> запрещён</td><td>Собрать все ветки в одной стадии <code>$facet</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"boundaries": [0, 50000, 10000]</code></td><td>Ошибка 40194: границы должны идти по возрастанию</td><td>Записать границы от меньшей к большей</td></tr>
+              <tr><td>Документ со значением вне всех границ, параметра <code>default</code> нет</td><td>Ошибка 40066: документу не нашлось корзины, и запрос завершается</td><td><code>"default": "200000 и больше"</code> — корзина для всех значений вне границ</td></tr>
+              <tr><td>Ожидание, что верхняя граница входит в корзину</td><td>Корзина с <code>_id</code> 10000 берёт значения от 10000 включительно до 50000, не включая 50000</td><td>Последнюю границу ставить больше наибольшего значения</td></tr>
+              <tr><td><code>{"$bucketAuto": {"groupBy": "$total", "buckets": 4, "granularity": "1-2-5"}}</code></td><td>Корзин получается три: с округлением границ сервер может вернуть меньше корзин, чем запрошено</td><td>Считать <code>buckets</code> желаемым числом корзин и проверять результат</td></tr>
+              <tr><td><code>$facet</code> внутри ветки <code>$facet</code></td><td>Ошибка 40600: вложенный <code>$facet</code> запрещён</td><td>Собрать все ветки в одной стадии <code>$facet</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"boundaries": [0, 50000, 10000]</code></td><td>Ошибка 40194: границы должны идти по возрастанию</td><td>Записать границы от меньшей к большей</td></tr>
+              <tr><td>Документ со значением вне всех границ, параметра <code>default</code> нет</td><td>Ошибка 40066: документу не нашлось корзины, и запрос завершается</td><td><code>"default": "200000 и больше"</code> — корзина для всех значений вне границ</td></tr>
+              <tr><td>Ожидание, что верхняя граница входит в корзину</td><td>Корзина с <code>_id</code> 10000 берёт значения от 10000 включительно до 50000, не включая 50000</td><td>Последнюю границу ставить больше наибольшего значения</td></tr>
+              <tr><td><code>{"$bucketAuto": {"groupBy": "$total", "buckets": 4, "granularity": "1-2-5"}}</code></td><td>Корзин получается три: с округлением границ сервер может вернуть меньше корзин, чем запрошено</td><td>Считать <code>buckets</code> желаемым числом корзин и проверять результат</td></tr>
+              <tr><td><code>$facet</code> внутри ветки <code>$facet</code></td><td>Ошибка 40600: вложенный <code>$facet</code> запрещён</td><td>Собрать все ветки в одной стадии <code>$facet</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>В какую корзину <code>$bucket</code> с границами <code>[0, 10000, 50000]</code> попадёт заказ на 10 000?</summary>
+          <p>В корзину с <code>_id</code> 10000: нижняя граница входит в корзину, верхняя — нет.</p>
+        </details>
+        <details>
+          <summary>Что произойдёт, если сумма заказа больше последней границы, а <code>default</code> нет?</summary>
+          <p>Запрос завершится ошибкой 40066. С <code>default</code> такой заказ попадёт в корзину с этим значением <code>_id</code>.</p>
+        </details>
+        <details>
+          <summary>Чем <code>$bucketAuto</code> отличается от <code>$bucket</code>?</summary>
+          <p>Границы выбирает сервер так, чтобы в корзинах было примерно поровну документов. <code>_id</code> корзины — документ <code>{min, max}</code>.</p>
+        </details>
+        <details>
+          <summary>Почему в ветке <code>cancelled</code> получилось 20, хотя в соседней ветке стоит <code>$match</code> по доставленным?</summary>
+          <p>Каждая ветка <code>$facet</code> получает весь входной поток стадии. Стадии одной ветки на другие не действуют.</p>
+        </details>
+        <details>
+          <summary>Сколько документов выпускает стадия <code>$facet</code>?</summary>
+          <p>Один. Результаты веток лежат в нём массивами под именами веток.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch4_8</code>. Данные — товары <code>shop.products</code>: у каждого товара цена <code>price</code> и рейтинг <code>rating</code>. Коллекция товаров открывается из базы <code>shop</code> так же, как заказы.</p>
+        <ol class="steps">
+          <li><b>Ценовые полки</b>Разложить товары по цене стадией <code>$bucket</code> с границами 0, 10 000, 50 000, 200 000 и посчитать товары в каждой корзине.</li>
+          <li><b>Средняя цена</b>Добавить в корзины среднюю цену: аккумулятор <code>$avg</code> в <code>output</code>.</li>
+          <li><b>Три равные группы</b>Разделить товары по цене на три корзины стадией <code>$bucketAuto</code>.</li>
+          <li><b>Сводка</b>Одной стадией <code>$facet</code> получить число товаров по категориям (<code>$sortByCount</code>) и три товара с самым высоким рейтингом; при равном рейтинге — по названию.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>По цене: до 10 000 — 9 товаров, от 10 000 до 50 000 — 7, от 50 000 до 200 000 — 5. Средняя цена в корзинах — около 6 034, 31 204 и 80 872. Самый дорогой товар стоит 114 990, поэтому <code>default</code> не нужен.</p>
+          <p><code>$bucketAuto</code> на три корзины: по 7 товаров, границы 790 — 8990, 8990 — 38 990, 38 990 — 114 990.</p>
+          <p>По категориям: периферия и ноутбуки — по 5, смартфоны и комплектующие — по 4, аксессуары — 3; порядок категорий с равным числом не задан. По рейтингу: Веб-камера Logitech C920 — 4,9, Оперативная память Kingston 16 ГБ — 4,8, Powerbank Anker 20000 мА·ч — 4,6.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Корзины по границам</b>
+            <code>{"$bucket": {"groupBy": "$total", "boundaries": [0, 50000, 200000, 500000]}}</code>
+          </div>
+          <div>
+            <b>Корзина для остальных</b>
+            <code>{"default": "другое"}</code>
+          </div>
+          <div>
+            <b>Корзины автоматически</b>
+            <code>{"$bucketAuto": {"groupBy": "$total", "buckets": 4}}</code>
+          </div>
+          <div>
+            <b>Несколько отчётов</b>
+            <code>{"$facet": {"by_status": [{"$sortByCount": "$status"}], "total": [{"$count": "orders"}]}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Корзины по границам</b>
+            <code>pipeline.bucket(make_document(kvp("groupBy", "$total"), kvp("boundaries", make_array(0, 50000, 200000, 500000))));</code>
+          </div>
+          <div>
+            <b>Корзина для остальных</b>
+            <code>make_document(kvp("default", "другое"))</code>
+          </div>
+          <div>
+            <b>Корзины автоматически</b>
+            <code>pipeline.bucket_auto(make_document(kvp("groupBy", "$total"), kvp("buckets", 4)));</code>
+          </div>
+          <div>
+            <b>Несколько отчётов</b>
+            <code>pipeline.facet(make_document(kvp("by_status", make_array(make_document(kvp("$sortByCount", "$status")))), kvp("total", make_array(make_document(kvp("$count", "orders"))))));</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Корзины по границам</b>
+            <code>bson.D{{Key: "$bucket", Value: bson.D{{Key: "groupBy", Value: "$total"}, {Key: "boundaries", Value: bson.A{0, 50000, 200000, 500000}}}}}</code>
+          </div>
+          <div>
+            <b>Корзина для остальных</b>
+            <code>bson.D{{Key: "default", Value: "другое"}}</code>
+          </div>
+          <div>
+            <b>Корзины автоматически</b>
+            <code>bson.D{{Key: "$bucketAuto", Value: bson.D{{Key: "groupBy", Value: "$total"}, {Key: "buckets", Value: 4}}}}</code>
+          </div>
+          <div>
+            <b>Несколько отчётов</b>
+            <code>bson.D{{Key: "$facet", Value: bson.D{{Key: "by_status", Value: bson.A{bson.D{{Key: "$sortByCount", Value: "$status"}}}}, {Key: "total", Value: bson.A{bson.D{{Key: "$count", Value: "orders"}}}}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Корзины по границам</b>
+            <code>{ "$bucket" =&gt; { "groupBy" =&gt; "$total", "boundaries" =&gt; [0, 50000, 200000, 500000] } }</code>
+          </div>
+          <div>
+            <b>Корзина для остальных</b>
+            <code>{ "default" =&gt; "другое" }</code>
+          </div>
+          <div>
+            <b>Корзины автоматически</b>
+            <code>{ "$bucketAuto" =&gt; { "groupBy" =&gt; "$total", "buckets" =&gt; 4 } }</code>
+          </div>
+          <div>
+            <b>Несколько отчётов</b>
+            <code>{ "$facet" =&gt; { "by_status" =&gt; [{ "$sortByCount" =&gt; "$status" }], "total" =&gt; [{ "$count" =&gt; "orders" }] } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$bucket</code> раскладывает документы по корзинам с заданными границами. Нижняя граница входит в корзину, верхняя — нет. Документы вне границ требуют параметра <code>default</code>, без него запрос завершается ошибкой 40066. Поля корзины задаются аккумуляторами в <code>output</code>.</p>
+        <p><code>$bucketAuto</code> сам выбирает границы так, чтобы в корзинах было примерно поровну документов. <code>granularity</code> округляет границы до чисел из ряда, и корзин может стать меньше запрошенного.</p>
+        <p><code>$facet</code> выполняет несколько веток над одним входным потоком и выпускает один документ с результатами веток. Ветки не влияют друг на друга. Общий отбор ставят до <code>$facet</code>.</p>
+
+        <div class="pager"><a href="../31-push-first-last/index.html">← 4.7 $push, $addToSet, $first, $last</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 4.8 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

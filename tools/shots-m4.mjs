@@ -426,4 +426,20 @@ await withCompass(async page => {
     await settle(1200);
     await shot('155-orders-push', 969);
   }
+  // --- 156 · 4.8 §9: стадия $facet с тремя ветками -------------------------
+  if (need('156-orders-facet')) {
+    await openCollection('shop', 'orders');
+    await openTab('Aggregations');
+    await setPipeline(`[
+  { $facet: {
+      by_status: [{ $sortByCount: "$status" }],
+      by_city: [{ $group: { _id: "$delivery.city", orders: { $sum: 1 } } }, { $sort: { _id: 1 } }],
+      top: [{ $sort: { total: -1 } }, { $limit: 3 }, { $project: { _id: 0, number: 1, total: 1 } }]
+  } }
+]`);
+    await useStages();
+    await page.locator('[data-testid="stage-card"]').first().evaluate(el => el.scrollIntoView({ block: 'start' }));
+    await settle(1200);
+    await shot('156-orders-facet', 969);
+  }
 });

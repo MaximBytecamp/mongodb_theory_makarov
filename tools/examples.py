@@ -58,6 +58,7 @@ CHAPTERS = {
     "4.5": ("29-skip-count", "$skip, $count, $sortByCount и память сортировки", False),
     "4.6": ("30-unwind", "$unwind: массив становится документами", False),
     "4.7": ("31-push-first-last", "$push, $addToSet, $first и $last", False),
+    "4.8": ("32-bucket-facet", "$bucket, $bucketAuto и $facet", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
