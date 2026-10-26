@@ -1223,6 +1223,14 @@ $match до $project: 13</pre>
 <pre>$project до $match: 0
 $match до $project: 13</pre>
         </figure>
+<!--VIS 4.2 place-->
+        <p>На схеме — два конвейера из одних и тех же стадий. В каждом столбце показаны первые пять документов потока. Отличаются поля, которые остались у документа к моменту <code>$match</code>.</p>
+        <div class="vis" data-vis="4.2 place" data-play>
+          <div class="doc__bar"><span>Какие поля видит следующая стадия</span><span>0 и 13 документов</span></div>
+          <div class="vis__body"><b class="cap">$project до $match</b><div class="lane"><div class="lane__col"><b class="cap">после $project · 120</b><ol><li style="--n:0">2026-0001 · 5 980</li><li style="--n:1">2026-0002 · 163 250</li><li style="--n:2">2026-0003 · 86 880</li><li style="--n:3">2026-0004 · 106 210</li><li style="--n:4">2026-0005 · 56 970</li><li class="skip" style="--n:5">… ещё 115</li></ol><em>поля status больше нет</em></div><div class="lane__op">$match<br>status «в пути»</div><div class="lane__col"><b class="cap">выход · 0</b><ol><li class="out" style="--n:0">ни один документ</li></ol><em>status отсутствует у всех</em></div></div><b class="cap" style="margin-top:14px">$match до $project</b><div class="lane"><div class="lane__col"><b class="cap">после $match · 13</b><ol><li class="on" style="--n:0">2026-0023 · в пути · 8 490</li><li class="on" style="--n:1">2026-0025 · в пути · 211 760</li><li class="on" style="--n:2">2026-0027 · в пути · 191 970</li><li class="on" style="--n:3">2026-0028 · в пути · 244 460</li><li class="on" style="--n:4">2026-0033 · в пути · 9 180</li><li class="skip" style="--n:5">… ещё 8</li></ol></div><div class="lane__op">$project<br>number, total</div><div class="lane__col"><b class="cap">выход · 13</b><ol><li class="on" style="--n:0">2026-0023 · 8 490</li><li class="on" style="--n:1">2026-0025 · 211 760</li><li class="on" style="--n:2">2026-0027 · 191 970</li><li class="on" style="--n:3">2026-0028 · 244 460</li><li class="on" style="--n:4">2026-0033 · 9 180</li><li class="skip" style="--n:5">… ещё 8</li></ol></div></div></div>
+          <p class="vis__note"><code>$project</code> оставил только <code>number</code> и <code>total</code>. Следующий <code>$match</code> ищет поле <code>status</code> и не находит его ни у одного документа. Во втором конвейере отбор идёт раньше, пока поле ещё есть.</p>
+        </div>
+<!--/VIS-->
         <p>Первый конвейер не нашёл ни одного заказа, второй нашёл 13. В первом стадия <code>$match</code> получила документы из трёх полей — <code>_id</code>, <code>number</code> и <code>total</code>. Поля <code>status</code> в них нет, и условие <code>{"status": "в пути"}</code> не выполнилось ни разу.</p>
         <div class="scheme">
           <div class="doc__bar"><span>Что получает $match в двух порядках</span><span>заказ 2026-0028</span></div>

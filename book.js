@@ -168,6 +168,22 @@
     caption.appendChild(button);
   });
 
+  /* ---- Схема механизма: «разложить по шагам» ------------------ */
+  document.querySelectorAll('.vis[data-play]').forEach(vis => {
+    const bar = vis.querySelector('.doc__bar');
+    if (!bar) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'vis__play';
+    button.textContent = '▶ по шагам';
+    button.addEventListener('click', () => {
+      vis.classList.remove('is-playing');
+      void vis.offsetWidth;
+      vis.classList.add('is-playing');
+    });
+    bar.appendChild(button);
+  });
+
   /* ---- Подсветка стадии конвейера ------------------------------ */
   document.querySelectorAll('.pipeline').forEach(pipeline => {
     const stages = [...pipeline.querySelectorAll('.pipeline__stage')];

@@ -494,3 +494,61 @@ figure.code[data-lang] figcaption span:first-child { color: var(--leaf-bright); 
 
 /* Плашка-ссылка не шире листа: длинная подпись переносится на узком экране. */
 .repo { max-width: 100%; }
+
+/* ── Механизм стадий: ящики и лента (модуль 4) ───────────────────
+   .vis — схема механизма на настоящих документах стенда.
+   Фишка (.chips i) — один документ; цвет k0…k5 — группа, в которую он попадёт.
+   Ящик (.bin) — группа или корзина, внизу — расчёт аккумулятора.
+   Лента (.lane) — столбцы «вход → стадия → выход», у документа состояние:
+   .out — отброшен, .on — прошёл, .cut — обрезан пределом, .skip — пропущен. */
+.vis { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+.vis__body { padding: 14px 16px 10px; overflow-x: auto; }
+.vis__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+.vis__play { margin-left: auto; padding: 2px 9px; border: 1px solid var(--leaf-pale); background: transparent; color: var(--leaf-pale); cursor: pointer; font: 600 10.5px/1.4 var(--mono); letter-spacing: .4px; }
+.vis__play:hover { background: var(--leaf-pale); color: var(--ink); }
+.vis .doc__bar { gap: 10px; }
+.vis b.cap { display: block; margin: 0 0 6px; font: 600 12.5px/1.4 var(--mono); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips i { display: inline-flex; flex-direction: column; align-items: center; min-width: 46px; padding: 2px 5px; border: 2px solid var(--ink); background: #fff; font: 600 11.5px/1.25 var(--mono); font-style: normal; }
+.chips i small { font: 400 10.5px/1.2 var(--mono); color: var(--ink-soft); }
+.chips i.out { opacity: .35; text-decoration: line-through; }
+.chips i.hl { outline: 3px solid var(--ink); outline-offset: 1px; }
+.k0 { background: #C8EEDA !important; } .k1 { background: #E4DDF5 !important; } .k2 { background: #F7E2D4 !important; }
+.k3 { background: #D6E8F7 !important; } .k4 { background: #F3EBC2 !important; } .k5 { background: #EADBD0 !important; }
+.sorter__arrow { margin: 10px 0; font: 700 12.5px/1.3 var(--mono); color: var(--leaf); }
+.bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.bin { display: flex; flex-direction: column; border: 2px solid var(--ink); border-top-width: 6px; background: var(--paper); }
+.bin__key { padding: 5px 8px; border-bottom: 1px dashed var(--ink-soft); font: 700 12.5px/1.3 var(--mono); }
+.bin .chips { padding: 7px 8px; flex: 1 1 auto; align-content: flex-start; }
+.bin__acc { padding: 6px 8px; border-top: 2px solid var(--ink); background: #fff; font: 400 11.5px/1.45 var(--mono); }
+.bin__acc b { font-weight: 700; color: var(--ink); }
+.bin.drop { opacity: .4; }
+.lane { display: flex; align-items: stretch; gap: 8px; min-width: max-content; }
+.lane__col { min-width: 132px; }
+.lane__col ol { margin: 0; padding: 0; list-style: none; border: 2px solid var(--ink); background: #fff; font: 400 12px/1.5 var(--mono); }
+.lane__col li { padding: 1px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.lane__col li:last-child { border-bottom: 0; }
+.lane__col li.on { background: var(--leaf-pale); font-weight: 700; }
+.lane__col li.out { color: var(--ink-faint); text-decoration: line-through; }
+.lane__col li.cut { color: var(--ink-faint); background: repeating-linear-gradient(45deg, #fff 0 4px, var(--paper) 4px 8px); }
+.lane__col li.skip { color: var(--ink-faint); background: var(--paper); }
+.lane__col em { display: block; margin-top: 4px; font: 400 11.5px/1.3 var(--mono); font-style: normal; color: var(--ink-soft); }
+.lane__op { align-self: center; padding: 6px 8px; border: 2px dashed var(--leaf); color: var(--leaf); font: 700 11.5px/1.35 var(--mono); text-align: center; white-space: nowrap; }
+.grid120 { display: grid; grid-template-columns: repeat(20, 14px); gap: 3px; }
+.grid120 i { width: 14px; height: 14px; border: 1px solid var(--ink-soft); background: #fff; }
+.grid120 i.on { background: var(--leaf-bright); border-color: var(--ink); }
+.grid120 i.out { opacity: .25; }
+.sieves { display: flex; flex-wrap: wrap; gap: 18px; }
+.vis.is-playing .bin .chips i { animation: vis-drop .45s both; animation-delay: calc(var(--n, 0) * 70ms); }
+.vis.is-playing .lane__col li { animation: vis-drop .35s both; animation-delay: calc(var(--n, 0) * 50ms); }
+@keyframes vis-drop { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .vis.is-playing .bin .chips i, .vis.is-playing .lane__col li { animation: none; } }
+.chips.mini i { min-width: 24px; padding: 1px 3px; font-size: 10.5px; }
+.sieve__cap { display: block; margin-bottom: 5px; font: 600 12px/1.35 var(--mono); }
+.sieve__cap em { font-style: normal; color: var(--leaf); }
+@media (max-width: 640px) {
+  .lane { flex-direction: column; min-width: 0; }
+  .lane__col li { white-space: normal; }
+  .lane__op { align-self: flex-start; }
+  .lane__op::before { content: "↓ "; }
+}
