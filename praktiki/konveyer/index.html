@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>Практикум · Аналитик витрины: конвейеры агрегации · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* ── Первый экран ── */
+    .hero h1 { margin: 12px 0 12px; font-family: var(--display); font-size: clamp(36px, 5.4vw, 66px); line-height: 1.03; letter-spacing: -.5px; }
+    .hero .lead { max-width: 780px; }
+    .hero__meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; }
+    .hero__meta span { padding: 7px 11px; border: 2px solid var(--ink); background: #fff; font: 700 11.5px/1 var(--mono); letter-spacing: .3px; }
+    .cta { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border: 3px solid var(--ink); background: var(--ink); color: var(--leaf-bright); box-shadow: 6px 6px 0 var(--leaf); text-decoration: none; font: 700 13px/1.3 var(--mono); letter-spacing: .6px; text-transform: uppercase; }
+    .cta:hover { background: var(--leaf); color: #fff; box-shadow: 6px 6px 0 var(--ink); }
+    .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 4px 0 30px; }
+    .cta-row .note { font-size: 14px; color: var(--ink-soft); }
+
+    /* Окно браузера вокруг кадра рабочего стола. */
+    .window { margin: 8px 0 12px; border: 3px solid var(--ink); background: var(--ink); box-shadow: 10px 10px 0 var(--leaf); }
+    .window__bar { display: flex; align-items: center; gap: 7px; padding: 8px 12px; }
+    .window__bar i { width: 11px; height: 11px; border-radius: 50%; background: #3E5A4E; }
+    .window__bar span { margin-left: 10px; font: 500 12px/1 var(--mono); color: var(--leaf-pale); opacity: .8; }
+    .window img { display: block; width: 100%; height: auto; background: #fff; cursor: zoom-in; }
+    .window figcaption { padding: 9px 14px; background: var(--page); border-top: 2px solid var(--ink); font: 600 11px/1.5 var(--mono); color: var(--ink-soft); }
+
+    /* ── Легенда: действующие лица ── */
+    .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; margin: 20px 0 10px; }
+    .person { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; align-items: start; padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--ink); }
+    .person--you { box-shadow: 5px 5px 0 var(--leaf); border-color: var(--leaf); }
+    .person__ava { display: grid; place-items: center; width: 46px; height: 46px; background: var(--ink); color: var(--leaf-bright); font: 700 16px/1 var(--mono); }
+    .person--you .person__ava { background: var(--leaf); color: #fff; }
+    .person b { display: block; font-size: 15.5px; line-height: 1.3; }
+    .person em { display: block; margin: 2px 0 6px; font: 600 10.5px/1.4 var(--pixel); font-style: normal; letter-spacing: 1px; text-transform: uppercase; color: var(--leaf); }
+    .person p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+
+    /* ── Суть формата ── */
+    .skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; margin: 20px 0; }
+    .skill { padding: 14px 16px; border: 3px solid var(--ink); background: var(--page); }
+    .skill b { display: block; margin-bottom: 4px; font-family: var(--display); font-size: 18px; }
+    .skill span { display: block; margin-bottom: 8px; font: 700 11px/1.4 var(--mono); text-transform: uppercase; color: var(--leaf); }
+    .skill p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+
+    /* ── Неделя по письмам ── */
+    .week { margin: 24px 0; }
+    .day { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 22px 30px; align-items: start; padding: 24px 0; border-top: 2px dashed var(--rule); }
+    .day:first-child { border-top: 0; padding-top: 6px; }
+    .day:nth-child(even) .day__text { order: 2; }
+    .day__tag { display: inline-flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 5px 10px; background: var(--ink); color: var(--leaf-bright); font: 700 11.5px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .4px; }
+    .day h3 { margin: 4px 0 10px; font-size: 24px; line-height: 1.2; }
+    .day p { font-size: 15.5px; line-height: 1.55; }
+    .day ul { font-size: 15px; line-height: 1.5; }
+    .day .shot { margin: 0; }
+
+    .crit td:last-child { white-space: nowrap; font-family: var(--mono); font-weight: 700; }
+    .faq details { margin-bottom: 8px; }
+    .faq summary { font-size: 15.5px; }
+
+    @media (max-width: 900px) {
+      .day { grid-template-columns: minmax(0, 1fr); }
+      .day:nth-child(even) .day__text { order: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 4 · Практикум</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 4 · практикум</p>
+          <p class="running__folio">ПРАКТИКУМ</p>
+        </div>
+
+        <section class="hero">
+          <span class="chapter-num">ПРАКТИКУМ · МОДУЛЬ 4</span>
+          <h1>Аналитик витрины:<br>конвейеры агрегации</h1>
+          <p class="lead">Ролевой практикум по конвейерам агрегации. Студент работает аналитиком отдела, который собирает витрину продаж интернет-магазина: проверяет конвейеры коллег, собирает конвейер из готовых стадий, предсказывает результат без запуска и пишет конвейеры сам. В конце руководитель отдела присылает рецензию.</p>
+          <div class="hero__meta">
+            <span>2 пары</span><span>база shop</span><span>4 письма + рецензия</span><span>главы 4.1–4.10</span><span>работает в браузере</span>
+          </div>
+          <div class="cta-row">
+            <a class="cta" href="stol.html">Открыть рабочий стол →</a>
+            <span class="note">Установка не нужна. Работа сохраняется в этом браузере.</span>
+          </div>
+          <figure class="window">
+            <div class="window__bar"><i></i><i></i><i></i><span>Аналитик витрины · письмо 2</span></div>
+            <img src="img/sborka.webp" width="2880" height="1800" alt="Рабочий стол: заявка закупок, набор стадий, собранный конвейер из четырёх стадий, полосы числа документов после каждой стадии и результат">
+            <figcaption>Рабочий стол: слева письмо руководителя, справа заявка. Конвейер собран из стадий, после выполнения видно, сколько документов вышло из каждой стадии.</figcaption>
+          </figure>
+        </section>
+
+        <nav class="contents">
+          <b>На этой странице</b>
+          <ol>
+            <li><a href="#s1">Легенда</a></li>
+            <li><a href="#s2">Четыре формата заданий</a></li>
+            <li><a href="#s3">Письма по порядку</a></li>
+            <li><a href="#s4">Где выполняются конвейеры</a></li>
+            <li><a href="#s5">Рецензия и оценка</a></li>
+            <li><a href="#s6">Вопросы</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Легенда</h2>
+        <p>Отдел аналитики интернет-магазина собирает витрину продаж: отчёты для руководителей по заказам, товарам и покупателям. Данные лежат в базе <code>shop</code> — той же, на которой построены главы модуля 4. Конвейер для отчёта пишет один аналитик, а проверяет второй.</p>
+        <p>Студент — аналитик отдела. Задания приходят четырьмя письмами от руководителя отдела. Магазин, отдел и его сотрудники придуманы для практикума, данные взяты со стенда курса без изменений.</p>
+        <div class="cast">
+          <div class="person person--you"><span class="person__ava">ВЫ</span><div><b>Аналитик витрины</b><em>роль студента</em><p>Проверяет конвейеры коллег, собирает и пишет конвейеры по заявкам руководителей.</p></div></div>
+          <div class="person"><span class="person__ava">ИБ</span><div><b>Ирина Белова</b><em>руководитель отдела аналитики</em><p>Присылает четыре письма с заданиями и в конце — рецензию с баллами.</p></div></div>
+          <div class="person"><span class="person__ava">ДПГ</span><div><b>Денис, Полина, Глеб</b><em>стажёр и аналитики</em><p>Авторы восьми конвейеров на ревью. В каждой карточке — задача, конвейер и что коллега написал по результату.</p></div></div>
+          <div class="person"><span class="person__ava">РК</span><div><b>Руководители магазина</b><em>пять заявок</em><p>Коммерческий директор, продажи, закупки, финансовый отдел и региональный директор.</p></div></div>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Четыре формата заданий</h2>
+        <p>Главы модуля 4 разбирают стадии по одной. В работе аналитика стадии складываются в конвейер. Ошибки здесь чаще всего в порядке стадий и в том, какие поля доходят до следующей стадии. Каждое письмо отрабатывает этот навык в своём формате.</p>
+        <div class="skills">
+          <div class="skill"><span>письмо 1 · ревью</span><b>Найти ошибку в чужом конвейере</b><p>Восемь конвейеров: шесть с ошибками, разобранными в главах модуля, и два верных. Решение, вид ошибки, комментарий и, по желанию, исправленный конвейер.</p></div>
+          <div class="skill"><span>письмо 2 · сборка</span><b>Собрать конвейер из стадий</b><p>Пять заявок. В наборе стадий есть лишние и почти верные: сортировка в обратную сторону, путь без <code>$</code>, граница <code>$bucket</code> не на месте.</p></div>
+          <div class="skill"><span>письмо 3 · предсказание</span><b>Предсказать результат</b><p>Пять конвейеров по восьми заказам одного покупателя. Из четырёх вариантов выбрать настоящий результат; остальные получаются при типичных ошибках.</p></div>
+          <div class="skill"><span>письмо 4 · свой конвейер</span><b>Написать конвейер</b><p>Пять задач без заготовок, от группировки до <code>$facet</code> с двумя ветками.</p></div>
+        </div>
+        <p>Во время работы баллы не показываются. Кнопка «Выполнить» выводит результат и число документов после каждой стадии, а подходит ли он под задачу, студент определяет сам. Так же устроены практикумы <a href="../analitik/index.html">«Аналитик данных»</a> модуля 2 и <a href="../indeksy/index.html">«Инженер платформы»</a> модуля 3.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Письма по порядку</h2>
+        <p>Следующее письмо открывается кнопкой «Дальше» внизу текущего. Переход не зависит от ответов. До сдачи к любому открытому письму можно вернуться и поменять ответ.</p>
+        <div class="week">
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 1</span>
+              <h3>Ревью конвейеров коллег</h3>
+              <p>Конвейер коллеги можно выполнить и увидеть, где теряются или появляются лишние документы: полосы показывают число документов после каждой стадии.</p>
+              <ul>
+                <li>решение: «Конвейер верный» или «Есть ошибка»;</li>
+                <li>для ошибки — вид из списка восьми вариантов;</li>
+                <li>комментарий и, по желанию, исправленный конвейер.</li>
+              </ul>
+            </div>
+            <figure class="shot"><img src="img/revyu.webp" width="2880" height="1800" alt="Письмо 1: конвейер коллеги, выбранный вид ошибки и исправленный конвейер с полосами числа документов"><figcaption>Письмо 1: исправленный конвейер выполнен, видно число документов после каждой стадии.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 2</span>
+              <h3>Сборка из стадий</h3>
+              <p>Стадия добавляется в конец конвейера нажатием. Стрелки меняют порядок, крестик возвращает стадию в набор. Стадии выполняются сверху вниз, и порядок входит в задание.</p>
+            </div>
+            <figure class="shot"><img src="img/sborka.webp" width="2880" height="1800" alt="Письмо 2: набор стадий, собранный конвейер и результат"><figcaption>Письмо 2: в наборе остались две стадии с ошибкой: путь без $ и группировка по полю без items.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 3</span>
+              <h3>Предсказание без запуска</h3>
+              <p>Слева — восемь заказов покупателя c-007 со всеми нужными полями. Справа — пять конвейеров и по четыре варианта результата. Запускать конвейеры в этом письме нельзя.</p>
+            </div>
+            <figure class="shot"><img src="img/predskazanie.webp" width="2880" height="1800" alt="Письмо 3: конвейеры и варианты результатов, слева карточки заказов"><figcaption>Письмо 3: варианты — результаты настоящего конвейера и трёх ошибочных.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">письмо 4</span>
+              <h3>Свои конвейеры</h3>
+              <p>Конвейер пишется списком стадий в синтаксисе mongosh или вызовом <code>db.orders.aggregate([ … ])</code> целиком. Имена полей результата и порядок документов указаны в задаче.</p>
+            </div>
+            <figure class="shot"><img src="img/svoy.webp" width="2880" height="1800" alt="Письмо 4: задачи с полем для конвейера и результатом выполнения"><figcaption>Письмо 4: конвейер выполнен, результат и полосы стадий под ним.</figcaption></figure>
+          </div>
+          <div class="day">
+            <div class="day__text">
+              <span class="day__tag">после сдачи</span>
+              <h3>Рецензия</h3>
+              <p>Кнопка «Сдать работу» закрывает ответы и открывает рецензию: баллы по письмам, итог и разбор каждого задания с верным конвейером и нужным результатом.</p>
+            </div>
+            <figure class="shot"><img src="img/recenziya.webp" width="2880" height="1800" alt="Рецензия: баллы по четырём письмам и итог"><figcaption>Итоговая карточка рецензии. Под ней — разбор каждого задания.</figcaption></figure>
+          </div>
+        </div>
+
+        <div class="cta-row"><a class="cta" href="stol.html">Открыть рабочий стол →</a></div>
+
+        <h2 id="s4"><span class="sec">§4</span>Где выполняются конвейеры</h2>
+        <p>Конвейеры выполняются в браузере на копии базы <code>shop</code> со стенда курса, поэтому сервер MongoDB для практикума не нужен. Поддерживаются стадии и выражения модуля 4: <code>$match</code>, <code>$sort</code>, <code>$limit</code>, <code>$skip</code>, <code>$project</code>, <code>$addFields</code>, <code>$set</code>, <code>$unset</code>, <code>$group</code> с аккумуляторами, <code>$count</code>, <code>$sortByCount</code>, <code>$unwind</code>, <code>$bucket</code>, <code>$facet</code>, <code>$replaceRoot</code>, <code>$replaceWith</code>, <code>$redact</code>.</p>
+        <p>Каждый конвейер практикума и набор из 67 каверзных конвейеров сверены с сервером MongoDB 7. Совпадают результаты и коды ошибок: 40066 у <code>$bucket</code> без <code>default</code>, 28818 у пути без <code>$</code> в <code>$unwind</code>, 40234 у поля без аккумулятора и другие. Собранный или написанный конвейер можно скопировать и выполнить на своём стенде — результат будет тем же.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Рецензия и оценка</h2>
+        <p>Баллы рецензия считает по шкале ниже. Комментарии к ревью преподаватель читает отдельно.</p>
+        <div class="table-scroll crit">
+          <table>
+            <thead><tr><th>Письмо</th><th>Что считается</th><th>Баллы</th></tr></thead>
+            <tbody>
+              <tr><td>1 · ревью</td><td>Верно оценены конвейеры (решение и вид ошибки): 7–8 — 3 балла, 5–6 — 2, 3–4 — 1</td><td>3</td></tr>
+              <tr><td>2 · сборка</td><td>Результат конвейера совпадает с нужным: 5 заявок — 3 балла, 4 — 2, 2–3 — 1</td><td>3</td></tr>
+              <tr><td>3 · предсказание</td><td>Верно выбран результат: 5 — 2 балла, 3–4 — 1</td><td>2</td></tr>
+              <tr><td>4 · свой конвейер</td><td>Результат совпадает с нужным: 5 — 2 балла, 3–4 — 1</td><td>2</td></tr>
+              <tr><td colspan="2"><b>Итого</b></td><td>10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Результат сравнивается с нужным по документам и их порядку; порядок полей внутри документа на оценку не влияет. Перевод в оценку: 9–10 баллов — «отлично», 7–8 — «хорошо», 5–6 — «удовлетворительно».</p>
+        <p>Что сдать: на вкладке «Рецензия» укажите фамилию, имя и группу и скачайте файл <code>konveyer_&lt;фамилия&gt;.md</code>.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Вопросы</h2>
+        <div class="faq">
+          <details><summary>Можно ли пройти практикум дома?</summary><p>Да. Рабочий стол открывается в любом браузере, сервер не нужен. Работа хранится в том браузере, где её начали.</p></details>
+          <details><summary>Можно ли переделать работу после сдачи?</summary><p>Нет, после сдачи ответы закрыты. Сбросить работу может только преподаватель — кнопкой «Сбросить работу» с паролем.</p></details>
+          <details><summary>Снижается ли оценка за число запусков?</summary><p>Нет. Число запусков записывается в отчёт, на баллы оно не влияет.</p></details>
+          <details><summary>Какие главы повторить перед практикумом?</summary><p>Главы <a href="../../temy/25-konveyer-match/index.html">4.1</a>–<a href="../../temy/34-skript-vitrina/index.html">4.10</a>. Ошибки ревью разобраны в разделах «Частые ошибки» этих глав.</p></details>
+        </div>
+
+        <div class="cta-row" style="margin-top:26px"><a class="cta" href="stol.html">Открыть рабочий стол →</a></div>
+
+        <div class="pager">
+          <a href="../../temy/34-skript-vitrina/index.html">← 4.10 Скрипт целиком: витрина продаж</a>
+          <a href="../../index.html">Содержание →</a>
+        </div>
+        <div class="colophon">
+          <span>Справочник по MongoDB · практикум модуля 4</span>
+          <span class="author-line">© Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+  <script>
+    /* Кадр в окне браузера открывается во весь экран так же, как кадры ниже (окно создаёт book.js). */
+    document.querySelectorAll('.window img').forEach(img => img.addEventListener('click', () => {
+      const box = document.querySelector('.lightbox');
+      if (!box) return;
+      box.querySelector('img').src = img.currentSrc || img.src;
+      box.querySelector('figcaption').textContent = img.closest('figure').querySelector('figcaption').textContent.trim();
+      box.classList.add('is-open');
+      box.setAttribute('aria-hidden', 'false');
+    }));
+  </script>
+</body>
+</html>
