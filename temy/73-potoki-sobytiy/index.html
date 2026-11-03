@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>7.4 Потоки событий: датчики, журналы, телеметрия · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__head { padding: 7px 14px; background: var(--ink); color: var(--leaf-pale); font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: start; }
+    .split > div > b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { align-self: center; font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split .card { margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { display: block; padding-left: 14px; }
+    .on1 { background: #C8EEDA; }
+    .on2 { background: #E4DDF5; }
+    .on3 { background: #FBE3C4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .fit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0; }
+    .fit > div { padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--leaf); }
+    .fit > div.no { box-shadow: 5px 5px 0 var(--clay); }
+    .fit b { display: block; margin-bottom: 6px; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; color: var(--leaf); }
+    .fit > div.no b { color: var(--clay); }
+    .fit p { margin: 0 0 6px; font-size: 15px; }
+    .fit p:last-child { margin: 0; }
+    .colls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .colls > div { border: 2px solid var(--ink); background: var(--paper); }
+    .colls > div > b { display: block; padding: 5px 9px; background: var(--ink); color: var(--leaf-pale); font: 600 12px/1.4 var(--mono); }
+    .colls > div > p { margin: 0; padding: 7px 9px; font: 400 12.5px/1.5 var(--mono); }
+    .colls > div.pd > b { background: var(--clay); color: #fff; }
+    .flowline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; font: 400 12.5px/1.4 var(--mono); }
+    .flowline span { padding: 4px 9px; border: 2px solid var(--ink); background: var(--paper); }
+    .flowline span.hot { background: var(--clay-pale); border-color: var(--clay); font-weight: 700; }
+    .flowline i { font-style: normal; color: var(--leaf); font-weight: 700; }
+    .bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin: 5px 0; font: 400 12.5px/1.4 var(--mono); }
+    .bar > span:nth-child(2) { height: 16px; background: var(--leaf); }
+    .bar.hot > span:nth-child(2) { background: var(--clay); }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; transform: rotate(90deg); } .bar { grid-template-columns: 96px minmax(0, 1fr) 56px; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 7 · Где применять MongoDB</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 7 · где применять MongoDB</p>
+          <p class="running__folio">7.4</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">7.4</span>
+          <h1>Потоки событий: датчики,<br>журналы, телеметрия</h1>
+          <p class="lead">В этой главе разобраны данные, которые приходят непрерывно и не меняются после записи: показания датчиков, события журналов, телеметрия. На примере датчиков температуры в холодильниках с вакцинами показана коллекция временных рядов: как сервер складывает замеры в корзины, как найти выход за допустимую температуру и собрать сводку по часам.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Применение и проектирование</dd></div>
+          <div><dt>Уровень</dt><dd>Средний</dd></div>
+          <div><dt>Связанные темы</dt><dd>Индексы (глава 3.2), $group и аккумуляторы (глава 4.4), журнал logs.events (глава 3.6)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Хранить и разбирать показания оборудования и журналы так, чтобы объём данных не замедлял отчёты</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава работает в песочнице <code>sandbox</code>. Файл данных пересоздаёт коллекции главы, базы курса не меняются.</span></div>
+          <div class="runbox__row"><b>Данные</b><span><a href="dannye/fridge.js" download><code>fridge.js</code></a> — скачайте файл и загрузите: <code>mongosh fridge.js</code>, а на стенде в Docker — <code>docker exec -i course-mongo mongosh &lt; fridge.js</code>.</span></div>
+          <div class="runbox__row"><b>Запуск</b><span>Запросы вводятся в оболочке: <code>mongosh sandbox</code> или <code>docker exec -it course-mongo mongosh sandbox</code>. В Compass то же самое — во вкладке <b>MONGOSH</b> внизу окна, перед запросами выполнить <code>use sandbox</code>.</span></div>
+          <div class="runbox__row"><b>Язык</b><span>Запросы модуля записаны для оболочки <code>mongosh</code>: модуль разбирает, для каких данных и задач подходит MongoDB. На драйверах те же запросы записываются так, как показано в модулях 1–6.</span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Запросы выполняются по порядку. Те, что меняют данные, отмечены в тексте; чтобы пройти главу заново, загрузите файл данных ещё раз.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Данные, которые приходят потоком</a></li>
+            <li><a href="#s2">Холодильники с вакцинами</a></li>
+            <li><a href="#s3">Один замер</a></li>
+            <li><a href="#s4">Как сервер хранит замеры: корзины</a></li>
+            <li><a href="#s5">Выход за допустимую температуру</a></li>
+            <li><a href="#s6">Сводка по часам</a></li>
+            <li><a href="#s7">Сутки по каждому холодильнику</a></li>
+            <li><a href="#s8">Срок хранения и другие потоки</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Данные, которые приходят потоком</h2>
+        <p>У части данных есть общие свойства. Записи приходят непрерывно, каждая привязана ко времени. Записанное не меняется: замер температуры в 14:40 остаётся замером в 14:40. Читают такие данные не по одной записи, а сводками за период: максимум за час, число ошибок за сутки, средняя скорость за смену. И таких записей много — датчик, который отвечает раз в 10 секунд, даёт больше 3 миллионов замеров в год.</p>
+        <p>Это показания датчиков и счётчиков, журналы сервисов (база <code>logs</code> курса, глава 3.6), координаты транспорта, кассовые чеки, клики на сайте. Для них в MongoDB с версии 5.0 есть <span class="term">коллекция временных рядов</span> — коллекция, которая сама складывает замеры одного источника за соседние моменты в общие документы-<span class="term">корзины</span>. Это экономит место и ускоряет сводки по времени.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Холодильники с вакцинами</h2>
+        <p>Вакцины хранят при температуре от 2 до 8 °C. Если холодильник нагрелся выше 8 °C, препарат может потерять действие, а снаружи этого не видно. Поэтому в холодильниках клиники стоят датчики: замер раз в 10 минут, журнал за каждые сутки и сигнал, если температура вышла за предел.</p>
+        <p>В клинике два холодильника: F1 в прививочном кабинете и F2 на складе. Файл данных главы создаёт коллекцию временных рядов <code>fridge_temps</code> и записывает в неё сутки 2 ноября 2026 года: по 144 замера с каждого холодильника. Коллекция временных рядов создаётся явно, с описанием полей. Этот фрагмент файла данных показан для чтения.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>из файла fridge.js: создание коллекции</span></figcaption>
+<pre>db.<span class="f">createCollection</span>(<span class="s">"fridge_temps"</span>, {
+  timeseries: { timeField: <span class="s">"ts"</span>, metaField: <span class="s">"sensor"</span>, granularity: <span class="s">"minutes"</span> }
+})</pre>
+        </figure>
+        <p>Параметр <code>timeField</code> называет поле со временем замера — оно обязательно в каждом документе и должно быть датой. <code>metaField</code> называет поле с описанием источника: по нему сервер решает, какие замеры складывать вместе. <code>granularity</code> подсказывает, как часто приходят замеры: <code>"seconds"</code>, <code>"minutes"</code> или <code>"hours"</code>; от неё зависит, какой промежуток времени помещается в одну корзину.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Один замер</h2>
+        <p>Для запросов коллекция временных рядов выглядит как обычная: документ — один замер.</p>
+        <!--Q 7.4 one-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>один замер датчика</span></figcaption>
+<pre>db.fridge_temps.<span class="f">findOne</span>({ <span class="s">"sensor.fridge"</span>: <span class="s">"F2"</span> }, { _id: <span class="n">0</span> })</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{
+  ts: ISODate('2026-11-02T00:00:00.000Z'),
+  sensor: { fridge: 'F2', room: 'склад' },
+  c: 4.5
+}</pre>
+        </figure>
+        <!--/Q-->
+        <p>В документе три поля: время <code>ts</code>, источник <code>sensor</code> — холодильник и помещение — и температура <code>c</code> в градусах Цельсия. Поле <code>_id</code> исключено проекцией: сервер присваивает его сам, и при каждой загрузке данных оно своё.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Как сервер хранит замеры: корзины</h2>
+        <p>Бумажный журнал температуры ведут в тетради: на каждой странице записаны замеры одного холодильника за сутки, отдельного листка на каждый замер не заводят. Коллекция временных рядов делает то же самое. Следующий запрос сравнивает число замеров с числом документов, в которых сервер их хранит, — в служебной коллекции <code>system.buckets.fridge_temps</code>.</p>
+        <!--Q 7.4 buckets-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>288 замеров хранятся в нескольких корзинах</span></figcaption>
+<pre>db.fridge_temps.<span class="f">countDocuments</span>()
+
+db.<span class="f">getCollection</span>(<span class="s">"system.buckets.fridge_temps"</span>).<span class="f">countDocuments</span>()</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>288
+
+2</pre>
+        </figure>
+        <!--/Q-->
+        <p>288 замеров лежат в двух документах-корзинах: по одной на холодильник, по 144 замера в каждой. Значения внутри корзины хранятся по столбцам — отдельно все времена, отдельно все температуры — и сжимаются: соседние значения почти одинаковы. У каждой корзины есть заголовок <code>control</code>.</p>
+        <!--Q 7.4 bucket-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>что внутри одной корзины</span></figcaption>
+<pre>db.<span class="f">getCollection</span>(<span class="s">"system.buckets.fridge_temps"</span>).<span class="f">aggregate</span>([
+  { $match: { <span class="s">"meta.fridge"</span>: <span class="s">"F1"</span> } },
+  { $sort: { <span class="s">"control.min.ts"</span>: <span class="n">1</span> } },
+  { $limit: <span class="n">1</span> },
+  { $project: {
+      _id: <span class="n">0</span>, meta: <span class="n">1</span>,
+      <span class="s">"control.min.ts"</span>: <span class="n">1</span>, <span class="s">"control.min.c"</span>: <span class="n">1</span>,
+      <span class="s">"control.max.ts"</span>: <span class="n">1</span>, <span class="s">"control.max.c"</span>: <span class="n">1</span>
+  } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  {
+    control: {
+      min: { ts: ISODate('2026-11-02T00:00:00.000Z'), c: 4 },
+      max: { ts: ISODate('2026-11-02T23:50:00.000Z'), c: 5.4 }
+    },
+    meta: { fridge: 'F1', room: 'прививочный' }
+  }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>В <code>control.min</code> и <code>control.max</code> сервер хранит наименьшее и наибольшее значение каждого поля в корзине: время первого и последнего замера, наименьшую и наибольшую температуру. Значения берутся по каждому полю отдельно, поэтому в <code>min</code> время 00:00 и температура 4 °C не обязательно относятся к одному замеру. По заголовку сервер пропускает корзины, которые не подходят под условие: корзина F1 с наибольшей температурой 5,4 °C не может содержать замеров выше 8 °C.</p>
+        <div class="scheme">
+          <div class="scheme__head">288 замеров → 2 корзины</div>
+          <div class="scheme__body">
+            <div class="split">
+              <div>
+                <b>Как видит запрос</b>
+                <div class="card">{ ts: 00:00, sensor: F1, c: 4.0 }</div>
+                <div class="card">{ ts: 00:10, sensor: F1, c: 4.7 }</div>
+                <div class="card">… ещё 286 документов</div>
+              </div>
+              <span class="split__arrow">хранение</span>
+              <div>
+                <b>Как хранит сервер</b>
+                <div class="card on1">корзина F1 · 144 замера<br>control: ts 00:00…23:50, c 4…5.4</div>
+                <div class="card on3">корзина F2 · 144 замера<br>control: ts 00:00…23:50, c 4.5…11</div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Одна корзина хранит замеры одного источника (одно значение <code>metaField</code>) за промежуток времени. Когда промежуток заканчивается или корзина заполняется, сервер начинает новую.</p>
+        </div>
+        <p>Тот же приём можно применить и в обычной коллекции — документ на источник и период со списком замеров внутри. Его называют <span class="term">шаблоном корзин</span>; коллекция временных рядов выполняет его сама, без кода в программе.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Выход за допустимую температуру</h2>
+        <p>Запрос находит замеры холодильника F2 выше 8 °C.</p>
+        <!--Q 7.4 excursion-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>выход за 8 °C: замеры холодильника F2</span></figcaption>
+<pre>db.fridge_temps.<span class="f">find</span>(
+  { <span class="s">"sensor.fridge"</span>: <span class="s">"F2"</span>, c: { $gt: <span class="n">8</span> } },
+  { _id: <span class="n">0</span>, ts: <span class="n">1</span>, c: <span class="n">1</span> }
+).<span class="f">sort</span>({ ts: <span class="n">1</span> })</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  { ts: ISODate('2026-11-02T14:40:00.000Z'), c: 8.5 },
+  { ts: ISODate('2026-11-02T14:50:00.000Z'), c: 9.1 },
+  { ts: ISODate('2026-11-02T15:00:00.000Z'), c: 9.8 },
+  { ts: ISODate('2026-11-02T15:10:00.000Z'), c: 10.4 },
+  { ts: ISODate('2026-11-02T15:20:00.000Z'), c: 11 }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Пять замеров подряд, с 14:40 до 15:20, температура росла до 11 °C — так выглядит открытая дверь при разгрузке. Продолжительность выхода — не меньше 40 минут между первым и последним замером. По этим данным заведующая решает, какие вакцины из F2 проверить или списать, а по времени — с какой поставкой это связано.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Сводка по часам</h2>
+        <p>Журнал для проверяющих ведут по часам: наименьшая и наибольшая температура за каждый час. Выражение <code>$dateTrunc</code> округляет время вниз до начала часа: 14:40 и 14:50 становятся 14:00. По этому значению и холодильнику <code>$group</code> собирает часы.</p>
+        <!--Q 7.4 hourly-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>суточная сводка по часам: только часы с превышением</span></figcaption>
+<pre>db.fridge_temps.<span class="f">aggregate</span>([
+  { $group: {
+      _id: { fridge: <span class="s">"$sensor.fridge"</span>, hour: { $dateTrunc: { date: <span class="s">"$ts"</span>, unit: <span class="s">"hour"</span> } } },
+      min: { $min: <span class="s">"$c"</span> }, max: { $max: <span class="s">"$c"</span> }, n: { $sum: <span class="n">1</span> }
+  } },
+  { $match: { max: { $gt: <span class="n">8</span> } } },
+  { $sort: { <span class="s">"_id.hour"</span>: <span class="n">1</span> } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  {
+    _id: { fridge: 'F2', hour: ISODate('2026-11-02T14:00:00.000Z') },
+    min: 6,
+    max: 9.1,
+    n: 6
+  },
+  {
+    _id: { fridge: 'F2', hour: ISODate('2026-11-02T15:00:00.000Z') },
+    min: 4.7,
+    max: 11,
+    n: 6
+  }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Стадия <code>$match</code> после группировки оставила часы, где максимум выше 8 °C: 14:00 и 15:00 у холодильника F2, по шесть замеров в каждом. Остальные 46 часов обоих холодильников в норме. Сводка за год — 8 760 строк на холодильник вместо 52 560 замеров.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Сутки по каждому холодильнику</h2>
+        <p>Итог суток для руководителя — одна строка на холодильник: число замеров, наименьшая, наибольшая и средняя температура и число замеров выше 8 °C.</p>
+        <!--Q 7.4 daily-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>сутки по каждому холодильнику</span></figcaption>
+<pre>db.fridge_temps.<span class="f">aggregate</span>([
+  { $group: {
+      _id: <span class="s">"$sensor.fridge"</span>,
+      readings: { $sum: <span class="n">1</span> },
+      min: { $min: <span class="s">"$c"</span> }, max: { $max: <span class="s">"$c"</span> },
+      avg: { $avg: <span class="s">"$c"</span> },
+      over8: { $sum: { $cond: [{ $gt: [<span class="s">"$c"</span>, <span class="n">8</span>] }, <span class="n">1</span>, <span class="n">0</span>] } }
+  } },
+  { $set: { avg: { $round: [<span class="s">"$avg"</span>, <span class="n">2</span>] } } },
+  { $sort: { _id: <span class="n">1</span> } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  { _id: 'F1', readings: 144, min: 4, max: 5.4, avg: 4.71, over8: 0 },
+  { _id: 'F2', readings: 144, min: 4.5, max: 11, avg: 5.22, over8: 5 }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>У F1 144 замера от 4 до 5,4 °C. У F2 тоже 144, но наибольшая температура 11 °C и пять замеров выше предела. Средняя у F2 — 5,22 °C, в пределах нормы: по средней выход не виден, поэтому в сводке рядом с ней всегда стоят наибольшее значение и число замеров за пределом. Счёт ведёт <code>$sum</code> выражения <code>$cond</code>: 1 за замер выше 8 °C, 0 за остальные.</p>
+        <div class="scheme">
+          <div class="scheme__head">Наибольшая температура за сутки, °C</div>
+          <div class="scheme__body">
+            <div class="bar"><span>F1 прививочный</span><span style="width:49%"></span><span>5.4</span></div>
+            <div class="bar hot"><span>F2 склад</span><span style="width:100%"></span><span>11</span></div>
+            <div class="bar"><span>предел</span><span style="width:73%;background:var(--ink-faint)"></span><span>8</span></div>
+          </div>
+          <p class="scheme__note">Длина полосы — наибольшая температура из вывода запроса; серая полоса — предел хранения вакцин.</p>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Срок хранения и другие потоки</h2>
+        <p>Сырые замеры нужны недолго: после проверки за месяц достаточно сводки по часам. У коллекции временных рядов есть параметр <code>expireAfterSeconds</code>: сервер сам удаляет корзины старше заданного срока. Сводки перед этим сохраняют в обычную коллекцию стадией <code>$merge</code> (глава 6.5). Срок задают по требованиям к журналам — например, сколько лет хранить журнал температуры по правилам для лекарств.</p>
+        <p>Тот же тип данных встречается во многих отраслях; меняются только источник и предел.</p>
+        <div class="table-scroll">
+          <table class="mt">
+            <thead><tr><th>Область</th><th>Источник (metaField)</th><th>Что ищут в потоке</th><th>Что получает бизнес</th></tr></thead>
+            <tbody>
+              <tr><td>Аптеки, клиники, склады продуктов</td><td>Холодильник, камера</td><td>Выход за диапазон температуры</td><td>Меньше списаний, журнал для проверок</td></tr>
+              <tr><td>Логистика</td><td>Машина, трекер</td><td>Простои, отклонение от маршрута</td><td>Меньше пробега и опозданий</td></tr>
+              <tr><td>Производство</td><td>Станок, датчик вибрации</td><td>Рост вибрации и температуры подшипника</td><td>Ремонт до поломки, меньше простоя линии</td></tr>
+              <tr><td>Энергетика, ЖКХ</td><td>Счётчик</td><td>Скачки расхода, утечки</td><td>Счета по факту, поиск потерь</td></tr>
+              <tr><td>Веб-сервисы</td><td>Сервис, маршрут</td><td>Рост ошибок и времени ответа</td><td>Сбой замечен до жалоб клиентов</td></tr>
+              <tr><td>Розница</td><td>Касса, страница сайта</td><td>Часы пик, брошенные корзины</td><td>Смены кассиров под нагрузку, акции</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что сделали</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Один документ на датчик, замеры — в массив через <code>$push</code></td><td>Массив растёт без предела, через месяцы документ упирается в 16 МБ</td><td>Коллекция временных рядов или корзины по периоду: документ на датчик и сутки</td></tr>
+              <tr><td>Время строкой: <code>ts: "02.11.2026 14:40"</code></td><td>Сортировка и диапазоны работают по буквам, <code>$dateTrunc</code> не применить</td><td>Время — датой: <code>new Date(...)</code> или <code>ISODate(...)</code></td></tr>
+              <tr><td>В <code>metaField</code> меняющееся значение, например температура</td><td>Каждый замер попадает в свою корзину, сжатия нет</td><td>В <code>metaField</code> — только описание источника, которое не меняется</td></tr>
+              <tr><td>Панель руководителя читает все сырые замеры</td><td>Чем больше история, тем медленнее экран</td><td>Сводки по часам и суткам, сохранённые через <code>$merge</code></td></tr>
+              <tr><td>Оценка по средней температуре</td><td>Средняя 5,22 °C при выходе до 11 °C</td><td>Рядом со средней — наибольшее значение и число замеров за пределом</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Какие три свойства данных говорят в пользу коллекции временных рядов?</summary>
+          <p>Каждая запись привязана ко времени, после записи не меняется, а читают данные сводками за период.</p>
+        </details>
+        <details>
+          <summary>Почему 288 замеров хранятся в двух документах?</summary>
+          <p>Сервер складывает замеры с одинаковым значением <code>metaField</code> за соседний промежуток времени в одну корзину. Холодильников два, все замеры за одни сутки — получилось две корзины по 144 замера.</p>
+        </details>
+        <details>
+          <summary>Как заголовок корзины <code>control</code> ускоряет поиск замеров выше 8 °C?</summary>
+          <p>В нём наибольшая температура корзины. Если она не выше 8 °C, как у F1 (5,4 °C), сервер пропускает корзину без чтения замеров.</p>
+        </details>
+        <details>
+          <summary>Что делает <code>$dateTrunc</code> с параметром <code>unit: "hour"</code>?</summary>
+          <p>Округляет время вниз до начала часа: замеры 14:00–14:50 получают значение 14:00 и попадают в одну группу.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div><b>Создать</b><code>createCollection("x", { timeseries: { timeField: "ts", metaField: "sensor", granularity: "minutes" } })</code></div>
+          <div><b>Удалять старое</b><code>{ timeseries: {…}, expireAfterSeconds: 2592000 }</code></div>
+          <div><b>По часам</b><code>{ $dateTrunc: { date: "$ts", unit: "hour" } }</code></div>
+          <div><b>Счёт по условию</b><code>{ $sum: { $cond: [ { $gt: ["$c", 8] }, 1, 0 ] } }</code></div>
+          <div><b>Корзины</b><code>db.getCollection("system.buckets.x")</code></div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Показания датчиков, журналы, координаты и клики приходят потоком, привязаны ко времени, не меняются и читаются сводками. Коллекция временных рядов хранит замеры одного источника в общих корзинах с заголовком <code>control</code>, по которому сервер пропускает неподходящие корзины.</p>
+        <p>На датчиках холодильников выход за 8 °C найден запросом по температуре, сводка по часам собрана через <code>$dateTrunc</code> и <code>$group</code>, суточный итог показал, что средняя температура выход за предел скрывает. Старые замеры сервер удаляет по сроку <code>expireAfterSeconds</code>, а сводки сохраняют отдельно.</p>
+
+        <div class="pager"><a href="../72-katalogi-i-ankety/index.html">← 7.3 Каталоги и анкеты с разными полями</a><a href="../74-biznes-processy/index.html">7.5 Бизнес-процессы: заявки, статусы, история →</a></div>
+
+        <div class="colophon">
+          <span>Глава 7.4 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

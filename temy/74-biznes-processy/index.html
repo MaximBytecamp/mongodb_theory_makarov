@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>7.5 Бизнес-процессы: заявки, статусы, история · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__head { padding: 7px 14px; background: var(--ink); color: var(--leaf-pale); font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: start; }
+    .split > div > b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { align-self: center; font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split .card { margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { display: block; padding-left: 14px; }
+    .on1 { background: #C8EEDA; }
+    .on2 { background: #E4DDF5; }
+    .on3 { background: #FBE3C4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .fit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0; }
+    .fit > div { padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--leaf); }
+    .fit > div.no { box-shadow: 5px 5px 0 var(--clay); }
+    .fit b { display: block; margin-bottom: 6px; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; color: var(--leaf); }
+    .fit > div.no b { color: var(--clay); }
+    .fit p { margin: 0 0 6px; font-size: 15px; }
+    .fit p:last-child { margin: 0; }
+    .colls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .colls > div { border: 2px solid var(--ink); background: var(--paper); }
+    .colls > div > b { display: block; padding: 5px 9px; background: var(--ink); color: var(--leaf-pale); font: 600 12px/1.4 var(--mono); }
+    .colls > div > p { margin: 0; padding: 7px 9px; font: 400 12.5px/1.5 var(--mono); }
+    .colls > div.pd > b { background: var(--clay); color: #fff; }
+    .flowline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; font: 400 12.5px/1.4 var(--mono); }
+    .flowline span { padding: 4px 9px; border: 2px solid var(--ink); background: var(--paper); }
+    .flowline span.hot { background: var(--clay-pale); border-color: var(--clay); font-weight: 700; }
+    .flowline i { font-style: normal; color: var(--leaf); font-weight: 700; }
+    .bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin: 5px 0; font: 400 12.5px/1.4 var(--mono); }
+    .bar > span:nth-child(2) { height: 16px; background: var(--leaf); }
+    .bar.hot > span:nth-child(2) { background: var(--clay); }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; transform: rotate(90deg); } .bar { grid-template-columns: 96px minmax(0, 1fr) 56px; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 7 · Где применять MongoDB</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 7 · где применять MongoDB</p>
+          <p class="running__folio">7.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">7.5</span>
+          <h1>Бизнес-процессы:<br>заявки, статусы, история</h1>
+          <p class="lead">В этой главе разобрана заявка, которая проходит этапы: принята, диагностика, ожидание запчасти, ремонт, выдача. На примере сервисного центра показано, как хранить заявку вместе с историей этапов, как найти застрявшие заявки и посчитать, на каком этапе процесс теряет больше всего времени. В конце — другие процессы, которые устроены так же.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Применение и проектирование</dd></div>
+          <div><dt>Уровень</dt><dd>Средний</dd></div>
+          <div><dt>Связанные темы</dt><dd>Обновление (глава 1.7), $group (глава 4.4), $unwind (глава 4.6), $map (глава 5.3), обновление конвейером</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Видеть процесс компании в данных: где очередь, где задержка, что изменить в первую очередь</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава работает в песочнице <code>sandbox</code>. Файл данных пересоздаёт коллекции главы, базы курса не меняются.</span></div>
+          <div class="runbox__row"><b>Данные</b><span><a href="dannye/repair.js" download><code>repair.js</code></a> — скачайте файл и загрузите: <code>mongosh repair.js</code>, а на стенде в Docker — <code>docker exec -i course-mongo mongosh &lt; repair.js</code>.</span></div>
+          <div class="runbox__row"><b>Запуск</b><span>Запросы вводятся в оболочке: <code>mongosh sandbox</code> или <code>docker exec -it course-mongo mongosh sandbox</code>. В Compass то же самое — во вкладке <b>MONGOSH</b> внизу окна, перед запросами выполнить <code>use sandbox</code>.</span></div>
+          <div class="runbox__row"><b>Язык</b><span>Запросы модуля записаны для оболочки <code>mongosh</code>: модуль разбирает, для каких данных и задач подходит MongoDB. На драйверах те же запросы записываются так, как показано в модулях 1–6.</span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Запросы выполняются по порядку. Те, что меняют данные, отмечены в тексте; чтобы пройти главу заново, загрузите файл данных ещё раз.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Процесс как последовательность этапов</a></li>
+            <li><a href="#s2">Заявка с историей этапов</a></li>
+            <li><a href="#s3">Доска заявок</a></li>
+            <li><a href="#s4">Застрявшие заявки</a></li>
+            <li><a href="#s5">Где процесс теряет время</a></li>
+            <li><a href="#s6">Переход на следующий этап</a></li>
+            <li><a href="#s7">Другие процессы с той же схемой</a></li>
+            <li><a href="#s8">Частые ошибки</a></li>
+            <li><a href="#s9">Проверьте себя</a></li>
+            <li><a href="#s10">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Процесс как последовательность этапов</h2>
+        <p>Бизнес-процесс — повторяющаяся работа, которая проходит одни и те же этапы: заявка принята, проверена, выполнена, закрыта. На бумаге процесс ведут обходным листом: лист идёт с заявкой из отдела в отдел, и каждый отдел ставит дату и подпись. По листу видно, где заявка сейчас и сколько она пролежала в каждом отделе.</p>
+        <p>В документной базе обходной лист — массив <code>history</code> внутри документа заявки. Текущий этап записан в поле <code>status</code>, а каждый пройденный — элементом массива с временем начала <code>from</code> и окончания <code>to</code>. Этапов у заявки немного, они читаются вместе с заявкой и меняются вместе с ней, поэтому массив ограничен и подходит для вложения (глава 7.1, §2).</p>
+        <p>Пример главы — сервисный центр, который ремонтирует ноутбуки, телефоны и бытовую технику. Этапы: <code>принят</code> → <code>диагностика</code> → <code>ждёт запчасть</code> → <code>ремонт</code> → <code>выдан</code>; этап ожидания запчасти бывает не у всех заявок. Файл данных главы создаёт коллекцию <code>repair_requests</code> с шестью заявками и индексом по статусу. Текущий момент в запросах главы — 3 ноября 2026 года, 09:00.</p>
+        <div class="scheme">
+          <div class="scheme__head">Этапы заявки</div>
+          <div class="scheme__body">
+            <div class="flowline"><span>принят</span><i>→</i><span>диагностика</span><i>→</i><span class="hot">ждёт запчасть</span><i>→</i><span>ремонт</span><i>→</i><span>выдан</span></div>
+          </div>
+          <p class="scheme__note">Выделен этап, который в §5 окажется самым долгим.</p>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Заявка с историей этапов</h2>
+        <!--Q 7.5 one-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>заявка с историей этапов</span></figcaption>
+<pre>db.repair_requests.<span class="f">findOne</span>({ _id: <span class="s">"r-301"</span> })</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{
+  _id: 'r-301',
+  device: { kind: 'ноутбук', model: 'Lenovo ThinkPad E14', serial: 'PF3K2X' },
+  complaint: 'не включается',
+  status: 'выдан',
+  history: [
+    {
+      status: 'принят',
+      from: ISODate('2026-10-20T10:00:00.000Z'),
+      to: ISODate('2026-10-20T15:00:00.000Z')
+    },
+    {
+      status: 'диагностика',
+      from: ISODate('2026-10-20T15:00:00.000Z'),
+      to: ISODate('2026-10-21T12:00:00.000Z')
+    },
+    {
+      status: 'ждёт запчасть',
+      from: ISODate('2026-10-21T12:00:00.000Z'),
+      to: ISODate('2026-10-27T11:00:00.000Z')
+    },
+    {
+      status: 'ремонт',
+      from: ISODate('2026-10-27T11:00:00.000Z'),
+      to: ISODate('2026-10-27T17:00:00.000Z')
+    },
+    { status: 'выдан', from: ISODate('2026-10-28T10:00:00.000Z') }
+  ]
+}</pre>
+        </figure>
+        <!--/Q-->
+        <p>Заявка <code>r-301</code> — ноутбук, который не включается, — прошла все пять этапов. Последний этап <code>выдан</code> не имеет поля <code>to</code>: он не заканчивается. У незакрытых заявок без <code>to</code> остаётся текущий этап. Блок <code>device</code> зависит от вида техники: у ноутбука серийный номер <code>serial</code>, у телефона — <code>imei</code>, у стиральной машины — адрес выезда мастера <code>visit_address</code>. Это тот же приём, что с блоками видов животных в главе 7.2.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Доска заявок</h2>
+        <p>Начальник смены начинает день с доски: сколько заявок на каждом этапе. Запрос считает заявки по полю <code>status</code>.</p>
+        <!--Q 7.5 board-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>доска заявок: сколько в каждом статусе</span></figcaption>
+<pre>db.repair_requests.<span class="f">aggregate</span>([
+  { $group: { _id: <span class="s">"$status"</span>, count: { $sum: <span class="n">1</span> } } },
+  { $sort: { count: <span class="n">-1</span>, _id: <span class="n">1</span> } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  { _id: 'выдан', count: 2 },
+  { _id: 'ждёт запчасть', count: 2 },
+  { _id: 'диагностика', count: 1 },
+  { _id: 'ремонт', count: 1 }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Две заявки выданы, две ждут запчасть, по одной — на диагностике и в ремонте. В программе это колонки доски, в которых карточки заявок переходят слева направо. Индекс по <code>status</code>, созданный файлом данных, нужен, когда заявок десятки тысяч, а открытых среди них — сотни: запрос по статусу читает только их.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Застрявшие заявки</h2>
+        <p>Доска показывает, сколько заявок на этапе, но не сколько они там стоят. Заявка, которая неделю ждёт запчасть, — недовольный клиент. Запрос находит открытые заявки, у которых текущий этап длится больше трёх суток.</p>
+        <!--Q 7.5 stuck-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>заявки, которые стоят на текущем этапе дольше 3 суток</span></figcaption>
+<pre>db.repair_requests.<span class="f">aggregate</span>([
+  { $match: { status: { $ne: <span class="s">"выдан"</span> } } },
+  { $set: { current: { $last: <span class="s">"$history"</span> } } },
+  { $set: { days: { $dateDiff: {
+      startDate: <span class="s">"$current.from"</span>, endDate: <span class="f">ISODate</span>(<span class="s">"2026-11-03T09:00:00Z"</span>), unit: <span class="s">"day"</span>
+  } } } },
+  { $match: { days: { $gt: <span class="n">3</span> } } },
+  { $project: { _id: <span class="n">1</span>, model: <span class="s">"$device.model"</span>, status: <span class="n">1</span>, since: <span class="s">"$current.from"</span>, days: <span class="n">1</span> } },
+  { $sort: { days: <span class="n">-1</span> } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  {
+    _id: 'r-303',
+    status: 'ждёт запчасть',
+    days: Long('8'),
+    model: 'DeLonghi ECAM 22.110',
+    since: ISODate('2026-10-26T10:00:00.000Z')
+  },
+  {
+    _id: 'r-305',
+    status: 'ждёт запчасть',
+    days: Long('6'),
+    model: 'Apple iPhone 13',
+    since: ISODate('2026-10-28T11:00:00.000Z')
+  }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Выражение <code>$last</code> берёт последний элемент <code>history</code> — текущий этап. <code>$dateDiff</code> считает, сколько суток прошло от его начала до текущего момента; результат — целое число типа <code>Long</code>, поэтому в выводе <code>Long('8')</code>. Единица <code>day</code> считает переходы через полночь, а не полные сутки: от 26 октября 10:00 до 3 ноября 09:00 — восемь переходов.</p>
+        <p>Кофемашина ждёт запчасть восемь суток, телефон — шесть. Ноутбук <code>r-304</code> в ремонте с 31 октября — трое суток, он не попал в список: условие требует больше трёх. Этот список менеджер получает каждое утро и звонит поставщику и клиентам.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Где процесс теряет время</h2>
+        <p>Застрявшие заявки — отдельные случаи. Чтобы понять, что менять в процессе, нужна средняя длительность каждого этапа по всем заявкам. Конвейер разворачивает историю стадией <code>$unwind</code>: каждый этап становится документом. Для текущих этапов, у которых нет <code>to</code>, конец берётся равным текущему моменту через <code>$ifNull</code>. Этап <code>выдан</code> исключён: он не заканчивается.</p>
+        <!--Q 7.5 bottleneck-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>где теряется время: средняя длительность этапа в часах</span></figcaption>
+<pre>db.repair_requests.<span class="f">aggregate</span>([
+  { $unwind: <span class="s">"$history"</span> },
+  { $match: { <span class="s">"history.status"</span>: { $ne: <span class="s">"выдан"</span> } } },
+  { $group: {
+      _id: <span class="s">"$history.status"</span>,
+      steps: { $sum: <span class="n">1</span> },
+      avg_hours: { $avg: { $dateDiff: {
+        startDate: <span class="s">"$history.from"</span>,
+        endDate: { $ifNull: [<span class="s">"$history.to"</span>, <span class="f">ISODate</span>(<span class="s">"2026-11-03T09:00:00Z"</span>)] },
+        unit: <span class="s">"hour"</span>
+      } } }
+  } },
+  { $set: { avg_hours: { $round: [<span class="s">"$avg_hours"</span>, <span class="n">1</span>] } } },
+  { $sort: { avg_hours: <span class="n">-1</span> } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  { _id: 'ждёт запчасть', steps: 3, avg_hours: 158.7 },
+  { _id: 'ремонт', steps: 3, avg_hours: 25 },
+  { _id: 'диагностика', steps: 6, avg_hours: 23.2 },
+  { _id: 'принят', steps: 6, avg_hours: 2.5 }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Ожидание запчасти в среднем длится 158,7 часа — больше шести с половиной суток. Это втрое больше, чем все остальные этапы вместе: 25 + 23,2 + 2,5 = 50,7 часа. Мастера чинят быстро, а заявка стоит на складе в ожидании детали.</p>
+        <div class="scheme">
+          <div class="scheme__head">Средняя длительность этапа, часов</div>
+          <div class="scheme__body">
+            <div class="bar hot"><span>ждёт запчасть</span><span style="width:100%"></span><span>158.7</span></div>
+            <div class="bar"><span>ремонт</span><span style="width:16%"></span><span>25</span></div>
+            <div class="bar"><span>диагностика</span><span style="width:15%"></span><span>23.2</span></div>
+            <div class="bar"><span>принят</span><span style="width:2%"></span><span>2.5</span></div>
+          </div>
+          <p class="scheme__note">Длина полосы — среднее из вывода запроса. Узкое место процесса — этап, который дольше остальных.</p>
+        </div>
+        <p>Такой этап называют <span class="term">узким местом</span> процесса. Решения для него бизнесовые, а не технические: держать на складе запчасти, которые чаще заказывают, сменить поставщика, предупреждать клиента о сроке при приёме. Запрос после изменений покажет, сократилось ли ожидание. Если добавить в группировку <code>device.kind</code>, видно, какие виды техники ждут запчасти дольше и под какие держать склад.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Переход на следующий этап</h2>
+        <p>Переход заявки на новый этап меняет три вещи: статус, время окончания текущего этапа и новый элемент истории. Если записать их тремя отдельными операциями, сбой между ними оставит заявку в противоречивом состоянии — статус уже «ремонт», а этап диагностики не закрыт. Всё это лежит в одном документе, а изменение одного документа в MongoDB выполняется целиком или не выполняется вовсе. Запрос меняет данные: стиральная машина переходит из диагностики в ремонт.</p>
+        <!--Q 7.5 move-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>переход на следующий этап — одна операция над одним документом</span></figcaption>
+<pre>db.repair_requests.<span class="f">updateOne</span>(
+  { _id: <span class="s">"r-306"</span>, status: <span class="s">"диагностика"</span> },
+  [
+    { $set: {
+        status: <span class="s">"ремонт"</span>,
+        history: { $concatArrays: [
+          { $map: {
+              input: <span class="s">"$history"</span>,
+              in: { $cond: [
+                { $eq: [<span class="s">"$$this.status"</span>, <span class="s">"диагностика"</span>] },
+                { $mergeObjects: [<span class="s">"$$this"</span>, { to: <span class="f">ISODate</span>(<span class="s">"2026-11-03T12:00:00Z"</span>) }] },
+                <span class="s">"$$this"</span>
+              ] }
+          } },
+          [ { status: <span class="s">"ремонт"</span>, from: <span class="f">ISODate</span>(<span class="s">"2026-11-03T12:00:00Z"</span>) } ]
+        ] }
+    } }
+  ]
+)
+
+db.repair_requests.<span class="f">findOne</span>({ _id: <span class="s">"r-306"</span> }, { _id: <span class="n">0</span>, status: <span class="n">1</span>, history: <span class="n">1</span> })</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+{
+  status: 'ремонт',
+  history: [
+    {
+      status: 'принят',
+      from: ISODate('2026-11-02T09:30:00.000Z'),
+      to: ISODate('2026-11-02T10:00:00.000Z')
+    },
+    {
+      status: 'диагностика',
+      from: ISODate('2026-11-02T10:00:00.000Z'),
+      to: ISODate('2026-11-03T12:00:00.000Z')
+    },
+    { status: 'ремонт', from: ISODate('2026-11-03T12:00:00.000Z') }
+  ]
+}</pre>
+        </figure>
+        <!--/Q-->
+        <p>Обновление записано конвейером — массивом стадий, как в агрегации; так обновление может использовать выражения над текущими значениями документа. <code>$map</code> (глава 5.3) проходит по истории и у этапа <code>диагностика</code> добавляет <code>to</code> выражением <code>$mergeObjects</code>, остальные этапы оставляет как есть. <code>$concatArrays</code> приписывает в конец новый этап <code>ремонт</code>.</p>
+        <p>Условие <code>status: "диагностика"</code> в фильтре защищает от двойного перехода. Если два сотрудника одновременно нажмут кнопку, второе обновление не найдёт заявку в статусе диагностики: <code>matchedCount</code> будет 0, и программа сообщит, что заявку уже перевели.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Другие процессы с той же схемой</h2>
+        <p>Документ со статусом и историей этапов подходит любому процессу, где одна сущность проходит этапы и важно время на каждом.</p>
+        <div class="table-scroll">
+          <table class="mt">
+            <thead><tr><th>Процесс</th><th>Этапы</th><th>Особые поля по типу</th><th>Что ищут</th></tr></thead>
+            <tbody>
+              <tr><td>Страховой случай</td><td>заявлен → осмотр → оценка → решение → выплата</td><td>Авто: ДТП, участники; имущество: адрес, фото</td><td>Случаи, где оценка дольше нормы</td></tr>
+              <tr><td>Заявка на кредит</td><td>подана → проверка → одобрение → выдача</td><td>Ипотека: объект; автокредит: машина</td><td>На каком этапе отказываются клиенты</td></tr>
+              <tr><td>Доставка заказа</td><td>собран → передан курьеру → в пути → вручён</td><td>Самовывоз: пункт; курьер: адрес и точка на карте</td><td>Опоздания по районам (геозапросы, глава 3.5)</td></tr>
+              <tr><td>Найм</td><td>отклик → звонок → собеседование → оффер</td><td>Разные этапы для разных должностей</td><td>Сколько дней от отклика до оффера</td></tr>
+              <tr><td>Обращение в ЖКХ</td><td>принято → назначено → выезд → выполнено</td><td>Протечка, лифт, освещение</td><td>Просроченные по нормативу</td></tr>
+              <tr><td>Запись в клинику</td><td>запись → подтверждение → приём → оплата</td><td>Вид животного, услуга</td><td>Неявки и их доля по дням недели</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Если этапов может быть много — например, переписка с клиентом по заявке, — в документе держат последние записи, а полную историю — в отдельной коллекции. Такой способ называют <span class="term">шаблоном подмножества</span>: экран заявки читает один документ, а полный журнал открывают по запросу.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что сделали</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Хранят только <code>status</code>, без истории</td><td>Неизвестно, сколько заявка была на каждом этапе; узкое место не найти</td><td>Каждый переход — элемент <code>history</code> с <code>from</code> и <code>to</code></td></tr>
+              <tr><td>Статус и история меняются двумя запросами</td><td>Сбой между ними: статус новый, история старая</td><td>Одно обновление одного документа</td></tr>
+              <tr><td>Фильтр перехода только по <code>_id</code></td><td>Двойное нажатие добавляет этап дважды</td><td>В фильтре — ожидаемый текущий статус</td></tr>
+              <tr><td>Статусы свободным текстом</td><td>«Ждёт запчасть», «ожидание з/ч», «ждем деталь» — три группы в отчёте</td><td>Список статусов в валидаторе <code>$jsonSchema</code> через <code>enum</code></td></tr>
+              <tr><td>Средняя длительность только по закрытым этапам</td><td>Текущие долгие ожидания не учитываются, узкое место выглядит меньше</td><td>Для незакрытых этапов конец — текущий момент: <code>$ifNull</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему историю этапов можно хранить внутри заявки, а не в отдельной коллекции?</summary>
+          <p>Этапов немного, их число ограничено процессом, и они читаются и меняются вместе с заявкой.</p>
+        </details>
+        <details>
+          <summary>Как найти текущий этап заявки в конвейере?</summary>
+          <p>Последний элемент истории: <code>{ $last: "$history" }</code>. У него нет поля <code>to</code>.</p>
+        </details>
+        <details>
+          <summary>Почему ноутбук <code>r-304</code> не попал в список застрявших?</summary>
+          <p>Он в ремонте с 31 октября, <code>$dateDiff</code> в сутках даёт 3, а условие — больше трёх.</p>
+        </details>
+        <details>
+          <summary>Что защищает заявку от двойного перехода на этап?</summary>
+          <p>Условие на текущий статус в фильтре обновления. Второе обновление не найдёт документ и вернёт <code>matchedCount: 0</code>.</p>
+        </details>
+        <details>
+          <summary>Какое решение для бизнеса следует из запроса §5?</summary>
+          <p>Сокращать ожидание запчастей: склад ходовых деталей, другой поставщик, срок клиенту при приёме. Ускорять ремонт и диагностику бессмысленно, пока ожидание втрое дольше их суммы.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div><b>Заявка</b><code>{ status, history: [ { status, from, to } ] }</code></div>
+          <div><b>Текущий этап</b><code>{ $last: "$history" }</code></div>
+          <div><b>Сколько стоит</b><code>{ $dateDiff: { startDate: "$current.from", endDate: сейчас, unit: "day" } }</code></div>
+          <div><b>Узкое место</b><code>$unwind history → $group по status, $avg $dateDiff</code></div>
+          <div><b>Переход</b><code>updateOne({ _id, status: старый }, [ { $set: { status, history } } ])</code></div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Заявка, которая проходит этапы, хранится одним документом: текущий статус и массив истории с началом и окончанием каждого этапа. По такому документу строятся доска заявок, список застрявших и средняя длительность этапов, которая показывает узкое место процесса.</p>
+        <p>Переход на этап — одно обновление одного документа с ожидаемым статусом в фильтре: оно выполняется целиком и не повторяется дважды. Та же схема подходит страховым случаям, кредитам, доставке, найму и обращениям в ЖКХ.</p>
+
+        <div class="pager"><a href="../73-potoki-sobytiy/index.html">← 7.4 Потоки событий: датчики, журналы, телеметрия</a><a href="../75-kogda-ne-mongodb/index.html">7.6 Где MongoDB не нужна и как её сочетают с SQL →</a></div>
+
+        <div class="colophon">
+          <span>Глава 7.5 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

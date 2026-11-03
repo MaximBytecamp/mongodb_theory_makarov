@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>7.6 Где MongoDB не нужна и как её сочетают с SQL · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__head { padding: 7px 14px; background: var(--ink); color: var(--leaf-pale); font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: start; }
+    .split > div > b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { align-self: center; font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split .card { margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { display: block; padding-left: 14px; }
+    .on1 { background: #C8EEDA; }
+    .on2 { background: #E4DDF5; }
+    .on3 { background: #FBE3C4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .fit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0; }
+    .fit > div { padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--leaf); }
+    .fit > div.no { box-shadow: 5px 5px 0 var(--clay); }
+    .fit b { display: block; margin-bottom: 6px; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; color: var(--leaf); }
+    .fit > div.no b { color: var(--clay); }
+    .fit p { margin: 0 0 6px; font-size: 15px; }
+    .fit p:last-child { margin: 0; }
+    .colls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .colls > div { border: 2px solid var(--ink); background: var(--paper); }
+    .colls > div > b { display: block; padding: 5px 9px; background: var(--ink); color: var(--leaf-pale); font: 600 12px/1.4 var(--mono); }
+    .colls > div > p { margin: 0; padding: 7px 9px; font: 400 12.5px/1.5 var(--mono); }
+    .colls > div.pd > b { background: var(--clay); color: #fff; }
+    .flowline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; font: 400 12.5px/1.4 var(--mono); }
+    .flowline span { padding: 4px 9px; border: 2px solid var(--ink); background: var(--paper); }
+    .flowline span.hot { background: var(--clay-pale); border-color: var(--clay); font-weight: 700; }
+    .flowline i { font-style: normal; color: var(--leaf); font-weight: 700; }
+    .bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin: 5px 0; font: 400 12.5px/1.4 var(--mono); }
+    .bar > span:nth-child(2) { height: 16px; background: var(--leaf); }
+    .bar.hot > span:nth-child(2) { background: var(--clay); }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; transform: rotate(90deg); } .bar { grid-template-columns: 96px minmax(0, 1fr) 56px; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 7 · Где применять MongoDB</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 7 · где применять MongoDB</p>
+          <p class="running__folio">7.6</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">7.6</span>
+          <h1>Где MongoDB не нужна<br>и как её сочетают с SQL</h1>
+          <p class="lead">В этой главе разобраны задачи, для которых реляционная база подходит лучше: деньги и остатки, связи многие-ко-многим, отчётность с произвольными соединениями. Показано, как в одной системе сочетают PostgreSQL и MongoDB, и как защитить данные в каждой из них. В конце — сводная таблица модуля и задание: выбрать хранилище для заказчика и обосновать выбор.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Применение и проектирование</dd></div>
+          <div><dt>Уровень</dt><dd>Средний</dd></div>
+          <div><dt>Связанные темы</dt><dd>Транзакции и уровни подтверждения записи (кейсы, §2), $jsonSchema (глава 3.1), роли и доступ (кейсы, §1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Принимать решение о базе данных с учётом рисков, а не привычки, и объяснять это решение письменно</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как читать эту главу</p>
+          <div class="runbox__row"><b>Базы</b><span>В главе нет запросов к стенду: она разбирает выбор базы данных. Запросы, на которые она ссылается, выполняются в главах 7.2–7.5.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Деньги и остатки</a></li>
+            <li><a href="#s2">Связи многие-ко-многим и свободные отчёты</a></li>
+            <li><a href="#s3">Одна система — две базы</a></li>
+            <li><a href="#s4">Защита данных</a></li>
+            <li><a href="#s5">Сводная таблица модуля</a></li>
+            <li><a href="#s6">Задание модуля: хранилище для заказчика</a></li>
+            <li><a href="#s7">Частые ошибки</a></li>
+            <li><a href="#s8">Проверьте себя</a></li>
+            <li><a href="#s9">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Деньги и остатки</h2>
+        <p>Клиника выставляет счёт за приём: услуги, препараты, скидка постоянного клиента. Оплата должна уменьшить долг владельца, а выданные препараты — остаток на складе. Если одно из этих изменений записано, а другое нет, в кассе и на складе расходятся деньги. Такие операции меняют несколько записей, и выполниться они должны вместе.</p>
+        <p>Реляционные базы — PostgreSQL, MySQL, Microsoft SQL Server — построены вокруг таких операций. <span class="term">Транзакция</span> объединяет несколько изменений в одно: либо выполняются все, либо ни одного. Ограничения таблицы проверяют данные при каждой записи: <code>CHECK (qty &gt;= 0)</code> не даст остатку стать отрицательным, внешний ключ не даст выписать счёт несуществующему клиенту. Бухгалтерские и складские программы, отчётность для налоговой и проверяющих работают с SQL.</p>
+        <p>MongoDB поддерживает транзакции по нескольким документам с версии 4.0 — на наборе реплик, а с версии 4.2 — и на распределённом кластере. Но в документной модели транзакция — дополнительный механизм, а не основной: каждую операцию с деньгами нужно не забыть в неё завернуть, а гарантии зависят от настроек чтения и записи (разбор Jepsen в разделе <a href="../../keysy/index.html">Кейсы</a>, §2). Поэтому когда большая часть системы — деньги и остатки, её ведут в реляционной базе.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Связи многие-ко-многим и свободные отчёты</h2>
+        <p>Расписание клиники связывает врачей, кабинеты, смены и услуги: врач работает в нескольких кабинетах, в кабинете принимают несколько врачей, услугу оказывают разные врачи. Нужны запросы во всех направлениях: расписание врача, загрузка кабинета, кто сегодня делает УЗИ. Ни одна сущность не главная, и документ, собранный вокруг одной из них, удобен только для одного запроса. Таблицы со связями и соединения подходят этим данным лучше.</p>
+        <p>То же со свободной аналитикой. Документы проектируют под известные экраны и запросы (глава 7.1, §6). Аналитики же каждый день задают новые вопросы: выручка по породам, повторные визиты по врачам, сезонность отитов по районам. Для этого данные из обеих баз регулярно выгружают в <span class="term">аналитическое хранилище</span> — базу для отчётов с SQL, например PostgreSQL или ClickHouse, — и аналитики работают с ним, не нагружая рабочие базы.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Одна система — две базы</h2>
+        <p>Программа клиники целиком не помещается ни в одну модель. Карточки, приёмы, анкеты и датчики — данные с разной формой, которые читаются целиком; счета, оплаты, остатки и расписание — данные с жёсткими связями и деньгами. Обычное решение — две базы, у каждой свои данные.</p>
+        <div class="scheme">
+          <div class="scheme__head">Программа клиники: какие данные в какой базе</div>
+          <div class="scheme__body">
+            <div class="split">
+              <div>
+                <b>MongoDB</b>
+                <div class="card on1">vet_patients — карточки животных</div>
+                <div class="card on1">vet_visits — приёмы с анализами</div>
+                <div class="card on1">zoo_forms — анкеты владельцев</div>
+                <div class="card on1">fridge_temps — датчики холодильников</div>
+                <div class="card on1">zoo_catalog — описания товаров и характеристики</div>
+              </div>
+              <span class="split__arrow">общие ключи</span>
+              <div>
+                <b>PostgreSQL</b>
+                <div class="card on3">owners — владельцы, согласия</div>
+                <div class="card on3">invoices, payments — счета и оплаты</div>
+                <div class="card on3">stock — остатки препаратов и товаров</div>
+                <div class="card on3">schedule — врачи, кабинеты, смены</div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Каждая сущность хранится в одной базе; вторая хранит только её ключ. Приём в MongoDB ссылается на счёт по номеру, позиция счёта в PostgreSQL — на товар каталога по <code>_id</code>. В главе 7.2 владельцы лежали в MongoDB, чтобы все примеры работали на одном стенде; в системе с двумя базами они живут рядом со счетами и согласиями.</p>
+        </div>
+        <p>Правило разделения: у каждой сущности одна база-<span class="term">владелец</span>, где хранится её актуальная версия. Остальные части системы хранят ключ и при необходимости копию нескольких полей для показа — например, кличку животного в счёте. Цена у такого решения есть: две базы нужно разворачивать, защищать и копировать, а команда должна знать обе. Поэтому вторую базу добавляют, когда признаки из главы 7.1 явно расходятся, а не на всякий случай. Небольшой клинике может хватить одной PostgreSQL с полем <code>jsonb</code> для блоков видов, а сервису, где денег нет, — одной MongoDB.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Защита данных</h2>
+        <p>Название дисциплины — разработка и защита баз данных, и выбор базы не заканчивается на модели данных. Меры защиты одинаковы по смыслу для обеих баз, различаются настройки.</p>
+        <div class="table-scroll">
+          <table class="mt">
+            <thead><tr><th>Мера</th><th>MongoDB</th><th>PostgreSQL</th></tr></thead>
+            <tbody>
+              <tr><td>Доступ только из своей сети</td><td><code>net.bindIp</code>, по умолчанию с 3.6 — только 127.0.0.1</td><td><code>listen_addresses</code>, <code>pg_hba.conf</code></td></tr>
+              <tr><td>Проверка подлинности</td><td><code>security.authorization: enabled</code></td><td>Пароли ролей, методы в <code>pg_hba.conf</code></td></tr>
+              <tr><td>Права по ролям</td><td>Встроенные и свои роли на базу и коллекцию</td><td><code>GRANT</code> на таблицы, столбцы, строки</td></tr>
+              <tr><td>Шифрование канала</td><td>TLS: <code>net.tls</code></td><td>TLS: <code>ssl = on</code></td></tr>
+              <tr><td>Правила формы данных</td><td>Валидатор <code>$jsonSchema</code> (глава 3.1)</td><td>Типы столбцов, <code>CHECK</code>, внешние ключи</td></tr>
+              <tr><td>Резервные копии</td><td><code>mongodump</code>, снимки диска, копии в облаке</td><td><code>pg_dump</code>, копирование журнала</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Для персональных данных граждан России есть требование закона № 152-ФЗ: запись и хранение таких данных ведут в базах, которые находятся на территории России. Поэтому базу с владельцами разворачивают на своих серверах или у облачного провайдера с российскими центрами обработки данных, а не в облаке с серверами за рубежом. Медицинские сведения о животном к персональным данным не относятся, но доступ к ним всё равно ограничивают ролями: клиника отвечает за тайну сведений о клиентах.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Сводная таблица модуля</h2>
+        <p>Таблица собирает решения модуля: задача, база, приём и глава, где он разобран на данных.</p>
+        <div class="table-scroll">
+          <table class="mt">
+            <thead><tr><th>Задача</th><th>База</th><th>Приём</th><th>Глава</th></tr></thead>
+            <tbody>
+              <tr><td>Карточки с полями по типу: животные, полисы, объекты недвижимости</td><td class="ok">MongoDB</td><td>Общие поля + блок по типу, валидатор на обязательные</td><td>7.2</td></tr>
+              <tr><td>Медицинские записи с анализами под болезнь</td><td class="ok">MongoDB</td><td>Приёмы отдельной коллекцией, справочник диагнозов</td><td>7.2</td></tr>
+              <tr><td>Каталог с тысячами характеристик</td><td class="ok">MongoDB</td><td>Шаблон атрибутов, один индекс, <code>$facet</code></td><td>7.3</td></tr>
+              <tr><td>Анкеты и формы, которые меняются</td><td class="ok">MongoDB</td><td>Ответы + номер версии формы</td><td>7.3</td></tr>
+              <tr><td>Датчики, журналы, телеметрия</td><td class="ok">MongoDB</td><td>Коллекция временных рядов, сводки, срок хранения</td><td>7.4</td></tr>
+              <tr><td>Заявки и процессы со статусами</td><td class="ok">MongoDB</td><td>Статус + история этапов, переход одним обновлением</td><td>7.5</td></tr>
+              <tr><td>Деньги, оплаты, остатки</td><td class="bad">SQL</td><td>Транзакции, <code>CHECK</code>, внешние ключи</td><td>7.6</td></tr>
+              <tr><td>Расписание, связи многие-ко-многим</td><td class="bad">SQL</td><td>Таблицы связей, соединения</td><td>7.6</td></tr>
+              <tr><td>Свободная аналитика</td><td class="bad">SQL</td><td>Аналитическое хранилище с выгрузкой из обеих баз</td><td>7.6</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Задание модуля: хранилище для заказчика</h2>
+        <p>Задание выполняется по порядку принятия решения из главы 7.1, §6. Выберите одного заказчика.</p>
+        <div class="fit">
+          <div><b>Сеть фитнес-клубов</b><p>Абонементы и оплаты, профили клиентов, проходы через турникет, анкета здоровья перед тренировкой, расписание групповых занятий.</p></div>
+          <div><b>Агентство недвижимости</b><p>Квартиры, дома, участки и коммерческие помещения с разными параметрами, показы, сделки и комиссия агента.</p></div>
+          <div><b>Доставка еды</b><p>Меню ресторанов, заказы со статусами, координаты курьеров, оплата, отзывы.</p></div>
+          <div><b>Управляющая компания</b><p>Дома и квартиры, показания счётчиков, заявки жильцов со статусами, начисления и оплаты.</p></div>
+        </div>
+        <ol class="steps">
+          <li><b>Экраны и отчёты.</b> Перечислите не меньше пяти экранов и двух отчётов: кто их смотрит и какие сведения на них нужны.</li>
+          <li><b>Распределение данных.</b> Таблица: сущность — база (MongoDB или реляционная) — коллекция или таблица — почему, со ссылкой на признак из главы 7.1.</li>
+          <li><b>Документы.</b> Для каждой коллекции MongoDB — пример документа. Хотя бы в одной коллекции — документы двух разных типов с блоками особых полей.</li>
+          <li><b>Запросы на стенде.</b> Создайте коллекции в <code>sandbox</code> с 5–10 документами в каждой и выполните три запроса, которые решают задачи заказчика, по образцу глав 7.2–7.5. В отчёт — код и настоящий вывод.</li>
+          <li><b>Защита.</b> Какие данные персональные, где лежит база, какие роли и у кого какие права. Валидатор <code>$jsonSchema</code> для одной коллекции.</li>
+          <li><b>Риски.</b> Что в вашем решении может пойти не так: растущий массив, операции с деньгами, копии сведений, — и что вы для этого предусмотрели.</li>
+        </ol>
+        <p>Отчёт оформляется файлом <code>README.md</code> в папке <code>modul-7</code> вашего репозитория работ, рядом — файл <code>data.js</code>, который создаёт коллекции, и <code>queries.js</code> с запросами. Проверяющий загружает <code>data.js</code> на своём стенде и получает те же выводы, что в отчёте.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что решили</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td>Оплаты и остатки в MongoDB без транзакций</td><td>Сбой между двумя обновлениями: деньги приняты, остаток не списан</td><td>Деньги — в реляционной базе или каждая такая операция — в транзакции</td></tr>
+              <tr><td>Одна сущность в двух базах как основная</td><td>Телефон владельца изменили в одной базе, во второй старый</td><td>У сущности одна база-владелец, в другой — ключ</td></tr>
+              <tr><td>Вторая база «на будущее»</td><td>Двойная эксплуатация и защита при данных, которые помещаются в одну</td><td>Добавлять вторую базу, когда признаки данных расходятся</td></tr>
+              <tr><td>База с персональными данными в зарубежном облаке</td><td>Нарушение требования 152-ФЗ о хранении в России</td><td>Свои серверы или облако с центрами обработки данных в России</td></tr>
+              <tr><td>Аналитики работают прямо с рабочей базой</td><td>Тяжёлые отчёты замедляют экраны сотрудников</td><td>Выгрузка в аналитическое хранилище</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему счета и оплаты клиники хранятся в PostgreSQL, если MongoDB поддерживает транзакции?</summary>
+          <p>В реляционной базе транзакции, ограничения <code>CHECK</code> и внешние ключи — основной механизм, и на SQL работают бухгалтерские программы и отчётность. В MongoDB транзакцию нужно не забыть применить к каждой операции, а гарантии зависят от настроек чтения и записи.</p>
+        </details>
+        <details>
+          <summary>Что значит «база-владелец» сущности?</summary>
+          <p>База, где хранится актуальная версия сущности. Остальные части системы хранят её ключ и, если нужно, копию нескольких полей для показа.</p>
+        </details>
+        <details>
+          <summary>Какие меры защиты нужны базе с владельцами животных?</summary>
+          <p>Доступ только из своей сети, проверка подлинности, роли с минимальными правами, шифрование канала, резервные копии и размещение на серверах в России по 152-ФЗ.</p>
+        </details>
+        <details>
+          <summary>Когда второй базы в системе не нужно?</summary>
+          <p>Когда данные одной модели преобладают: в небольшой клинике хватит PostgreSQL с полем <code>jsonb</code>, в сервисе без денег — одной MongoDB.</p>
+        </details>
+
+        <h2 id="s9"><span class="sec">§9</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div><b>В реляционную базу</b><code>деньги, остатки
+расписание, многие-ко-многим
+отчётность для проверяющих</code></div>
+          <div><b>В MongoDB</b><code>карточки по типу, каталоги
+анкеты, датчики, журналы
+заявки с историей</code></div>
+          <div><b>Две базы</b><code>у сущности одна база-владелец
+в другой — только ключ</code></div>
+          <div><b>Защита</b><code>bindIp · authorization
+роли · TLS · копии
+152-ФЗ: серверы в России</code></div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Деньги, остатки, расписание с многими связями и свободная аналитика лучше ложатся в реляционную базу: транзакции, ограничения и соединения там основной механизм. Когда в системе есть и такие данные, и данные с разной формой, их делят между двумя базами, и у каждой сущности одна база-владелец.</p>
+        <p>Защита строится одинаково для обеих баз: своя сеть, проверка подлинности, роли, шифрование, копии; персональные данные граждан России хранятся на серверах в России. Задание модуля — выбрать хранилище для заказчика по этому порядку и подтвердить решение запросами на стенде.</p>
+
+        <div class="pager"><a href="../74-biznes-processy/index.html">← 7.5 Бизнес-процессы: заявки, статусы, история</a><a href="../../index.html#modules">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 7.6 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

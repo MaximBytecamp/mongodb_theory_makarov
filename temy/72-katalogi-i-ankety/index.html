@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>7.3 Каталоги и анкеты с разными полями · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__head { padding: 7px 14px; background: var(--ink); color: var(--leaf-pale); font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: start; }
+    .split > div > b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { align-self: center; font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split .card { margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { display: block; padding-left: 14px; }
+    .on1 { background: #C8EEDA; }
+    .on2 { background: #E4DDF5; }
+    .on3 { background: #FBE3C4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .fit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0; }
+    .fit > div { padding: 13px 15px; border: 3px solid var(--ink); background: var(--page); box-shadow: 5px 5px 0 var(--leaf); }
+    .fit > div.no { box-shadow: 5px 5px 0 var(--clay); }
+    .fit b { display: block; margin-bottom: 6px; font: 600 10.5px/1.4 var(--pixel); letter-spacing: 1.1px; text-transform: uppercase; color: var(--leaf); }
+    .fit > div.no b { color: var(--clay); }
+    .fit p { margin: 0 0 6px; font-size: 15px; }
+    .fit p:last-child { margin: 0; }
+    .colls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .colls > div { border: 2px solid var(--ink); background: var(--paper); }
+    .colls > div > b { display: block; padding: 5px 9px; background: var(--ink); color: var(--leaf-pale); font: 600 12px/1.4 var(--mono); }
+    .colls > div > p { margin: 0; padding: 7px 9px; font: 400 12.5px/1.5 var(--mono); }
+    .colls > div.pd > b { background: var(--clay); color: #fff; }
+    .flowline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; font: 400 12.5px/1.4 var(--mono); }
+    .flowline span { padding: 4px 9px; border: 2px solid var(--ink); background: var(--paper); }
+    .flowline span.hot { background: var(--clay-pale); border-color: var(--clay); font-weight: 700; }
+    .flowline i { font-style: normal; color: var(--leaf); font-weight: 700; }
+    .bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin: 5px 0; font: 400 12.5px/1.4 var(--mono); }
+    .bar > span:nth-child(2) { height: 16px; background: var(--leaf); }
+    .bar.hot > span:nth-child(2) { background: var(--clay); }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; transform: rotate(90deg); } .bar { grid-template-columns: 96px minmax(0, 1fr) 56px; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 7 · Где применять MongoDB</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 7 · где применять MongoDB</p>
+          <p class="running__folio">7.3</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">7.3</span>
+          <h1>Каталоги и анкеты<br>с разными полями</h1>
+          <p class="lead">В этой главе разобраны две задачи, где число возможных полей заранее не известно: каталог товаров с характеристиками и анкеты, у которых меняются вопросы. Для каталога показан шаблон атрибутов — характеристики хранятся массивом пар «имя — значение» и ищутся по одному индексу. Для анкет — хранение ответов вместе с версией формы.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Применение и проектирование</dd></div>
+          <div><dt>Уровень</dt><dd>Средний</dd></div>
+          <div><dt>Связанные темы</dt><dd>$elemMatch и $all (глава 2.6), составные индексы (глава 3.2), explain (глава 3.3), $facet (глава 4.8), $unwind (глава 4.6)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Строить поиск и фильтры по характеристикам, которых сотни, и не переделывать базу при каждой новой форме</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава работает в песочнице <code>sandbox</code>. Файл данных пересоздаёт коллекции главы, базы курса не меняются.</span></div>
+          <div class="runbox__row"><b>Данные</b><span><a href="dannye/zoo.js" download><code>zoo.js</code></a> — скачайте файл и загрузите: <code>mongosh zoo.js</code>, а на стенде в Docker — <code>docker exec -i course-mongo mongosh &lt; zoo.js</code>.</span></div>
+          <div class="runbox__row"><b>Запуск</b><span>Запросы вводятся в оболочке: <code>mongosh sandbox</code> или <code>docker exec -it course-mongo mongosh sandbox</code>. В Compass то же самое — во вкладке <b>MONGOSH</b> внизу окна, перед запросами выполнить <code>use sandbox</code>.</span></div>
+          <div class="runbox__row"><b>Язык</b><span>Запросы модуля записаны для оболочки <code>mongosh</code>: модуль разбирает, для каких данных и задач подходит MongoDB. На драйверах те же запросы записываются так, как показано в модулях 1–6.</span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Запросы выполняются по порядку. Те, что меняют данные, отмечены в тексте; чтобы пройти главу заново, загрузите файл данных ещё раз.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Каталог, где у каждого товара свои характеристики</a></li>
+            <li><a href="#s2">Шаблон атрибутов</a></li>
+            <li><a href="#s3">Поиск по нескольким характеристикам</a></li>
+            <li><a href="#s4">Один индекс на все характеристики</a></li>
+            <li><a href="#s5">Панель фильтров</a></li>
+            <li><a href="#s6">Анкеты, у которых меняются вопросы</a></li>
+            <li><a href="#s7">Поиск по вопросу, которого нет в части анкет</a></li>
+            <li><a href="#s8">Где ещё встречаются эти задачи</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Каталог, где у каждого товара свои характеристики</h2>
+        <p>При клинике работает зоомагазин: корма, переноски, террариумы, лампы, лекарства, клетки. У корма важны вид животного, вес упаковки и возраст, у переноски — размеры и допустимая нагрузка, у лампы — мощность и доля ультрафиолета, у лекарства — нужен ли рецепт и как хранить. Покупатель выбирает товар через панель фильтров: отмечает «собака», «от 10 кг» и видит подходящие корма.</p>
+        <p>В большом интернет-магазине категорий тысячи, и у каждой свой список характеристик. Завести столбец под каждую нельзя: таблица станет широкой и почти пустой, а новая категория потребует перестройки. Отдельное поле в документе под каждую характеристику тоже создаёт трудность: искать по полю быстро можно только с индексом, а индексов на коллекцию — не больше 64.</p>
+        <p>В этой главе разобраны две задачи такого рода. Первая — каталог товаров: характеристики хранятся по <span class="term">шаблону атрибутов</span>. Вторая — анкеты, у которых со временем меняются вопросы. Загрузите файл данных главы: он создаёт коллекции <code>zoo_catalog</code> (12 товаров) и <code>zoo_forms</code> (4 анкеты) и индекс по характеристикам.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Шаблон атрибутов</h2>
+        <p>Общие для всех товаров поля — название, категория, цена — лежат на верхнем уровне документа. Характеристики собраны в массив <code>attrs</code>, где каждый элемент — пара «имя — значение»: <code>k</code> (key, имя), <code>v</code> (value, значение) и необязательная единица <code>u</code>. Так выглядят корм и террариум.</p>
+        <!--Q 7.3 two-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>два товара из разных категорий</span></figcaption>
+<pre>db.zoo_catalog.<span class="f">find</span>({ _id: { $in: [<span class="s">"z-02"</span>, <span class="s">"z-07"</span>] } })</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  {
+    _id: 'z-02',
+    title: 'Корм сухой для собак крупных пород',
+    category: 'корм',
+    price: 7450,
+    attrs: [
+      { k: 'вид', v: 'собака' },
+      { k: 'вес', v: 15, u: 'кг' },
+      { k: 'возраст', v: 'взрослые' },
+      { k: 'вкус', v: 'индейка' }
+    ]
+  },
+  {
+    _id: 'z-07',
+    title: 'Террариум стеклянный 60×45×45',
+    category: 'террариум',
+    price: 11900,
+    attrs: [
+      { k: 'вид', v: 'черепаха' },
+      { k: 'объём', v: 121, u: 'л' },
+      { k: 'материал', v: 'стекло' },
+      { k: 'вентиляция', v: 'сетка в крышке' }
+    ]
+  }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>У двух товаров нет ни одной общей характеристики, кроме вида животного, а форма документов одинакова: массив пар. Значения сохраняют свой тип: вес <code>15</code> и объём <code>121</code> — числа, их можно сравнивать операторами <code>$gte</code> и <code>$lt</code>; вкус и материал — строки. В этом отличие от EAV в реляционной таблице, где все значения лежат в одном текстовом столбце.</p>
+        <div class="scheme">
+          <div class="scheme__head">Отдельные поля и массив пар</div>
+          <div class="scheme__body">
+            <div class="split">
+              <div>
+                <b>Поле на каждую характеристику</b>
+                <div class="card">{ weight_kg: 15, age: "взрослые", taste: "индейка" }</div>
+                <div class="card">{ volume_l: 121, material: "стекло" }</div>
+                <div class="card">индекс на weight_kg, индекс на volume_l, …</div>
+              </div>
+              <span class="split__arrow">шаблон атрибутов</span>
+              <div>
+                <b>Массив пар</b>
+                <div class="card">attrs: [ {k:"вес", v:15, u:"кг"}, {k:"вкус", v:"индейка"} ]</div>
+                <div class="card">attrs: [ {k:"объём", v:121, u:"л"}, {k:"материал", v:"стекло"} ]</div>
+                <div class="card on1">один индекс { "attrs.k": 1, "attrs.v": 1 }</div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Слева каждой новой характеристике нужен свой индекс. Справа новая характеристика — новая пара в массиве, а индекс один на все.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Поиск по нескольким характеристикам</h2>
+        <p>Покупатель отметил в фильтрах «собака» и «вес от 10 кг». Каждое условие относится к одной паре: имя и значение должны совпасть в одном и том же элементе массива. Для этого служит <code>$elemMatch</code> (глава 2.6), а два условия объединяет <code>$all</code>.</p>
+        <!--Q 7.3 attr-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>корм для собак весом от 10 кг</span></figcaption>
+<pre>db.zoo_catalog.<span class="f">find</span>(
+  {
+    category: <span class="s">"корм"</span>,
+    attrs: { $all: [
+      { $elemMatch: { k: <span class="s">"вид"</span>, v: <span class="s">"собака"</span> } },
+      { $elemMatch: { k: <span class="s">"вес"</span>, v: { $gte: <span class="n">10</span> } } }
+    ] }
+  },
+  { _id: <span class="n">0</span>, title: <span class="n">1</span>, price: <span class="n">1</span> }
+)</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  { title: 'Корм сухой гипоаллергенный для собак', price: 5120 },
+  { title: 'Корм сухой для собак крупных пород', price: 7450 }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Подошли два корма: гипоаллергенный на 12 кг и для крупных пород на 15 кг. Корм для кошек на 2 кг отсечён обоими условиями, зерновая смесь на 1 кг — обоими. Без <code>$elemMatch</code> запрос <code>{ "attrs.k": "вес", "attrs.v": { $gte: 10 } }</code> проверял бы имя и значение независимо: подошёл бы товар, у которого есть пара «вес» с малым значением и любая другая пара с числом от 10, например длина 58 см.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Один индекс на все характеристики</h2>
+        <p>Файл данных создал составной индекс <code>{ "attrs.k": 1, "attrs.v": 1 }</code>. Поле <code>attrs</code> — массив, поэтому индекс <span class="term">мультиключевой</span>: в нём по записи на каждую пару каждого товара. Запрос с <code>$elemMatch</code> по имени и значению находит пары в индексе, не просматривая коллекцию. Метод <code>explain</code> (глава 3.3) показывает стадию, с которой сервер начал чтение.</p>
+        <!--Q 7.3 plan-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>какой план выбрал сервер</span></figcaption>
+<pre>db.zoo_catalog.<span class="f">find</span>({ attrs: { $elemMatch: { k: <span class="s">"вес"</span>, v: { $gte: <span class="n">10</span> } } } })
+  .<span class="f">explain</span>(<span class="s">"executionStats"</span>).queryPlanner.winningPlan.inputStage.stage</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>IXSCAN</pre>
+        </figure>
+        <!--/Q-->
+        <p><code>IXSCAN</code> — чтение по индексу. Индекс работает для любой характеристики: «вес», «объём», «мощность», и для характеристики, которой ещё нет в каталоге. Когда магазин добавит категорию аквариумов с характеристикой «литраж», индекс менять не придётся.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Панель фильтров</h2>
+        <p>Панель фильтров строится по товарам, которые подходят под уже выбранные условия: какие категории есть и какие значения у каждой характеристики. Стадия <code>$facet</code> (глава 4.8) строит обе части панели за один запрос.</p>
+        <!--Q 7.3 filters-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>панель фильтров для вида «кошка»</span></figcaption>
+<pre>db.zoo_catalog.<span class="f">aggregate</span>([
+  { $match: { attrs: { $elemMatch: { k: <span class="s">"вид"</span>, v: <span class="s">"кошка"</span> } } } },
+  { $facet: {
+      categories: [
+        { $group: { _id: <span class="s">"$category"</span>, count: { $sum: <span class="n">1</span> } } },
+        { $sort: { count: <span class="n">-1</span>, _id: <span class="n">1</span> } }
+      ],
+      attributes: [
+        { $unwind: <span class="s">"$attrs"</span> },
+        { $match: { <span class="s">"attrs.k"</span>: { $ne: <span class="s">"вид"</span> } } },
+        { $group: { _id: <span class="s">"$attrs.k"</span>, values: { $addToSet: <span class="s">"$attrs.v"</span> } } },
+        { $project: { values: { $sortArray: { input: <span class="s">"$values"</span>, sortBy: <span class="n">1</span> } } } },
+        { $sort: { _id: <span class="n">1</span> } }
+      ]
+  } }
+])</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  {
+    categories: [
+      { _id: 'лекарство', count: 2 },
+      { _id: 'переноска', count: 2 },
+      { _id: 'корм', count: 1 }
+    ],
+    attributes: [
+      { _id: 'вентиляция', values: [ 'сетка с трёх сторон' ] },
+      { _id: 'вес', values: [ 2 ] },
+      { _id: 'возраст', values: [ 'взрослые' ] },
+      { _id: 'высота', values: [ 36 ] },
+      { _id: 'длина', values: [ 58 ] },
+      { _id: 'лечебный', values: [ true ] },
+      { _id: 'нагрузка', values: [ 8, 10 ] },
+      { _id: 'объём', values: [ 10 ] },
+      { _id: 'рецептурный', values: [ false, true ] },
+      { _id: 'хранение', values: [ '2–8 °C' ] },
+      { _id: 'ширина', values: [ 38 ] }
+    ]
+  }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Для кошек нашлись пять товаров в трёх категориях. Ветка <code>categories</code> считает товары по категориям; при равном числе порядок задаёт второй ключ сортировки. Ветка <code>attributes</code> разворачивает пары стадией <code>$unwind</code>, убирает уже выбранный «вид» и собирает значения каждой характеристики в множество <code>$addToSet</code>, упорядоченное выражением <code>$sortArray</code>. В строке «нагрузка» два значения — 8 и 10 кг, у двух переносок; в строке «рецептурный» — оба варианта, по одному лекарству.</p>
+        <p>Панель не описана заранее ни для одной категории: она строится из характеристик тех товаров, которые есть в выборке. Для бизнеса это значит, что новая категория получает фильтры в день, когда в каталог внесли первый товар.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Анкеты, у которых меняются вопросы</h2>
+        <p>Перед стерилизацией владелец заполняет анкету на сайте клиники. Анкету меняли: в версии 4 для кроликов добавили вес, потому что дозу наркоза считают по весу, а вопрос о хронических болезнях перенесли в разговор с врачом. Старые анкеты при этом остаются в базе — по ним видно, на каких сведениях основывалось решение.</p>
+        <!--Q 7.3 forms-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>анкеты на стерилизацию: разные версии формы</span></figcaption>
+<pre>db.zoo_forms.<span class="f">find</span>(
+  { form: <span class="s">"запись на стерилизацию"</span> },
+  { _id: <span class="n">0</span>, version: <span class="n">1</span>, answers: <span class="n">1</span> }
+)</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[
+  {
+    version: 3,
+    answers: {
+      species: 'кошка',
+      age_months: 7,
+      ate_last: 'вечером накануне',
+      chronic: 'нет'
+    }
+  },
+  {
+    version: 3,
+    answers: {
+      species: 'собака',
+      age_months: 14,
+      ate_last: 'утром',
+      chronic: 'дисплазия'
+    }
+  },
+  {
+    version: 4,
+    answers: {
+      species: 'кролик',
+      age_months: 6,
+      ate_last: 'сено без перерыва',
+      weight_kg: 1.4
+    }
+  }
+]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Каждая анкета хранит номер версии формы <code>version</code> и ответы во вложенном документе <code>answers</code>. В версии 3 есть <code>chronic</code>, в версии 4 — <code>weight_kg</code>. Такой способ называют <span class="term">шаблоном версионирования схемы</span>: документы старой и новой формы живут в одной коллекции, а программа по номеру версии понимает, какие поля ожидать. Старые анкеты не переписываются: изменить ответ задним числом нельзя, а пересчитывать тысячи документов ради нового вопроса не нужно.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Поиск по вопросу, которого нет в части анкет</h2>
+        <p>Анестезиологу нужны животные, которые ели утром в день операции: наркоз им дают позже. Вопрос о последнем кормлении есть во всех версиях, а вот отвечают на него по-разному.</p>
+        <!--Q 7.3 formq-->
+        <figure class="code" data-run="no">
+          <figcaption><span>mongosh · оболочка</span><span>кто ел позже, чем за 12 часов: вопрос есть не во всех анкетах</span></figcaption>
+<pre>db.zoo_forms.<span class="f">find</span>(
+  { <span class="s">"answers.ate_last"</span>: <span class="s">"утром"</span> },
+  { _id: <span class="n">1</span>, <span class="s">"answers.species"</span>: <span class="n">1</span>, <span class="s">"answers.ate_last"</span>: <span class="n">1</span> }
+)</pre>
+        </figure>
+        <figure class="code code--out" data-run="no">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>[ { _id: 'f-02', answers: { species: 'собака', ate_last: 'утром' } } ]</pre>
+        </figure>
+        <!--/Q-->
+        <p>Подходит одна анкета — собака из <code>f-02</code>. Анкета перед вакцинацией <code>f-03</code> этого вопроса не содержит и в выборку не попадает: условие на отсутствующее поле ложно. Кролик ответил «сено без перерыва» — кроликов перед наркозом не держат голодными, и для них этот ответ правильный. Запрос учитывает такие ответы, только если их перечислить, поэтому в формах с выбором ответа значения задают списком, а не свободным текстом.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Где ещё встречаются эти задачи</h2>
+        <p>Шаблон атрибутов и анкеты с версиями нужны везде, где пользователь или администратор сам меняет набор полей.</p>
+        <div class="table-scroll">
+          <table class="mt">
+            <thead><tr><th>Область</th><th>Что хранится</th><th>Какая работа бизнеса ускоряется</th></tr></thead>
+            <tbody>
+              <tr><td>Маркетплейс</td><td>Тысячи категорий со своими характеристиками</td><td>Новая категория без разработки; фильтры строятся сами</td></tr>
+              <tr><td>Автозапчасти</td><td>Характеристики детали и список подходящих моделей</td><td>Подбор по модели автомобиля одним запросом по массиву</td></tr>
+              <tr><td>Недвижимость</td><td>Квартира, дом, участок, склад — разные параметры</td><td>Одна база объявлений вместо таблицы под каждый тип</td></tr>
+              <tr><td>CRM</td><td>Дополнительные поля, которые компания заводит сама</td><td>Отдел продаж добавляет поле без программиста</td></tr>
+              <tr><td>Опросы и заявления</td><td>Формы с версиями, ответы с привязкой к версии</td><td>Форма меняется в течение дня, старые ответы сохраняются</td></tr>
+              <tr><td>Кадры</td><td>Анкета кандидата, разная для разных должностей</td><td>Одна система для водителя, бухгалтера и программиста</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ "attrs.k": "вес", "attrs.v": { $gte: 10 } }</code></td><td>Имя и значение проверяются в разных элементах: подходит товар с весом 2 кг и длиной 58 см</td><td><code>{ attrs: { $elemMatch: { k: "вес", v: { $gte: 10 } } } }</code></td></tr>
+              <tr><td>Значения характеристик строками: <code>v: "15"</code></td><td>Сравнение <code>$gte: 10</code> не находит строку, а сортировка ставит «15» перед «2»</td><td>Числа хранить числами, единицу — в отдельном поле <code>u</code></td></tr>
+              <tr><td>Имена характеристик в разной записи: «Вес», «вес», «масса»</td><td>Фильтр показывает три характеристики вместо одной</td><td>Список имён — в справочнике категорий, программа выбирает имя из него</td></tr>
+              <tr><td>Анкеты без номера версии</td><td>По документу не понять, был ли вопрос в форме или владелец его пропустил</td><td>Поле <code>version</code> в каждой анкете</td></tr>
+              <tr><td>Переписать старые анкеты под новую форму</td><td>Ответы, которых владелец не давал, появляются в документах</td><td>Старые документы не менять; программа читает их по номеру версии</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему каталог с отдельным полем на каждую характеристику плохо работает при тысячах категорий?</summary>
+          <p>Для быстрого поиска по полю нужен индекс, а индексов на коллекцию не больше 64. При шаблоне атрибутов один индекс <code>{ "attrs.k": 1, "attrs.v": 1 }</code> покрывает все характеристики.</p>
+        </details>
+        <details>
+          <summary>Зачем в запросе по характеристикам <code>$elemMatch</code>?</summary>
+          <p>Он требует, чтобы имя и значение совпали в одном элементе массива. Без него условия проверяются по разным парам.</p>
+        </details>
+        <details>
+          <summary>Чем шаблон атрибутов отличается от EAV в реляционной таблице?</summary>
+          <p>Пары лежат внутри документа товара, и товар читается целиком. Значения хранят свой тип: число остаётся числом и сравнивается как число.</p>
+        </details>
+        <details>
+          <summary>Что делает поле <code>version</code> в анкете?</summary>
+          <p>Говорит программе, по какой форме заполнена анкета и какие поля в ней ожидать. Документы разных версий лежат в одной коллекции и не переписываются.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat">
+          <div><b>Характеристика</b><code>attrs: [ { k: "вес", v: 15, u: "кг" } ]</code></div>
+          <div><b>Индекс</b><code>createIndex({ "attrs.k": 1, "attrs.v": 1 })</code></div>
+          <div><b>Одно условие</b><code>{ attrs: { $elemMatch: { k: "вес", v: { $gte: 10 } } } }</code></div>
+          <div><b>Несколько условий</b><code>{ attrs: { $all: [ { $elemMatch: … }, { $elemMatch: … } ] } }</code></div>
+          <div><b>Панель фильтров</b><code>$facet: категории + $unwind attrs → $group по k</code></div>
+          <div><b>Анкета</b><code>{ form, version, answers: { … } }</code></div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p>Когда набор характеристик заранее не известен, они хранятся массивом пар <code>{k, v, u}</code>. Один составной индекс по имени и значению ускоряет поиск по любой характеристике, условие на пару записывается через <code>$elemMatch</code>, а панель фильтров строится стадией <code>$facet</code> из характеристик найденных товаров.</p>
+        <p>Анкеты, у которых меняются вопросы, хранят номер версии формы и ответы во вложенном документе. Документы старых версий не переписываются, а запрос по вопросу, которого нет в части анкет, эти анкеты не находит.</p>
+
+        <div class="pager"><a href="../71-veterinarnaya-klinika/index.html">← 7.2 Ветеринарная клиника: карточка животного</a><a href="../73-potoki-sobytiy/index.html">7.4 Потоки событий: датчики, журналы, телеметрия →</a></div>
+
+        <div class="colophon">
+          <span>Глава 7.3 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
