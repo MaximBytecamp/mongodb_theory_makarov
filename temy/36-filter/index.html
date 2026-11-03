@@ -1,0 +1,1782 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>5.2 $filter: отбор элементов массива · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: таблицы проверки условия, полосы распределения. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 5 · Выражения над массивами</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 5 · выражения над массивами</p>
+          <p class="running__folio">5.2</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">5.2</span>
+          <h1>$filter: отбор<br>элементов массива</h1>
+          <p class="lead">$filter оставляет в массиве только элементы, которые подходят под условие, и возвращает новый массив. Документ при этом остаётся в потоке, меняется только значение поля. В главе разобраны переменная элемента $$this и параметр as, несколько условий, ограничение limit, подсчёт отобранного и $filter внутри $match. Отдельно показано, что получается при пропущенном знаке $ и у документа без массива.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$arrayElemAt, $slice и $size (глава 5.1), $elemMatch (глава 2.6), $expr (глава 2.8), $project (глава 4.2), $unwind и $match (глава 4.6)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Отбирать часть элементов массива внутри документа — позиции одной категории, склады с остатком — и считать их, не разворачивая массив и не теряя документы</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-5.2-python.zip" download><code>mongodb-glava-5.2-python.zip</code></a>, 64 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-5.2-ruby.zip" download><code>mongodb-glava-5.2-ruby.zip</code></a>, 64 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-5.2-go.zip" download><code>mongodb-glava-5.2-go.zip</code></a>, 71 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-5.2-cpp.zip" download><code>mongodb-glava-5.2-cpp.zip</code></a>, 69 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch5_2.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch5_2.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch5_2.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch5_2.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch5_2.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch5_2.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch5_2.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch5_2.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch5_2.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch5_2.go</code> · в Docker: <code>docker compose run --rm go lessons/ch5_2.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch5_2.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch5_2.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Выражение $filter</a></li>
+            <li><a href="#s2">Переменная $$this и длина отобранного</a></li>
+            <li><a href="#s3">Несколько условий</a></li>
+            <li><a href="#s4">Первые подходящие: limit</a></li>
+            <li><a href="#s5">Число отобранных как ключ группы</a></li>
+            <li><a href="#s6">$filter внутри $match</a></li>
+            <li><a href="#s7">Склады с остатком</a></li>
+            <li><a href="#s8">Один знак $ вместо двух</a></li>
+            <li><a href="#s9">Документ без массива</a></li>
+            <li><a href="#s10">Параметры, которые сервер не принимает</a></li>
+            <li><a href="#s11">$filter в Compass</a></li>
+            <li><a href="#s12">Частые ошибки</a></li>
+            <li><a href="#s13">Проверьте себя</a></li>
+            <li><a href="#s14">Самостоятельная работа</a></li>
+            <li><a href="#s15">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Выражение $filter</h2>
+        <p>Кладовщик получил накладную и выписывает из неё только позиции периферии: веб-камеры, наушники, клавиатуры. Накладная остаётся целой, рядом появляется выписка — короткий список нужных строк.</p>
+        <p>В главе 5.1 из массива брали элементы по номеру. Когда нужные элементы определяются не номером, а содержимым, используют <span class="term">выражение $filter</span>. Оно проверяет условие на каждом элементе массива и возвращает новый массив из тех элементов, для которых условие истинно. Порядок элементов сохраняется. Запись:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Запись выражения</span><span>три параметра</span></figcaption>
+<pre>{<span class="s">"$filter"</span>: {<span class="s">"input"</span>: массив, <span class="s">"as"</span>: <span class="s">"имя"</span>, <span class="s">"cond"</span>: условие}}</pre>
+        </figure>
+        <p><code>input</code> — массив, который проверяется. <code>as</code> — имя, под которым текущий элемент доступен в условии. <code>cond</code> — условие, записанное выражением, как в <code>$cond</code> из главы 4.2: <code>{"$eq": [значение, значение]}</code>, <code>{"$gte": [...]}</code>. Внутри условия элемент записывается с двумя знаками доллара: <code>"$$item"</code>, его поле — <code>"$$item.category"</code>. Два знака отличают <span class="term">переменную</span> выражения от поля документа, которое пишется с одним знаком.</p>
+        <p>Пример отбирает у заказа 2026-0002 позиции категории «периферия».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$filter: позиции периферии</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"periphery"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"as"</span>: <span class="s">"item"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$item.category"</span>, <span class="s">"периферия"</span>]},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$filter: позиции периферии</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"periphery"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"item"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$item.category"</span>, <span class="s">"периферия"</span>))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$filter: позиции периферии</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"periphery"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"as"</span>, Value: <span class="s">"item"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{
+                    {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$item.category"</span>, <span class="s">"периферия"</span>}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$filter: позиции периферии</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"periphery"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"as"</span> =&gt; <span class="s">"item"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$item.category"</span>, <span class="s">"периферия"</span>] },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0002', 'periphery': [{'sku': 'SKU-PR-014', 'title': 'Веб-камера Logitech C920', 'category': 'периферия', 'qty': 1, 'price': 6790}, {'sku': 'SKU-PR-013', 'title': 'Наушники Sony WH-1000XM5', 'category': 'периферия', 'qty': 3, 'price': 34990}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0002", "periphery" : [ { "sku" : "SKU-PR-014", "title" : "Веб-камера Logitech C920", "category" : "периферия", "qty" : 1, "price" : 6790 }, { "sku" : "SKU-PR-013", "title" : "Наушники Sony WH-1000XM5", "category" : "периферия", "qty" : 3, "price" : 34990 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0002","periphery":[{"sku":"SKU-PR-014","title":"Веб-камера Logitech C920","category":"периферия","qty":1,"price":6790},{"sku":"SKU-PR-013","title":"Наушники Sony WH-1000XM5","category":"периферия","qty":3,"price":34990}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0002", "periphery"=&gt;[{"sku"=&gt;"SKU-PR-014", "title"=&gt;"Веб-камера Logitech C920", "category"=&gt;"периферия", "qty"=&gt;1, "price"=&gt;6790}, {"sku"=&gt;"SKU-PR-013", "title"=&gt;"Наушники Sony WH-1000XM5", "category"=&gt;"периферия", "qty"=&gt;3, "price"=&gt;34990}]}</pre>
+        </figure>
+        <p>В <code>periphery</code> — две позиции из трёх: веб-камера Logitech и наушники Sony. Ноутбук ASUS не прошёл условие. Каждая позиция осталась документом со всеми пятью полями: <code>$filter</code> не меняет элементы, он только решает, оставить элемент или нет.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>$filter по items заказа 2026-0002</span><span>3 элемента → 2</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>$$item</th><th>$$item.category</th><th>cond: равно «периферия»</th><th>В результате</th></tr></thead>
+              <tbody>
+                <tr class="no"><td>0 · Ноутбук ASUS VivoBook 15</td><td>ноутбуки</td><td class="bad">false</td><td>—</td></tr>
+                <tr class="on"><td>1 · Веб-камера Logitech C920</td><td>периферия</td><td class="ok">true</td><td>0</td></tr>
+                <tr class="on"><td>2 · Наушники Sony WH-1000XM5</td><td>периферия</td><td class="ok">true</td><td>1</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Условие вычисляется для каждого элемента по очереди, и <code>$$item</code> каждый раз — следующий элемент. В последнем столбце — номер элемента в новом массиве: номера считаются заново.</p>
+        </div>
+        <p>В главе 4.6 те же позиции отбирали парой стадий <code>$unwind</code> и <code>$match</code>: заказ превращался в три документа, и два из них проходили отбор. <code>$filter</code> оставляет один документ заказа, а выписку кладёт в его поле.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Переменная $$this и длина отобранного</h2>
+        <p>Параметр <code>as</code> необязателен. Без него текущий элемент называется <code>this</code> и записывается <code>"$$this"</code>. В остальных примерах книги используется эта короткая запись.</p>
+        <p>Результат <code>$filter</code> — массив, поэтому его длину можно получить выражением <code>$size</code> из главы 5.1. Пример для заказа 2026-0004 выводит число всех позиций, позиции периферии и их число.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$$this и $size отобранного</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0004"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"lines"</span>: {<span class="s">"$size"</span>: <span class="s">"$items"</span>},
+        <span class="s">"periphery"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+        }},
+        <span class="s">"periphery_lines"</span>: {<span class="s">"$size"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+        }}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$$this и $size отобранного</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0004"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"lines"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$items"</span>))),
+    <span class="f">kvp</span>(<span class="s">"periphery"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>)))))))),
+    <span class="f">kvp</span>(<span class="s">"periphery_lines"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$$this и $size отобранного</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0004"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"lines"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$items"</span>}}},
+        {Key: <span class="s">"periphery"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{
+                    {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}},
+        {Key: <span class="s">"periphery_lines"</span>, Value: bson.D{
+            {Key: <span class="s">"$size"</span>, Value: bson.D{
+                {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                    {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                    {Key: <span class="s">"cond"</span>, Value: bson.D{
+                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$$this и $size отобранного</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0004"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"lines"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$items"</span> },
+    <span class="s">"periphery"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+    } },
+    <span class="s">"periphery_lines"</span> =&gt; { <span class="s">"$size"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+    } } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0004', 'lines': 4, 'periphery': [{'sku': 'SKU-PR-014', 'title': 'Веб-камера Logitech C920', 'category': 'периферия', 'qty': 3, 'price': 6790}, {'sku': 'SKU-PR-013', 'title': 'Наушники Sony WH-1000XM5', 'category': 'периферия', 'qty': 1, 'price': 34990}], 'periphery_lines': 2}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0004", "lines" : 4, "periphery" : [ { "sku" : "SKU-PR-014", "title" : "Веб-камера Logitech C920", "category" : "периферия", "qty" : 3, "price" : 6790 }, { "sku" : "SKU-PR-013", "title" : "Наушники Sony WH-1000XM5", "category" : "периферия", "qty" : 1, "price" : 34990 } ], "periphery_lines" : 2 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0004","lines":4,"periphery":[{"sku":"SKU-PR-014","title":"Веб-камера Logitech C920","category":"периферия","qty":3,"price":6790},{"sku":"SKU-PR-013","title":"Наушники Sony WH-1000XM5","category":"периферия","qty":1,"price":34990}],"periphery_lines":2}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0004", "lines"=&gt;4, "periphery"=&gt;[{"sku"=&gt;"SKU-PR-014", "title"=&gt;"Веб-камера Logitech C920", "category"=&gt;"периферия", "qty"=&gt;3, "price"=&gt;6790}, {"sku"=&gt;"SKU-PR-013", "title"=&gt;"Наушники Sony WH-1000XM5", "category"=&gt;"периферия", "qty"=&gt;1, "price"=&gt;34990}], "periphery_lines"=&gt;2}</pre>
+        </figure>
+        <p>В заказе четыре позиции, из них периферия — две: веб-камера (3 штуки) и наушники (1 штука). <code>periphery_lines</code> равно 2 — длине массива <code>periphery</code>. Выражение <code>$filter</code> в примере записано дважды: один раз для самого массива, второй — внутри <code>$size</code>. Сервер вычисляет его оба раза.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Несколько условий</h2>
+        <p>Условие <code>cond</code> — любое выражение, которое даёт истину или ложь. Несколько условий соединяют выражением <code>$and</code>: <code>{"$and": [условие, условие]}</code> истинно, когда истинны все условия списка. Это выражение, а не оператор фильтра из главы 2.4, поэтому условия внутри записываются в форме выражений: <code>{"$gte": ["$$this.qty", 2]}</code>.</p>
+        <p>Пример отбирает у заказа 2026-0004 дешёвые позиции, купленные несколькими штуками: количество от 2, цена ниже 10 000.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$filter с двумя условиями</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0004"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"cheap_many"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$and"</span>: [
+                {<span class="s">"$gte"</span>: [<span class="s">"$$this.qty"</span>, <span class="n">2</span>]},
+                {<span class="s">"$lt"</span>: [<span class="s">"$$this.price"</span>, <span class="n">10000</span>]},
+            ]},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$filter с двумя условиями</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0004"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"cheap_many"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$and"</span>, <span class="f">make_array</span>(
+                    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="n">2</span>))),
+                    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="f">make_array</span>(<span class="s">"$$this.price"</span>, <span class="n">10000</span>)))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$filter с двумя условиями</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0004"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"cheap_many"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{
+                    {Key: <span class="s">"$and"</span>, Value: bson.A{
+                        bson.D{{Key: <span class="s">"$gte"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="n">2</span>}}},
+                        bson.D{{Key: <span class="s">"$lt"</span>, Value: bson.A{<span class="s">"$$this.price"</span>, <span class="n">10000</span>}}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$filter с двумя условиями</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0004"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"cheap_many"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$and"</span> =&gt; [
+        { <span class="s">"$gte"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="n">2</span>] },
+        { <span class="s">"$lt"</span> =&gt; [<span class="s">"$$this.price"</span>, <span class="n">10000</span>] },
+      ] },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0004', 'cheap_many': [{'sku': 'SKU-PR-014', 'title': 'Веб-камера Logitech C920', 'category': 'периферия', 'qty': 3, 'price': 6790}, {'sku': 'SKU-AC-021', 'title': 'Powerbank Anker 20000 мА·ч', 'category': 'аксессуары', 'qty': 3, 'price': 4290}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0004", "cheap_many" : [ { "sku" : "SKU-PR-014", "title" : "Веб-камера Logitech C920", "category" : "периферия", "qty" : 3, "price" : 6790 }, { "sku" : "SKU-AC-021", "title" : "Powerbank Anker 20000 мА·ч", "category" : "аксессуары", "qty" : 3, "price" : 4290 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0004","cheap_many":[{"sku":"SKU-PR-014","title":"Веб-камера Logitech C920","category":"периферия","qty":3,"price":6790},{"sku":"SKU-AC-021","title":"Powerbank Anker 20000 мА·ч","category":"аксессуары","qty":3,"price":4290}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0004", "cheap_many"=&gt;[{"sku"=&gt;"SKU-PR-014", "title"=&gt;"Веб-камера Logitech C920", "category"=&gt;"периферия", "qty"=&gt;3, "price"=&gt;6790}, {"sku"=&gt;"SKU-AC-021", "title"=&gt;"Powerbank Anker 20000 мА·ч", "category"=&gt;"аксессуары", "qty"=&gt;3, "price"=&gt;4290}]}</pre>
+        </figure>
+        <p>Прошли две позиции: веб-камера (3 штуки по 6 790) и пауэрбанк (3 штуки по 4 290). Смартфон Xiaomi куплен в двух штуках, но стоит 18 990 и не проходит второе условие. Наушники стоят 34 990 и куплены в одной штуке — не проходят оба.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Два условия для четырёх позиций 2026-0004</span><span>4 → 2</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Позиция</th><th>qty ≥ 2</th><th>price &lt; 10000</th><th>$and</th></tr></thead>
+              <tbody>
+                <tr class="on"><td>Веб-камера Logitech C920</td><td class="ok">3 — да</td><td class="ok">6790 — да</td><td class="ok">true</td></tr>
+                <tr class="no"><td>Смартфон Xiaomi Redmi Note 13</td><td class="ok">2 — да</td><td class="bad">18990 — нет</td><td class="bad">false</td></tr>
+                <tr class="no"><td>Наушники Sony WH-1000XM5</td><td class="bad">1 — нет</td><td class="bad">34990 — нет</td><td class="bad">false</td></tr>
+                <tr class="on"><td>Powerbank Anker 20000 мА·ч</td><td class="ok">3 — да</td><td class="ok">4290 — да</td><td class="ok">true</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note"><code>$and</code> истинно, только если истинны оба условия строки. Одного условия, как у смартфона, недостаточно.</p>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>Первые подходящие: limit</h2>
+        <p>Параметр <code>limit</code> ограничивает число элементов в результате: <code>$filter</code> проверяет элементы по порядку и останавливается, когда набрал <code>limit</code> подходящих. Пример берёт у заказа 2026-0004 только первую позицию периферии.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$filter с limit</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0004"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"first_periphery"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+            <span class="s">"limit"</span>: <span class="n">1</span>,
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$filter с limit</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0004"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"first_periphery"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>)))),
+            <span class="f">kvp</span>(<span class="s">"limit"</span>, <span class="n">1</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$filter с limit</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0004"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"first_periphery"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{
+                    {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}},
+                {Key: <span class="s">"limit"</span>, Value: <span class="n">1</span>}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$filter с limit</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0004"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"first_periphery"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+      <span class="s">"limit"</span> =&gt; <span class="n">1</span>,
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0004', 'first_periphery': [{'sku': 'SKU-PR-014', 'title': 'Веб-камера Logitech C920', 'category': 'периферия', 'qty': 3, 'price': 6790}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0004", "first_periphery" : [ { "sku" : "SKU-PR-014", "title" : "Веб-камера Logitech C920", "category" : "периферия", "qty" : 3, "price" : 6790 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0004","first_periphery":[{"sku":"SKU-PR-014","title":"Веб-камера Logitech C920","category":"периферия","qty":3,"price":6790}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0004", "first_periphery"=&gt;[{"sku"=&gt;"SKU-PR-014", "title"=&gt;"Веб-камера Logitech C920", "category"=&gt;"периферия", "qty"=&gt;3, "price"=&gt;6790}]}</pre>
+        </figure>
+        <p>В результате одна веб-камера: она стоит в массиве раньше наушников. Наушники тоже подходят под условие, но до них <code>$filter</code> не дошёл. <code>limit</code> не выбирает «лучшие» элементы — только первые по порядку массива.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Число отобранных как ключ группы</h2>
+        <p>Длина результата <code>$filter</code> — число, и по нему можно группировать, как по <code>$size</code> в главе 5.1. Пример раскладывает все заказы по числу позиций периферии.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>заказы по числу позиций периферии</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: {<span class="s">"$size"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+        }}},
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>заказы по числу позиций периферии</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>)))))))))),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>заказы по числу позиций периферии</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{
+            {Key: <span class="s">"$size"</span>, Value: bson.D{
+                {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                    {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                    {Key: <span class="s">"cond"</span>, Value: bson.D{
+                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}}}},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>заказы по числу позиций периферии</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; { <span class="s">"$size"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+    } } },
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 0, 'orders': 63}
+{'_id': 1, 'orders': 48}
+{'_id': 2, 'orders': 9}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : 0, "orders" : 63 }
+{ "_id" : 1, "orders" : 48 }
+{ "_id" : 2, "orders" : 9 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":0,"orders":63}
+{"_id":1,"orders":48}
+{"_id":2,"orders":9}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;0, "orders"=&gt;63}
+{"_id"=&gt;1, "orders"=&gt;48}
+{"_id"=&gt;2, "orders"=&gt;9}</pre>
+        </figure>
+        <p>В 63 заказах периферии нет, в 48 — одна позиция, в 9 — две. Вместе 120. Заказы без периферии остались в результате с ключом 0: <code>$filter</code> вернул им пустой массив, а длина пустого массива — 0.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Заказы по числу позиций периферии</span><span>120 заказов</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>0 позиций периферии</span><i><b style="width:100%"></b></i><span>63</span></div>
+              <div><span>1 позиция</span><i><b class="on" style="width:76.2%"></b></i><span>48</span></div>
+              <div><span>2 позиции</span><i><b class="on" style="width:14.3%"></b></i><span>9</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёным — заказы с периферией: 48 + 9 = 57. С <code>$unwind</code> заказы без периферии исчезли бы из потока после <code>$match</code>, и строки с нулём не было бы.</p>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>$filter внутри $match</h2>
+        <p>Стадия <code>$match</code> принимает выражения через <code>$expr</code> — так в главе 2.8 сравнивали поля между собой. Условие «у заказа есть хотя бы одна позиция периферии» записывается как «длина результата <code>$filter</code> больше нуля». Пример сравнивает такой отбор с фильтрами по массиву из главы 2.6: путём <code>items.category</code> и оператором <code>$elemMatch</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$filter в $match и фильтр по массиву</span></figcaption>
+<pre>by_filter = [
+    {<span class="s">"$match"</span>: {<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [
+        {<span class="s">"$size"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+        }}},
+        <span class="n">0</span>,
+    ]}}},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+by_path = [
+    {<span class="s">"$match"</span>: {<span class="s">"items.category"</span>: <span class="s">"периферия"</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+by_filter_qty = [
+    {<span class="s">"$match"</span>: {<span class="s">"$expr"</span>: {<span class="s">"$gt"</span>: [
+        {<span class="s">"$size"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$and"</span>: [
+                {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+                {<span class="s">"$gte"</span>: [<span class="s">"$$this.qty"</span>, <span class="n">2</span>]},
+            ]},
+        }}},
+        <span class="n">0</span>,
+    ]}}},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+by_elem = [
+    {<span class="s">"$match"</span>: {<span class="s">"items"</span>: {<span class="s">"$elemMatch"</span>: {<span class="s">"category"</span>: <span class="s">"периферия"</span>, <span class="s">"qty"</span>: {<span class="s">"$gte"</span>: <span class="n">2</span>}}}}},
+    {<span class="s">"$count"</span>: <span class="s">"orders"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $expr и $filter: есть периферия"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_filter):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── фильтр по items.category"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_path):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── $expr и $filter: периферия от 2 штук"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_filter_qty):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── $elemMatch: периферия от 2 штук"</span>)
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_elem):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$filter в $match и фильтр по массиву</span></figcaption>
+<pre>mongocxx::pipeline by_filter;
+by_filter.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(
+            <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                        <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>))))))))),
+            <span class="n">0</span>))))));
+by_filter.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+mongocxx::pipeline by_path;
+by_path.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"items.category"</span>, <span class="s">"периферия"</span>)));
+by_path.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+mongocxx::pipeline by_filter_qty;
+by_filter_qty.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(
+            <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                        <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$and"</span>, <span class="f">make_array</span>(
+                                <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>))),
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="n">2</span>)))))))))))),
+            <span class="n">0</span>))))));
+by_filter_qty.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+mongocxx::pipeline by_elem;
+by_elem.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"items"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$elemMatch"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"периферия"</span>),
+            <span class="f">kvp</span>(<span class="s">"qty"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gte"</span>, <span class="n">2</span>)))))))));
+by_elem.<span class="f">count</span>(<span class="s">"orders"</span>);
+
+std::cout &lt;&lt; <span class="s">"── $expr и $filter: есть периферия"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_filter)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── фильтр по items.category"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_path)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── $expr и $filter: периферия от 2 штук"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_filter_qty)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── $elemMatch: периферия от 2 штук"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_elem)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$filter в $match и фильтр по массиву</span></figcaption>
+<pre>byFilter := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"$expr"</span>, Value: bson.D{
+            {Key: <span class="s">"$gt"</span>, Value: bson.A{
+                bson.D{
+                    {Key: <span class="s">"$size"</span>, Value: bson.D{
+                        {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                            {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                            {Key: <span class="s">"cond"</span>, Value: bson.D{
+                                {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}}},
+                <span class="n">0</span>}}}}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+byPath := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"items.category"</span>, Value: <span class="s">"периферия"</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+byFilterQty := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"$expr"</span>, Value: bson.D{
+            {Key: <span class="s">"$gt"</span>, Value: bson.A{
+                bson.D{
+                    {Key: <span class="s">"$size"</span>, Value: bson.D{
+                        {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                            {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                            {Key: <span class="s">"cond"</span>, Value: bson.D{
+                                {Key: <span class="s">"$and"</span>, Value: bson.A{
+                                    bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}},
+                                    bson.D{{Key: <span class="s">"$gte"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="n">2</span>}}}}}}}}}}}},
+                <span class="n">0</span>}}}}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+byElem := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"items"</span>, Value: bson.D{
+            {Key: <span class="s">"$elemMatch"</span>, Value: bson.D{
+                {Key: <span class="s">"category"</span>, Value: <span class="s">"периферия"</span>},
+                {Key: <span class="s">"qty"</span>, Value: bson.D{{Key: <span class="s">"$gte"</span>, Value: <span class="n">2</span>}}}}}}}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"orders"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $expr и $filter: есть периферия"</span>)
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, byFilter)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── фильтр по items.category"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, byPath)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $expr и $filter: периферия от 2 штук"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, byFilterQty)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $elemMatch: периферия от 2 штук"</span>)
+cursor, _ = orders.<span class="f">Aggregate</span>(ctx, byElem)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$filter в $match и фильтр по массиву</span></figcaption>
+<pre>by_filter = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [
+    { <span class="s">"$size"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+    } } },
+    <span class="n">0</span>,
+  ] } } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+by_path = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items.category"</span> =&gt; <span class="s">"периферия"</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+by_filter_qty = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"$expr"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [
+    { <span class="s">"$size"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$and"</span> =&gt; [
+        { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+        { <span class="s">"$gte"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="n">2</span>] },
+      ] },
+    } } },
+    <span class="n">0</span>,
+  ] } } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+by_elem = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"items"</span> =&gt; { <span class="s">"$elemMatch"</span> =&gt; {
+    <span class="s">"category"</span> =&gt; <span class="s">"периферия"</span>,
+    <span class="s">"qty"</span> =&gt; { <span class="s">"$gte"</span> =&gt; <span class="n">2</span> },
+  } } } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"orders"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $expr и $filter: есть периферия"</span>
+orders.<span class="f">aggregate</span>(by_filter).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── фильтр по items.category"</span>
+orders.<span class="f">aggregate</span>(by_path).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── $expr и $filter: периферия от 2 штук"</span>
+orders.<span class="f">aggregate</span>(by_filter_qty).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── $elemMatch: периферия от 2 штук"</span>
+orders.<span class="f">aggregate</span>(by_elem).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $expr и $filter: есть периферия
+{'orders': 57}
+── фильтр по items.category
+{'orders': 57}
+── $expr и $filter: периферия от 2 штук
+{'orders': 24}
+── $elemMatch: периферия от 2 штук
+{'orders': 24}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $expr и $filter: есть периферия
+{ "orders" : 57 }
+── фильтр по items.category
+{ "orders" : 57 }
+── $expr и $filter: периферия от 2 штук
+{ "orders" : 24 }
+── $elemMatch: периферия от 2 штук
+{ "orders" : 24 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $expr и $filter: есть периферия
+{"orders":57}
+── фильтр по items.category
+{"orders":57}
+── $expr и $filter: периферия от 2 штук
+{"orders":24}
+── $elemMatch: периферия от 2 штук
+{"orders":24}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $expr и $filter: есть периферия
+{"orders"=&gt;57}
+── фильтр по items.category
+{"orders"=&gt;57}
+── $expr и $filter: периферия от 2 штук
+{"orders"=&gt;24}
+── $elemMatch: периферия от 2 штук
+{"orders"=&gt;24}</pre>
+        </figure>
+        <p>Попарно счётчики совпадают: 57 заказов с периферией и 24 заказа, где периферия куплена от двух штук. Для отбора документов фильтр из главы 2.6 короче и может использовать индекс по <code>items.category</code>; условие с <code>$filter</code> внутри <code>$expr</code> сервер вычисляет для каждого документа и индекс для него не применяет. Поэтому для отбора документов берут фильтр. <code>$filter</code> нужен, когда отобранные элементы нужны дальше: их выводят, считают или передают другому выражению.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Склады с остатком</h2>
+        <p>У товара в массиве <code>stock</code> бывают склады с остатком 0: товар туда завозили, но он закончился. Пример отбирает склады с ненулевым остатком в поле <code>in_stock</code> и оставляет только товары, у которых таких складов меньше, чем всех.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>склады с ненулевым остатком</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"title"</span>: <span class="n">1</span>,
+        <span class="s">"stock"</span>: <span class="n">1</span>,
+        <span class="s">"in_stock"</span>: {<span class="s">"$filter"</span>: {<span class="s">"input"</span>: <span class="s">"$stock"</span>, <span class="s">"cond"</span>: {<span class="s">"$gt"</span>: [<span class="s">"$$this.qty"</span>, <span class="n">0</span>]}}},
+    }},
+    {<span class="s">"$match"</span>: {<span class="s">"$expr"</span>: {<span class="s">"$lt"</span>: [{<span class="s">"$size"</span>: <span class="s">"$in_stock"</span>}, {<span class="s">"$size"</span>: <span class="s">"$stock"</span>}]}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> products.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>склады с ненулевым остатком</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"stock"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"in_stock"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$stock"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="n">0</span>))))))))));
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"$expr"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$lt"</span>, <span class="f">make_array</span>(
+            <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$in_stock"</span>)),
+            <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$stock"</span>))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>склады с ненулевым остатком</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"stock"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"in_stock"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$stock"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="n">0</span>}}}}}}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"$expr"</span>, Value: bson.D{
+            {Key: <span class="s">"$lt"</span>, Value: bson.A{
+                bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$in_stock"</span>}},
+                bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$stock"</span>}}}}}}}}},
+}
+
+cursor, _ := products.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>склады с ненулевым остатком</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"title"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"stock"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"in_stock"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$stock"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$gt"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="n">0</span>] },
+    } },
+  } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"$expr"</span> =&gt; { <span class="s">"$lt"</span> =&gt; [
+    { <span class="s">"$size"</span> =&gt; <span class="s">"$in_stock"</span> },
+    { <span class="s">"$size"</span> =&gt; <span class="s">"$stock"</span> },
+  ] } } },
+]
+
+products.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'Ноутбук Acer Nitro V15', 'stock': [{'warehouse': 'Москва-2', 'qty': 0}, {'warehouse': 'Екатеринбург', 'qty': 40}], 'in_stock': [{'warehouse': 'Екатеринбург', 'qty': 40}]}
+{'title': 'Смартфон Samsung Galaxy A55', 'stock': [{'warehouse': 'Москва-2', 'qty': 0}], 'in_stock': []}
+{'title': 'Смартфон realme 12 Pro', 'stock': [{'warehouse': 'Москва-1', 'qty': 0}, {'warehouse': 'Екатеринбург', 'qty': 3}], 'in_stock': [{'warehouse': 'Екатеринбург', 'qty': 3}]}
+{'title': 'Монитор Dell P2422H', 'stock': [{'warehouse': 'Екатеринбург', 'qty': 0}], 'in_stock': []}
+{'title': 'Наушники Sony WH-1000XM5', 'stock': [{'warehouse': 'Москва-2', 'qty': 0}, {'warehouse': 'Москва-1', 'qty': 40}], 'in_stock': [{'warehouse': 'Москва-1', 'qty': 40}]}
+{'title': 'SSD Samsung 980 1 ТБ', 'stock': [{'warehouse': 'Москва-1', 'qty': 0}, {'warehouse': 'Санкт-Петербург', 'qty': 12}], 'in_stock': [{'warehouse': 'Санкт-Петербург', 'qty': 12}]}
+{'title': 'Блок питания be quiet! 650 Вт', 'stock': [{'warehouse': 'Москва-2', 'qty': 12}, {'warehouse': 'Екатеринбург', 'qty': 3}, {'warehouse': 'Москва-1', 'qty': 0}], 'in_stock': [{'warehouse': 'Москва-2', 'qty': 12}, {'warehouse': 'Екатеринбург', 'qty': 3}]}
+{'title': 'Рюкзак для ноутбука Xiaomi', 'stock': [{'warehouse': 'Санкт-Петербург', 'qty': 0}, {'warehouse': 'Екатеринбург', 'qty': 20}], 'in_stock': [{'warehouse': 'Екатеринбург', 'qty': 20}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "Ноутбук Acer Nitro V15", "stock" : [ { "warehouse" : "Москва-2", "qty" : 0 }, { "warehouse" : "Екатеринбург", "qty" : 40 } ], "in_stock" : [ { "warehouse" : "Екатеринбург", "qty" : 40 } ] }
+{ "title" : "Смартфон Samsung Galaxy A55", "stock" : [ { "warehouse" : "Москва-2", "qty" : 0 } ], "in_stock" : [ ] }
+{ "title" : "Смартфон realme 12 Pro", "stock" : [ { "warehouse" : "Москва-1", "qty" : 0 }, { "warehouse" : "Екатеринбург", "qty" : 3 } ], "in_stock" : [ { "warehouse" : "Екатеринбург", "qty" : 3 } ] }
+{ "title" : "Монитор Dell P2422H", "stock" : [ { "warehouse" : "Екатеринбург", "qty" : 0 } ], "in_stock" : [ ] }
+{ "title" : "Наушники Sony WH-1000XM5", "stock" : [ { "warehouse" : "Москва-2", "qty" : 0 }, { "warehouse" : "Москва-1", "qty" : 40 } ], "in_stock" : [ { "warehouse" : "Москва-1", "qty" : 40 } ] }
+{ "title" : "SSD Samsung 980 1 ТБ", "stock" : [ { "warehouse" : "Москва-1", "qty" : 0 }, { "warehouse" : "Санкт-Петербург", "qty" : 12 } ], "in_stock" : [ { "warehouse" : "Санкт-Петербург", "qty" : 12 } ] }
+{ "title" : "Блок питания be quiet! 650 Вт", "stock" : [ { "warehouse" : "Москва-2", "qty" : 12 }, { "warehouse" : "Екатеринбург", "qty" : 3 }, { "warehouse" : "Москва-1", "qty" : 0 } ], "in_stock" : [ { "warehouse" : "Москва-2", "qty" : 12 }, { "warehouse" : "Екатеринбург", "qty" : 3 } ] }
+{ "title" : "Рюкзак для ноутбука Xiaomi", "stock" : [ { "warehouse" : "Санкт-Петербург", "qty" : 0 }, { "warehouse" : "Екатеринбург", "qty" : 20 } ], "in_stock" : [ { "warehouse" : "Екатеринбург", "qty" : 20 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"Ноутбук Acer Nitro V15","stock":[{"warehouse":"Москва-2","qty":0},{"warehouse":"Екатеринбург","qty":40}],"in_stock":[{"warehouse":"Екатеринбург","qty":40}]}
+{"title":"Смартфон Samsung Galaxy A55","stock":[{"warehouse":"Москва-2","qty":0}],"in_stock":[]}
+{"title":"Смартфон realme 12 Pro","stock":[{"warehouse":"Москва-1","qty":0},{"warehouse":"Екатеринбург","qty":3}],"in_stock":[{"warehouse":"Екатеринбург","qty":3}]}
+{"title":"Монитор Dell P2422H","stock":[{"warehouse":"Екатеринбург","qty":0}],"in_stock":[]}
+{"title":"Наушники Sony WH-1000XM5","stock":[{"warehouse":"Москва-2","qty":0},{"warehouse":"Москва-1","qty":40}],"in_stock":[{"warehouse":"Москва-1","qty":40}]}
+{"title":"SSD Samsung 980 1 ТБ","stock":[{"warehouse":"Москва-1","qty":0},{"warehouse":"Санкт-Петербург","qty":12}],"in_stock":[{"warehouse":"Санкт-Петербург","qty":12}]}
+{"title":"Блок питания be quiet! 650 Вт","stock":[{"warehouse":"Москва-2","qty":12},{"warehouse":"Екатеринбург","qty":3},{"warehouse":"Москва-1","qty":0}],"in_stock":[{"warehouse":"Москва-2","qty":12},{"warehouse":"Екатеринбург","qty":3}]}
+{"title":"Рюкзак для ноутбука Xiaomi","stock":[{"warehouse":"Санкт-Петербург","qty":0},{"warehouse":"Екатеринбург","qty":20}],"in_stock":[{"warehouse":"Екатеринбург","qty":20}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"Ноутбук Acer Nitro V15", "stock"=&gt;[{"warehouse"=&gt;"Москва-2", "qty"=&gt;0}, {"warehouse"=&gt;"Екатеринбург", "qty"=&gt;40}], "in_stock"=&gt;[{"warehouse"=&gt;"Екатеринбург", "qty"=&gt;40}]}
+{"title"=&gt;"Смартфон Samsung Galaxy A55", "stock"=&gt;[{"warehouse"=&gt;"Москва-2", "qty"=&gt;0}], "in_stock"=&gt;[]}
+{"title"=&gt;"Смартфон realme 12 Pro", "stock"=&gt;[{"warehouse"=&gt;"Москва-1", "qty"=&gt;0}, {"warehouse"=&gt;"Екатеринбург", "qty"=&gt;3}], "in_stock"=&gt;[{"warehouse"=&gt;"Екатеринбург", "qty"=&gt;3}]}
+{"title"=&gt;"Монитор Dell P2422H", "stock"=&gt;[{"warehouse"=&gt;"Екатеринбург", "qty"=&gt;0}], "in_stock"=&gt;[]}
+{"title"=&gt;"Наушники Sony WH-1000XM5", "stock"=&gt;[{"warehouse"=&gt;"Москва-2", "qty"=&gt;0}, {"warehouse"=&gt;"Москва-1", "qty"=&gt;40}], "in_stock"=&gt;[{"warehouse"=&gt;"Москва-1", "qty"=&gt;40}]}
+{"title"=&gt;"SSD Samsung 980 1 ТБ", "stock"=&gt;[{"warehouse"=&gt;"Москва-1", "qty"=&gt;0}, {"warehouse"=&gt;"Санкт-Петербург", "qty"=&gt;12}], "in_stock"=&gt;[{"warehouse"=&gt;"Санкт-Петербург", "qty"=&gt;12}]}
+{"title"=&gt;"Блок питания be quiet! 650 Вт", "stock"=&gt;[{"warehouse"=&gt;"Москва-2", "qty"=&gt;12}, {"warehouse"=&gt;"Екатеринбург", "qty"=&gt;3}, {"warehouse"=&gt;"Москва-1", "qty"=&gt;0}], "in_stock"=&gt;[{"warehouse"=&gt;"Москва-2", "qty"=&gt;12}, {"warehouse"=&gt;"Екатеринбург", "qty"=&gt;3}]}
+{"title"=&gt;"Рюкзак для ноутбука Xiaomi", "stock"=&gt;[{"warehouse"=&gt;"Санкт-Петербург", "qty"=&gt;0}, {"warehouse"=&gt;"Екатеринбург", "qty"=&gt;20}], "in_stock"=&gt;[{"warehouse"=&gt;"Екатеринбург", "qty"=&gt;20}]}</pre>
+        </figure>
+        <p>Таких товаров 8. У шести из них остался хотя бы один склад: у ноутбука Acer Nitro пустой склад Москва-2, но на складе Екатеринбург 40 штук. У смартфона Samsung Galaxy A55 и монитора Dell по одному складу, и он пустой, поэтому <code>in_stock</code> у них — пустой массив. Второе условие сравнивает длины двух массивов одного документа: это то сравнение полей, ради которого нужен <code>$expr</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Склады трёх товаров до $filter и после</span><span>условие qty &gt; 0</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Товар</th><th>stock</th><th>in_stock</th></tr></thead>
+              <tbody>
+                <tr><td>Ноутбук Acer Nitro V15</td><td>Москва-2: 0 · Екатеринбург: 40</td><td>Екатеринбург: 40</td></tr>
+                <tr><td>Блок питания be quiet! 650 Вт</td><td>Москва-2: 12 · Екатеринбург: 3 · Москва-1: 0</td><td>Москва-2: 12 · Екатеринбург: 3</td></tr>
+                <tr class="no"><td>Смартфон Samsung Galaxy A55</td><td>Москва-2: 0</td><td>[ ] — пусто</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Склады с нулём уходят из <code>in_stock</code>, порядок оставшихся сохраняется. У товара с единственным пустым складом остаётся пустой массив, а не <code>null</code>.</p>
+        </div>
+
+        <h2 id="s8"><span class="sec">§8</span>Один знак $ вместо двух</h2>
+        <p>Переменная элемента пишется с двумя знаками доллара. С одним знаком <code>"$this.category"</code> — это путь к полю документа: сервер ищет у заказа поле <code>this</code> с вложенным полем <code>category</code>. Пример сравнивает обе записи на заказе 2026-0002.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$this вместо $$this</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"wrong"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$this.category"</span>, <span class="s">"периферия"</span>]},
+        }},
+        <span class="s">"right"</span>: {<span class="s">"$size"</span>: {<span class="s">"$filter"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+        }}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$this вместо $$this</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"wrong"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$this.category"</span>, <span class="s">"периферия"</span>)))))))),
+    <span class="f">kvp</span>(<span class="s">"right"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$this вместо $$this</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"wrong"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{
+                    {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}},
+        {Key: <span class="s">"right"</span>, Value: bson.D{
+            {Key: <span class="s">"$size"</span>, Value: bson.D{
+                {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                    {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                    {Key: <span class="s">"cond"</span>, Value: bson.D{
+                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$this вместо $$this</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"wrong"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$this.category"</span>, <span class="s">"периферия"</span>] },
+    } },
+    <span class="s">"right"</span> =&gt; { <span class="s">"$size"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+    } } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'wrong': [], 'right': 2}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "wrong" : [ ], "right" : 2 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"wrong":[],"right":2}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"wrong"=&gt;[], "right"=&gt;2}</pre>
+        </figure>
+        <p><code>wrong</code> — пустой массив, хотя периферия в заказе есть. Поля <code>this</code> у заказа нет, его значение не равно «периферия» ни для одного элемента, и условие всегда ложно. Сервер не сообщает об ошибке: запись допустима, просто означает другое. Правильная запись в <code>right</code> находит две позиции.</p>
+        <p>Такую ошибку видно только по результату. Если <code>$filter</code> неожиданно вернул пустой массив у всех документов, первым делом проверяют число знаков доллара в условии.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Документ без массива</h2>
+        <p>Поля <code>gifts</code> (подарки к заказу) у заказов нет. Пример применяет к нему <code>$filter</code> напрямую и через <code>$ifNull</code> с пустым массивом, как в главе 5.1.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$filter по полю, которого нет</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"gifts"</span>: {<span class="s">"$filter"</span>: {<span class="s">"input"</span>: <span class="s">"$gifts"</span>, <span class="s">"cond"</span>: <span class="k">True</span>}},
+        <span class="s">"gifts_or"</span>: {<span class="s">"$filter"</span>: {<span class="s">"input"</span>: {<span class="s">"$ifNull"</span>: [<span class="s">"$gifts"</span>, []]}, <span class="s">"cond"</span>: <span class="k">True</span>}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$filter по полю, которого нет</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"gifts"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$gifts"</span>), <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="k">true</span>))))),
+    <span class="f">kvp</span>(<span class="s">"gifts_or"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$ifNull"</span>, <span class="f">make_array</span>(<span class="s">"$gifts"</span>, <span class="f">make_array</span>())))),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="k">true</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$filter по полю, которого нет</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"gifts"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$gifts"</span>},
+                {Key: <span class="s">"cond"</span>, Value: <span class="k">true</span>}}}}},
+        {Key: <span class="s">"gifts_or"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: bson.D{{Key: <span class="s">"$ifNull"</span>, Value: bson.A{<span class="s">"$gifts"</span>, bson.A{}}}}},
+                {Key: <span class="s">"cond"</span>, Value: <span class="k">true</span>}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$filter по полю, которого нет</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"gifts"</span> =&gt; { <span class="s">"$filter"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$gifts"</span>, <span class="s">"cond"</span> =&gt; <span class="k">true</span> } },
+    <span class="s">"gifts_or"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; { <span class="s">"$ifNull"</span> =&gt; [<span class="s">"$gifts"</span>, []] },
+      <span class="s">"cond"</span> =&gt; <span class="k">true</span>,
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'gifts': None, 'gifts_or': []}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "gifts" : null, "gifts_or" : [ ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"gifts":null,"gifts_or":[]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"gifts"=&gt;nil, "gifts_or"=&gt;[]}</pre>
+        </figure>
+        <p><code>gifts</code> равно <code>null</code>: без входного массива <code>$filter</code> возвращает <code>null</code>, а не пустой массив. <code>gifts_or</code> — пустой массив: <code>$ifNull</code> подставил <code>[]</code> вместо отсутствующего поля, и <code>$filter</code> отработал на нём. Разница важна, если дальше стоит <code>$size</code>: от <code>null</code> он даёт ошибку 17124, от пустого массива — 0.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Параметры, которые сервер не принимает</h2>
+        <p>Пример собирает три записи <code>$filter</code>, которые сервер отклоняет, и печатает код и текст каждой ошибки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>параметры $filter, которые сервер не принимает</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+string_input = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$filter"</span>: {<span class="s">"input"</span>: <span class="s">"$promo"</span>, <span class="s">"cond"</span>: <span class="k">True</span>}}}},
+]
+
+no_cond = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$filter"</span>: {<span class="s">"input"</span>: <span class="s">"$items"</span>}}}},
+]
+
+as_and_this = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$filter"</span>: {
+        <span class="s">"input"</span>: <span class="s">"$items"</span>,
+        <span class="s">"as"</span>: <span class="s">"item"</span>,
+        <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+    }}}},
+]
+
+<span class="f">print</span>(<span class="s">"── input — строка"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(string_input):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── нет cond"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(no_cond):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── as задан, в условии $$this"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(as_and_this):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>параметры $filter, которые сервер не принимает</span></figcaption>
+<pre>mongocxx::pipeline string_input;
+string_input.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+string_input.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$promo"</span>), <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="k">true</span>)))))));
+
+mongocxx::pipeline no_cond;
+no_cond.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+no_cond.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>)))))));
+
+mongocxx::pipeline as_and_this;
+as_and_this.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+as_and_this.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"item"</span>),
+            <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>))))))))));
+
+std::cout &lt;&lt; <span class="s">"── input — строка"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(string_input)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── нет cond"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(no_cond)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── as задан, в условии $$this"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(as_and_this)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>параметры $filter, которые сервер не принимает</span></figcaption>
+<pre>stringInput := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$promo"</span>},
+                {Key: <span class="s">"cond"</span>, Value: <span class="k">true</span>}}}}}}}},
+}
+
+noCond := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{{Key: <span class="s">"$filter"</span>, Value: bson.D{{Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>}}}}}}}},
+}
+
+asAndThis := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{
+            {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"as"</span>, Value: <span class="s">"item"</span>},
+                {Key: <span class="s">"cond"</span>, Value: bson.D{
+                    {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── input — строка"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, stringInput)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── нет cond"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, noCond)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── as задан, в условии $$this"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, asAndThis)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>параметры $filter, которые сервер не принимает</span></figcaption>
+<pre>string_input = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$filter"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$promo"</span>, <span class="s">"cond"</span> =&gt; <span class="k">true</span> } } } },
+]
+
+no_cond = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$filter"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$items"</span> } } } },
+]
+
+as_and_this = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+    <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"item"</span>,
+    <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+  } } } },
+]
+
+<span class="k">puts</span> <span class="s">"── input — строка"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(string_input).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── нет cond"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(no_cond).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── as задан, в условии $$this"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(as_and_this).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── input — строка
+код 28651
+PlanExecutor error during aggregation :: caused by :: input to $filter must be an array not string
+── нет cond
+код 28650
+Invalid $project :: caused by :: Missing 'cond' parameter to $filter
+── as задан, в условии $$this
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: this</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── input — строка
+код 28651
+PlanExecutor error during aggregation :: caused by :: input to $filter must be an array not string: server error code 28651: generic server error
+── нет cond
+код 28650
+Invalid $project :: caused by :: Missing 'cond' parameter to $filter: server error code 28650: generic server error
+── as задан, в условии $$this
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: this: server error code 17276: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── input — строка
+код 28651
+PlanExecutor error during aggregation :: caused by :: input to $filter must be an array not string
+── нет cond
+код 28650
+Invalid $project :: caused by :: Missing 'cond' parameter to $filter
+── as задан, в условии $$this
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: this</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── input — строка
+код 28651
+PlanExecutor error during aggregation :: caused by :: input to $filter must be an array not string
+── нет cond
+код 28650
+Invalid $project :: caused by :: Missing 'cond' parameter to $filter
+── as задан, в условии $$this
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: this</pre>
+        </figure>
+        <p>Строка вместо массива в <code>input</code> — ошибка 28651. Без <code>cond</code> — ошибка 28650. Третья ошибка, 17276, возникает, когда задан <code>as</code>, а в условии стоит <code>$$this</code>: после <code>as</code> элемент называется только заданным именем, и переменной <code>this</code> нет. Вторая и третья ошибки обнаруживаются при разборе запроса, до чтения документов; первая — на первом документе, где <code>promo</code> оказался строкой.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>$filter в Compass</h2>
+        <p>На кадре — конвейер из §7 на вкладке <b>Aggregations</b> коллекции <code>shop.products</code>: стадия <code>$project</code> с полем <code>in_stock</code> и стадия <code>$match</code>, которая сравнивает длины массивов.</p>
+        <figure class="shot">
+          <img src="../../shots/159-products-filter.png" alt="Compass, вкладка Aggregations коллекции shop.products: стадия $project с $filter по stock и стадия $match с $expr, в выборке товары с массивами stock и in_stock">
+          <figcaption>Compass · <code>$filter</code> по складам товара и отбор по длине результата</figcaption>
+        </figure>
+        <p>Под стадией <code>$project</code> — подпись <b>Sample of 10 documents</b>: Compass показывает образец из первых документов, и у каждого два массива, <code>stock</code> и <code>in_stock</code>, с длиной в скобках. У ноутбука Lenovo оба <b>Array (1)</b>, у ASUS оба <b>Array (3)</b> — у них пустых складов нет. Под стадией <code>$match</code> — <b>Sample of 8 documents</b>: остались товары, у которых длины различаются. Первый — ноутбук Acer Nitro, <b>Array (2)</b> и <b>Array (1)</b>; второй — смартфон Samsung Galaxy A55, у которого <code>in_stock</code> — <b>Array (empty)</b>, пустой массив. Остальные карточки видны прокруткой вправо.</p>
+
+        <h2 id="s12"><span class="sec">§12</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"cond": {"$eq": ["$this.category", "периферия"]}</code></td><td>Пустой массив без ошибки: <code>$this</code> с одним знаком — путь к полю <code>this</code> документа, а такого поля нет</td><td>Переменная элемента — с двумя знаками: <code>"$$this.category"</code></td></tr>
+              <tr><td><code>"as": "item"</code>, в условии <code>"$$this"</code></td><td>Ошибка 17276: после <code>as</code> переменной <code>this</code> нет, элемент называется <code>item</code></td><td>В условии — то имя, что в <code>as</code>: <code>"$$item.category"</code></td></tr>
+              <tr><td><code>{"$filter": {"input": "$promo", …}}</code></td><td>Ошибка 28651: <code>input</code> должен быть массивом, а <code>promo</code> — строка</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td>Ожидание пустого массива у документа без поля</td><td>Без поля <code>$filter</code> возвращает <code>null</code>, и <code>$size</code> от результата даёт ошибку 17124</td><td><code>"input": {"$ifNull": ["$gifts", []]}</code></td></tr>
+              <tr><td><code>"limit": 0</code></td><td>Ошибка: <code>limit</code> должен быть больше нуля</td><td>Не указывать <code>limit</code>, если ограничение не нужно</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"cond": {"$eq": ["$this.category", "периферия"]}</code></td><td>Пустой массив без ошибки: <code>$this</code> с одним знаком — путь к полю <code>this</code> документа, а такого поля нет</td><td>Переменная элемента — с двумя знаками: <code>"$$this.category"</code></td></tr>
+              <tr><td><code>"as": "item"</code>, в условии <code>"$$this"</code></td><td>Ошибка 17276: после <code>as</code> переменной <code>this</code> нет, элемент называется <code>item</code></td><td>В условии — то имя, что в <code>as</code>: <code>"$$item.category"</code></td></tr>
+              <tr><td><code>{"$filter": {"input": "$promo", …}}</code></td><td>Ошибка 28651: <code>input</code> должен быть массивом, а <code>promo</code> — строка</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td>Ожидание пустого массива у документа без поля</td><td>Без поля <code>$filter</code> возвращает <code>null</code>, и <code>$size</code> от результата даёт ошибку 17124</td><td><code>"input": {"$ifNull": ["$gifts", []]}</code></td></tr>
+              <tr><td><code>"limit": 0</code></td><td>Ошибка: <code>limit</code> должен быть больше нуля</td><td>Не указывать <code>limit</code>, если ограничение не нужно</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"cond": {"$eq": ["$this.category", "периферия"]}</code></td><td>Пустой массив без ошибки: <code>$this</code> с одним знаком — путь к полю <code>this</code> документа, а такого поля нет</td><td>Переменная элемента — с двумя знаками: <code>"$$this.category"</code></td></tr>
+              <tr><td><code>"as": "item"</code>, в условии <code>"$$this"</code></td><td>Ошибка 17276: после <code>as</code> переменной <code>this</code> нет, элемент называется <code>item</code></td><td>В условии — то имя, что в <code>as</code>: <code>"$$item.category"</code></td></tr>
+              <tr><td><code>{"$filter": {"input": "$promo", …}}</code></td><td>Ошибка 28651: <code>input</code> должен быть массивом, а <code>promo</code> — строка</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td>Ожидание пустого массива у документа без поля</td><td>Без поля <code>$filter</code> возвращает <code>null</code>, и <code>$size</code> от результата даёт ошибку 17124</td><td><code>"input": {"$ifNull": ["$gifts", []]}</code></td></tr>
+              <tr><td><code>"limit": 0</code></td><td>Ошибка: <code>limit</code> должен быть больше нуля</td><td>Не указывать <code>limit</code>, если ограничение не нужно</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"cond": {"$eq": ["$this.category", "периферия"]}</code></td><td>Пустой массив без ошибки: <code>$this</code> с одним знаком — путь к полю <code>this</code> документа, а такого поля нет</td><td>Переменная элемента — с двумя знаками: <code>"$$this.category"</code></td></tr>
+              <tr><td><code>"as": "item"</code>, в условии <code>"$$this"</code></td><td>Ошибка 17276: после <code>as</code> переменной <code>this</code> нет, элемент называется <code>item</code></td><td>В условии — то имя, что в <code>as</code>: <code>"$$item.category"</code></td></tr>
+              <tr><td><code>{"$filter": {"input": "$promo", …}}</code></td><td>Ошибка 28651: <code>input</code> должен быть массивом, а <code>promo</code> — строка</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td>Ожидание пустого массива у документа без поля</td><td>Без поля <code>$filter</code> возвращает <code>null</code>, и <code>$size</code> от результата даёт ошибку 17124</td><td><code>"input": {"$ifNull": ["$gifts", []]}</code></td></tr>
+              <tr><td><code>"limit": 0</code></td><td>Ошибка: <code>limit</code> должен быть больше нуля</td><td>Не указывать <code>limit</code>, если ограничение не нужно</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s13"><span class="sec">§13</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем результат <code>$filter</code> отличается от результата пары <code>$unwind</code> и <code>$match</code>?</summary>
+          <p><code>$filter</code> оставляет один документ и кладёт отобранные элементы в массив. <code>$unwind</code> и <code>$match</code> дают по документу на каждый подходящий элемент, а документы без подходящих элементов исчезают.</p>
+        </details>
+        <details>
+          <summary>Почему условие <code>{"$eq": ["$this.category", "периферия"]}</code> не находит ни одной позиции?</summary>
+          <p>С одним знаком доллара это путь к полю <code>this</code> документа, которого нет. Переменная элемента пишется <code>"$$this.category"</code>.</p>
+        </details>
+        <details>
+          <summary>Какие элементы вернёт <code>$filter</code> с <code>"limit": 1</code>, если под условие подходят три элемента?</summary>
+          <p>Первый из трёх по порядку массива.</p>
+        </details>
+        <details>
+          <summary>Что вернёт <code>$filter</code>, если у документа нет поля из <code>input</code>?</summary>
+          <p><code>null</code>. Чтобы получить пустой массив, <code>input</code> оборачивают в <code>{"$ifNull": ["$поле", []]}</code>.</p>
+        </details>
+        <details>
+          <summary>Когда для отбора заказов лучше фильтр <code>{"items.category": "периферия"}</code>, чем <code>$expr</code> с <code>$filter</code>?</summary>
+          <p>Когда нужно только отобрать документы: фильтр короче и может использовать индекс. <code>$filter</code> нужен, если отобранные элементы используются дальше.</p>
+        </details>
+
+        <h2 id="s14"><span class="sec">§14</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch5_2</code>. Данные — <code>shop.orders</code> и <code>shop.products</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Позиции от 2 штук</b>Сгруппировать все заказы по числу позиций, купленных в количестве от двух штук, по возрастанию числа.</li>
+          <li><b>Дорогие позиции</b>Для заказов 2026-0001 … 2026-0005 вывести номер и позиции с ценой от 30 000.</li>
+          <li><b>Нет в наличии</b>Найти товары, у которых не осталось ни одного склада с ненулевым остатком.</li>
+          <li><b>Склады Москвы</b>Для ноутбуков вывести название и склады, название которых начинается с «Москва», — через <code>$filter</code> и выражение <code>{"$in": ["$$this.warehouse", ["Москва-1", "Москва-2"]]}</code>.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Позиции от 2 штук: 0 — 40 заказов, 1 — 55, 2 — 19, 3 — 5, 4 — 1; всего 120.</p>
+          <p>Дорогие позиции: 2026-0001 — нет; 2026-0002 — ноутбук ASUS VivoBook 15 и наушники Sony WH-1000XM5; 2026-0003 — ноутбук HP Pavilion 14; 2026-0004 — наушники Sony WH-1000XM5; 2026-0005 — нет.</p>
+          <p>Нет в наличии: смартфон Samsung Galaxy A55 и монитор Dell P2422H.</p>
+          <p>Склады Москвы: Lenovo IdeaPad 3 — нет; ASUS VivoBook 15 — Москва-1 (20), Москва-2 (20); HP Pavilion 14 — Москва-2 (3); Apple MacBook Air 13 — Москва-2 (12); Acer Nitro V15 — Москва-2 (0).</p>
+        </details>
+
+        <h2 id="s15"><span class="sec">§15</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Отобрать элементы</b>
+            <code>{"$filter": {"input": "$items", "cond": {"$eq": ["$$this.category", "периферия"]}}}</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>{"$filter": {"input": "$items", "as": "item", "cond": {"$gte": ["$$item.qty", 2]}}}</code>
+          </div>
+          <div>
+            <b>Не больше одного</b>
+            <code>{"limit": 1}</code>
+          </div>
+          <div>
+            <b>Сколько отобрано</b>
+            <code>{"$size": {"$filter": {"input": "$stock", "cond": {"$gt": ["$$this.qty", 0]}}}}</code>
+          </div>
+          <div>
+            <b>Если поля может не быть</b>
+            <code>{"input": {"$ifNull": ["$gifts", []]}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Отобрать элементы</b>
+            <code>make_document(kvp("$filter", make_document(kvp("input", "$items"), kvp("cond", make_document(kvp("$eq", make_array("$$this.category", "периферия")))))))</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>make_document(kvp("$filter", make_document(kvp("input", "$items"), kvp("as", "item"), kvp("cond", make_document(kvp("$gte", make_array("$$item.qty", 2)))))))</code>
+          </div>
+          <div>
+            <b>Не больше одного</b>
+            <code>make_document(kvp("limit", 1))</code>
+          </div>
+          <div>
+            <b>Сколько отобрано</b>
+            <code>make_document(kvp("$size", make_document(kvp("$filter", make_document(kvp("input", "$stock"), kvp("cond", make_document(kvp("$gt", make_array("$$this.qty", 0)))))))))</code>
+          </div>
+          <div>
+            <b>Если поля может не быть</b>
+            <code>make_document(kvp("input", make_document(kvp("$ifNull", make_array("$gifts", make_array())))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Отобрать элементы</b>
+            <code>bson.D{{Key: "$filter", Value: bson.D{{Key: "input", Value: "$items"}, {Key: "cond", Value: bson.D{{Key: "$eq", Value: bson.A{"$$this.category", "периферия"}}}}}}}</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>bson.D{{Key: "$filter", Value: bson.D{{Key: "input", Value: "$items"}, {Key: "as", Value: "item"}, {Key: "cond", Value: bson.D{{Key: "$gte", Value: bson.A{"$$item.qty", 2}}}}}}}</code>
+          </div>
+          <div>
+            <b>Не больше одного</b>
+            <code>bson.D{{Key: "limit", Value: 1}}</code>
+          </div>
+          <div>
+            <b>Сколько отобрано</b>
+            <code>bson.D{{Key: "$size", Value: bson.D{{Key: "$filter", Value: bson.D{{Key: "input", Value: "$stock"}, {Key: "cond", Value: bson.D{{Key: "$gt", Value: bson.A{"$$this.qty", 0}}}}}}}}}</code>
+          </div>
+          <div>
+            <b>Если поля может не быть</b>
+            <code>bson.D{{Key: "input", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$gifts", bson.A{}}}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Отобрать элементы</b>
+            <code>{ "$filter" =&gt; { "input" =&gt; "$items", "cond" =&gt; { "$eq" =&gt; ["$$this.category", "периферия"] } } }</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>{ "$filter" =&gt; { "input" =&gt; "$items", "as" =&gt; "item", "cond" =&gt; { "$gte" =&gt; ["$$item.qty", 2] } } }</code>
+          </div>
+          <div>
+            <b>Не больше одного</b>
+            <code>{ "limit" =&gt; 1 }</code>
+          </div>
+          <div>
+            <b>Сколько отобрано</b>
+            <code>{ "$size" =&gt; { "$filter" =&gt; { "input" =&gt; "$stock", "cond" =&gt; { "$gt" =&gt; ["$$this.qty", 0] } } } }</code>
+          </div>
+          <div>
+            <b>Если поля может не быть</b>
+            <code>{ "input" =&gt; { "$ifNull" =&gt; ["$gifts", []] } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$filter</code> проверяет условие <code>cond</code> на каждом элементе массива <code>input</code> и возвращает новый массив из подходящих элементов в прежнем порядке. Элементы не меняются, документ остаётся в потоке один. Текущий элемент в условии — <code>$$this</code> или имя из <code>as</code>, всегда с двумя знаками доллара; с одним знаком получается путь к полю документа и пустой результат без ошибки.</p>
+        <p>Несколько условий соединяют выражением <code>$and</code>, <code>limit</code> оставляет первые подходящие элементы. Длина результата через <code>$size</code> служит счётчиком, ключом группы и условием в <code>$match</code> через <code>$expr</code>; для простого отбора документов короче фильтр по массиву.</p>
+        <p>Без входного массива <code>$filter</code> возвращает <code>null</code>, со строкой — ошибку 28651. Поле, которого может не быть, заменяют пустым массивом через <code>$ifNull</code>.</p>
+
+        <div class="pager"><a href="../35-arrayelemat-slice/index.html">← 5.1 $arrayElemAt, $slice и $size</a><a href="../37-map/index.html">5.3 $map: преобразование каждого элемента →</a></div>
+
+        <div class="colophon">
+          <span>Глава 5.2 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

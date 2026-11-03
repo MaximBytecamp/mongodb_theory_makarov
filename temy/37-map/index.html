@@ -1,0 +1,1212 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>5.3 $map: преобразование каждого элемента · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: таблицы шагов $map, элемент до и после. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 5 · Выражения над массивами</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 5 · выражения над массивами</p>
+          <p class="running__folio">5.3</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">5.3</span>
+          <h1>$map: преобразование<br>каждого элемента</h1>
+          <p class="lead">$map применяет одно выражение к каждому элементу массива и возвращает новый массив той же длины. В главе разобраны суммы позиций заказа и проверка поля total по ним, новые документы и строки из элементов, выражения $sum, $max, $min и $avg над массивом и связка $filter и $map. Отдельно показано, чем $sum в $project отличается от $sum в $group.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$filter (глава 5.2), $size (глава 5.1), $multiply, $concat и $toString (глава 4.2), аккумуляторы $sum, $avg, $min, $max (глава 4.4), $unwind (глава 4.6)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Пересчитывать элементы массива — суммы позиций, подписи складов — и получать по ним итоги внутри документа, не разворачивая массив</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-5.3-python.zip" download><code>mongodb-glava-5.3-python.zip</code></a>, 61 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-5.3-ruby.zip" download><code>mongodb-glava-5.3-ruby.zip</code></a>, 61 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-5.3-go.zip" download><code>mongodb-glava-5.3-go.zip</code></a>, 66 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-5.3-cpp.zip" download><code>mongodb-glava-5.3-cpp.zip</code></a>, 64 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch5_3.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch5_3.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch5_3.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch5_3.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch5_3.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch5_3.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch5_3.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch5_3.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch5_3.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch5_3.go</code> · в Docker: <code>docker compose run --rm go lessons/ch5_3.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch5_3.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch5_3.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Выражение $map</a></li>
+            <li><a href="#s2">Сходится ли total с позициями</a></li>
+            <li><a href="#s3">Новый документ из элемента</a></li>
+            <li><a href="#s4">$max, $min и $avg над массивом</a></li>
+            <li><a href="#s5">Строки из элементов</a></li>
+            <li><a href="#s6">Сначала $filter, потом $map</a></li>
+            <li><a href="#s7">Записи, которые сервер не принимает</a></li>
+            <li><a href="#s8">$map в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Самостоятельная работа</a></li>
+            <li><a href="#s12">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Выражение $map</h2>
+        <p>Бухгалтер получает накладную и в каждой строке дописывает сумму: количество умножить на цену. Строк в накладной столько же, сколько было, — у каждой появилось новое значение.</p>
+        <p><span class="term">Выражение $map</span> вычисляет одно и то же выражение для каждого элемента массива и возвращает массив результатов. Элементы обрабатываются по порядку, поэтому в новом массиве столько же элементов, сколько во входном, и результат первого элемента стоит первым. Запись:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Запись выражения</span><span>три параметра</span></figcaption>
+<pre>{<span class="s">"$map"</span>: {<span class="s">"input"</span>: массив, <span class="s">"as"</span>: <span class="s">"имя"</span>, <span class="s">"in"</span>: выражение}}</pre>
+        </figure>
+        <p><code>input</code> и <code>as</code> устроены так же, как у <code>$filter</code> из главы 5.2: массив и имя текущего элемента, по умолчанию <code>$$this</code>. <code>in</code> — выражение, значение которого станет элементом нового массива. Разница с <code>$filter</code> одна: <code>$filter</code> по условию решает, оставить ли элемент; <code>$map</code> ничего не отбрасывает, а заменяет каждый элемент значением <code>in</code>.</p>
+        <p>Пример для заказа 2026-0002 вычисляет сумму каждой позиции — <code>qty × price</code> — и складывает суммы выражением <code>$sum</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$map: сумма каждой позиции</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"total"</span>: <span class="n">1</span>,
+        <span class="s">"sums"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"in"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>]},
+        }},
+        <span class="s">"sum_of"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"in"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>]},
+        }}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$map: сумма каждой позиции</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"sums"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>)))))))),
+    <span class="f">kvp</span>(<span class="s">"sum_of"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$map: сумма каждой позиции</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"sums"</span>, Value: bson.D{
+            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>}}}}}}}},
+        {Key: <span class="s">"sum_of"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$map"</span>, Value: bson.D{
+                    {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                    {Key: <span class="s">"in"</span>, Value: bson.D{
+                        {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$map: сумма каждой позиции</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"total"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"sums"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>] },
+    } },
+    <span class="s">"sum_of"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>] },
+    } } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0002', 'total': 163250, 'sums': [51490, 6790, 104970], 'sum_of': 163250}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0002", "total" : 163250, "sums" : [ 51490, 6790, 104970 ], "sum_of" : 163250 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0002","total":163250,"sums":[51490,6790,104970],"sum_of":163250}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0002", "total"=&gt;163250, "sums"=&gt;[51490, 6790, 104970], "sum_of"=&gt;163250}</pre>
+        </figure>
+        <p>В <code>sums</code> три числа — по одному на позицию: 51 490 за один ноутбук, 6 790 за одну веб-камеру, 104 970 за трое наушников. <code>sum_of</code> равно 163 250, как и <code>total</code> заказа.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>$map по items заказа 2026-0002</span><span>3 элемента → 3 числа</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>$$this.title</th><th>$$this.qty</th><th>$$this.price</th><th>in: qty × price</th></tr></thead>
+              <tbody>
+                <tr><td>Ноутбук ASUS VivoBook 15</td><td>1</td><td>51490</td><td>51490</td></tr>
+                <tr><td>Веб-камера Logitech C920</td><td>1</td><td>6790</td><td>6790</td></tr>
+                <tr><td>Наушники Sony WH-1000XM5</td><td>3</td><td>34990</td><td>104970</td></tr>
+                <tr class="on"><td colspan="3">$sum элементов sums</td><td>163250</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Каждая строка — один шаг <code>$map</code>: <code>$$this</code> принимает значение очередного элемента, <code>in</code> вычисляется заново. Последняя строка — <code>$sum</code> над готовым массивом.</p>
+        </div>
+        <p><code>$sum</code> здесь записан в стадии <code>$project</code>, а не в <code>$group</code>, и получает массив. В такой форме он складывает элементы массива одного документа. Аккумулятор <code>$sum</code> из главы 4.4 в стадии <code>$group</code> складывает значения из разных документов группы. Запись одинаковая, результат решает стадия.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Сходится ли total с позициями</h2>
+        <p>Итог заказа хранится в поле <code>total</code>, а позиции — в <code>items</code>. Если одно поле обновили, а другое нет, итог перестанет совпадать с позициями. Пример проверяет все 120 заказов: сравнивает <code>total</code> с суммой позиций и группирует заказы по результату сравнения.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>сходится ли total с позициями</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$project"</span>: {<span class="s">"matches"</span>: {<span class="s">"$eq"</span>: [
+        <span class="s">"$total"</span>,
+        {<span class="s">"$sum"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"in"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>]},
+        }}},
+    ]}}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$matches"</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>сходится ли total с позициями</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"matches"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(
+            <span class="s">"$total"</span>,
+            <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                        <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>)))))))))))))));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$matches"</span>), <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>сходится ли total с позициями</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"matches"</span>, Value: bson.D{
+            {Key: <span class="s">"$eq"</span>, Value: bson.A{
+                <span class="s">"$total"</span>,
+                bson.D{
+                    {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                        {Key: <span class="s">"$map"</span>, Value: bson.D{
+                            {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                            {Key: <span class="s">"in"</span>, Value: bson.D{
+                                {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>}}}}}}}}}}}}}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$matches"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>сходится ли total с позициями</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"matches"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [
+    <span class="s">"$total"</span>,
+    { <span class="s">"$sum"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>] },
+    } } },
+  ] } } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$matches"</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': True, 'orders': 120}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : true, "orders" : 120 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":true,"orders":120}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;true, "orders"=&gt;120}</pre>
+        </figure>
+        <p>Группа одна — <code>true</code>, в ней 120 заказов: у каждого заказа <code>total</code> равен сумме позиций. Группы <code>false</code> нет, расхождений нет. Если бы расхождения были, эта же проверка с <code>$match</code> по <code>matches: false</code> вывела бы номера таких заказов.</p>
+        <p>В главе 4.6 сумма позиций считалась через <code>$unwind</code> и <code>$group</code> по всем заказам сразу. С <code>$map</code> и <code>$sum</code> сумма получается у каждого заказа отдельно, и её можно сравнить с полем того же заказа.</p>
+
+        <h2 id="s3"><span class="sec">§3</span>Новый документ из элемента</h2>
+        <p>Выражение <code>in</code> может собрать документ — так же, как <code>$project</code> собирает документ из полей. Пример превращает каждую позицию заказа 2026-0002 в документ из двух полей: названия и суммы. Элемент назван через <code>as</code> именем <code>line</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$map с as: позиции из двух полей</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"lines"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"as"</span>: <span class="s">"line"</span>,
+            <span class="s">"in"</span>: {
+                <span class="s">"title"</span>: <span class="s">"$$line.title"</span>,
+                <span class="s">"sum"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$line.qty"</span>, <span class="s">"$$line.price"</span>]},
+            },
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$map с as: позиции из двух полей</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"lines"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+            <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"line"</span>),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"$$line.title"</span>),
+                <span class="f">kvp</span>(<span class="s">"sum"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$line.qty"</span>, <span class="s">"$$line.price"</span>))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$map с as: позиции из двух полей</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"lines"</span>, Value: bson.D{
+            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                {Key: <span class="s">"as"</span>, Value: <span class="s">"line"</span>},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"title"</span>, Value: <span class="s">"$$line.title"</span>},
+                    {Key: <span class="s">"sum"</span>, Value: bson.D{
+                        {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$line.qty"</span>, <span class="s">"$$line.price"</span>}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$map с as: позиции из двух полей</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"lines"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"as"</span> =&gt; <span class="s">"line"</span>,
+      <span class="s">"in"</span> =&gt; {
+        <span class="s">"title"</span> =&gt; <span class="s">"$$line.title"</span>,
+        <span class="s">"sum"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$line.qty"</span>, <span class="s">"$$line.price"</span>] },
+      },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0002', 'lines': [{'title': 'Ноутбук ASUS VivoBook 15', 'sum': 51490}, {'title': 'Веб-камера Logitech C920', 'sum': 6790}, {'title': 'Наушники Sony WH-1000XM5', 'sum': 104970}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0002", "lines" : [ { "title" : "Ноутбук ASUS VivoBook 15", "sum" : 51490 }, { "title" : "Веб-камера Logitech C920", "sum" : 6790 }, { "title" : "Наушники Sony WH-1000XM5", "sum" : 104970 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0002","lines":[{"title":"Ноутбук ASUS VivoBook 15","sum":51490},{"title":"Веб-камера Logitech C920","sum":6790},{"title":"Наушники Sony WH-1000XM5","sum":104970}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0002", "lines"=&gt;[{"title"=&gt;"Ноутбук ASUS VivoBook 15", "sum"=&gt;51490}, {"title"=&gt;"Веб-камера Logitech C920", "sum"=&gt;6790}, {"title"=&gt;"Наушники Sony WH-1000XM5", "sum"=&gt;104970}]}</pre>
+        </figure>
+        <p>В <code>lines</code> три документа. У каждого только два поля: <code>title</code> и <code>sum</code>; <code>sku</code>, <code>category</code>, <code>qty</code> и <code>price</code> в документ не вошли. Имя <code>line</code> вместо <code>this</code> ничего не меняет в результате, но в длинном выражении по нему понятно, что обрабатывается позиция заказа.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Позиция до $map и после</span><span>5 полей → 2</span></div>
+          <div class="scheme__body">
+            <div class="split">
+              <div><b>элемент items</b>
+                <div class="card"><span>sku: SKU-PR-013</span><span class="on1">title: Наушники Sony WH-1000XM5</span><span>category: периферия</span><span class="on2">qty: 3</span><span class="on2">price: 34990</span></div>
+              </div>
+              <div class="split__arrow">in</div>
+              <div><b>элемент lines</b>
+                <div class="card"><span class="on1">title: Наушники Sony WH-1000XM5</span><span class="on2">sum: 104970</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Зелёное поле перенесено как есть, фиолетовые поля дали одно вычисленное. Поля, которые не упомянуты в <code>in</code>, в новый элемент не попадают.</p>
+        </div>
+
+        <h2 id="s4"><span class="sec">§4</span>$max, $min и $avg над массивом</h2>
+        <p>Как <code>$sum</code> в §1, выражения <code>$max</code>, <code>$min</code> и <code>$avg</code> в стадии <code>$project</code> принимают массив и возвращают наибольший элемент, наименьший и среднее. Пример для пяти заказов находит самую дорогую и самую дешёвую позицию по сумме и среднюю цену товара в заказе. Средняя цена берётся прямо из пути <code>"$items.price"</code>: это уже массив, <code>$map</code> для него не нужен.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$max, $min и $avg над массивом</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: {<span class="s">"$in"</span>: [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>]}}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"max_line"</span>: {<span class="s">"$max"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"in"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>]},
+        }}},
+        <span class="s">"min_line"</span>: {<span class="s">"$min"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$items"</span>,
+            <span class="s">"in"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>]},
+        }}},
+        <span class="s">"avg_price"</span>: {<span class="s">"$avg"</span>: <span class="s">"$items.price"</span>},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$max, $min и $avg над массивом</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>))))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"max_line"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$max"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>)))))))))),
+    <span class="f">kvp</span>(<span class="s">"min_line"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$min"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>)))))))))),
+    <span class="f">kvp</span>(<span class="s">"avg_price"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$avg"</span>, <span class="s">"$items.price"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$max, $min и $avg над массивом</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{
+            {Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>}}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"max_line"</span>, Value: bson.D{
+            {Key: <span class="s">"$max"</span>, Value: bson.D{
+                {Key: <span class="s">"$map"</span>, Value: bson.D{
+                    {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                    {Key: <span class="s">"in"</span>, Value: bson.D{
+                        {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>}}}}}}}}}},
+        {Key: <span class="s">"min_line"</span>, Value: bson.D{
+            {Key: <span class="s">"$min"</span>, Value: bson.D{
+                {Key: <span class="s">"$map"</span>, Value: bson.D{
+                    {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                    {Key: <span class="s">"in"</span>, Value: bson.D{
+                        {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>}}}}}}}}}},
+        {Key: <span class="s">"avg_price"</span>, Value: bson.D{{Key: <span class="s">"$avg"</span>, Value: <span class="s">"$items.price"</span>}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$max, $min и $avg над массивом</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>] } } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"max_line"</span> =&gt; { <span class="s">"$max"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>] },
+    } } },
+    <span class="s">"min_line"</span> =&gt; { <span class="s">"$min"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>] },
+    } } },
+    <span class="s">"avg_price"</span> =&gt; { <span class="s">"$avg"</span> =&gt; <span class="s">"$items.price"</span> },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0001', 'max_line': 5980, 'min_line': 5980, 'avg_price': 2990.0}
+{'number': '2026-0002', 'max_line': 104970, 'min_line': 6790, 'avg_price': 31090.0}
+{'number': '2026-0003', 'max_line': 67900, 'min_line': 18980, 'avg_price': 38695.0}
+{'number': '2026-0004', 'max_line': 37980, 'min_line': 12870, 'avg_price': 16265.0}
+{'number': '2026-0005', 'max_line': 56970, 'min_line': 56970, 'avg_price': 18990.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0001", "max_line" : 5980, "min_line" : 5980, "avg_price" : 2990.0 }
+{ "number" : "2026-0002", "max_line" : 104970, "min_line" : 6790, "avg_price" : 31090.0 }
+{ "number" : "2026-0003", "max_line" : 67900, "min_line" : 18980, "avg_price" : 38695.0 }
+{ "number" : "2026-0004", "max_line" : 37980, "min_line" : 12870, "avg_price" : 16265.0 }
+{ "number" : "2026-0005", "max_line" : 56970, "min_line" : 56970, "avg_price" : 18990.0 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0001","max_line":5980,"min_line":5980,"avg_price":2990.0}
+{"number":"2026-0002","max_line":104970,"min_line":6790,"avg_price":31090.0}
+{"number":"2026-0003","max_line":67900,"min_line":18980,"avg_price":38695.0}
+{"number":"2026-0004","max_line":37980,"min_line":12870,"avg_price":16265.0}
+{"number":"2026-0005","max_line":56970,"min_line":56970,"avg_price":18990.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0001", "max_line"=&gt;5980, "min_line"=&gt;5980, "avg_price"=&gt;2990.0}
+{"number"=&gt;"2026-0002", "max_line"=&gt;104970, "min_line"=&gt;6790, "avg_price"=&gt;31090.0}
+{"number"=&gt;"2026-0003", "max_line"=&gt;67900, "min_line"=&gt;18980, "avg_price"=&gt;38695.0}
+{"number"=&gt;"2026-0004", "max_line"=&gt;37980, "min_line"=&gt;12870, "avg_price"=&gt;16265.0}
+{"number"=&gt;"2026-0005", "max_line"=&gt;56970, "min_line"=&gt;56970, "avg_price"=&gt;18990.0}</pre>
+        </figure>
+        <p>У заказов 2026-0001 и 2026-0005 одна позиция, и наибольшая сумма равна наименьшей. У 2026-0002 самая дорогая позиция — наушники на 104 970, самая дешёвая — веб-камера на 6 790. Средняя цена 31 090 — среднее трёх цен (51 490, 6 790, 34 990) без учёта количества; это не средняя сумма позиции.</p>
+        <p>У 2026-0005 средняя цена 18 990, а позиция стоит 56 970: смартфон куплен в трёх штуках. Цена и сумма позиции — разные величины, и для каждого вопроса берут свою.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Строки из элементов</h2>
+        <p>Для отчёта или письма склады удобнее читать строками: «Москва-2: 12». Выражение <code>in</code> собирает строку из полей элемента выражением <code>$concat</code>, а число переводит в строку через <code>$toString</code> — оба выражения разобраны в главе 4.2. Пример выводит склады четырёх товаров категории «комплектующие».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>склады строками</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"category"</span>: <span class="s">"комплектующие"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"title"</span>: <span class="n">1</span>,
+        <span class="s">"where"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$stock"</span>,
+            <span class="s">"in"</span>: {<span class="s">"$concat"</span>: [<span class="s">"$$this.warehouse"</span>, <span class="s">": "</span>, {<span class="s">"$toString"</span>: <span class="s">"$$this.qty"</span>}]},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> products.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>склады строками</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"category"</span>, <span class="s">"комплектующие"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"where"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$stock"</span>),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$concat"</span>, <span class="f">make_array</span>(
+                    <span class="s">"$$this.warehouse"</span>,
+                    <span class="s">": "</span>,
+                    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$toString"</span>, <span class="s">"$$this.qty"</span>))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : products.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>склады строками</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"category"</span>, Value: <span class="s">"комплектующие"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"where"</span>, Value: bson.D{
+            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$stock"</span>},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"$concat"</span>, Value: bson.A{
+                        <span class="s">"$$this.warehouse"</span>,
+                        <span class="s">": "</span>,
+                        bson.D{{Key: <span class="s">"$toString"</span>, Value: <span class="s">"$$this.qty"</span>}}}}}}}}}}}}},
+}
+
+cursor, _ := products.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>склады строками</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"category"</span> =&gt; <span class="s">"комплектующие"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"title"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"where"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$stock"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"$concat"</span> =&gt; [<span class="s">"$$this.warehouse"</span>, <span class="s">": "</span>, { <span class="s">"$toString"</span> =&gt; <span class="s">"$$this.qty"</span> }] },
+    } },
+  } },
+]
+
+products.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'SSD Samsung 980 1 ТБ', 'where': ['Москва-1: 0', 'Санкт-Петербург: 12']}
+{'title': 'Оперативная память Kingston 16 ГБ', 'where': ['Москва-1: 40', 'Москва-2: 8', 'Екатеринбург: 20']}
+{'title': 'Видеокарта NVIDIA RTX 4060', 'where': ['Москва-2: 40', 'Москва-1: 20']}
+{'title': 'Блок питания be quiet! 650 Вт', 'where': ['Москва-2: 12', 'Екатеринбург: 3', 'Москва-1: 0']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "SSD Samsung 980 1 ТБ", "where" : [ "Москва-1: 0", "Санкт-Петербург: 12" ] }
+{ "title" : "Оперативная память Kingston 16 ГБ", "where" : [ "Москва-1: 40", "Москва-2: 8", "Екатеринбург: 20" ] }
+{ "title" : "Видеокарта NVIDIA RTX 4060", "where" : [ "Москва-2: 40", "Москва-1: 20" ] }
+{ "title" : "Блок питания be quiet! 650 Вт", "where" : [ "Москва-2: 12", "Екатеринбург: 3", "Москва-1: 0" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"SSD Samsung 980 1 ТБ","where":["Москва-1: 0","Санкт-Петербург: 12"]}
+{"title":"Оперативная память Kingston 16 ГБ","where":["Москва-1: 40","Москва-2: 8","Екатеринбург: 20"]}
+{"title":"Видеокарта NVIDIA RTX 4060","where":["Москва-2: 40","Москва-1: 20"]}
+{"title":"Блок питания be quiet! 650 Вт","where":["Москва-2: 12","Екатеринбург: 3","Москва-1: 0"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"SSD Samsung 980 1 ТБ", "where"=&gt;["Москва-1: 0", "Санкт-Петербург: 12"]}
+{"title"=&gt;"Оперативная память Kingston 16 ГБ", "where"=&gt;["Москва-1: 40", "Москва-2: 8", "Екатеринбург: 20"]}
+{"title"=&gt;"Видеокарта NVIDIA RTX 4060", "where"=&gt;["Москва-2: 40", "Москва-1: 20"]}
+{"title"=&gt;"Блок питания be quiet! 650 Вт", "where"=&gt;["Москва-2: 12", "Екатеринбург: 3", "Москва-1: 0"]}</pre>
+        </figure>
+        <p>У каждого товара массив строк по числу складов: у SSD два склада, у оперативной памяти три. Склады с нулём остались — <code>$map</code> не отбрасывает элементы. «Москва-1: 0» у SSD и блока питания показывает, что склад есть, но товар закончился.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Сначала $filter, потом $map</h2>
+        <p>Результат <code>$filter</code> — массив, и его можно передать в <code>input</code> выражения <code>$map</code>. Так сначала отбирают нужные элементы, а затем преобразуют только их. Пример берёт у заказа 2026-0004 позиции периферии и записывает каждую строкой «название × количество».</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$map над результатом $filter</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0004"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"periphery"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: {<span class="s">"$filter"</span>: {
+                <span class="s">"input"</span>: <span class="s">"$items"</span>,
+                <span class="s">"cond"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>]},
+            }},
+            <span class="s">"in"</span>: {<span class="s">"$concat"</span>: [<span class="s">"$$this.title"</span>, <span class="s">" × "</span>, {<span class="s">"$toString"</span>: <span class="s">"$$this.qty"</span>}]},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$map над результатом $filter</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0004"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"periphery"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$filter"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                    <span class="f">kvp</span>(<span class="s">"cond"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>)))))))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$concat"</span>, <span class="f">make_array</span>(
+                    <span class="s">"$$this.title"</span>,
+                    <span class="s">" × "</span>,
+                    <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$toString"</span>, <span class="s">"$$this.qty"</span>))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$map над результатом $filter</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0004"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"periphery"</span>, Value: bson.D{
+            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: bson.D{
+                    {Key: <span class="s">"$filter"</span>, Value: bson.D{
+                        {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                        {Key: <span class="s">"cond"</span>, Value: bson.D{
+                            {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>}}}}}}}},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"$concat"</span>, Value: bson.A{
+                        <span class="s">"$$this.title"</span>,
+                        <span class="s">" × "</span>,
+                        bson.D{{Key: <span class="s">"$toString"</span>, Value: <span class="s">"$$this.qty"</span>}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$map над результатом $filter</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0004"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"periphery"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; { <span class="s">"$filter"</span> =&gt; {
+        <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+        <span class="s">"cond"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$$this.category"</span>, <span class="s">"периферия"</span>] },
+      } },
+      <span class="s">"in"</span> =&gt; { <span class="s">"$concat"</span> =&gt; [<span class="s">"$$this.title"</span>, <span class="s">" × "</span>, { <span class="s">"$toString"</span> =&gt; <span class="s">"$$this.qty"</span> }] },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0004', 'periphery': ['Веб-камера Logitech C920 × 3', 'Наушники Sony WH-1000XM5 × 1']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0004", "periphery" : [ "Веб-камера Logitech C920 × 3", "Наушники Sony WH-1000XM5 × 1" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0004","periphery":["Веб-камера Logitech C920 × 3","Наушники Sony WH-1000XM5 × 1"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0004", "periphery"=&gt;["Веб-камера Logitech C920 × 3", "Наушники Sony WH-1000XM5 × 1"]}</pre>
+        </figure>
+        <p>В результате две строки: веб-камера × 3 и наушники × 1. Смартфон и пауэрбанк отброшены <code>$filter</code> и до <code>$map</code> не дошли.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>items заказа 2026-0004: $filter, затем $map</span><span>4 → 2 → 2</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Позиция</th><th>$filter: периферия</th><th>$map: строка</th></tr></thead>
+              <tbody>
+                <tr class="on"><td>Веб-камера Logitech C920</td><td class="ok">остаётся</td><td>Веб-камера Logitech C920 × 3</td></tr>
+                <tr class="no"><td>Смартфон Xiaomi Redmi Note 13</td><td class="bad">отброшена</td><td>—</td></tr>
+                <tr class="on"><td>Наушники Sony WH-1000XM5</td><td class="ok">остаётся</td><td>Наушники Sony WH-1000XM5 × 1</td></tr>
+                <tr class="no"><td>Powerbank Anker 20000 мА·ч</td><td class="bad">отброшена</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Выражения вкладываются изнутри наружу: сервер сначала вычисляет <code>$filter</code> во <code>input</code>, затем <code>$map</code> над его результатом. Порядок наоборот — <code>$map</code>, потом <code>$filter</code> — тоже возможен, если условие проверяется по вычисленному значению.</p>
+        </div>
+
+        <h2 id="s7"><span class="sec">§7</span>Записи, которые сервер не принимает</h2>
+        <p>Пример собирает две записи <code>$map</code>, которые сервер отклоняет.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>записи $map, которые сервер не принимает</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+no_in = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$map"</span>: {<span class="s">"input"</span>: <span class="s">"$items"</span>}}}},
+]
+
+string_input = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$map"</span>: {<span class="s">"input"</span>: <span class="s">"$promo"</span>, <span class="s">"in"</span>: <span class="s">"$$this"</span>}}}},
+]
+
+<span class="f">print</span>(<span class="s">"── нет in"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(no_in):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── input — строка"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(string_input):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>записи $map, которые сервер не принимает</span></figcaption>
+<pre>mongocxx::pipeline no_in;
+no_in.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+no_in.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>)))))));
+
+mongocxx::pipeline string_input;
+string_input.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+string_input.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$promo"</span>), <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="s">"$$this"</span>)))))));
+
+std::cout &lt;&lt; <span class="s">"── нет in"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(no_in)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── input — строка"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(string_input)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>записи $map, которые сервер не принимает</span></figcaption>
+<pre>noIn := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{{Key: <span class="s">"$map"</span>, Value: bson.D{{Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>}}}}}}}},
+}
+
+stringInput := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{
+            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$promo"</span>},
+                {Key: <span class="s">"in"</span>, Value: <span class="s">"$$this"</span>}}}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── нет in"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, noIn)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── input — строка"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, stringInput)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>записи $map, которые сервер не принимает</span></figcaption>
+<pre>no_in = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$map"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$items"</span> } } } },
+]
+
+string_input = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$map"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$promo"</span>, <span class="s">"in"</span> =&gt; <span class="s">"$$this"</span> } } } },
+]
+
+<span class="k">puts</span> <span class="s">"── нет in"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(no_in).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── input — строка"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(string_input).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет in
+код 16882
+Invalid $project :: caused by :: Missing 'in' parameter to $map
+── input — строка
+код 16883
+PlanExecutor error during aggregation :: caused by :: input to $map must be an array not string</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет in
+код 16882
+Invalid $project :: caused by :: Missing 'in' parameter to $map: server error code 16882: generic server error
+── input — строка
+код 16883
+PlanExecutor error during aggregation :: caused by :: input to $map must be an array not string: server error code 16883: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет in
+код 16882
+Invalid $project :: caused by :: Missing 'in' parameter to $map
+── input — строка
+код 16883
+PlanExecutor error during aggregation :: caused by :: input to $map must be an array not string</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет in
+код 16882
+Invalid $project :: caused by :: Missing 'in' parameter to $map
+── input — строка
+код 16883
+PlanExecutor error during aggregation :: caused by :: input to $map must be an array not string</pre>
+        </figure>
+        <p>Без <code>in</code> — ошибка 16882 при разборе запроса. Строка в <code>input</code> — ошибка 16883 на первом документе, где <code>promo</code> строка. Как и у <code>$filter</code>, без входного массива <code>$map</code> возвращает <code>null</code>, а ошибку от строки предотвращает только поле, которое всегда массив.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>$map в Compass</h2>
+        <p>На кадре — конвейер из §1 на вкладке <b>Aggregations</b> коллекции <code>shop.orders</code>: стадия <code>$match</code> по заказу o-0002 и стадия <code>$project</code> с полями <code>sums</code> и <code>sum_of</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/160-orders-map.png" alt="Compass, вкладка Aggregations коллекции shop.orders: стадия $project с полем sums — массив из трёх чисел — и полем sum_of 163250">
+          <figcaption>Compass · суммы позиций через <code>$map</code> и их сумма через <code>$sum</code></figcaption>
+        </figure>
+        <p>В образце результата <code>$project</code> у поля <code>sums</code> отметка <b>Array (3)</b> — массив из трёх чисел, по одному на позицию; треугольник слева раскрывает его, и Compass подписывает элементы номерами 0, 1, 2. Поля <code>total</code> и <code>sum_of</code> показывают одно и то же число 163250.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$map": {"input": "$items"}}</code></td><td>Ошибка 16882: без <code>in</code> неизвестно, во что превращать элемент</td><td><code>"in": {"$multiply": ["$$this.qty", "$$this.price"]}</code></td></tr>
+              <tr><td><code>{"$map": {"input": "$promo", …}}</code></td><td>Ошибка 16883: <code>input</code> — строка, а не массив</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td><code>$map</code>, чтобы оставить часть элементов</td><td>Длина результата всегда равна длине входного массива: <code>$map</code> преобразует каждый элемент, но не отбрасывает</td><td>Сначала <code>$filter</code>, затем <code>$map</code> над его результатом</td></tr>
+              <tr><td><code>{"$sum": "$items.qty"}</code> в <code>$project</code> и в <code>$group</code></td><td>В <code>$project</code> складываются элементы массива одного документа, в <code>$group</code> — значения из разных документов</td><td>Сумма по документу — в <code>$project</code>; сумма по группе документов — в <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$map": {"input": "$items"}}</code></td><td>Ошибка 16882: без <code>in</code> неизвестно, во что превращать элемент</td><td><code>"in": {"$multiply": ["$$this.qty", "$$this.price"]}</code></td></tr>
+              <tr><td><code>{"$map": {"input": "$promo", …}}</code></td><td>Ошибка 16883: <code>input</code> — строка, а не массив</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td><code>$map</code>, чтобы оставить часть элементов</td><td>Длина результата всегда равна длине входного массива: <code>$map</code> преобразует каждый элемент, но не отбрасывает</td><td>Сначала <code>$filter</code>, затем <code>$map</code> над его результатом</td></tr>
+              <tr><td><code>{"$sum": "$items.qty"}</code> в <code>$project</code> и в <code>$group</code></td><td>В <code>$project</code> складываются элементы массива одного документа, в <code>$group</code> — значения из разных документов</td><td>Сумма по документу — в <code>$project</code>; сумма по группе документов — в <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$map": {"input": "$items"}}</code></td><td>Ошибка 16882: без <code>in</code> неизвестно, во что превращать элемент</td><td><code>"in": {"$multiply": ["$$this.qty", "$$this.price"]}</code></td></tr>
+              <tr><td><code>{"$map": {"input": "$promo", …}}</code></td><td>Ошибка 16883: <code>input</code> — строка, а не массив</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td><code>$map</code>, чтобы оставить часть элементов</td><td>Длина результата всегда равна длине входного массива: <code>$map</code> преобразует каждый элемент, но не отбрасывает</td><td>Сначала <code>$filter</code>, затем <code>$map</code> над его результатом</td></tr>
+              <tr><td><code>{"$sum": "$items.qty"}</code> в <code>$project</code> и в <code>$group</code></td><td>В <code>$project</code> складываются элементы массива одного документа, в <code>$group</code> — значения из разных документов</td><td>Сумма по документу — в <code>$project</code>; сумма по группе документов — в <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$map": {"input": "$items"}}</code></td><td>Ошибка 16882: без <code>in</code> неизвестно, во что превращать элемент</td><td><code>"in": {"$multiply": ["$$this.qty", "$$this.price"]}</code></td></tr>
+              <tr><td><code>{"$map": {"input": "$promo", …}}</code></td><td>Ошибка 16883: <code>input</code> — строка, а не массив</td><td>Применять к полю-массиву; поле, которого может не быть, заменять пустым массивом через <code>$ifNull</code></td></tr>
+              <tr><td><code>$map</code>, чтобы оставить часть элементов</td><td>Длина результата всегда равна длине входного массива: <code>$map</code> преобразует каждый элемент, но не отбрасывает</td><td>Сначала <code>$filter</code>, затем <code>$map</code> над его результатом</td></tr>
+              <tr><td><code>{"$sum": "$items.qty"}</code> в <code>$project</code> и в <code>$group</code></td><td>В <code>$project</code> складываются элементы массива одного документа, в <code>$group</code> — значения из разных документов</td><td>Сумма по документу — в <code>$project</code>; сумма по группе документов — в <code>$group</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Сколько элементов в результате <code>$map</code> по массиву из четырёх элементов?</summary>
+          <p>Четыре. <code>$map</code> преобразует каждый элемент и ни одного не отбрасывает.</p>
+        </details>
+        <details>
+          <summary>Чем <code>{"$sum": "$items.qty"}</code> в <code>$project</code> отличается от того же <code>$sum</code> в <code>$group</code>?</summary>
+          <p>В <code>$project</code> складываются элементы массива одного документа — штуки одного заказа. В <code>$group</code> складываются значения разных документов группы.</p>
+        </details>
+        <details>
+          <summary>Почему для средней цены позиции не нужен <code>$map</code>?</summary>
+          <p>Путь <code>"$items.price"</code> уже возвращает массив цен, и <code>$avg</code> принимает его напрямую. <code>$map</code> нужен, когда элемент надо вычислить, как сумму <code>qty × price</code>.</p>
+        </details>
+        <details>
+          <summary>Как получить названия только тех позиций, где больше одной штуки?</summary>
+          <p><code>$map</code> с <code>"in": "$$this.title"</code> над результатом <code>$filter</code> с условием <code>{"$gt": ["$$this.qty", 1]}</code>.</p>
+        </details>
+        <details>
+          <summary>Что вернёт <code>$map</code>, если у документа нет поля из <code>input</code>?</summary>
+          <p><code>null</code>, как и <code>$filter</code>. Строка в <code>input</code> даёт ошибку 16883.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch5_3</code>. Данные — <code>shop.orders</code> и <code>shop.products</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Штуки в заказе</b>Для заказов 2026-0001 … 2026-0005 вывести номер и общее число штук — сумму <code>qty</code> позиций.</li>
+          <li><b>Все штуки</b>Посчитать по всем заказам число позиций и число штук одной стадией <code>$group</code>.</li>
+          <li><b>Остаток товара</b>Для товаров категории «аксессуары» вывести название и общий остаток по всем складам.</li>
+          <li><b>Названия позиций от 2 штук</b>Для заказа 2026-0004 вывести названия позиций, купленных в количестве от двух штук.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Штуки: 2026-0001 — 2, 2026-0002 — 5, 2026-0003 — 3, 2026-0004 — 9, 2026-0005 — 3.</p>
+          <p>По всем заказам: 271 позиция, 440 штук.</p>
+          <p>Остаток аксессуаров: рюкзак Xiaomi — 20, кабель USB-C 2 м — 20, Powerbank Anker — 17.</p>
+          <p>2026-0004: веб-камера Logitech C920, смартфон Xiaomi Redmi Note 13, Powerbank Anker 20000 мА·ч.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Преобразовать каждый элемент</b>
+            <code>{"$map": {"input": "$items", "in": {"$multiply": ["$$this.qty", "$$this.price"]}}}</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>{"$map": {"input": "$items", "as": "line", "in": "$$line.title"}}</code>
+          </div>
+          <div>
+            <b>Сумма, наибольшее, среднее</b>
+            <code>{"$sum": "$items.qty"}</code>
+            <code>{"$max": "$items.price"}</code>
+            <code>{"$avg": "$items.price"}</code>
+          </div>
+          <div>
+            <b>Отобрать, затем преобразовать</b>
+            <code>{"$map": {"input": {"$filter": {"input": "$items", "cond": "…"}}, "in": "$$this.title"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Преобразовать каждый элемент</b>
+            <code>make_document(kvp("$map", make_document(kvp("input", "$items"), kvp("in", make_document(kvp("$multiply", make_array("$$this.qty", "$$this.price")))))))</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>make_document(kvp("$map", make_document(kvp("input", "$items"), kvp("as", "line"), kvp("in", "$$line.title"))))</code>
+          </div>
+          <div>
+            <b>Сумма, наибольшее, среднее</b>
+            <code>make_document(kvp("$sum", "$items.qty"))</code>
+            <code>make_document(kvp("$max", "$items.price"))</code>
+            <code>make_document(kvp("$avg", "$items.price"))</code>
+          </div>
+          <div>
+            <b>Отобрать, затем преобразовать</b>
+            <code>make_document(kvp("$map", make_document(kvp("input", make_document(kvp("$filter", make_document(kvp("input", "$items"), kvp("cond", "…"))))), kvp("in", "$$this.title"))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Преобразовать каждый элемент</b>
+            <code>bson.D{{Key: "$map", Value: bson.D{{Key: "input", Value: "$items"}, {Key: "in", Value: bson.D{{Key: "$multiply", Value: bson.A{"$$this.qty", "$$this.price"}}}}}}}</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>bson.D{{Key: "$map", Value: bson.D{{Key: "input", Value: "$items"}, {Key: "as", Value: "line"}, {Key: "in", Value: "$$line.title"}}}}</code>
+          </div>
+          <div>
+            <b>Сумма, наибольшее, среднее</b>
+            <code>bson.D{{Key: "$sum", Value: "$items.qty"}}</code>
+            <code>bson.D{{Key: "$max", Value: "$items.price"}}</code>
+            <code>bson.D{{Key: "$avg", Value: "$items.price"}}</code>
+          </div>
+          <div>
+            <b>Отобрать, затем преобразовать</b>
+            <code>bson.D{{Key: "$map", Value: bson.D{{Key: "input", Value: bson.D{{Key: "$filter", Value: bson.D{{Key: "input", Value: "$items"}, {Key: "cond", Value: "…"}}}}}, {Key: "in", Value: "$$this.title"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Преобразовать каждый элемент</b>
+            <code>{ "$map" =&gt; { "input" =&gt; "$items", "in" =&gt; { "$multiply" =&gt; ["$$this.qty", "$$this.price"] } } }</code>
+          </div>
+          <div>
+            <b>Своё имя элемента</b>
+            <code>{ "$map" =&gt; { "input" =&gt; "$items", "as" =&gt; "line", "in" =&gt; "$$line.title" } }</code>
+          </div>
+          <div>
+            <b>Сумма, наибольшее, среднее</b>
+            <code>{ "$sum" =&gt; "$items.qty" }</code>
+            <code>{ "$max" =&gt; "$items.price" }</code>
+            <code>{ "$avg" =&gt; "$items.price" }</code>
+          </div>
+          <div>
+            <b>Отобрать, затем преобразовать</b>
+            <code>{ "$map" =&gt; { "input" =&gt; { "$filter" =&gt; { "input" =&gt; "$items", "cond" =&gt; "…" } }, "in" =&gt; "$$this.title" } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$map</code> вычисляет выражение <code>in</code> для каждого элемента массива <code>input</code> и возвращает массив результатов той же длины и в том же порядке. Текущий элемент — <code>$$this</code> или имя из <code>as</code>. Результатом может быть число, строка или новый документ.</p>
+        <p><code>$sum</code>, <code>$max</code>, <code>$min</code> и <code>$avg</code> в стадии <code>$project</code> принимают массив и считают итог по элементам одного документа; в <code>$group</code> те же имена считают по документам группы. Вместе с <code>$map</code> они дают итоги по вычисленным значениям, например проверку <code>total</code> по суммам позиций.</p>
+        <p>Чтобы преобразовать часть элементов, результат <code>$filter</code> передают в <code>input</code> выражения <code>$map</code>. Без <code>in</code> сервер возвращает ошибку 16882, строка во <code>input</code> — ошибку 16883.</p>
+
+        <div class="pager"><a href="../36-filter/index.html">← 5.2 $filter: отбор элементов массива</a><a href="../38-reduce/index.html">5.4 $reduce: массив в одно значение →</a></div>
+
+        <div class="colophon">
+          <span>Глава 5.3 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

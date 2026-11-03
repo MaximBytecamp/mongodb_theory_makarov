@@ -359,9 +359,9 @@ def filter_var(step, lang: str) -> list[str]:
 
 
 def source(chapter: str):
-    """Модуль с описаниями примеров главы: chapters2, chapters3 или chapters4 по номеру модуля."""
+    """Модуль с описаниями примеров главы: chapters2, chapters3, chapters4 или chapters5 по номеру модуля."""
     import importlib
-    return importlib.import_module({"2": "chapters2", "4": "chapters4"}.get(chapter.split(".")[0], "chapters3"))
+    return importlib.import_module({"2": "chapters2", "4": "chapters4", "5": "chapters5"}.get(chapter.split(".")[0], "chapters3"))
 
 
 def code(spec, lang: str) -> str:

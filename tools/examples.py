@@ -61,6 +61,11 @@ CHAPTERS = {
     "4.8": ("32-bucket-facet", "$bucket, $bucketAuto и $facet", False),
     "4.9": ("33-replace-redact", "$replaceRoot, $replaceWith и $redact", False),
     "4.10": ("34-skript-vitrina", "Скрипт целиком: витрина продаж за квартал", False),
+    "5.1": ("35-arrayelemat-slice", "$arrayElemAt, $slice и $size", False),
+    "5.2": ("36-filter", "$filter: отбор элементов массива", False),
+    "5.3": ("37-map", "$map: преобразование каждого элемента", False),
+    "5.4": ("38-reduce", "$reduce: массив в одно значение", False),
+    "5.5": ("39-let", "$let: переменные внутри выражения", False),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -270,6 +275,7 @@ SCOPE = {
         "cpp": '    auto db = client["shop"];\n    auto orders = db["orders"];\n    auto products = db["products"];\n    auto customers = db["customers"];\n    auto sandbox = client["sandbox"];',
     },
 }
+SCOPE["5"] = SCOPE["4"]
 
 
 def scope(chapter: str, lang: str) -> str:

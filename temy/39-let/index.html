@@ -1,0 +1,1710 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>5.5 $let: переменные внутри выражения · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: таблицы переменных и ветвей, полосы скидок. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 5 · Выражения над массивами</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 5 · выражения над массивами</p>
+          <p class="running__folio">5.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">5.5</span>
+          <h1>$let: переменные<br>внутри выражения</h1>
+          <p class="lead">$let даёт имя промежуточному значению и позволяет использовать его в выражении несколько раз, не повторяя вычисление. В главе разобраны vars и in, выбор значения выражением $switch, скидка по промокоду и сумма к оплате, переменная $let внутри $map и вложенный $let. Отдельно показано, где переменная видна, а где сервер её не находит.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$map и $sum над массивом (глава 5.3), $filter и $$this (глава 5.2), $cond и арифметика (глава 4.2), $group (глава 4.4), $round (глава 4.4)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Записывать длинные выражения без повторов: один раз вычислить процент скидки или сумму и использовать её в нескольких местах выражения</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-5.5-python.zip" download><code>mongodb-glava-5.5-python.zip</code></a>, 63 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-5.5-ruby.zip" download><code>mongodb-glava-5.5-ruby.zip</code></a>, 62 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-5.5-go.zip" download><code>mongodb-glava-5.5-go.zip</code></a>, 68 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-5.5-cpp.zip" download><code>mongodb-glava-5.5-cpp.zip</code></a>, 66 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch5_5.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch5_5.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch5_5.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch5_5.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch5_5.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch5_5.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch5_5.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch5_5.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch5_5.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch5_5.go</code> · в Docker: <code>docker compose run --rm go lessons/ch5_5.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch5_5.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch5_5.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Выражение $let</a></li>
+            <li><a href="#s2">Выбор значения: $switch</a></li>
+            <li><a href="#s3">Одно значение в двух местах</a></li>
+            <li><a href="#s4">Переменная внутри $group</a></li>
+            <li><a href="#s5">Переменная $let внутри $map</a></li>
+            <li><a href="#s6">Переменная из переменной</a></li>
+            <li><a href="#s7">Переменная и поле с одним именем</a></li>
+            <li><a href="#s8">Где переменная не видна</a></li>
+            <li><a href="#s9">$let в Compass</a></li>
+            <li><a href="#s10">Частые ошибки</a></li>
+            <li><a href="#s11">Проверьте себя</a></li>
+            <li><a href="#s12">Самостоятельная работа</a></li>
+            <li><a href="#s13">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Выражение $let</h2>
+        <p>В расчёте на бумаге промежуточный итог подписывают: «сумма = 163 250», «позиций = 3», а дальше пишут «сумма / позиций». Подпись короче самого вычисления, и по ней понятно, что делится на что.</p>
+        <p><span class="term">Выражение $let</span> делает то же внутри конвейера. В параметре <code>vars</code> задаются переменные: имя и выражение, значение которого переменная получает. В параметре <code>in</code> записывается выражение, которое использует эти переменные; его значение и есть результат <code>$let</code>. Переменная в <code>in</code> пишется с двумя знаками доллара, как <code>$$this</code> в главе 5.2: <code>"$$sum"</code>.</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Запись выражения</span><span>два параметра</span></figcaption>
+<pre>{<span class="s">"$let"</span>: {<span class="s">"vars"</span>: {<span class="s">"имя"</span>: выражение, …}, <span class="s">"in"</span>: выражение с <span class="s">"$$имя"</span>}}</pre>
+        </figure>
+        <p>Пример вычисляет среднюю сумму позиции у пяти заказов: переменная <code>sum</code> — сумма позиций через <code>$map</code> и <code>$sum</code> из главы 5.3, переменная <code>lines</code> — число позиций, в <code>in</code> — их частное, выражение <span class="term">$divide</span>: <code>{"$divide": [делимое, делитель]}</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$let: средняя сумма позиции</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: {<span class="s">"$in"</span>: [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>]}}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"avg_line"</span>: {<span class="s">"$let"</span>: {
+            <span class="s">"vars"</span>: {
+                <span class="s">"sum"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$map"</span>: {
+                    <span class="s">"input"</span>: <span class="s">"$items"</span>,
+                    <span class="s">"in"</span>: {<span class="s">"$multiply"</span>: [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>]},
+                }}},
+                <span class="s">"lines"</span>: {<span class="s">"$size"</span>: <span class="s">"$items"</span>},
+            },
+            <span class="s">"in"</span>: {<span class="s">"$divide"</span>: [<span class="s">"$$sum"</span>, <span class="s">"$$lines"</span>]},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$let: средняя сумма позиции</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>))))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"avg_line"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"sum"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>)))))))))),
+                <span class="f">kvp</span>(<span class="s">"lines"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$items"</span>))))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(<span class="s">"$$sum"</span>, <span class="s">"$$lines"</span>))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$let: средняя сумма позиции</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{
+            {Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>}}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"avg_line"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{
+                    {Key: <span class="s">"sum"</span>, Value: bson.D{
+                        {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                                {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                                {Key: <span class="s">"in"</span>, Value: bson.D{
+                                    {Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>}}}}}}}}}},
+                    {Key: <span class="s">"lines"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$items"</span>}}}}},
+                {Key: <span class="s">"in"</span>, Value: bson.D{{Key: <span class="s">"$divide"</span>, Value: bson.A{<span class="s">"$$sum"</span>, <span class="s">"$$lines"</span>}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$let: средняя сумма позиции</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>] } } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"avg_line"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+      <span class="s">"vars"</span> =&gt; {
+        <span class="s">"sum"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+          <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+          <span class="s">"in"</span> =&gt; { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$$this.qty"</span>, <span class="s">"$$this.price"</span>] },
+        } } },
+        <span class="s">"lines"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$items"</span> },
+      },
+      <span class="s">"in"</span> =&gt; { <span class="s">"$divide"</span> =&gt; [<span class="s">"$$sum"</span>, <span class="s">"$$lines"</span>] },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0001', 'avg_line': 5980.0}
+{'number': '2026-0002', 'avg_line': 54416.666666666664}
+{'number': '2026-0003', 'avg_line': 43440.0}
+{'number': '2026-0004', 'avg_line': 26552.5}
+{'number': '2026-0005', 'avg_line': 56970.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0001", "avg_line" : 5980.0 }
+{ "number" : "2026-0002", "avg_line" : 54416.666666666664241 }
+{ "number" : "2026-0003", "avg_line" : 43440.0 }
+{ "number" : "2026-0004", "avg_line" : 26552.5 }
+{ "number" : "2026-0005", "avg_line" : 56970.0 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0001","avg_line":5980.0}
+{"number":"2026-0002","avg_line":54416.666666666664}
+{"number":"2026-0003","avg_line":43440.0}
+{"number":"2026-0004","avg_line":26552.5}
+{"number":"2026-0005","avg_line":56970.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0001", "avg_line"=&gt;5980.0}
+{"number"=&gt;"2026-0002", "avg_line"=&gt;54416.666666666664}
+{"number"=&gt;"2026-0003", "avg_line"=&gt;43440.0}
+{"number"=&gt;"2026-0004", "avg_line"=&gt;26552.5}
+{"number"=&gt;"2026-0005", "avg_line"=&gt;56970.0}</pre>
+        </figure>
+        <p>У заказов из одной позиции средняя сумма равна сумме заказа: 5 980 и 56 970. У 2026-0002 — 163 250 / 3, дробное число с длинным хвостом; у 2026-0004 — 106 210 / 4 = 26 552,5. <code>$divide</code> всегда возвращает дробное число (double), даже когда делится нацело, как 86 880 / 2 у 2026-0003. Округляет <code>$round</code> из главы 4.4.</p>
+        <p data-lang="cpp">C++ печатает дробное число со всеми цифрами, которые хранит double: 54416.666666666664241. Остальные драйверы обрезают запись до 54416.666666666664 — число в базе одно и то же.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>$let для заказа 2026-0002</span><span>vars → in</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Часть</th><th>Запись</th><th>Значение</th></tr></thead>
+              <tbody>
+                <tr><td>vars · sum</td><td>$sum по $map (qty × price)</td><td>163250</td></tr>
+                <tr><td>vars · lines</td><td>$size "$items"</td><td>3</td></tr>
+                <tr class="on"><td>in</td><td>$divide ["$$sum", "$$lines"]</td><td>54416.666…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Сначала сервер вычисляет все переменные <code>vars</code>, затем выражение <code>in</code> с их значениями. Результат <code>$let</code> — значение <code>in</code>; сами переменные в документ не попадают.</p>
+        </div>
+        <p>Без <code>$let</code> то же выражение записывается как <code>$divide</code> с <code>$sum</code> и <code>$size</code> внутри. Здесь <code>$let</code> только делает запись понятнее. Настоящая польза появляется, когда одно значение нужно в выражении несколько раз.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Выбор значения: $switch</h2>
+        <p>У 40 заказов есть промокод: SPRING10 даёт скидку 10 %, LOYAL15 — 15 %, FIRST5 — 5 %. В поле <code>total</code> скидка не учтена. Чтобы её посчитать, по коду промокода нужно получить процент.</p>
+        <p><span class="term">Выражение $switch</span> выбирает значение по первому выполненному условию. В <code>branches</code> — список ветвей; у каждой ветви условие <code>case</code> и значение <code>then</code>. Ветви проверяются по порядку, и результатом становится <code>then</code> первой ветви с истинным условием. Если ни одно условие не выполнено, результат — <code>default</code>. <code>$cond</code> из главы 4.2 выбирает из двух значений, <code>$switch</code> — из любого числа.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$switch: процент скидки по промокоду</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: {<span class="s">"$in"</span>: [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>]}}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"promo"</span>: <span class="n">1</span>,
+        <span class="s">"pct"</span>: {<span class="s">"$switch"</span>: {
+            <span class="s">"branches"</span>: [
+                {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>]}, <span class="s">"then"</span>: <span class="n">10</span>},
+                {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>]}, <span class="s">"then"</span>: <span class="n">15</span>},
+                {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>]}, <span class="s">"then"</span>: <span class="n">5</span>},
+            ],
+            <span class="s">"default"</span>: <span class="n">0</span>,
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$switch: процент скидки по промокоду</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>))))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$switch"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"branches"</span>, <span class="f">make_array</span>(
+                <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>)))),
+                    <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">10</span>)),
+                <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>)))),
+                    <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">15</span>)),
+                <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>)))),
+                    <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">5</span>)))),
+            <span class="f">kvp</span>(<span class="s">"default"</span>, <span class="n">0</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$switch: процент скидки по промокоду</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{
+            {Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>}}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"promo"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"pct"</span>, Value: bson.D{
+            {Key: <span class="s">"$switch"</span>, Value: bson.D{
+                {Key: <span class="s">"branches"</span>, Value: bson.A{
+                    bson.D{
+                        {Key: <span class="s">"case"</span>, Value: bson.D{
+                            {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>}}}},
+                        {Key: <span class="s">"then"</span>, Value: <span class="n">10</span>}},
+                    bson.D{
+                        {Key: <span class="s">"case"</span>, Value: bson.D{
+                            {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>}}}},
+                        {Key: <span class="s">"then"</span>, Value: <span class="n">15</span>}},
+                    bson.D{
+                        {Key: <span class="s">"case"</span>, Value: bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>}}}},
+                        {Key: <span class="s">"then"</span>, Value: <span class="n">5</span>}}}},
+                {Key: <span class="s">"default"</span>, Value: <span class="n">0</span>}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$switch: процент скидки по промокоду</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>] } } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"promo"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"pct"</span> =&gt; { <span class="s">"$switch"</span> =&gt; {
+      <span class="s">"branches"</span> =&gt; [
+        { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">10</span> },
+        { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">15</span> },
+        { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">5</span> },
+      ],
+      <span class="s">"default"</span> =&gt; <span class="n">0</span>,
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0001', 'pct': 0}
+{'number': '2026-0002', 'promo': 'SPRING10', 'pct': 10}
+{'number': '2026-0003', 'promo': 'FIRST5', 'pct': 5}
+{'number': '2026-0004', 'promo': 'LOYAL15', 'pct': 15}
+{'number': '2026-0005', 'pct': 0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0001", "pct" : 0 }
+{ "number" : "2026-0002", "promo" : "SPRING10", "pct" : 10 }
+{ "number" : "2026-0003", "promo" : "FIRST5", "pct" : 5 }
+{ "number" : "2026-0004", "promo" : "LOYAL15", "pct" : 15 }
+{ "number" : "2026-0005", "pct" : 0 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0001","pct":0}
+{"number":"2026-0002","promo":"SPRING10","pct":10}
+{"number":"2026-0003","promo":"FIRST5","pct":5}
+{"number":"2026-0004","promo":"LOYAL15","pct":15}
+{"number":"2026-0005","pct":0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0001", "pct"=&gt;0}
+{"number"=&gt;"2026-0002", "promo"=&gt;"SPRING10", "pct"=&gt;10}
+{"number"=&gt;"2026-0003", "promo"=&gt;"FIRST5", "pct"=&gt;5}
+{"number"=&gt;"2026-0004", "promo"=&gt;"LOYAL15", "pct"=&gt;15}
+{"number"=&gt;"2026-0005", "pct"=&gt;0}</pre>
+        </figure>
+        <p>У 2026-0002 промокод SPRING10 и процент 10, у 2026-0003 FIRST5 и 5, у 2026-0004 LOYAL15 и 15. У 2026-0001 и 2026-0005 промокода нет: поля <code>promo</code> в выводе нет, ни одно условие не выполнилось, и процент равен <code>default</code> — 0.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Ветви $switch по порядку</span><span>первая истинная — результат</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Заказ · promo</th><th>= SPRING10</th><th>= LOYAL15</th><th>= FIRST5</th><th>pct</th></tr></thead>
+              <tbody>
+                <tr><td>2026-0002 · SPRING10</td><td class="ok">да</td><td>—</td><td>—</td><td>10</td></tr>
+                <tr><td>2026-0003 · FIRST5</td><td>нет</td><td>нет</td><td class="ok">да</td><td>5</td></tr>
+                <tr><td>2026-0004 · LOYAL15</td><td>нет</td><td class="ok">да</td><td>—</td><td>15</td></tr>
+                <tr class="no"><td>2026-0005 · нет поля</td><td>нет</td><td>нет</td><td>нет</td><td>0 (default)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">После первой истинной ветви остальные не проверяются — прочерк. Без <code>default</code> заказ без промокода дал бы ошибку 40066: ни одна ветвь не подошла, и значения нет.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Одно значение в двух местах</h2>
+        <p>Для чека нужны два числа: скидка — <code>total × pct / 100</code> — и сумма к оплате — <code>total</code> минус скидка. Процент участвует в обоих. Без переменной выражение <code>$switch</code> из §2 пришлось бы записать в двух местах, и сервер вычислил бы его дважды. С <code>$let</code> процент вычисляется один раз в <code>vars</code>, а в <code>in</code> собирается документ из двух полей.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$let: скидка и сумма к оплате</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: {<span class="s">"$in"</span>: [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>]}}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"total"</span>: <span class="n">1</span>,
+        <span class="s">"check"</span>: {<span class="s">"$let"</span>: {
+            <span class="s">"vars"</span>: {<span class="s">"pct"</span>: {<span class="s">"$switch"</span>: {
+                <span class="s">"branches"</span>: [
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>]}, <span class="s">"then"</span>: <span class="n">10</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>]}, <span class="s">"then"</span>: <span class="n">15</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>]}, <span class="s">"then"</span>: <span class="n">5</span>},
+                ],
+                <span class="s">"default"</span>: <span class="n">0</span>,
+            }}},
+            <span class="s">"in"</span>: {
+                <span class="s">"discount"</span>: {<span class="s">"$divide"</span>: [{<span class="s">"$multiply"</span>: [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>]}, <span class="n">100</span>]},
+                <span class="s">"pay"</span>: {<span class="s">"$subtract"</span>: [
+                    <span class="s">"$total"</span>,
+                    {<span class="s">"$divide"</span>: [{<span class="s">"$multiply"</span>: [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>]}, <span class="n">100</span>]},
+                ]},
+            },
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$let: скидка и сумма к оплате</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>))))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"check"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$switch"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"branches"</span>, <span class="f">make_array</span>(
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">10</span>)),
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">15</span>)),
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">5</span>)))),
+                        <span class="f">kvp</span>(<span class="s">"default"</span>, <span class="n">0</span>))))))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"discount"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(
+                        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$pct"</span>))),
+                        <span class="n">100</span>)))),
+                <span class="f">kvp</span>(<span class="s">"pay"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$subtract"</span>, <span class="f">make_array</span>(
+                        <span class="s">"$total"</span>,
+                        <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$pct"</span>))),
+                                <span class="n">100</span>)))))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$let: скидка и сумма к оплате</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{
+            {Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>}}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"check"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{
+                    {Key: <span class="s">"pct"</span>, Value: bson.D{
+                        {Key: <span class="s">"$switch"</span>, Value: bson.D{
+                            {Key: <span class="s">"branches"</span>, Value: bson.A{
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">10</span>}},
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">15</span>}},
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">5</span>}}}},
+                            {Key: <span class="s">"default"</span>, Value: <span class="n">0</span>}}}}}}},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"discount"</span>, Value: bson.D{
+                        {Key: <span class="s">"$divide"</span>, Value: bson.A{
+                            bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$pct"</span>}}},
+                            <span class="n">100</span>}}}},
+                    {Key: <span class="s">"pay"</span>, Value: bson.D{
+                        {Key: <span class="s">"$subtract"</span>, Value: bson.A{
+                            <span class="s">"$total"</span>,
+                            bson.D{
+                                {Key: <span class="s">"$divide"</span>, Value: bson.A{
+                                    bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$pct"</span>}}},
+                                    <span class="n">100</span>}}}}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$let: скидка и сумма к оплате</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"o-0001"</span>, <span class="s">"o-0002"</span>, <span class="s">"o-0003"</span>, <span class="s">"o-0004"</span>, <span class="s">"o-0005"</span>] } } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"total"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"check"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+      <span class="s">"vars"</span> =&gt; { <span class="s">"pct"</span> =&gt; { <span class="s">"$switch"</span> =&gt; {
+        <span class="s">"branches"</span> =&gt; [
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">10</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">15</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">5</span> },
+        ],
+        <span class="s">"default"</span> =&gt; <span class="n">0</span>,
+      } } },
+      <span class="s">"in"</span> =&gt; {
+        <span class="s">"discount"</span> =&gt; { <span class="s">"$divide"</span> =&gt; [{ <span class="s">"$multiply"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>] }, <span class="n">100</span>] },
+        <span class="s">"pay"</span> =&gt; { <span class="s">"$subtract"</span> =&gt; [
+          <span class="s">"$total"</span>,
+          { <span class="s">"$divide"</span> =&gt; [{ <span class="s">"$multiply"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>] }, <span class="n">100</span>] },
+        ] },
+      },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0001', 'total': 5980, 'check': {'discount': 0.0, 'pay': 5980.0}}
+{'number': '2026-0002', 'total': 163250, 'check': {'discount': 16325.0, 'pay': 146925.0}}
+{'number': '2026-0003', 'total': 86880, 'check': {'discount': 4344.0, 'pay': 82536.0}}
+{'number': '2026-0004', 'total': 106210, 'check': {'discount': 15931.5, 'pay': 90278.5}}
+{'number': '2026-0005', 'total': 56970, 'check': {'discount': 0.0, 'pay': 56970.0}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0001", "total" : 5980, "check" : { "discount" : 0.0, "pay" : 5980.0 } }
+{ "number" : "2026-0002", "total" : 163250, "check" : { "discount" : 16325.0, "pay" : 146925.0 } }
+{ "number" : "2026-0003", "total" : 86880, "check" : { "discount" : 4344.0, "pay" : 82536.0 } }
+{ "number" : "2026-0004", "total" : 106210, "check" : { "discount" : 15931.5, "pay" : 90278.5 } }
+{ "number" : "2026-0005", "total" : 56970, "check" : { "discount" : 0.0, "pay" : 56970.0 } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0001","total":5980,"check":{"discount":0.0,"pay":5980.0}}
+{"number":"2026-0002","total":163250,"check":{"discount":16325.0,"pay":146925.0}}
+{"number":"2026-0003","total":86880,"check":{"discount":4344.0,"pay":82536.0}}
+{"number":"2026-0004","total":106210,"check":{"discount":15931.5,"pay":90278.5}}
+{"number":"2026-0005","total":56970,"check":{"discount":0.0,"pay":56970.0}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0001", "total"=&gt;5980, "check"=&gt;{"discount"=&gt;0.0, "pay"=&gt;5980.0}}
+{"number"=&gt;"2026-0002", "total"=&gt;163250, "check"=&gt;{"discount"=&gt;16325.0, "pay"=&gt;146925.0}}
+{"number"=&gt;"2026-0003", "total"=&gt;86880, "check"=&gt;{"discount"=&gt;4344.0, "pay"=&gt;82536.0}}
+{"number"=&gt;"2026-0004", "total"=&gt;106210, "check"=&gt;{"discount"=&gt;15931.5, "pay"=&gt;90278.5}}
+{"number"=&gt;"2026-0005", "total"=&gt;56970, "check"=&gt;{"discount"=&gt;0.0, "pay"=&gt;56970.0}}</pre>
+        </figure>
+        <p>У 2026-0002 скидка 16 325 и к оплате 146 925; у 2026-0003 — 4 344 и 82 536; у 2026-0004 — 15 931,5 и 90 278,5. У заказов без промокода скидка 0, и к оплате — весь <code>total</code>. В выражении <code>in</code> запись скидки повторяется дважды, но это короткое выражение от переменной; <code>$switch</code> записан один раз.</p>
+        <p>Результат <code>$let</code> — документ <code>check</code> с полями <code>discount</code> и <code>pay</code>. Выражение <code>in</code> может вернуть любое значение: число, строку, документ, массив.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Переменная внутри $group</h2>
+        <p><code>$let</code> — выражение и стоит везде, где допустимо выражение, в том числе внутри аккумулятора <code>$sum</code> стадии <code>$group</code>. Пример отбирает заказы с промокодом и для каждого промокода считает заказы, их сумму и общую скидку.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>скидки по каждому промокоду</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"promo"</span>: {<span class="s">"$exists"</span>: <span class="k">True</span>}}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$promo"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"total"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+        <span class="s">"discount"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$let"</span>: {
+            <span class="s">"vars"</span>: {<span class="s">"pct"</span>: {<span class="s">"$switch"</span>: {
+                <span class="s">"branches"</span>: [
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>]}, <span class="s">"then"</span>: <span class="n">10</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>]}, <span class="s">"then"</span>: <span class="n">15</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>]}, <span class="s">"then"</span>: <span class="n">5</span>},
+                ],
+                <span class="s">"default"</span>: <span class="n">0</span>,
+            }}},
+            <span class="s">"in"</span>: {<span class="s">"$divide"</span>: [{<span class="s">"$multiply"</span>: [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>]}, <span class="n">100</span>]},
+        }}},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>скидки по каждому промокоду</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$exists"</span>, <span class="k">true</span>)))));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$promo"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>))),
+    <span class="f">kvp</span>(<span class="s">"discount"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"$switch"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"branches"</span>, <span class="f">make_array</span>(
+                                <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                        <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>)))),
+                                    <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">10</span>)),
+                                <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                        <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>)))),
+                                    <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">15</span>)),
+                                <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                        <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>)))),
+                                    <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">5</span>)))),
+                            <span class="f">kvp</span>(<span class="s">"default"</span>, <span class="n">0</span>))))))),
+                <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(
+                        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$pct"</span>))),
+                        <span class="n">100</span>))))))))))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>скидки по каждому промокоду</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"promo"</span>, Value: bson.D{{Key: <span class="s">"$exists"</span>, Value: <span class="k">true</span>}}}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$promo"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"total"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}},
+        {Key: <span class="s">"discount"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$let"</span>, Value: bson.D{
+                    {Key: <span class="s">"vars"</span>, Value: bson.D{
+                        {Key: <span class="s">"pct"</span>, Value: bson.D{
+                            {Key: <span class="s">"$switch"</span>, Value: bson.D{
+                                {Key: <span class="s">"branches"</span>, Value: bson.A{
+                                    bson.D{
+                                        {Key: <span class="s">"case"</span>, Value: bson.D{
+                                            {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>}}}},
+                                        {Key: <span class="s">"then"</span>, Value: <span class="n">10</span>}},
+                                    bson.D{
+                                        {Key: <span class="s">"case"</span>, Value: bson.D{
+                                            {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>}}}},
+                                        {Key: <span class="s">"then"</span>, Value: <span class="n">15</span>}},
+                                    bson.D{
+                                        {Key: <span class="s">"case"</span>, Value: bson.D{
+                                            {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>}}}},
+                                        {Key: <span class="s">"then"</span>, Value: <span class="n">5</span>}}}},
+                                {Key: <span class="s">"default"</span>, Value: <span class="n">0</span>}}}}}}},
+                    {Key: <span class="s">"in"</span>, Value: bson.D{
+                        {Key: <span class="s">"$divide"</span>, Value: bson.A{
+                            bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$pct"</span>}}},
+                            <span class="n">100</span>}}}}}}}}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>скидки по каждому промокоду</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"promo"</span> =&gt; { <span class="s">"$exists"</span> =&gt; <span class="k">true</span> } } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$promo"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"total"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+    <span class="s">"discount"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+      <span class="s">"vars"</span> =&gt; { <span class="s">"pct"</span> =&gt; { <span class="s">"$switch"</span> =&gt; {
+        <span class="s">"branches"</span> =&gt; [
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">10</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">15</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">5</span> },
+        ],
+        <span class="s">"default"</span> =&gt; <span class="n">0</span>,
+      } } },
+      <span class="s">"in"</span> =&gt; { <span class="s">"$divide"</span> =&gt; [{ <span class="s">"$multiply"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>] }, <span class="n">100</span>] },
+    } } },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'FIRST5', 'orders': 10, 'total': 965680, 'discount': 48284.0}
+{'_id': 'LOYAL15', 'orders': 12, 'total': 1345130, 'discount': 201769.5}
+{'_id': 'SPRING10', 'orders': 18, 'total': 2217780, 'discount': 221778.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "FIRST5", "orders" : 10, "total" : 965680, "discount" : 48284.0 }
+{ "_id" : "LOYAL15", "orders" : 12, "total" : 1345130, "discount" : 201769.5 }
+{ "_id" : "SPRING10", "orders" : 18, "total" : 2217780, "discount" : 221778.0 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"FIRST5","orders":10,"total":965680,"discount":48284.0}
+{"_id":"LOYAL15","orders":12,"total":1345130,"discount":201769.5}
+{"_id":"SPRING10","orders":18,"total":2217780,"discount":221778.0}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"FIRST5", "orders"=&gt;10, "total"=&gt;965680, "discount"=&gt;48284.0}
+{"_id"=&gt;"LOYAL15", "orders"=&gt;12, "total"=&gt;1345130, "discount"=&gt;201769.5}
+{"_id"=&gt;"SPRING10", "orders"=&gt;18, "total"=&gt;2217780, "discount"=&gt;221778.0}</pre>
+        </figure>
+        <p>По SPRING10 — 18 заказов на 2 217 780 и скидка 221 778, по LOYAL15 — 12 заказов на 1 345 130 и скидка 201 769,5, по FIRST5 — 10 заказов на 965 680 и скидка 48 284. Заказов вместе 40 — все заказы с промокодом. <code>$let</code> вычисляется для каждого документа отдельно, и <code>$sum</code> складывает скидки документов группы.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Скидка по промокодам</span><span>40 заказов</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>SPRING10 · 18 заказов</span><i><b class="on" style="width:100%"></b></i><span>221778</span></div>
+              <div><span>LOYAL15 · 12 заказов</span><i><b class="on" style="width:91%"></b></i><span>201769.5</span></div>
+              <div><span>FIRST5 · 10 заказов</span><i><b class="on" style="width:21.8%"></b></i><span>48284</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Длина полосы — скидка относительно наибольшей. LOYAL15 даёт почти столько же скидки, сколько SPRING10, на треть меньшем числе заказов: процент у него выше.</p>
+        </div>
+
+        <h2 id="s5"><span class="sec">§5</span>Переменная $let внутри $map</h2>
+        <p>Скидку можно показать по каждой позиции чека. Процент один на весь заказ, а позиций несколько. Процент вычисляется в <code>vars</code> внешнего <code>$let</code>, а в его <code>in</code> стоит <code>$map</code> по позициям. Внутри <code>$map</code> видны и <code>$$this</code> — текущая позиция, и <code>$$pct</code> — переменная внешнего выражения. Сумма к оплате по позиции — <code>qty × price × (100 − pct) / 100</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$let снаружи, $map внутри: скидка по позициям</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0003"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"promo"</span>: <span class="n">1</span>,
+        <span class="s">"lines"</span>: {<span class="s">"$let"</span>: {
+            <span class="s">"vars"</span>: {<span class="s">"pct"</span>: {<span class="s">"$switch"</span>: {
+                <span class="s">"branches"</span>: [
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>]}, <span class="s">"then"</span>: <span class="n">10</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>]}, <span class="s">"then"</span>: <span class="n">15</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>]}, <span class="s">"then"</span>: <span class="n">5</span>},
+                ],
+                <span class="s">"default"</span>: <span class="n">0</span>,
+            }}},
+            <span class="s">"in"</span>: {<span class="s">"$map"</span>: {
+                <span class="s">"input"</span>: <span class="s">"$items"</span>,
+                <span class="s">"in"</span>: {
+                    <span class="s">"title"</span>: <span class="s">"$$this.title"</span>,
+                    <span class="s">"pay"</span>: {<span class="s">"$divide"</span>: [
+                        {<span class="s">"$multiply"</span>: [
+                            <span class="s">"$$this.qty"</span>,
+                            <span class="s">"$$this.price"</span>,
+                            {<span class="s">"$subtract"</span>: [<span class="n">100</span>, <span class="s">"$$pct"</span>]},
+                        ]},
+                        <span class="n">100</span>,
+                    ]},
+                },
+            }},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$let снаружи, $map внутри: скидка по позициям</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0003"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"promo"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"lines"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$switch"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"branches"</span>, <span class="f">make_array</span>(
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">10</span>)),
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">15</span>)),
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">5</span>)))),
+                        <span class="f">kvp</span>(<span class="s">"default"</span>, <span class="n">0</span>))))))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$items"</span>),
+                    <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"$$this.title"</span>),
+                        <span class="f">kvp</span>(<span class="s">"pay"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(
+                                <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(
+                                        <span class="s">"$$this.qty"</span>,
+                                        <span class="s">"$$this.price"</span>,
+                                        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$subtract"</span>, <span class="f">make_array</span>(<span class="n">100</span>, <span class="s">"$$pct"</span>)))))),
+                                <span class="n">100</span>))))))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$let снаружи, $map внутри: скидка по позициям</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0003"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"promo"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"lines"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{
+                    {Key: <span class="s">"pct"</span>, Value: bson.D{
+                        {Key: <span class="s">"$switch"</span>, Value: bson.D{
+                            {Key: <span class="s">"branches"</span>, Value: bson.A{
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">10</span>}},
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">15</span>}},
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">5</span>}}}},
+                            {Key: <span class="s">"default"</span>, Value: <span class="n">0</span>}}}}}}},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"$map"</span>, Value: bson.D{
+                        {Key: <span class="s">"input"</span>, Value: <span class="s">"$items"</span>},
+                        {Key: <span class="s">"in"</span>, Value: bson.D{
+                            {Key: <span class="s">"title"</span>, Value: <span class="s">"$$this.title"</span>},
+                            {Key: <span class="s">"pay"</span>, Value: bson.D{
+                                {Key: <span class="s">"$divide"</span>, Value: bson.A{
+                                    bson.D{
+                                        {Key: <span class="s">"$multiply"</span>, Value: bson.A{
+                                            <span class="s">"$$this.qty"</span>,
+                                            <span class="s">"$$this.price"</span>,
+                                            bson.D{{Key: <span class="s">"$subtract"</span>, Value: bson.A{<span class="n">100</span>, <span class="s">"$$pct"</span>}}}}}},
+                                    <span class="n">100</span>}}}}}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$let снаружи, $map внутри: скидка по позициям</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0003"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"promo"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"lines"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+      <span class="s">"vars"</span> =&gt; { <span class="s">"pct"</span> =&gt; { <span class="s">"$switch"</span> =&gt; {
+        <span class="s">"branches"</span> =&gt; [
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">10</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">15</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">5</span> },
+        ],
+        <span class="s">"default"</span> =&gt; <span class="n">0</span>,
+      } } },
+      <span class="s">"in"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+        <span class="s">"input"</span> =&gt; <span class="s">"$items"</span>,
+        <span class="s">"in"</span> =&gt; {
+          <span class="s">"title"</span> =&gt; <span class="s">"$$this.title"</span>,
+          <span class="s">"pay"</span> =&gt; { <span class="s">"$divide"</span> =&gt; [
+            { <span class="s">"$multiply"</span> =&gt; [
+              <span class="s">"$$this.qty"</span>,
+              <span class="s">"$$this.price"</span>,
+              { <span class="s">"$subtract"</span> =&gt; [<span class="n">100</span>, <span class="s">"$$pct"</span>] },
+            ] },
+            <span class="n">100</span>,
+          ] },
+        },
+      } },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0003', 'promo': 'FIRST5', 'lines': [{'title': 'Ноутбук HP Pavilion 14', 'pay': 64505.0}, {'title': 'Мышь Logitech MX Master 3S', 'pay': 18031.0}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0003", "promo" : "FIRST5", "lines" : [ { "title" : "Ноутбук HP Pavilion 14", "pay" : 64505.0 }, { "title" : "Мышь Logitech MX Master 3S", "pay" : 18031.0 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0003","promo":"FIRST5","lines":[{"title":"Ноутбук HP Pavilion 14","pay":64505.0},{"title":"Мышь Logitech MX Master 3S","pay":18031.0}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0003", "promo"=&gt;"FIRST5", "lines"=&gt;[{"title"=&gt;"Ноутбук HP Pavilion 14", "pay"=&gt;64505.0}, {"title"=&gt;"Мышь Logitech MX Master 3S", "pay"=&gt;18031.0}]}</pre>
+        </figure>
+        <p>Заказ 2026-0003 с промокодом FIRST5: ноутбук HP — 64 505 вместо 67 900, две мыши — 18 031 вместо 18 980. Вместе 82 536 — та же сумма к оплате, что в §3 для этого заказа.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Какие переменные видны в каждой части</span><span>изнутри видно внешнее</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Часть выражения</th><th>$$pct</th><th>$$this</th></tr></thead>
+              <tbody>
+                <tr><td>vars внешнего $let</td><td class="bad">нет — ещё вычисляется</td><td class="bad">нет</td></tr>
+                <tr><td>in внешнего $let, вне $map</td><td class="ok">да</td><td class="bad">нет</td></tr>
+                <tr class="on"><td>in выражения $map</td><td class="ok">да</td><td class="ok">да — текущая позиция</td></tr>
+                <tr class="no"><td>соседнее поле $project</td><td class="bad">нет</td><td class="bad">нет</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Переменная видна в той части выражения, где она объявлена, и во всём, что вложено в эту часть. <code>$$this</code> объявляет <code>$map</code>, поэтому снаружи <code>$map</code> его нет.</p>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Переменная из переменной</h2>
+        <p>В §3 скидка записана в <code>in</code> дважды. Её тоже хочется сделать переменной. Но переменные одного <code>vars</code> вычисляются независимо и друг друга не видят: если скидку объявить рядом с процентом, сервер ответит ошибкой (она разобрана в §8). Переменную, которая зависит от другой, объявляют во втором <code>$let</code>, вложенном в <code>in</code> первого.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>вложенный $let: переменная из переменной</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0004"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"total"</span>: <span class="n">1</span>,
+        <span class="s">"check"</span>: {<span class="s">"$let"</span>: {
+            <span class="s">"vars"</span>: {<span class="s">"pct"</span>: {<span class="s">"$switch"</span>: {
+                <span class="s">"branches"</span>: [
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>]}, <span class="s">"then"</span>: <span class="n">10</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>]}, <span class="s">"then"</span>: <span class="n">15</span>},
+                    {<span class="s">"case"</span>: {<span class="s">"$eq"</span>: [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>]}, <span class="s">"then"</span>: <span class="n">5</span>},
+                ],
+                <span class="s">"default"</span>: <span class="n">0</span>,
+            }}},
+            <span class="s">"in"</span>: {<span class="s">"$let"</span>: {
+                <span class="s">"vars"</span>: {<span class="s">"discount"</span>: {<span class="s">"$divide"</span>: [
+                    {<span class="s">"$multiply"</span>: [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>]},
+                    <span class="n">100</span>,
+                ]}},
+                <span class="s">"in"</span>: {
+                    <span class="s">"discount"</span>: <span class="s">"$$discount"</span>,
+                    <span class="s">"pay"</span>: {<span class="s">"$subtract"</span>: [<span class="s">"$total"</span>, <span class="s">"$$discount"</span>]},
+                },
+            }},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>вложенный $let: переменная из переменной</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0004"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"check"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$switch"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"branches"</span>, <span class="f">make_array</span>(
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">10</span>)),
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">15</span>)),
+                            <span class="f">make_document</span>(
+                                <span class="f">kvp</span>(<span class="s">"case"</span>, <span class="f">make_document</span>(
+                                    <span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>)))),
+                                <span class="f">kvp</span>(<span class="s">"then"</span>, <span class="n">5</span>)))),
+                        <span class="f">kvp</span>(<span class="s">"default"</span>, <span class="n">0</span>))))))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"discount"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(
+                                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$pct"</span>))),
+                                <span class="n">100</span>)))))),
+                    <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"discount"</span>, <span class="s">"$$discount"</span>),
+                        <span class="f">kvp</span>(<span class="s">"pay"</span>, <span class="f">make_document</span>(
+                            <span class="f">kvp</span>(<span class="s">"$subtract"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$discount"</span>))))))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>вложенный $let: переменная из переменной</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0004"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"check"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{
+                    {Key: <span class="s">"pct"</span>, Value: bson.D{
+                        {Key: <span class="s">"$switch"</span>, Value: bson.D{
+                            {Key: <span class="s">"branches"</span>, Value: bson.A{
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">10</span>}},
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">15</span>}},
+                                bson.D{
+                                    {Key: <span class="s">"case"</span>, Value: bson.D{
+                                        {Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>}}}},
+                                    {Key: <span class="s">"then"</span>, Value: <span class="n">5</span>}}}},
+                            {Key: <span class="s">"default"</span>, Value: <span class="n">0</span>}}}}}}},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"$let"</span>, Value: bson.D{
+                        {Key: <span class="s">"vars"</span>, Value: bson.D{
+                            {Key: <span class="s">"discount"</span>, Value: bson.D{
+                                {Key: <span class="s">"$divide"</span>, Value: bson.A{
+                                    bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$pct"</span>}}},
+                                    <span class="n">100</span>}}}}}},
+                        {Key: <span class="s">"in"</span>, Value: bson.D{
+                            {Key: <span class="s">"discount"</span>, Value: <span class="s">"$$discount"</span>},
+                            {Key: <span class="s">"pay"</span>, Value: bson.D{
+                                {Key: <span class="s">"$subtract"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$discount"</span>}}}}}}}}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>вложенный $let: переменная из переменной</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0004"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"total"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"check"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+      <span class="s">"vars"</span> =&gt; { <span class="s">"pct"</span> =&gt; { <span class="s">"$switch"</span> =&gt; {
+        <span class="s">"branches"</span> =&gt; [
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"SPRING10"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">10</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"LOYAL15"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">15</span> },
+          { <span class="s">"case"</span> =&gt; { <span class="s">"$eq"</span> =&gt; [<span class="s">"$promo"</span>, <span class="s">"FIRST5"</span>] }, <span class="s">"then"</span> =&gt; <span class="n">5</span> },
+        ],
+        <span class="s">"default"</span> =&gt; <span class="n">0</span>,
+      } } },
+      <span class="s">"in"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+        <span class="s">"vars"</span> =&gt; { <span class="s">"discount"</span> =&gt; { <span class="s">"$divide"</span> =&gt; [
+          { <span class="s">"$multiply"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>] },
+          <span class="n">100</span>,
+        ] } },
+        <span class="s">"in"</span> =&gt; {
+          <span class="s">"discount"</span> =&gt; <span class="s">"$$discount"</span>,
+          <span class="s">"pay"</span> =&gt; { <span class="s">"$subtract"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$discount"</span>] },
+        },
+      } },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0004', 'total': 106210, 'check': {'discount': 15931.5, 'pay': 90278.5}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0004", "total" : 106210, "check" : { "discount" : 15931.5, "pay" : 90278.5 } }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0004","total":106210,"check":{"discount":15931.5,"pay":90278.5}}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0004", "total"=&gt;106210, "check"=&gt;{"discount"=&gt;15931.5, "pay"=&gt;90278.5}}</pre>
+        </figure>
+        <p>Для 2026-0004 скидка 15 931,5 и к оплате 90 278,5 — как в §3. Внешний <code>$let</code> объявил <code>pct</code>, внутренний — <code>discount</code> через <code>$$pct</code>, и <code>in</code> внутреннего использует <code>$$discount</code> дважды. Каждая величина теперь записана один раз.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Переменная и поле с одним именем</h2>
+        <p>Имя переменной может совпадать с именем поля документа: они не путаются, потому что пишутся с разным числом знаков. Пример объявляет переменную <code>total</code> со значением 1 и выводит рядом поле и переменную.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>переменная total и поле total</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"both"</span>: {<span class="s">"$let"</span>: {<span class="s">"vars"</span>: {<span class="s">"total"</span>: <span class="n">1</span>}, <span class="s">"in"</span>: [<span class="s">"$total"</span>, <span class="s">"$$total"</span>]}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>переменная total и поле total</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"both"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$total"</span>))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>переменная total и поле total</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"both"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}}},
+                {Key: <span class="s">"in"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$total"</span>}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>переменная total и поле total</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"both"</span> =&gt; { <span class="s">"$let"</span> =&gt; { <span class="s">"vars"</span> =&gt; { <span class="s">"total"</span> =&gt; <span class="n">1</span> }, <span class="s">"in"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$total"</span>] } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'both': [163250, 1]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "both" : [ 163250, 1 ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"both":[163250,1]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"both"=&gt;[163250, 1]}</pre>
+        </figure>
+        <p>Массив <code>both</code> — <code>[163250, 1]</code>: <code>"$total"</code> — поле заказа, <code>"$$total"</code> — переменная. Отсюда же ошибка с одним знаком: <code>"$pct"</code> вместо <code>"$$pct"</code> — путь к полю <code>pct</code> документа, а его нет, и значение отсутствует без всякой ошибки.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Где переменная не видна</h2>
+        <p>Пример собирает три записи, которые сервер отклоняет при разборе запроса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>переменные, которые сервер не принимает</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+same_vars = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$let"</span>: {
+        <span class="s">"vars"</span>: {
+            <span class="s">"pct"</span>: <span class="n">10</span>,
+            <span class="s">"discount"</span>: {<span class="s">"$divide"</span>: [{<span class="s">"$multiply"</span>: [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>]}, <span class="n">100</span>]},
+        },
+        <span class="s">"in"</span>: <span class="s">"$$discount"</span>,
+    }}}},
+]
+
+outside = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$let"</span>: {<span class="s">"vars"</span>: {<span class="s">"pct"</span>: <span class="n">10</span>}, <span class="s">"in"</span>: <span class="s">"$$pct"</span>}}, <span class="s">"y"</span>: <span class="s">"$$pct"</span>}},
+]
+
+capital = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"x"</span>: {<span class="s">"$let"</span>: {<span class="s">"vars"</span>: {<span class="s">"Pct"</span>: <span class="n">10</span>}, <span class="s">"in"</span>: <span class="s">"$$Pct"</span>}}}},
+]
+
+<span class="f">print</span>(<span class="s">"── переменная из того же vars"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(same_vars):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── переменная вне in"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(outside):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── имя с заглавной буквы"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(capital):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>переменные, которые сервер не принимает</span></figcaption>
+<pre>mongocxx::pipeline same_vars;
+same_vars.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+same_vars.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="n">10</span>),
+                <span class="f">kvp</span>(<span class="s">"discount"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"$divide"</span>, <span class="f">make_array</span>(
+                        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$multiply"</span>, <span class="f">make_array</span>(<span class="s">"$total"</span>, <span class="s">"$$pct"</span>))),
+                        <span class="n">100</span>)))))),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="s">"$$discount"</span>)))))));
+
+mongocxx::pipeline outside;
+outside.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+outside.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"pct"</span>, <span class="n">10</span>))), <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="s">"$$pct"</span>))))),
+    <span class="f">kvp</span>(<span class="s">"y"</span>, <span class="s">"$$pct"</span>)));
+
+mongocxx::pipeline capital;
+capital.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+capital.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"x"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$let"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"vars"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"Pct"</span>, <span class="n">10</span>))), <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="s">"$$Pct"</span>)))))));
+
+std::cout &lt;&lt; <span class="s">"── переменная из того же vars"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(same_vars)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── переменная вне in"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(outside)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── имя с заглавной буквы"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(capital)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>переменные, которые сервер не принимает</span></figcaption>
+<pre>sameVars := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{
+                    {Key: <span class="s">"pct"</span>, Value: <span class="n">10</span>},
+                    {Key: <span class="s">"discount"</span>, Value: bson.D{
+                        {Key: <span class="s">"$divide"</span>, Value: bson.A{
+                            bson.D{{Key: <span class="s">"$multiply"</span>, Value: bson.A{<span class="s">"$total"</span>, <span class="s">"$$pct"</span>}}},
+                            <span class="n">100</span>}}}}}},
+                {Key: <span class="s">"in"</span>, Value: <span class="s">"$$discount"</span>}}}}}}}},
+}
+
+outside := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{{Key: <span class="s">"pct"</span>, Value: <span class="n">10</span>}}},
+                {Key: <span class="s">"in"</span>, Value: <span class="s">"$$pct"</span>}}}}},
+        {Key: <span class="s">"y"</span>, Value: <span class="s">"$$pct"</span>}}}},
+}
+
+capital := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"x"</span>, Value: bson.D{
+            {Key: <span class="s">"$let"</span>, Value: bson.D{
+                {Key: <span class="s">"vars"</span>, Value: bson.D{{Key: <span class="s">"Pct"</span>, Value: <span class="n">10</span>}}},
+                {Key: <span class="s">"in"</span>, Value: <span class="s">"$$Pct"</span>}}}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── переменная из того же vars"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, sameVars)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── переменная вне in"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, outside)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── имя с заглавной буквы"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, capital)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>переменные, которые сервер не принимает</span></figcaption>
+<pre>same_vars = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$let"</span> =&gt; {
+    <span class="s">"vars"</span> =&gt; {
+      <span class="s">"pct"</span> =&gt; <span class="n">10</span>,
+      <span class="s">"discount"</span> =&gt; { <span class="s">"$divide"</span> =&gt; [{ <span class="s">"$multiply"</span> =&gt; [<span class="s">"$total"</span>, <span class="s">"$$pct"</span>] }, <span class="n">100</span>] },
+    },
+    <span class="s">"in"</span> =&gt; <span class="s">"$$discount"</span>,
+  } } } },
+]
+
+outside = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"x"</span> =&gt; { <span class="s">"$let"</span> =&gt; { <span class="s">"vars"</span> =&gt; { <span class="s">"pct"</span> =&gt; <span class="n">10</span> }, <span class="s">"in"</span> =&gt; <span class="s">"$$pct"</span> } },
+    <span class="s">"y"</span> =&gt; <span class="s">"$$pct"</span>,
+  } },
+]
+
+capital = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"x"</span> =&gt; { <span class="s">"$let"</span> =&gt; { <span class="s">"vars"</span> =&gt; { <span class="s">"Pct"</span> =&gt; <span class="n">10</span> }, <span class="s">"in"</span> =&gt; <span class="s">"$$Pct"</span> } } } },
+]
+
+<span class="k">puts</span> <span class="s">"── переменная из того же vars"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(same_vars).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── переменная вне in"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(outside).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── имя с заглавной буквы"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(capital).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── переменная из того же vars
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct
+── переменная вне in
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct
+── имя с заглавной буквы
+код 9
+Invalid $project :: caused by :: 'Pct' starts with an invalid character for a user variable name</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── переменная из того же vars
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct: server error code 17276: generic server error
+── переменная вне in
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct: server error code 17276: generic server error
+── имя с заглавной буквы
+код 9
+Invalid $project :: caused by :: 'Pct' starts with an invalid character for a user variable name: server error code 9: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── переменная из того же vars
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct
+── переменная вне in
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct
+── имя с заглавной буквы
+код 9
+Invalid $project :: caused by :: 'Pct' starts with an invalid character for a user variable name</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── переменная из того же vars
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct
+── переменная вне in
+код 17276
+Invalid $project :: caused by :: Use of undefined variable: pct
+── имя с заглавной буквы
+код 9
+Invalid $project :: caused by :: 'Pct' starts with an invalid character for a user variable name</pre>
+        </figure>
+        <p>Первая — переменная <code>discount</code> ссылается на <code>pct</code> из того же <code>vars</code>: ошибка 17276, сервер не знает <code>pct</code> в этом месте. Вторая — <code>$$pct</code> в соседнем поле <code>y</code>: та же ошибка, переменная существует только внутри <code>in</code> своего <code>$let</code>. Третья — имя <code>Pct</code> с заглавной буквы: ошибка 9, имя переменной должно начинаться со строчной латинской буквы. Имена с заглавной буквы заняты системными переменными, такими как <code>$$ROOT</code> — весь текущий документ.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>$let в Compass</h2>
+        <p>На кадре — конвейер из §3 на вкладке <b>Aggregations</b> коллекции <code>shop.orders</code>: стадия <code>$match</code> по пяти заказам и стадия <code>$project</code> с <code>$let</code>, который возвращает документ <code>check</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/162-orders-let.png" alt="Compass, вкладка Aggregations коллекции shop.orders: стадия $project с $let и $switch, в выборке заказы с вложенным документом check из полей discount и pay">
+          <figcaption>Compass · скидка и сумма к оплате через <code>$let</code></figcaption>
+        </figure>
+        <p>Под обеими стадиями подпись <b>Sample of 5 documents</b>; Compass показывает документы карточками, первые две — 2026-0001 и 2026-0002, остальные видны прокруткой вправо. В образце результата <code>$project</code> у каждого заказа поле <code>check</code> — <b>Object (2)</b>, вложенный документ из двух полей, <code>discount</code> и <code>pay</code>. Переменной <code>pct</code> в документе нет: она существует только во время вычисления выражения.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"vars": {"pct": …, "discount": {… "$$pct" …}}</code></td><td>Ошибка 17276: переменные одного <code>vars</code> не видят друг друга</td><td>Вложить второй <code>$let</code> в <code>in</code> первого: внутренний видит переменные внешнего</td></tr>
+              <tr><td><code>$$pct</code> в соседнем поле <code>$project</code></td><td>Ошибка 17276: переменная существует только внутри <code>in</code> своего <code>$let</code></td><td>Перенести вычисление в <code>in</code> или сохранить значение в поле стадией <code>$set</code></td></tr>
+              <tr><td><code>"vars": {"Pct": 10}</code></td><td>Ошибка 9: имя переменной должно начинаться со строчной буквы</td><td><code>"vars": {"pct": 10}</code></td></tr>
+              <tr><td><code>"$pct"</code> в <code>in</code></td><td>Путь к полю <code>pct</code> документа, а не переменная; поля нет — значение отсутствует</td><td>Переменная — с двумя знаками: <code>"$$pct"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"vars": {"pct": …, "discount": {… "$$pct" …}}</code></td><td>Ошибка 17276: переменные одного <code>vars</code> не видят друг друга</td><td>Вложить второй <code>$let</code> в <code>in</code> первого: внутренний видит переменные внешнего</td></tr>
+              <tr><td><code>$$pct</code> в соседнем поле <code>$project</code></td><td>Ошибка 17276: переменная существует только внутри <code>in</code> своего <code>$let</code></td><td>Перенести вычисление в <code>in</code> или сохранить значение в поле стадией <code>$set</code></td></tr>
+              <tr><td><code>"vars": {"Pct": 10}</code></td><td>Ошибка 9: имя переменной должно начинаться со строчной буквы</td><td><code>"vars": {"pct": 10}</code></td></tr>
+              <tr><td><code>"$pct"</code> в <code>in</code></td><td>Путь к полю <code>pct</code> документа, а не переменная; поля нет — значение отсутствует</td><td>Переменная — с двумя знаками: <code>"$$pct"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"vars": {"pct": …, "discount": {… "$$pct" …}}</code></td><td>Ошибка 17276: переменные одного <code>vars</code> не видят друг друга</td><td>Вложить второй <code>$let</code> в <code>in</code> первого: внутренний видит переменные внешнего</td></tr>
+              <tr><td><code>$$pct</code> в соседнем поле <code>$project</code></td><td>Ошибка 17276: переменная существует только внутри <code>in</code> своего <code>$let</code></td><td>Перенести вычисление в <code>in</code> или сохранить значение в поле стадией <code>$set</code></td></tr>
+              <tr><td><code>"vars": {"Pct": 10}</code></td><td>Ошибка 9: имя переменной должно начинаться со строчной буквы</td><td><code>"vars": {"pct": 10}</code></td></tr>
+              <tr><td><code>"$pct"</code> в <code>in</code></td><td>Путь к полю <code>pct</code> документа, а не переменная; поля нет — значение отсутствует</td><td>Переменная — с двумя знаками: <code>"$$pct"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"vars": {"pct": …, "discount": {… "$$pct" …}}</code></td><td>Ошибка 17276: переменные одного <code>vars</code> не видят друг друга</td><td>Вложить второй <code>$let</code> в <code>in</code> первого: внутренний видит переменные внешнего</td></tr>
+              <tr><td><code>$$pct</code> в соседнем поле <code>$project</code></td><td>Ошибка 17276: переменная существует только внутри <code>in</code> своего <code>$let</code></td><td>Перенести вычисление в <code>in</code> или сохранить значение в поле стадией <code>$set</code></td></tr>
+              <tr><td><code>"vars": {"Pct": 10}</code></td><td>Ошибка 9: имя переменной должно начинаться со строчной буквы</td><td><code>"vars": {"pct": 10}</code></td></tr>
+              <tr><td><code>"$pct"</code> в <code>in</code></td><td>Путь к полю <code>pct</code> документа, а не переменная; поля нет — значение отсутствует</td><td>Переменная — с двумя знаками: <code>"$$pct"</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s11"><span class="sec">§11</span>Проверьте себя</h2>
+        <details>
+          <summary>Что возвращает <code>$let</code> — значения переменных или что-то другое?</summary>
+          <p>Значение выражения <code>in</code>. Сами переменные в результат не попадают.</p>
+        </details>
+        <details>
+          <summary>Можно ли в <code>vars</code> объявить <code>pct</code> и рядом <code>discount</code> через <code>$$pct</code>?</summary>
+          <p>Нет: переменные одного <code>vars</code> не видят друг друга, ошибка 17276. <code>discount</code> объявляют во вложенном <code>$let</code> внутри <code>in</code>.</p>
+        </details>
+        <details>
+          <summary>Какое значение вернёт <code>$switch</code>, если ни одно условие не выполнено?</summary>
+          <p>Значение <code>default</code>. Без <code>default</code> сервер вернёт ошибку 40066.</p>
+        </details>
+        <details>
+          <summary>Видна ли переменная внешнего <code>$let</code> внутри <code>$map</code>, который стоит в его <code>in</code>?</summary>
+          <p>Да. Внутри <code>$map</code> видны и <code>$$this</code>, и переменные внешнего <code>$let</code>.</p>
+        </details>
+        <details>
+          <summary>Чем <code>"$total"</code> отличается от <code>"$$total"</code>?</summary>
+          <p><code>"$total"</code> — поле документа, <code>"$$total"</code> — переменная с именем <code>total</code>.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch5_5</code>. Данные — <code>shop.orders</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Скидка по городам</b>Для заказов с промокодом посчитать по городу доставки число заказов и общую скидку, по убыванию скидки.</li>
+          <li><b>Сумма к оплате</b>Для доставленных заказов с промокодом LOYAL15 вывести номер, <code>total</code> и сумму к оплате, по возрастанию номера.</li>
+          <li><b>Доля самой дорогой позиции</b>Для заказов 2026-0002 и 2026-0004 вывести долю самой дорогой позиции (по сумме <code>qty × price</code>) в <code>total</code> в процентах, округлив до целого: переменные — наибольшая сумма позиции и <code>total</code>.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Скидка по городам: Новосибирск — 15 заказов, 149 279,5; Москва — 6, 90 215; Санкт-Петербург — 5, 85 520; Екатеринбург — 9, 84 653; Ярославль — 5, 62 164; всего 40 заказов.</p>
+          <p>LOYAL15, доставленные: 2026-0004 — 106 210, к оплате 90 278,5; 2026-0006 — 2 370, к оплате 2 014,5; 2026-0024 — 274 960, к оплате 233 716; 2026-0032 — 24 660, к оплате 20 961; 2026-0082 — 41 980, к оплате 35 683; 2026-0102 — 61 650, к оплате 52 402,5.</p>
+          <p>Доля самой дорогой позиции: 2026-0002 — 64 % (104 970 из 163 250), 2026-0004 — 36 % (37 980 из 106 210).</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Переменные выражения</b>
+            <code>{"$let": {"vars": {"sum": {"$sum": "$items.price"}, "lines": {"$size": "$items"}}, "in": {"$divide": ["$$sum", "$$lines"]}}}</code>
+          </div>
+          <div>
+            <b>Выбор по значению</b>
+            <code>{"$switch": {"branches": [{"case": {"$eq": ["$promo", "SPRING10"]}, "then": 10}], "default": 0}}</code>
+          </div>
+          <div>
+            <b>Переменная из переменной</b>
+            <code>{"$let": {"vars": {"a": 1}, "in": {"$let": {"vars": {"b": {"$add": ["$$a", 1]}}, "in": "$$b"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Переменные выражения</b>
+            <code>make_document(kvp("$let", make_document(kvp("vars", make_document(kvp("sum", make_document(kvp("$sum", "$items.price"))), kvp("lines", make_document(kvp("$size", "$items"))))), kvp("in", make_document(kvp("$divide", make_array("$$sum", "$$lines")))))))</code>
+          </div>
+          <div>
+            <b>Выбор по значению</b>
+            <code>make_document(kvp("$switch", make_document(kvp("branches", make_array(make_document(kvp("case", make_document(kvp("$eq", make_array("$promo", "SPRING10")))), kvp("then", 10)))), kvp("default", 0))))</code>
+          </div>
+          <div>
+            <b>Переменная из переменной</b>
+            <code>make_document(kvp("$let", make_document(kvp("vars", make_document(kvp("a", 1))), kvp("in", make_document(kvp("$let", make_document(kvp("vars", make_document(kvp("b", make_document(kvp("$add", make_array("$$a", 1)))))), kvp("in", "$$b"))))))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Переменные выражения</b>
+            <code>bson.D{{Key: "$let", Value: bson.D{{Key: "vars", Value: bson.D{{Key: "sum", Value: bson.D{{Key: "$sum", Value: "$items.price"}}}, {Key: "lines", Value: bson.D{{Key: "$size", Value: "$items"}}}}}, {Key: "in", Value: bson.D{{Key: "$divide", Value: bson.A{"$$sum", "$$lines"}}}}}}}</code>
+          </div>
+          <div>
+            <b>Выбор по значению</b>
+            <code>bson.D{{Key: "$switch", Value: bson.D{{Key: "branches", Value: bson.A{bson.D{{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$promo", "SPRING10"}}}}, {Key: "then", Value: 10}}}}, {Key: "default", Value: 0}}}}</code>
+          </div>
+          <div>
+            <b>Переменная из переменной</b>
+            <code>bson.D{{Key: "$let", Value: bson.D{{Key: "vars", Value: bson.D{{Key: "a", Value: 1}}}, {Key: "in", Value: bson.D{{Key: "$let", Value: bson.D{{Key: "vars", Value: bson.D{{Key: "b", Value: bson.D{{Key: "$add", Value: bson.A{"$$a", 1}}}}}}, {Key: "in", Value: "$$b"}}}}}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Переменные выражения</b>
+            <code>{ "$let" =&gt; { "vars" =&gt; { "sum" =&gt; { "$sum" =&gt; "$items.price" }, "lines" =&gt; { "$size" =&gt; "$items" } }, "in" =&gt; { "$divide" =&gt; ["$$sum", "$$lines"] } } }</code>
+          </div>
+          <div>
+            <b>Выбор по значению</b>
+            <code>{ "$switch" =&gt; { "branches" =&gt; [{ "case" =&gt; { "$eq" =&gt; ["$promo", "SPRING10"] }, "then" =&gt; 10 }], "default" =&gt; 0 } }</code>
+          </div>
+          <div>
+            <b>Переменная из переменной</b>
+            <code>{ "$let" =&gt; { "vars" =&gt; { "a" =&gt; 1 }, "in" =&gt; { "$let" =&gt; { "vars" =&gt; { "b" =&gt; { "$add" =&gt; ["$$a", 1] } }, "in" =&gt; "$$b" } } } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$let</code> объявляет в <code>vars</code> переменные выражения и возвращает значение <code>in</code>, где переменные записываются с двумя знаками доллара. Значение, нужное в нескольких местах, вычисляется один раз; длинное выражение становится короче и понятнее.</p>
+        <p>Переменная видна внутри <code>in</code> своего <code>$let</code> и во всём, что туда вложено, в том числе в <code>$map</code>. Переменные одного <code>vars</code> друг друга не видят — зависимую переменную объявляют во вложенном <code>$let</code>. Имя начинается со строчной буквы; имя поля и имя переменной не путаются, потому что пишутся с разным числом знаков.</p>
+        <p><code>$switch</code> выбирает значение по первой ветви с истинным условием, а при отсутствии таких — <code>default</code>. Вместе с <code>$let</code> он дал скидку по промокоду: процент, скидку и сумму к оплате для заказа, позиций и групп.</p>
+
+        <div class="pager"><a href="../38-reduce/index.html">← 5.4 $reduce: массив в одно значение</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 5.5 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
