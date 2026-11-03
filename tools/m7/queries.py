@@ -10,7 +10,7 @@ QUERIES = [
     Q("7.2", "card", "карточка кошки Барсик", """
 db.vet_patients.findOne({ _id: "p-001" })
 """),
-    Q("7.2", "species", "у каждого вида свой блок полей", """
+    Q("7.2", "species", "блоки полей видов у всех карточек", """
 db.vet_patients.find(
   {},
   { _id: 0, name: 1, species: 1, cat: 1, dog: 1, bird: 1, reptile: 1, rabbit: 1 }
@@ -19,7 +19,7 @@ db.vet_patients.find(
     Q("7.2", "visit", "приём собаки Лайма с кривой глюкозы", """
 db.vet_visits.findOne({ _id: "v-1004" })
 """),
-    Q("7.2", "screen", "экран врача: карточка, владелец и два последних приёма", """
+    Q("7.2", "screen", "карточка, владелец и два последних приёма Барсика", """
 db.vet_patients.aggregate([
   { $match: { _id: "p-001" } },
   { $lookup: { from: "vet_owners", localField: "owner_id", foreignField: "_id", as: "owner" } },
@@ -41,7 +41,7 @@ db.vet_patients.aggregate([
   } }
 ])
 """),
-    Q("7.2", "allergy", "перед назначением: у кого аллергия на пенициллин", """
+    Q("7.2", "allergy", "пациенты с аллергией на пенициллин", """
 db.vet_patients.find({ allergies: "пенициллин" }, { name: 1, species: 1, allergies: 1 })
 """),
     Q("7.2", "chronic", "все пациенты с хронической болезнью почек", """
@@ -56,7 +56,7 @@ db.vet_visits.find(
   { _id: 0, date: 1, "labs.creatinine": 1, "labs.sdma": 1 }
 ).sort({ date: 1 })
 """),
-    Q("7.2", "remind", "кому звонить: прививка просрочена на 3 ноября 2026", """
+    Q("7.2", "remind", "владельцы с согласием, у питомцев которых прививка просрочена на 3 ноября 2026", """
 db.vet_patients.aggregate([
   { $match: { "vaccinations.next": { $lt: ISODate("2026-11-03") } } },
   { $lookup: { from: "vet_owners", localField: "owner_id", foreignField: "_id", as: "owner" } },
@@ -72,7 +72,7 @@ db.vet_patients.aggregate([
   { $project: { name: 1, owner: 1, phone: 1, "overdue.vaccine": 1, "overdue.next": 1 } }
 ])
 """),
-    Q("7.2", "month", "приёмы октября по диагнозам: что закупать", """
+    Q("7.2", "month", "число приёмов октября по диагнозам", """
 db.vet_visits.aggregate([
   { $match: { date: { $gte: ISODate("2026-10-01"), $lt: ISODate("2026-11-01") } } },
   { $unwind: "$diagnoses" },
@@ -82,7 +82,7 @@ db.vet_visits.aggregate([
   { $sort: { visits: -1, code: 1 } }
 ])
 """),
-    Q("7.2", "newlab", "новый анализ без изменения схемы", """
+    Q("7.2", "newlab", "приём кошки Муся с новым анализом fPL", """
 db.vet_visits.insertOne({
   _id: "v-1009", patient_id: "p-002", date: ISODate("2026-11-03"), doctor: "Орлова",
   reason: "рвота, отказ от корма",
@@ -93,7 +93,7 @@ db.vet_visits.insertOne({
 
 db.vet_visits.countDocuments({ "labs.lipase_fpl": { $exists: true } })
 """),
-    Q("7.2", "rules", "правила для карточки: без вида и владельца не сохранить", """
+    Q("7.2", "rules", "валидатор карточки и вставка без вида", """
 db.runCommand({
   collMod: "vet_patients",
   validator: { $jsonSchema: {
@@ -113,7 +113,7 @@ try {
   printjson(e.errInfo.details.schemaRulesNotSatisfied)
 }
 """),
-    Q("7.2", "chip", "поиск по номеру чипа: уникальный индекс только для чипированных", """
+    Q("7.2", "chip", "частичный уникальный индекс по чипу и поиск по номеру", """
 db.vet_patients.createIndex(
   { chip: 1 },
   { unique: true, partialFilterExpression: { chip: { $exists: true } } }
@@ -138,7 +138,17 @@ db.zoo_catalog.find(
   { _id: 0, title: 1, price: 1 }
 )
 """),
-    Q("7.3", "plan", "какой план выбрал сервер", """
+    Q("7.3", "wrong", "переноски с нагрузкой от 30 кг: условие без $elemMatch", """
+db.zoo_catalog.find(
+  { "attrs.k": "нагрузка", "attrs.v": { $gte: 30 } },
+  { _id: 0, title: 1, attrs: 1 }
+)
+
+db.zoo_catalog.countDocuments(
+  { attrs: { $elemMatch: { k: "нагрузка", v: { $gte: 30 } } } }
+)
+"""),
+    Q("7.3", "plan", "первая стадия плана запроса", """
 db.zoo_catalog.find({ attrs: { $elemMatch: { k: "вес", v: { $gte: 10 } } } })
   .explain("executionStats").queryPlanner.winningPlan.inputStage.stage
 """),
@@ -166,7 +176,7 @@ db.zoo_forms.find(
   { _id: 0, version: 1, answers: 1 }
 )
 """),
-    Q("7.3", "formq", "кто ел позже, чем за 12 часов: вопрос есть не во всех анкетах", """
+    Q("7.3", "formq", "анкеты с ответом «утром» на вопрос о кормлении", """
 db.zoo_forms.find(
   { "answers.ate_last": "утром" },
   { _id: 1, "answers.species": 1, "answers.ate_last": 1 }
@@ -177,7 +187,7 @@ db.zoo_forms.find(
     Q("7.4", "one", "один замер датчика", """
 db.fridge_temps.findOne({ "sensor.fridge": "F2" }, { _id: 0 })
 """),
-    Q("7.4", "buckets", "288 замеров хранятся в нескольких корзинах", """
+    Q("7.4", "buckets", "число замеров и число корзин", """
 db.fridge_temps.countDocuments()
 
 db.getCollection("system.buckets.fridge_temps").countDocuments()
@@ -194,13 +204,13 @@ db.getCollection("system.buckets.fridge_temps").aggregate([
   } }
 ])
 """),
-    Q("7.4", "excursion", "выход за 8 °C: замеры холодильника F2", """
+    Q("7.4", "excursion", "замеры холодильника F2 выше 8 °C", """
 db.fridge_temps.find(
   { "sensor.fridge": "F2", c: { $gt: 8 } },
   { _id: 0, ts: 1, c: 1 }
 ).sort({ ts: 1 })
 """),
-    Q("7.4", "hourly", "суточная сводка по часам: только часы с превышением", """
+    Q("7.4", "hourly", "часы, в которых температура была выше 8 °C", """
 db.fridge_temps.aggregate([
   { $group: {
       _id: { fridge: "$sensor.fridge", hour: { $dateTrunc: { date: "$ts", unit: "hour" } } },
@@ -228,7 +238,7 @@ db.fridge_temps.aggregate([
     Q("7.5", "one", "заявка с историей этапов", """
 db.repair_requests.findOne({ _id: "r-301" })
 """),
-    Q("7.5", "board", "доска заявок: сколько в каждом статусе", """
+    Q("7.5", "board", "число заявок в каждом статусе", """
 db.repair_requests.aggregate([
   { $group: { _id: "$status", count: { $sum: 1 } } },
   { $sort: { count: -1, _id: 1 } }
@@ -246,7 +256,7 @@ db.repair_requests.aggregate([
   { $sort: { days: -1 } }
 ])
 """),
-    Q("7.5", "bottleneck", "где теряется время: средняя длительность этапа в часах", """
+    Q("7.5", "bottleneck", "средняя длительность этапа в часах", """
 db.repair_requests.aggregate([
   { $unwind: "$history" },
   { $match: { "history.status": { $ne: "выдан" } } },
@@ -263,7 +273,7 @@ db.repair_requests.aggregate([
   { $sort: { avg_hours: -1 } }
 ])
 """),
-    Q("7.5", "move", "переход на следующий этап — одна операция над одним документом", """
+    Q("7.5", "move", "переход заявки r-306 из диагностики в ремонт", """
 db.repair_requests.updateOne(
   { _id: "r-306", status: "диагностика" },
   [
