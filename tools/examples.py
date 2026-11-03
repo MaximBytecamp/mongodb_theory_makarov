@@ -66,6 +66,11 @@ CHAPTERS = {
     "5.3": ("37-map", "$map: преобразование каждого элемента", False),
     "5.4": ("38-reduce", "$reduce: массив в одно значение", False),
     "5.5": ("39-let", "$let: переменные внутри выражения", False),
+    "6.1": ("41-lookup", "$lookup: соединение коллекций", False),
+    "6.2": ("42-lookup-pipeline", "$lookup с конвейером", False),
+    "6.3": ("43-graphlookup", "$graphLookup: иерархии", False),
+    "6.4": ("44-unionwith", "$unionWith: документы двух коллекций в одном потоке", False),
+    "6.5": ("45-merge", "$merge и $out: результат конвейера в коллекцию", True),
 }
 
 # Пример, который продолжает предыдущие: запускается одной программой вместе с ними.
@@ -276,6 +281,13 @@ SCOPE = {
     },
 }
 SCOPE["5"] = SCOPE["4"]
+# Модуль 6 соединяет коллекции разных баз: магазин, вакансии и оргструктуру.
+SCOPE["6"] = {
+    "python": 'db = client["shop"]\norders = db["orders"]\ncustomers = db["customers"]\nproducts = db["products"]\nhh = client["hh"]\ncompanies = hh["companies"]\nvacancies = hh["vacancies"]\nresumes = hh["resumes"]\norg = client["org"]\nemployees = org["employees"]\ncategories = org["categories"]\nsandbox = client["sandbox"]',
+    "ruby": 'db = client.use("shop").database\norders = db[:orders]\ncustomers = db[:customers]\nproducts = db[:products]\nhh = client.use("hh").database\ncompanies = hh[:companies]\nvacancies = hh[:vacancies]\nresumes = hh[:resumes]\norg = client.use("org").database\nemployees = org[:employees]\ncategories = org[:categories]\nsandbox = client.use("sandbox").database',
+    "go": '\tdb := client.Database("shop")\n\torders := db.Collection("orders")\n\tcustomers := db.Collection("customers")\n\tproducts := db.Collection("products")\n\thh := client.Database("hh")\n\tcompanies := hh.Collection("companies")\n\tvacancies := hh.Collection("vacancies")\n\tresumes := hh.Collection("resumes")\n\torg := client.Database("org")\n\temployees := org.Collection("employees")\n\tcategories := org.Collection("categories")\n\tsandbox := client.Database("sandbox")',
+    "cpp": '    auto db = client["shop"];\n    auto orders = db["orders"];\n    auto customers = db["customers"];\n    auto products = db["products"];\n    auto hh = client["hh"];\n    auto companies = hh["companies"];\n    auto vacancies = hh["vacancies"];\n    auto resumes = hh["resumes"];\n    auto org = client["org"];\n    auto employees = org["employees"];\n    auto categories = org["categories"];\n    auto sandbox = client["sandbox"];',
+}
 
 
 def scope(chapter: str, lang: str) -> str:

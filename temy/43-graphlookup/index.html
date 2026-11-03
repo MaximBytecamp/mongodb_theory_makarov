@@ -1,0 +1,1642 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>6.3 $graphLookup: иерархии · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ и найденная пара, таблицы, полосы. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+    .tree, .tree ul { list-style: none; margin: 0; padding: 0; font: 400 12.5px/1.5 var(--mono); }
+    .tree ul { margin: 6px 0 4px 10px; padding-left: 16px; border-left: 2px solid var(--rule); }
+    .tree li { margin: 4px 0; }
+    .tree span { display: inline-block; padding: 2px 8px; border: 2px solid var(--ink); }
+    .tree span.d { background: var(--leaf-pale); }
+    .tree span.p { background: var(--clay-pale); color: var(--clay); text-decoration: line-through; text-decoration-thickness: 1px; }
+    .tree li > span + span { margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 6 · Связи между коллекциями</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 6 · связи между коллекциями</p>
+          <p class="running__folio">6.3</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">6.3</span>
+          <h1>$graphLookup:<br>иерархии</h1>
+          <p class="lead">$graphLookup повторяет поиск по ссылке, пока находятся новые документы, и так проходит дерево целиком: от руководителя ко всем подчинённым на всех уровнях или от сотрудника вверх до директора. В главе разобраны поля обхода, уровень вложенности depthField, ограничение maxDepth, обход по условию и дерево категорий. Отдельно показано, что получается, если перепутать направление обхода.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$lookup (глава 6.1), $sortArray (глава 4.7), $map и $sum над массивом (глава 5.3), $filter (глава 5.2)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Отвечать на вопросы об иерархиях одним запросом: вся команда руководителя, цепочка подчинения, все подкатегории раздела каталога</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-6.3-python.zip" download><code>mongodb-glava-6.3-python.zip</code></a>, 63 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-6.3-ruby.zip" download><code>mongodb-glava-6.3-ruby.zip</code></a>, 63 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-6.3-go.zip" download><code>mongodb-glava-6.3-go.zip</code></a>, 69 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-6.3-cpp.zip" download><code>mongodb-glava-6.3-cpp.zip</code></a>, 67 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch6_3.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch6_3.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch6_3.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch6_3.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch6_3.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch6_3.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch6_3.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch6_3.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch6_3.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch6_3.go</code> · в Docker: <code>docker compose run --rm go lessons/ch6_3.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch6_3.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch6_3.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Дерево в коллекции</a></li>
+            <li><a href="#s2">Стадия $graphLookup</a></li>
+            <li><a href="#s3">Уровень: depthField</a></li>
+            <li><a href="#s4">Сколько уровней: maxDepth</a></li>
+            <li><a href="#s5">Вверх по дереву</a></li>
+            <li><a href="#s6">Обход по условию</a></li>
+            <li><a href="#s7">Команды всех руководителей</a></li>
+            <li><a href="#s8">Дерево категорий</a></li>
+            <li><a href="#s9">Перепутанное направление</a></li>
+            <li><a href="#s10">$graphLookup в Compass</a></li>
+            <li><a href="#s11">Частые ошибки</a></li>
+            <li><a href="#s12">Проверьте себя</a></li>
+            <li><a href="#s13">Самостоятельная работа</a></li>
+            <li><a href="#s14">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Дерево в коллекции</h2>
+        <p>В отделе кадров у каждой карточки сотрудника есть строка «руководитель». Чтобы узнать всю команду руководителя разработки, кадровик находит карточки, где руководитель — он, затем карточки, где руководители — найденные люди, и так, пока новые карточки не перестанут находиться.</p>
+        <p>В базе <code>org</code> коллекция <code>employees</code> устроена так же: у каждого из 15 сотрудников поле <code>manager_id</code> хранит <code>_id</code> руководителя, у директора — <code>null</code>. Ссылки внутри одной коллекции образуют <span class="term">дерево</span>: у каждого сотрудника один руководитель, у руководителя может быть несколько подчинённых.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Оргструктура org.employees</span><span>15 сотрудников · 4 уровня</span></div>
+          <div class="scheme__body">
+            <ul class="tree">
+              <li><span>s-001 Ирина Соколова · продукт</span>
+                <ul>
+                  <li><span>s-002 Павел Демин · разработка</span>
+                    <ul>
+                      <li><span class="d">s-004 Алексей Ким</span>
+                        <ul><li><span class="d">s-006 Сергей Носов</span> <span class="d">s-007 Дарья Белова</span> <span class="d">s-008 Кирилл Юдин</span></li></ul>
+                      </li>
+                      <li><span class="d">s-005 Марина Власова</span>
+                        <ul><li><span class="d">s-009 Ольга Рябова</span> <span class="d">s-010 Тимур Ахметов</span></li></ul>
+                      </li>
+                      <li><span class="d">s-014 Юлия Ефимова</span> <span class="d">s-015 Максим Седов · инфраструктура</span></li>
+                    </ul>
+                  </li>
+                  <li><span>s-003 Наталья Гурьева · аналитика</span>
+                    <ul>
+                      <li><span>s-011 Егор Мельник</span>
+                        <ul><li><span>s-013 Роман Ильин</span></li></ul>
+                      </li>
+                      <li><span>s-012 Вера Панина</span></li>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+          <p class="scheme__note">Зелёным — команда Павла Демина, её ищут примеры §2–§4; сам он в свою команду не входит. Отдел указан там, где он меняется: все сотрудники ветки s-002 в разработке, кроме Максима Седова.</p>
+        </div>
+        <p>Стадия <code>$lookup</code> из главы 6.1 находит только прямых подчинённых: один шаг по ссылке. Подчинённых подчинённых она не видит — для этого нужен ещё один <code>$lookup</code>, а глубина дерева заранее неизвестна.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Стадия $graphLookup</h2>
+        <p><span class="term">Стадия $graphLookup</span> выполняет поиск по ссылке многократно: найденные документы становятся отправной точкой следующего поиска, пока новые документы находятся. Параметры:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Запись стадии</span><span>вниз по дереву</span></figcaption>
+<pre>{<span class="s">"$graphLookup"</span>: {
+    <span class="s">"from"</span>: <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span>: <span class="s">"team"</span>,
+}}</pre>
+        </figure>
+        <p><code>startWith</code> — значение, с которого начинается поиск, обычно поле документа потока. <code>connectToField</code> — поле документов <code>from</code>, которое сравнивается с текущим значением: кто подчиняется этому <code>_id</code>. <code>connectFromField</code> — поле найденного документа, которое даёт значение для следующего шага: <code>_id</code> найденного подчинённого. <code>as</code> — массив для всех найденных документов. Пример находит всю команду Павла Демина. Порядок документов в массиве сервер не задаёт, поэтому имена упорядочены выражением <code>$sortArray</code> из главы 4.7.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$graphLookup: все подчинённые руководителя</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-002"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"name"</span>: <span class="n">1</span>,
+        <span class="s">"count"</span>: {<span class="s">"$size"</span>: <span class="s">"$team"</span>},
+        <span class="s">"team"</span>: {<span class="s">"$sortArray"</span>: {<span class="s">"input"</span>: <span class="s">"$team.name"</span>, <span class="s">"sortBy"</span>: <span class="n">1</span>}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$graphLookup: все подчинённые руководителя</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-002"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>)))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$team"</span>))),
+    <span class="f">kvp</span>(<span class="s">"team"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$team.name"</span>), <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="n">1</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$graphLookup: все подчинённые руководителя</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-002"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$team"</span>}}},
+        {Key: <span class="s">"team"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$team.name"</span>},
+                {Key: <span class="s">"sortBy"</span>, Value: <span class="n">1</span>}}}}}}}},
+}
+
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$graphLookup: все подчинённые руководителя</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-002"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"count"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$team"</span> },
+    <span class="s">"team"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$team.name"</span>, <span class="s">"sortBy"</span> =&gt; <span class="n">1</span> } },
+  } },
+]
+
+employees.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Павел Демин', 'count': 9, 'team': ['Алексей Ким', 'Дарья Белова', 'Кирилл Юдин', 'Максим Седов', 'Марина Власова', 'Ольга Рябова', 'Сергей Носов', 'Тимур Ахметов', 'Юлия Ефимова']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Павел Демин", "count" : 9, "team" : [ "Алексей Ким", "Дарья Белова", "Кирилл Юдин", "Максим Седов", "Марина Власова", "Ольга Рябова", "Сергей Носов", "Тимур Ахметов", "Юлия Ефимова" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Павел Демин","count":9,"team":["Алексей Ким","Дарья Белова","Кирилл Юдин","Максим Седов","Марина Власова","Ольга Рябова","Сергей Носов","Тимур Ахметов","Юлия Ефимова"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Павел Демин", "count"=&gt;9, "team"=&gt;["Алексей Ким", "Дарья Белова", "Кирилл Юдин", "Максим Седов", "Марина Власова", "Ольга Рябова", "Сергей Носов", "Тимур Ахметов", "Юлия Ефимова"]}</pre>
+        </figure>
+        <p>В команде 9 человек: четверо прямых подчинённых и пятеро подчинённых тимлидов. Сам Павел Демин в массив не попал — поиск начинается с его <code>_id</code>, а документы, где он в <code>manager_id</code>, — уже подчинённые.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Шаги поиска от s-002</span><span>4 + 5 = 9</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Шаг</th><th>Ищем manager_id из</th><th>Найдено</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>s-002 (startWith)</td><td>Ким, Власова, Ефимова, Седов</td></tr>
+                <tr><td>2</td><td>s-004, s-005, s-014, s-015</td><td>Носов, Белова, Юдин (у Кима); Рябова, Ахметов (у Власовой)</td></tr>
+                <tr class="on"><td>3</td><td>s-006, s-007, s-008, s-009, s-010</td><td>никого — обход закончен</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">На каждом шаге значения <code>connectFromField</code> найденных документов становятся значениями для следующего поиска по <code>connectToField</code>. Обход заканчивается, когда шаг ничего не нашёл.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Уровень: depthField</h2>
+        <p>Параметр <code>depthField</code> добавляет каждому найденному документу поле с номером шага, на котором он найден. Нумерация с нуля: 0 — прямые подчинённые, 1 — их подчинённые. Пример выводит команду Павла Демина с уровнями, упорядоченную по уровню и имени.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>depthField: на каком уровне подчинённый</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-002"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+        <span class="s">"depthField"</span>: <span class="s">"level"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"name"</span>: <span class="n">1</span>,
+        <span class="s">"team"</span>: {<span class="s">"$sortArray"</span>: {
+            <span class="s">"input"</span>: {<span class="s">"$map"</span>: {
+                <span class="s">"input"</span>: <span class="s">"$team"</span>,
+                <span class="s">"in"</span>: {<span class="s">"level"</span>: <span class="s">"$$this.level"</span>, <span class="s">"name"</span>: <span class="s">"$$this.name"</span>},
+            }},
+            <span class="s">"sortBy"</span>: {<span class="s">"level"</span>: <span class="n">1</span>, <span class="s">"name"</span>: <span class="n">1</span>},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>depthField: на каком уровне подчинённый</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-002"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>),
+    <span class="f">kvp</span>(<span class="s">"depthField"</span>, <span class="s">"level"</span>)))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"team"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$team"</span>),
+                    <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"level"</span>, <span class="s">"$$this.level"</span>),
+                        <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"$$this.name"</span>))))))),
+            <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"level"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>depthField: на каком уровне подчинённый</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-002"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>},
+        {Key: <span class="s">"depthField"</span>, Value: <span class="s">"level"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"team"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: bson.D{
+                    {Key: <span class="s">"$map"</span>, Value: bson.D{
+                        {Key: <span class="s">"input"</span>, Value: <span class="s">"$team"</span>},
+                        {Key: <span class="s">"in"</span>, Value: bson.D{
+                            {Key: <span class="s">"level"</span>, Value: <span class="s">"$$this.level"</span>},
+                            {Key: <span class="s">"name"</span>, Value: <span class="s">"$$this.name"</span>}}}}}}},
+                {Key: <span class="s">"sortBy"</span>, Value: bson.D{{Key: <span class="s">"level"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>}}}}}}}}}},
+}
+
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>depthField: на каком уровне подчинённый</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-002"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+    <span class="s">"depthField"</span> =&gt; <span class="s">"level"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"team"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+        <span class="s">"input"</span> =&gt; <span class="s">"$team"</span>,
+        <span class="s">"in"</span> =&gt; { <span class="s">"level"</span> =&gt; <span class="s">"$$this.level"</span>, <span class="s">"name"</span> =&gt; <span class="s">"$$this.name"</span> },
+      } },
+      <span class="s">"sortBy"</span> =&gt; { <span class="s">"level"</span> =&gt; <span class="n">1</span>, <span class="s">"name"</span> =&gt; <span class="n">1</span> },
+    } },
+  } },
+]
+
+employees.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Павел Демин', 'team': [{'level': 0, 'name': 'Алексей Ким'}, {'level': 0, 'name': 'Максим Седов'}, {'level': 0, 'name': 'Марина Власова'}, {'level': 0, 'name': 'Юлия Ефимова'}, {'level': 1, 'name': 'Дарья Белова'}, {'level': 1, 'name': 'Кирилл Юдин'}, {'level': 1, 'name': 'Ольга Рябова'}, {'level': 1, 'name': 'Сергей Носов'}, {'level': 1, 'name': 'Тимур Ахметов'}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Павел Демин", "team" : [ { "level" : 0, "name" : "Алексей Ким" }, { "level" : 0, "name" : "Максим Седов" }, { "level" : 0, "name" : "Марина Власова" }, { "level" : 0, "name" : "Юлия Ефимова" }, { "level" : 1, "name" : "Дарья Белова" }, { "level" : 1, "name" : "Кирилл Юдин" }, { "level" : 1, "name" : "Ольга Рябова" }, { "level" : 1, "name" : "Сергей Носов" }, { "level" : 1, "name" : "Тимур Ахметов" } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Павел Демин","team":[{"level":0,"name":"Алексей Ким"},{"level":0,"name":"Максим Седов"},{"level":0,"name":"Марина Власова"},{"level":0,"name":"Юлия Ефимова"},{"level":1,"name":"Дарья Белова"},{"level":1,"name":"Кирилл Юдин"},{"level":1,"name":"Ольга Рябова"},{"level":1,"name":"Сергей Носов"},{"level":1,"name":"Тимур Ахметов"}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Павел Демин", "team"=&gt;[{"level"=&gt;0, "name"=&gt;"Алексей Ким"}, {"level"=&gt;0, "name"=&gt;"Максим Седов"}, {"level"=&gt;0, "name"=&gt;"Марина Власова"}, {"level"=&gt;0, "name"=&gt;"Юлия Ефимова"}, {"level"=&gt;1, "name"=&gt;"Дарья Белова"}, {"level"=&gt;1, "name"=&gt;"Кирилл Юдин"}, {"level"=&gt;1, "name"=&gt;"Ольга Рябова"}, {"level"=&gt;1, "name"=&gt;"Сергей Носов"}, {"level"=&gt;1, "name"=&gt;"Тимур Ахметов"}]}</pre>
+        </figure>
+        <p>На уровне 0 — четверо прямых подчинённых, на уровне 1 — пятеро разработчиков в командах тимлидов. Поле <code>level</code> есть только в документах массива <code>team</code>, в самих сотрудниках коллекции его нет. Сервер записывает уровень целым числом типа long.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Сколько уровней: maxDepth</h2>
+        <p>Параметр <code>maxDepth</code> ограничивает номер последнего шага. С <code>maxDepth</code> 0 выполняется только первый шаг — прямые подчинённые, как у обычного <code>$lookup</code>. Пример сравнивает 0 и 1.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>maxDepth: сколько уровней обходить</span></figcaption>
+<pre>direct = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-002"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+        <span class="s">"maxDepth"</span>: <span class="n">0</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"team"</span>: {<span class="s">"$sortArray"</span>: {<span class="s">"input"</span>: <span class="s">"$team.name"</span>, <span class="s">"sortBy"</span>: <span class="n">1</span>}},
+    }},
+]
+
+two_levels = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-002"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+        <span class="s">"maxDepth"</span>: <span class="n">1</span>,
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"count"</span>: {<span class="s">"$size"</span>: <span class="s">"$team"</span>}}},
+]
+
+<span class="f">print</span>(<span class="s">"── maxDepth 0"</span>)
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(direct):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── maxDepth 1"</span>)
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(two_levels):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>maxDepth: сколько уровней обходить</span></figcaption>
+<pre>mongocxx::pipeline direct;
+direct.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-002"</span>)));
+direct.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>),
+    <span class="f">kvp</span>(<span class="s">"maxDepth"</span>, <span class="n">0</span>)))));
+direct.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"team"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$team.name"</span>), <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="n">1</span>)))))));
+
+mongocxx::pipeline two_levels;
+two_levels.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-002"</span>)));
+two_levels.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>),
+    <span class="f">kvp</span>(<span class="s">"maxDepth"</span>, <span class="n">1</span>)))));
+two_levels.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$team"</span>)))));
+
+std::cout &lt;&lt; <span class="s">"── maxDepth 0"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(direct)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── maxDepth 1"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(two_levels)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>maxDepth: сколько уровней обходить</span></figcaption>
+<pre>direct := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-002"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>},
+        {Key: <span class="s">"maxDepth"</span>, Value: <span class="n">0</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"team"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$team.name"</span>},
+                {Key: <span class="s">"sortBy"</span>, Value: <span class="n">1</span>}}}}}}}},
+}
+
+twoLevels := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-002"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>},
+        {Key: <span class="s">"maxDepth"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$team"</span>}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── maxDepth 0"</span>)
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, direct)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── maxDepth 1"</span>)
+cursor, _ = employees.<span class="f">Aggregate</span>(ctx, twoLevels)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>maxDepth: сколько уровней обходить</span></figcaption>
+<pre>direct = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-002"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+    <span class="s">"maxDepth"</span> =&gt; <span class="n">0</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"team"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$team.name"</span>, <span class="s">"sortBy"</span> =&gt; <span class="n">1</span> } },
+  } },
+]
+
+two_levels = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-002"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+    <span class="s">"maxDepth"</span> =&gt; <span class="n">1</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"count"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$team"</span> } } },
+]
+
+<span class="k">puts</span> <span class="s">"── maxDepth 0"</span>
+employees.<span class="f">aggregate</span>(direct).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── maxDepth 1"</span>
+employees.<span class="f">aggregate</span>(two_levels).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── maxDepth 0
+{'team': ['Алексей Ким', 'Максим Седов', 'Марина Власова', 'Юлия Ефимова']}
+── maxDepth 1
+{'count': 9}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── maxDepth 0
+{ "team" : [ "Алексей Ким", "Максим Седов", "Марина Власова", "Юлия Ефимова" ] }
+── maxDepth 1
+{ "count" : 9 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── maxDepth 0
+{"team":["Алексей Ким","Максим Седов","Марина Власова","Юлия Ефимова"]}
+── maxDepth 1
+{"count":9}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── maxDepth 0
+{"team"=&gt;["Алексей Ким", "Максим Седов", "Марина Власова", "Юлия Ефимова"]}
+── maxDepth 1
+{"count"=&gt;9}</pre>
+        </figure>
+        <p>С <code>maxDepth</code> 0 найдены четверо прямых подчинённых. С <code>maxDepth</code> 1 — все 9: в ветке Павла Демина всего два уровня, и второй шаг дошёл до её конца. <code>maxDepth</code> считается так же, как <code>depthField</code>: от нуля.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Вверх по дереву</h2>
+        <p>Цепочку руководителей от сотрудника до директора находят обходом в обратную сторону. Начало — <code>manager_id</code> сотрудника. На каждом шаге ищется документ, у которого <code>_id</code> равен текущему значению (<code>connectToField: "_id"</code>), а следующее значение берётся из его <code>manager_id</code> (<code>connectFromField: "manager_id"</code>). Пример строит цепочку для младшего аналитика Романа Ильина.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>цепочка руководителей до директора</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-013"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$manager_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"chain"</span>,
+        <span class="s">"depthField"</span>: <span class="s">"step"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"name"</span>: <span class="n">1</span>,
+        <span class="s">"chain"</span>: {<span class="s">"$sortArray"</span>: {
+            <span class="s">"input"</span>: {<span class="s">"$map"</span>: {
+                <span class="s">"input"</span>: <span class="s">"$chain"</span>,
+                <span class="s">"in"</span>: {<span class="s">"step"</span>: <span class="s">"$$this.step"</span>, <span class="s">"name"</span>: <span class="s">"$$this.name"</span>},
+            }},
+            <span class="s">"sortBy"</span>: {<span class="s">"step"</span>: <span class="n">1</span>},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>цепочка руководителей до директора</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-013"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"chain"</span>),
+    <span class="f">kvp</span>(<span class="s">"depthField"</span>, <span class="s">"step"</span>)))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"chain"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$chain"</span>),
+                    <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"step"</span>, <span class="s">"$$this.step"</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="s">"$$this.name"</span>))))))),
+            <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"step"</span>, <span class="n">1</span>)))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>цепочка руководителей до директора</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-013"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$manager_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"chain"</span>},
+        {Key: <span class="s">"depthField"</span>, Value: <span class="s">"step"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"chain"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: bson.D{
+                    {Key: <span class="s">"$map"</span>, Value: bson.D{
+                        {Key: <span class="s">"input"</span>, Value: <span class="s">"$chain"</span>},
+                        {Key: <span class="s">"in"</span>, Value: bson.D{
+                            {Key: <span class="s">"step"</span>, Value: <span class="s">"$$this.step"</span>},
+                            {Key: <span class="s">"name"</span>, Value: <span class="s">"$$this.name"</span>}}}}}}},
+                {Key: <span class="s">"sortBy"</span>, Value: bson.D{{Key: <span class="s">"step"</span>, Value: <span class="n">1</span>}}}}}}}}}},
+}
+
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>цепочка руководителей до директора</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-013"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$manager_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"chain"</span>,
+    <span class="s">"depthField"</span> =&gt; <span class="s">"step"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"chain"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+        <span class="s">"input"</span> =&gt; <span class="s">"$chain"</span>,
+        <span class="s">"in"</span> =&gt; { <span class="s">"step"</span> =&gt; <span class="s">"$$this.step"</span>, <span class="s">"name"</span> =&gt; <span class="s">"$$this.name"</span> },
+      } },
+      <span class="s">"sortBy"</span> =&gt; { <span class="s">"step"</span> =&gt; <span class="n">1</span> },
+    } },
+  } },
+]
+
+employees.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Роман Ильин', 'chain': [{'step': 0, 'name': 'Егор Мельник'}, {'step': 1, 'name': 'Наталья Гурьева'}, {'step': 2, 'name': 'Ирина Соколова'}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Роман Ильин", "chain" : [ { "step" : 0, "name" : "Егор Мельник" }, { "step" : 1, "name" : "Наталья Гурьева" }, { "step" : 2, "name" : "Ирина Соколова" } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Роман Ильин","chain":[{"step":0,"name":"Егор Мельник"},{"step":1,"name":"Наталья Гурьева"},{"step":2,"name":"Ирина Соколова"}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Роман Ильин", "chain"=&gt;[{"step"=&gt;0, "name"=&gt;"Егор Мельник"}, {"step"=&gt;1, "name"=&gt;"Наталья Гурьева"}, {"step"=&gt;2, "name"=&gt;"Ирина Соколова"}]}</pre>
+        </figure>
+        <p>Цепочка из трёх человек: непосредственный руководитель Егор Мельник (шаг 0), руководитель аналитики Наталья Гурьева (шаг 1), директор Ирина Соколова (шаг 2). У директора <code>manager_id</code> равно <code>null</code>, документа с <code>_id</code> <code>null</code> нет, и обход закончился.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Направление обхода задают два поля</span><span>одна коллекция</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Направление</th><th>startWith</th><th>connectToField</th><th>connectFromField</th></tr></thead>
+              <tbody>
+                <tr><td>вниз: подчинённые</td><td>$_id</td><td>manager_id</td><td>_id</td></tr>
+                <tr><td>вверх: руководители</td><td>$manager_id</td><td>_id</td><td>manager_id</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note"><code>connectToField</code> — где искать текущее значение, <code>connectFromField</code> — откуда взять следующее. Для обратного направления поля меняются местами.</p>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Обход по условию</h2>
+        <p>Параметр <code>restrictSearchWithMatch</code> — фильтр, которому должен соответствовать каждый найденный документ. Документ, который не прошёл фильтр, не попадает в результат и не продолжает обход: его подчинённых сервер не ищет. Пример находит команду директора целиком и только по отделу разработки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>restrictSearchWithMatch: обход только по отделу разработки</span></figcaption>
+<pre>all_depts = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-001"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"name"</span>: <span class="n">1</span>, <span class="s">"count"</span>: {<span class="s">"$size"</span>: <span class="s">"$team"</span>}}},
+]
+
+dev_only = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-001"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+        <span class="s">"restrictSearchWithMatch"</span>: {<span class="s">"department"</span>: <span class="s">"разработка"</span>},
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"name"</span>: <span class="n">1</span>, <span class="s">"count"</span>: {<span class="s">"$size"</span>: <span class="s">"$team"</span>}}},
+]
+
+<span class="f">print</span>(<span class="s">"── без ограничения"</span>)
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(all_depts):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── только разработка"</span>)
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(dev_only):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>restrictSearchWithMatch: обход только по отделу разработки</span></figcaption>
+<pre>mongocxx::pipeline all_depts;
+all_depts.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-001"</span>)));
+all_depts.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>)))));
+all_depts.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$team"</span>)))));
+
+mongocxx::pipeline dev_only;
+dev_only.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-001"</span>)));
+dev_only.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>),
+    <span class="f">kvp</span>(<span class="s">"restrictSearchWithMatch"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"department"</span>, <span class="s">"разработка"</span>)))))));
+dev_only.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$team"</span>)))));
+
+std::cout &lt;&lt; <span class="s">"── без ограничения"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(all_depts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── только разработка"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(dev_only)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>restrictSearchWithMatch: обход только по отделу разработки</span></figcaption>
+<pre>allDepts := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-001"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$team"</span>}}}}}},
+}
+
+devOnly := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-001"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>},
+        {Key: <span class="s">"restrictSearchWithMatch"</span>, Value: bson.D{{Key: <span class="s">"department"</span>, Value: <span class="s">"разработка"</span>}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$team"</span>}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── без ограничения"</span>)
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, allDepts)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── только разработка"</span>)
+cursor, _ = employees.<span class="f">Aggregate</span>(ctx, devOnly)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>restrictSearchWithMatch: обход только по отделу разработки</span></figcaption>
+<pre>all_depts = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-001"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"name"</span> =&gt; <span class="n">1</span>, <span class="s">"count"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$team"</span> } } },
+]
+
+dev_only = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-001"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+    <span class="s">"restrictSearchWithMatch"</span> =&gt; { <span class="s">"department"</span> =&gt; <span class="s">"разработка"</span> },
+  } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"name"</span> =&gt; <span class="n">1</span>, <span class="s">"count"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$team"</span> } } },
+]
+
+<span class="k">puts</span> <span class="s">"── без ограничения"</span>
+employees.<span class="f">aggregate</span>(all_depts).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── только разработка"</span>
+employees.<span class="f">aggregate</span>(dev_only).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без ограничения
+{'name': 'Ирина Соколова', 'count': 14}
+── только разработка
+{'name': 'Ирина Соколова', 'count': 9}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без ограничения
+{ "name" : "Ирина Соколова", "count" : 14 }
+── только разработка
+{ "name" : "Ирина Соколова", "count" : 9 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без ограничения
+{"name":"Ирина Соколова","count":14}
+── только разработка
+{"name":"Ирина Соколова","count":9}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── без ограничения
+{"name"=&gt;"Ирина Соколова", "count"=&gt;14}
+── только разработка
+{"name"=&gt;"Ирина Соколова", "count"=&gt;9}</pre>
+        </figure>
+        <p>Без ограничения у директора 14 подчинённых — все, кроме неё самой. С ограничением — 9. Выпала Наталья Гурьева из аналитики, а вместе с ней и вся её ветка: Егор Мельник, Вера Панина и Роман Ильин тоже не найдены, хотя фильтр к ним не применялся. Выпал и Максим Седов из инфраструктуры, хотя он подчиняется руководителю разработки.</p>
+        <p>Если нужно обойти дерево целиком, а убрать из результата только часть документов, после <code>$graphLookup</code> применяют <code>$filter</code> из главы 5.2 к массиву результата.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Команды всех руководителей</h2>
+        <p>Без <code>$match</code> перед стадией обход выполняется для каждого сотрудника. С выражениями модуля 5 по массиву результата считаются итоги: <code>$size</code> — размер команды, <code>$sum</code> по пути <code>"$team.salary"</code> — фонд оплаты. Пример оставляет только тех, у кого есть подчинённые.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>размер команды и фонд оплаты каждого руководителя</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"name"</span>: <span class="n">1</span>,
+        <span class="s">"people"</span>: {<span class="s">"$size"</span>: <span class="s">"$team"</span>},
+        <span class="s">"payroll"</span>: {<span class="s">"$sum"</span>: <span class="s">"$team.salary"</span>},
+    }},
+    {<span class="s">"$match"</span>: {<span class="s">"people"</span>: {<span class="s">"$gt"</span>: <span class="n">0</span>}}},
+    {<span class="s">"$sort"</span>: {<span class="s">"people"</span>: -<span class="n">1</span>, <span class="s">"name"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>размер команды и фонд оплаты каждого руководителя</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>)))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"people"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$team"</span>))),
+    <span class="f">kvp</span>(<span class="s">"payroll"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$team.salary"</span>)))));
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"people"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$gt"</span>, <span class="n">0</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"people"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>размер команды и фонд оплаты каждого руководителя</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"people"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$team"</span>}}},
+        {Key: <span class="s">"payroll"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$team.salary"</span>}}}}}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"people"</span>, Value: bson.D{{Key: <span class="s">"$gt"</span>, Value: <span class="n">0</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"people"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>размер команды и фонд оплаты каждого руководителя</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"people"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$team"</span> },
+    <span class="s">"payroll"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$team.salary"</span> },
+  } },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"people"</span> =&gt; { <span class="s">"$gt"</span> =&gt; <span class="n">0</span> } } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"people"</span> =&gt; -<span class="n">1</span>, <span class="s">"name"</span> =&gt; <span class="n">1</span> } },
+]
+
+employees.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Ирина Соколова', 'people': 14, 'payroll': 3315000}
+{'name': 'Павел Демин', 'people': 9, 'payroll': 2090000}
+{'name': 'Алексей Ким', 'people': 3, 'payroll': 575000}
+{'name': 'Наталья Гурьева', 'people': 3, 'payroll': 515000}
+{'name': 'Марина Власова', 'people': 2, 'payroll': 435000}
+{'name': 'Егор Мельник', 'people': 1, 'payroll': 110000}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Ирина Соколова", "people" : 14, "payroll" : 3315000 }
+{ "name" : "Павел Демин", "people" : 9, "payroll" : 2090000 }
+{ "name" : "Алексей Ким", "people" : 3, "payroll" : 575000 }
+{ "name" : "Наталья Гурьева", "people" : 3, "payroll" : 515000 }
+{ "name" : "Марина Власова", "people" : 2, "payroll" : 435000 }
+{ "name" : "Егор Мельник", "people" : 1, "payroll" : 110000 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Ирина Соколова","people":14,"payroll":3315000}
+{"name":"Павел Демин","people":9,"payroll":2090000}
+{"name":"Алексей Ким","people":3,"payroll":575000}
+{"name":"Наталья Гурьева","people":3,"payroll":515000}
+{"name":"Марина Власова","people":2,"payroll":435000}
+{"name":"Егор Мельник","people":1,"payroll":110000}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Ирина Соколова", "people"=&gt;14, "payroll"=&gt;3315000}
+{"name"=&gt;"Павел Демин", "people"=&gt;9, "payroll"=&gt;2090000}
+{"name"=&gt;"Алексей Ким", "people"=&gt;3, "payroll"=&gt;575000}
+{"name"=&gt;"Наталья Гурьева", "people"=&gt;3, "payroll"=&gt;515000}
+{"name"=&gt;"Марина Власова", "people"=&gt;2, "payroll"=&gt;435000}
+{"name"=&gt;"Егор Мельник", "people"=&gt;1, "payroll"=&gt;110000}</pre>
+        </figure>
+        <p>Руководителей шесть. У директора 14 человек и фонд 3 315 000, у Павла Демина — 9 и 2 090 000. Дальше Алексей Ким и Наталья Гурьева — по 3 человека, Марина Власова — 2, Егор Мельник — 1. Фонд считается по всем уровням команды, без самого руководителя.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Дерево категорий</h2>
+        <p>В коллекции <code>categories</code> у каждой категории поле <code>parent_id</code> указывает на родительскую. Обход вверх даёт путь категории к корню — то, что сайт показывает строкой «Техника → Компьютеры → Периферия». Обход вниз даёт все категории внутри раздела. Пример делает оба обхода.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>дерево категорий: путь к корню и ветка</span></figcaption>
+<pre>path = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"cat-audio"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"categories"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$parent_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"parent_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"path"</span>,
+        <span class="s">"depthField"</span>: <span class="s">"step"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"title"</span>: <span class="n">1</span>,
+        <span class="s">"path"</span>: {<span class="s">"$sortArray"</span>: {
+            <span class="s">"input"</span>: {<span class="s">"$map"</span>: {
+                <span class="s">"input"</span>: <span class="s">"$path"</span>,
+                <span class="s">"in"</span>: {<span class="s">"step"</span>: <span class="s">"$$this.step"</span>, <span class="s">"title"</span>: <span class="s">"$$this.title"</span>},
+            }},
+            <span class="s">"sortBy"</span>: {<span class="s">"step"</span>: <span class="n">1</span>},
+        }},
+    }},
+]
+
+branch = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"cat-comp"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"categories"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"parent_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"branch"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"title"</span>: <span class="n">1</span>,
+        <span class="s">"branch"</span>: {<span class="s">"$sortArray"</span>: {<span class="s">"input"</span>: <span class="s">"$branch.title"</span>, <span class="s">"sortBy"</span>: <span class="n">1</span>}},
+    }},
+]
+
+<span class="f">print</span>(<span class="s">"── путь от «Аудио» к корню"</span>)
+<span class="k">for</span> doc <span class="k">in</span> categories.<span class="f">aggregate</span>(path):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── все категории внутри «Компьютеров»"</span>)
+<span class="k">for</span> doc <span class="k">in</span> categories.<span class="f">aggregate</span>(branch):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>дерево категорий: путь к корню и ветка</span></figcaption>
+<pre>mongocxx::pipeline path;
+path.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"cat-audio"</span>)));
+path.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"categories"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$parent_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"parent_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"path"</span>),
+    <span class="f">kvp</span>(<span class="s">"depthField"</span>, <span class="s">"step"</span>)))));
+path.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"path"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+                    <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$path"</span>),
+                    <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(
+                        <span class="f">kvp</span>(<span class="s">"step"</span>, <span class="s">"$$this.step"</span>),
+                        <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"$$this.title"</span>))))))),
+            <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"step"</span>, <span class="n">1</span>)))))))));
+
+mongocxx::pipeline branch;
+branch.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"cat-comp"</span>)));
+branch.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"categories"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"parent_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"branch"</span>)))));
+branch.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"branch"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$branch.title"</span>), <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="n">1</span>)))))));
+
+std::cout &lt;&lt; <span class="s">"── путь от «Аудио» к корню"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : categories.<span class="f">aggregate</span>(path)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── все категории внутри «Компьютеров»"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : categories.<span class="f">aggregate</span>(branch)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>дерево категорий: путь к корню и ветка</span></figcaption>
+<pre>path := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"cat-audio"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"categories"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$parent_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"parent_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"path"</span>},
+        {Key: <span class="s">"depthField"</span>, Value: <span class="s">"step"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"path"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: bson.D{
+                    {Key: <span class="s">"$map"</span>, Value: bson.D{
+                        {Key: <span class="s">"input"</span>, Value: <span class="s">"$path"</span>},
+                        {Key: <span class="s">"in"</span>, Value: bson.D{
+                            {Key: <span class="s">"step"</span>, Value: <span class="s">"$$this.step"</span>},
+                            {Key: <span class="s">"title"</span>, Value: <span class="s">"$$this.title"</span>}}}}}}},
+                {Key: <span class="s">"sortBy"</span>, Value: bson.D{{Key: <span class="s">"step"</span>, Value: <span class="n">1</span>}}}}}}}}}},
+}
+
+branch := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"cat-comp"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"categories"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"parent_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"branch"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"branch"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$branch.title"</span>},
+                {Key: <span class="s">"sortBy"</span>, Value: <span class="n">1</span>}}}}}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── путь от «Аудио» к корню"</span>)
+cursor, _ := categories.<span class="f">Aggregate</span>(ctx, path)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── все категории внутри «Компьютеров»"</span>)
+cursor, _ = categories.<span class="f">Aggregate</span>(ctx, branch)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>дерево категорий: путь к корню и ветка</span></figcaption>
+<pre>path = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"cat-audio"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"categories"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$parent_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"parent_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"path"</span>,
+    <span class="s">"depthField"</span> =&gt; <span class="s">"step"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"title"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"path"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+        <span class="s">"input"</span> =&gt; <span class="s">"$path"</span>,
+        <span class="s">"in"</span> =&gt; { <span class="s">"step"</span> =&gt; <span class="s">"$$this.step"</span>, <span class="s">"title"</span> =&gt; <span class="s">"$$this.title"</span> },
+      } },
+      <span class="s">"sortBy"</span> =&gt; { <span class="s">"step"</span> =&gt; <span class="n">1</span> },
+    } },
+  } },
+]
+
+branch = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"cat-comp"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"categories"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"parent_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"branch"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"title"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"branch"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$branch.title"</span>, <span class="s">"sortBy"</span> =&gt; <span class="n">1</span> } },
+  } },
+]
+
+<span class="k">puts</span> <span class="s">"── путь от «Аудио» к корню"</span>
+categories.<span class="f">aggregate</span>(path).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── все категории внутри «Компьютеров»"</span>
+categories.<span class="f">aggregate</span>(branch).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── путь от «Аудио» к корню
+{'title': 'Аудио', 'path': [{'step': 0, 'title': 'Периферия'}, {'step': 1, 'title': 'Компьютеры'}, {'step': 2, 'title': 'Техника'}]}
+── все категории внутри «Компьютеров»
+{'title': 'Компьютеры', 'branch': ['Аудио', 'Клавиатуры и мыши', 'Комплектующие', 'Ноутбуки', 'Периферия']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── путь от «Аудио» к корню
+{ "title" : "Аудио", "path" : [ { "step" : 0, "title" : "Периферия" }, { "step" : 1, "title" : "Компьютеры" }, { "step" : 2, "title" : "Техника" } ] }
+── все категории внутри «Компьютеров»
+{ "title" : "Компьютеры", "branch" : [ "Аудио", "Клавиатуры и мыши", "Комплектующие", "Ноутбуки", "Периферия" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── путь от «Аудио» к корню
+{"title":"Аудио","path":[{"step":0,"title":"Периферия"},{"step":1,"title":"Компьютеры"},{"step":2,"title":"Техника"}]}
+── все категории внутри «Компьютеров»
+{"title":"Компьютеры","branch":["Аудио","Клавиатуры и мыши","Комплектующие","Ноутбуки","Периферия"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── путь от «Аудио» к корню
+{"title"=&gt;"Аудио", "path"=&gt;[{"step"=&gt;0, "title"=&gt;"Периферия"}, {"step"=&gt;1, "title"=&gt;"Компьютеры"}, {"step"=&gt;2, "title"=&gt;"Техника"}]}
+── все категории внутри «Компьютеров»
+{"title"=&gt;"Компьютеры", "branch"=&gt;["Аудио", "Клавиатуры и мыши", "Комплектующие", "Ноутбуки", "Периферия"]}</pre>
+        </figure>
+        <p>Путь от «Аудио»: «Периферия» (шаг 0), «Компьютеры» (1), «Техника» (2). Внутри «Компьютеров» пять категорий на двух уровнях: «Ноутбуки», «Комплектующие» и «Периферия» прямо внутри, «Аудио» и «Клавиатуры и мыши» — внутри «Периферии».</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Перепутанное направление</h2>
+        <p>Пример ищет команду Павла Демина, но поля обхода записаны как для движения вверх, а <code>startWith</code> оставлен от движения вниз.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>connectFromField и connectToField перепутаны</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"s-002"</span>}},
+    {<span class="s">"$graphLookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"employees"</span>,
+        <span class="s">"startWith"</span>: <span class="s">"$_id"</span>,
+        <span class="s">"connectFromField"</span>: <span class="s">"manager_id"</span>,
+        <span class="s">"connectToField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"team"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"name"</span>: <span class="n">1</span>,
+        <span class="s">"team"</span>: {<span class="s">"$sortArray"</span>: {<span class="s">"input"</span>: <span class="s">"$team.name"</span>, <span class="s">"sortBy"</span>: <span class="n">1</span>}},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> employees.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>connectFromField и connectToField перепутаны</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"s-002"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$graphLookup"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"employees"</span>),
+    <span class="f">kvp</span>(<span class="s">"startWith"</span>, <span class="s">"$_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectFromField"</span>, <span class="s">"manager_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"connectToField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"team"</span>)))));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"team"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sortArray"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$team.name"</span>), <span class="f">kvp</span>(<span class="s">"sortBy"</span>, <span class="n">1</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : employees.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>connectFromField и connectToField перепутаны</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"s-002"</span>}}}},
+    {{Key: <span class="s">"$graphLookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"employees"</span>},
+        {Key: <span class="s">"startWith"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"connectFromField"</span>, Value: <span class="s">"manager_id"</span>},
+        {Key: <span class="s">"connectToField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"team"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"team"</span>, Value: bson.D{
+            {Key: <span class="s">"$sortArray"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$team.name"</span>},
+                {Key: <span class="s">"sortBy"</span>, Value: <span class="n">1</span>}}}}}}}},
+}
+
+cursor, _ := employees.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>connectFromField и connectToField перепутаны</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"s-002"</span> } },
+  { <span class="s">"$graphLookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"employees"</span>,
+    <span class="s">"startWith"</span> =&gt; <span class="s">"$_id"</span>,
+    <span class="s">"connectFromField"</span> =&gt; <span class="s">"manager_id"</span>,
+    <span class="s">"connectToField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"team"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"team"</span> =&gt; { <span class="s">"$sortArray"</span> =&gt; { <span class="s">"input"</span> =&gt; <span class="s">"$team.name"</span>, <span class="s">"sortBy"</span> =&gt; <span class="n">1</span> } },
+  } },
+]
+
+employees.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Павел Демин', 'team': ['Ирина Соколова', 'Павел Демин']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Павел Демин", "team" : [ "Ирина Соколова", "Павел Демин" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Павел Демин","team":["Ирина Соколова","Павел Демин"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Павел Демин", "team"=&gt;["Ирина Соколова", "Павел Демин"]}</pre>
+        </figure>
+        <p>Вместо девяти подчинённых в массиве двое: сам Павел Демин и его руководитель Ирина Соколова. Первый шаг искал документ с <code>_id</code>, равным <code>_id</code> Павла, и нашёл его самого. Дальше обход пошёл по <code>manager_id</code> вверх. Ошибки нет, поэтому направление проверяют по результату: в списке подчинённых не может быть самого руководителя.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>$graphLookup в Compass</h2>
+        <p>На кадре — конвейер из §3 на вкладке <b>Aggregations</b> коллекции <code>org.employees</code>: <code>$match</code> по s-002, <code>$graphLookup</code> с <code>depthField</code> и <code>$project</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/165-employees-graphlookup.png" alt="Compass, вкладка Aggregations коллекции org.employees: стадия $graphLookup, у Павла Демина массив team из девяти документов">
+          <figcaption>Compass · команда Павла Демина с уровнями</figcaption>
+        </figure>
+        <p>Под стадией <code>$graphLookup</code> — <b>Sample of 1 document</b>: Павел Демин со всеми полями сотрудника; поле <code>team</code> ниже края образца. Под стадией <code>$project</code> остались <code>name</code> и <code>team</code> с отметкой <b>Array (9)</b> — девять документов с полями <code>level</code> и <code>name</code>, упорядоченных по уровню.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>connectFromField</code> и <code>connectToField</code> перепутаны</td><td>Обход идёт в другую сторону: вместо подчинённых — сам сотрудник и цепочка руководителей</td><td>Вниз по дереву: <code>connectFromField: "_id"</code>, <code>connectToField: "manager_id"</code>; вверх — наоборот</td></tr>
+              <tr><td>Ожидание порядка документов в <code>as</code></td><td>Порядок найденных документов не задан</td><td>Упорядочить результат: <code>{"$sortArray": {"input": "$team.name", "sortBy": 1}}</code> или по <code>depthField</code></td></tr>
+              <tr><td><code>"maxDepth": 1</code> для прямых подчинённых</td><td>Уровни считаются с нуля: 1 — это прямые подчинённые и их подчинённые</td><td><code>"maxDepth": 0</code></td></tr>
+              <tr><td><code>restrictSearchWithMatch</code> как фильтр результата</td><td>Документ, не прошедший условие, не только пропускается, но и не ведёт дальше: его подчинённые не обходятся</td><td>Чтобы убрать документы только из результата, отфильтровать массив <code>$filter</code> после <code>$graphLookup</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>connectFromField</code> и <code>connectToField</code> перепутаны</td><td>Обход идёт в другую сторону: вместо подчинённых — сам сотрудник и цепочка руководителей</td><td>Вниз по дереву: <code>connectFromField: "_id"</code>, <code>connectToField: "manager_id"</code>; вверх — наоборот</td></tr>
+              <tr><td>Ожидание порядка документов в <code>as</code></td><td>Порядок найденных документов не задан</td><td>Упорядочить результат: <code>{"$sortArray": {"input": "$team.name", "sortBy": 1}}</code> или по <code>depthField</code></td></tr>
+              <tr><td><code>"maxDepth": 1</code> для прямых подчинённых</td><td>Уровни считаются с нуля: 1 — это прямые подчинённые и их подчинённые</td><td><code>"maxDepth": 0</code></td></tr>
+              <tr><td><code>restrictSearchWithMatch</code> как фильтр результата</td><td>Документ, не прошедший условие, не только пропускается, но и не ведёт дальше: его подчинённые не обходятся</td><td>Чтобы убрать документы только из результата, отфильтровать массив <code>$filter</code> после <code>$graphLookup</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>connectFromField</code> и <code>connectToField</code> перепутаны</td><td>Обход идёт в другую сторону: вместо подчинённых — сам сотрудник и цепочка руководителей</td><td>Вниз по дереву: <code>connectFromField: "_id"</code>, <code>connectToField: "manager_id"</code>; вверх — наоборот</td></tr>
+              <tr><td>Ожидание порядка документов в <code>as</code></td><td>Порядок найденных документов не задан</td><td>Упорядочить результат: <code>{"$sortArray": {"input": "$team.name", "sortBy": 1}}</code> или по <code>depthField</code></td></tr>
+              <tr><td><code>"maxDepth": 1</code> для прямых подчинённых</td><td>Уровни считаются с нуля: 1 — это прямые подчинённые и их подчинённые</td><td><code>"maxDepth": 0</code></td></tr>
+              <tr><td><code>restrictSearchWithMatch</code> как фильтр результата</td><td>Документ, не прошедший условие, не только пропускается, но и не ведёт дальше: его подчинённые не обходятся</td><td>Чтобы убрать документы только из результата, отфильтровать массив <code>$filter</code> после <code>$graphLookup</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>connectFromField</code> и <code>connectToField</code> перепутаны</td><td>Обход идёт в другую сторону: вместо подчинённых — сам сотрудник и цепочка руководителей</td><td>Вниз по дереву: <code>connectFromField: "_id"</code>, <code>connectToField: "manager_id"</code>; вверх — наоборот</td></tr>
+              <tr><td>Ожидание порядка документов в <code>as</code></td><td>Порядок найденных документов не задан</td><td>Упорядочить результат: <code>{"$sortArray": {"input": "$team.name", "sortBy": 1}}</code> или по <code>depthField</code></td></tr>
+              <tr><td><code>"maxDepth": 1</code> для прямых подчинённых</td><td>Уровни считаются с нуля: 1 — это прямые подчинённые и их подчинённые</td><td><code>"maxDepth": 0</code></td></tr>
+              <tr><td><code>restrictSearchWithMatch</code> как фильтр результата</td><td>Документ, не прошедший условие, не только пропускается, но и не ведёт дальше: его подчинённые не обходятся</td><td>Чтобы убрать документы только из результата, отфильтровать массив <code>$filter</code> после <code>$graphLookup</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s12"><span class="sec">§12</span>Проверьте себя</h2>
+        <details>
+          <summary>Чем <code>$graphLookup</code> отличается от <code>$lookup</code>?</summary>
+          <p><code>$lookup</code> делает один шаг по ссылке. <code>$graphLookup</code> повторяет шаги от найденных документов, пока находятся новые.</p>
+        </details>
+        <details>
+          <summary>Какое значение <code>maxDepth</code> оставит только прямых подчинённых?</summary>
+          <p>0: шаги нумеруются с нуля.</p>
+        </details>
+        <details>
+          <summary>Как получить цепочку руководителей вместо подчинённых?</summary>
+          <p>Начать с <code>$manager_id</code> и поменять поля местами: <code>connectToField: "_id"</code>, <code>connectFromField: "manager_id"</code>.</p>
+        </details>
+        <details>
+          <summary>Почему с <code>restrictSearchWithMatch</code> по отделу разработки пропал Роман Ильин, хотя условие к нему не применялось?</summary>
+          <p>Его руководитель Егор Мельник и руководитель того — Наталья Гурьева — не прошли условие. Документ, не прошедший условие, не продолжает обход, и до Романа поиск не дошёл.</p>
+        </details>
+        <details>
+          <summary>Почему результат <code>$graphLookup</code> упорядочивают <code>$sortArray</code>?</summary>
+          <p>Порядок документов в массиве <code>as</code> сервер не задаёт.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch6_3</code>. Данные — база <code>org</code>, глава её не меняет.</p>
+        <ol class="steps">
+          <li><b>Команда аналитики</b>Вывести команду Натальи Гурьевой (s-003) с уровнями, по уровню и имени.</li>
+          <li><b>Руководители Кирилла</b>Построить цепочку руководителей Кирилла Юдина (s-008) до директора.</li>
+          <li><b>Раздел «Телефоны и гаджеты»</b>Вывести все категории внутри cat-phone по алфавиту.</li>
+          <li><b>Зарплата от 200 000</b>Найти команду Павла Демина с <code>restrictSearchWithMatch</code> по зарплате от 200 000 и сравнить её с результатом <code>$filter</code> по полной команде.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Команда аналитики: уровень 0 — Вера Панина, Егор Мельник; уровень 1 — Роман Ильин.</p>
+          <p>Руководители Кирилла: Алексей Ким (0), Павел Демин (1), Ирина Соколова (2).</p>
+          <p>Внутри «Телефонов и гаджетов»: Аксессуары, Смартфоны.</p>
+          <p>Зарплата от 200 000: 7 человек — Алексей Ким, Дарья Белова, Максим Седов, Марина Власова, Ольга Рябова, Сергей Носов, Тимур Ахметов. <code>$filter</code> даёт тех же семерых: Юлия Ефимова и Кирилл Юдин, у которых зарплата ниже, — сотрудники без подчинённых, и ограничение обхода никого больше не отсекло.</p>
+        </details>
+
+        <h2 id="s14"><span class="sec">§14</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Вниз по дереву</b>
+            <code>{"$graphLookup": {"from": "employees", "startWith": "$_id", "connectFromField": "_id", "connectToField": "manager_id", "as": "team"}}</code>
+          </div>
+          <div>
+            <b>Вверх по дереву</b>
+            <code>{"startWith": "$manager_id", "connectFromField": "manager_id", "connectToField": "_id"}</code>
+          </div>
+          <div>
+            <b>Уровень и глубина</b>
+            <code>{"depthField": "level", "maxDepth": 0}</code>
+          </div>
+          <div>
+            <b>Обход по условию</b>
+            <code>{"restrictSearchWithMatch": {"department": "разработка"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Вниз по дереву</b>
+            <code>make_document(kvp("$graphLookup", make_document(kvp("from", "employees"), kvp("startWith", "$_id"), kvp("connectFromField", "_id"), kvp("connectToField", "manager_id"), kvp("as", "team"))))</code>
+          </div>
+          <div>
+            <b>Вверх по дереву</b>
+            <code>make_document(kvp("startWith", "$manager_id"), kvp("connectFromField", "manager_id"), kvp("connectToField", "_id"))</code>
+          </div>
+          <div>
+            <b>Уровень и глубина</b>
+            <code>make_document(kvp("depthField", "level"), kvp("maxDepth", 0))</code>
+          </div>
+          <div>
+            <b>Обход по условию</b>
+            <code>make_document(kvp("restrictSearchWithMatch", make_document(kvp("department", "разработка"))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Вниз по дереву</b>
+            <code>bson.D{{Key: "$graphLookup", Value: bson.D{{Key: "from", Value: "employees"}, {Key: "startWith", Value: "$_id"}, {Key: "connectFromField", Value: "_id"}, {Key: "connectToField", Value: "manager_id"}, {Key: "as", Value: "team"}}}}</code>
+          </div>
+          <div>
+            <b>Вверх по дереву</b>
+            <code>bson.D{{Key: "startWith", Value: "$manager_id"}, {Key: "connectFromField", Value: "manager_id"}, {Key: "connectToField", Value: "_id"}}</code>
+          </div>
+          <div>
+            <b>Уровень и глубина</b>
+            <code>bson.D{{Key: "depthField", Value: "level"}, {Key: "maxDepth", Value: 0}}</code>
+          </div>
+          <div>
+            <b>Обход по условию</b>
+            <code>bson.D{{Key: "restrictSearchWithMatch", Value: bson.D{{Key: "department", Value: "разработка"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Вниз по дереву</b>
+            <code>{ "$graphLookup" =&gt; { "from" =&gt; "employees", "startWith" =&gt; "$_id", "connectFromField" =&gt; "_id", "connectToField" =&gt; "manager_id", "as" =&gt; "team" } }</code>
+          </div>
+          <div>
+            <b>Вверх по дереву</b>
+            <code>{ "startWith" =&gt; "$manager_id", "connectFromField" =&gt; "manager_id", "connectToField" =&gt; "_id" }</code>
+          </div>
+          <div>
+            <b>Уровень и глубина</b>
+            <code>{ "depthField" =&gt; "level", "maxDepth" =&gt; 0 }</code>
+          </div>
+          <div>
+            <b>Обход по условию</b>
+            <code>{ "restrictSearchWithMatch" =&gt; { "department" =&gt; "разработка" } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$graphLookup</code> начинает с <code>startWith</code>, ищет документы, у которых <code>connectToField</code> равно текущему значению, и продолжает поиск от их <code>connectFromField</code>, пока находятся новые документы. Все найденные документы попадают в массив <code>as</code> без заданного порядка.</p>
+        <p>Направление обхода задают поля связи: вниз по дереву — от <code>_id</code> к <code>manager_id</code>, вверх — наоборот. <code>depthField</code> записывает номер шага, <code>maxDepth</code> ограничивает шаги; оба считаются с нуля. <code>restrictSearchWithMatch</code> отсекает документы вместе со всем, что под ними.</p>
+        <p>Перепутанные поля связи не дают ошибки, а меняют направление обхода; результат проверяют по смыслу.</p>
+
+        <div class="pager"><a href="../42-lookup-pipeline/index.html">← 6.2 $lookup с конвейером</a><a href="../44-unionwith/index.html">6.4 $unionWith →</a></div>
+
+        <div class="colophon">
+          <span>Глава 6.3 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

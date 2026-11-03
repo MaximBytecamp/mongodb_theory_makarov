@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>6.4 $unionWith: две коллекции в одном потоке · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ и найденная пара, таблицы, полосы. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 6 · Связи между коллекциями</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 6 · связи между коллекциями</p>
+          <p class="running__folio">6.4</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">6.4</span>
+          <h1>$unionWith: две коллекции<br>в одном потоке</h1>
+          <p class="lead">$lookup кладёт документы другой коллекции внутрь документа, $unionWith ставит их в поток рядом: после документов основной коллекции идут документы второй. В главе разобраны общий список вакансий и резюме, подсчёт по городам с отметкой источника, стадии до и после $unionWith, одна коллекция дважды и коллекция, которой нет в базе.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$lookup (глава 6.1), $group и $cond (главы 4.4 и 4.2), $project (глава 4.2), $sort и $limit (глава 4.1)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Строить один отчёт по документам из нескольких коллекций: сравнивать спрос и предложение, складывать данные разных периодов, собирать крайние значения одним запросом</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-6.4-python.zip" download><code>mongodb-glava-6.4-python.zip</code></a>, 60 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-6.4-ruby.zip" download><code>mongodb-glava-6.4-ruby.zip</code></a>, 60 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-6.4-go.zip" download><code>mongodb-glava-6.4-go.zip</code></a>, 65 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-6.4-cpp.zip" download><code>mongodb-glava-6.4-cpp.zip</code></a>, 63 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch6_4.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch6_4.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch6_4.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch6_4.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch6_4.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch6_4.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch6_4.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch6_4.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch6_4.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch6_4.go</code> · в Docker: <code>docker compose run --rm go lessons/ch6_4.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch6_4.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch6_4.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $unionWith</a></li>
+            <li><a href="#s2">Отметка источника и группировка</a></li>
+            <li><a href="#s3">Стадии до и после $unionWith</a></li>
+            <li><a href="#s4">Одна коллекция дважды</a></li>
+            <li><a href="#s5">Города из двух коллекций магазина</a></li>
+            <li><a href="#s6">Коллекция, которой нет в базе</a></li>
+            <li><a href="#s7">$unionWith в Compass</a></li>
+            <li><a href="#s8">Частые ошибки</a></li>
+            <li><a href="#s9">Проверьте себя</a></li>
+            <li><a href="#s10">Самостоятельная работа</a></li>
+            <li><a href="#s11">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $unionWith</h2>
+        <p>Кадровое агентство ведёт две папки: вакансии работодателей и резюме соискателей. Чтобы увидеть всё, что есть по Москве, обе папки кладут на стол одной стопкой: сначала листы из первой папки, потом из второй. Листы не сшиваются, их просто становится больше.</p>
+        <p><span class="term">Стадия $unionWith</span> добавляет в поток документы другой коллекции той же базы. Документы основной коллекции проходят дальше без изменений, а после них идут документы второй коллекции. Короткая запись — имя коллекции: <code>{"$unionWith": "resumes"}</code>. Полная — документ с полями <code>coll</code> и <code>pipeline</code>: конвейер обрабатывает документы второй коллекции до того, как они войдут в поток.</p>
+        <p>У вакансии должность записана в поле <code>title</code>, у резюме — в поле <code>position</code>. Чтобы в общем списке поле называлось одинаково, конвейер второй коллекции переименовывает его стадией <code>$project</code>. Пример собирает московские вакансии и резюме.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$unionWith: вакансии и резюме одним списком</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"city"</span>: <span class="s">"Москва"</span>}},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="n">1</span>, <span class="s">"city"</span>: <span class="n">1</span>}},
+    {<span class="s">"$unionWith"</span>: {
+        <span class="s">"coll"</span>: <span class="s">"resumes"</span>,
+        <span class="s">"pipeline"</span>: [
+            {<span class="s">"$match"</span>: {<span class="s">"city"</span>: <span class="s">"Москва"</span>}},
+            {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"title"</span>: <span class="s">"$position"</span>, <span class="s">"city"</span>: <span class="n">1</span>}},
+        ],
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$unionWith: вакансии и резюме одним списком</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"resumes"</span>),
+    <span class="f">kvp</span>(<span class="s">"pipeline"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$match"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>)))),
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$project"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"title"</span>, <span class="s">"$position"</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : vacancies.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$unionWith: вакансии и резюме одним списком</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"title"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"city"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$unionWith"</span>, Value: bson.D{
+        {Key: <span class="s">"coll"</span>, Value: <span class="s">"resumes"</span>},
+        {Key: <span class="s">"pipeline"</span>, Value: bson.A{
+            bson.D{{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>}}}},
+            bson.D{
+                {Key: <span class="s">"$project"</span>, Value: bson.D{
+                    {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+                    {Key: <span class="s">"title"</span>, Value: <span class="s">"$position"</span>},
+                    {Key: <span class="s">"city"</span>, Value: <span class="n">1</span>}}}}}}}}},
+}
+
+cursor, _ := vacancies.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$unionWith: вакансии и резюме одним списком</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span> } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="n">1</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$unionWith"</span> =&gt; {
+    <span class="s">"coll"</span> =&gt; <span class="s">"resumes"</span>,
+    <span class="s">"pipeline"</span> =&gt; [
+      { <span class="s">"$match"</span> =&gt; { <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span> } },
+      { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"title"</span> =&gt; <span class="s">"$position"</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span> } },
+    ],
+  } },
+]
+
+vacancies.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'title': 'Администратор баз данных', 'city': 'Москва'}
+{'title': 'Аналитик данных', 'city': 'Москва'}
+{'title': 'Data-инженер', 'city': 'Москва'}
+{'city': 'Москва', 'title': 'Аналитик данных'}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "title" : "Администратор баз данных", "city" : "Москва" }
+{ "title" : "Аналитик данных", "city" : "Москва" }
+{ "title" : "Data-инженер", "city" : "Москва" }
+{ "city" : "Москва", "title" : "Аналитик данных" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title":"Администратор баз данных","city":"Москва"}
+{"title":"Аналитик данных","city":"Москва"}
+{"title":"Data-инженер","city":"Москва"}
+{"city":"Москва","title":"Аналитик данных"}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"title"=&gt;"Администратор баз данных", "city"=&gt;"Москва"}
+{"title"=&gt;"Аналитик данных", "city"=&gt;"Москва"}
+{"title"=&gt;"Data-инженер", "city"=&gt;"Москва"}
+{"city"=&gt;"Москва", "title"=&gt;"Аналитик данных"}</pre>
+        </figure>
+        <p>В потоке четыре документа: три московские вакансии, затем одно московское резюме — аналитик данных. У всех одинаковые поля <code>title</code> и <code>city</code>, но у резюме они идут в другом порядке: <code>$project</code> сначала выводит поля, взятые из документа как есть (<code>city</code>), а затем новые и переименованные (<code>title</code>). По документу нельзя понять, вакансия это или резюме; как это исправить — в §2.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>$lookup и $unionWith на одних данных</span><span>внутрь или рядом</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Стадия</th><th>Куда попадают документы второй коллекции</th><th>Документов в потоке</th></tr></thead>
+              <tbody>
+                <tr><td>$lookup</td><td>в массив внутри каждого документа</td><td>столько же, сколько было</td></tr>
+                <tr class="on"><td>$unionWith</td><td>в поток после документов основной коллекции</td><td>сумма двух коллекций: 3 + 1 = 4</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">В SQL <code>$lookup</code> соответствует соединению (JOIN), <code>$unionWith</code> — объединению UNION ALL: строки двух выборок идут одна за другой, повторы не убираются.</p>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Отметка источника и группировка</h2>
+        <p>Чтобы различать документы двух коллекций, до объединения им добавляют поле с источником. Стадия <code>$project</code> ставит вакансиям <code>kind: "вакансия"</code>, конвейер второй коллекции — резюме <code>kind: "резюме"</code>. После объединения <code>$group</code> по городу считает документы каждого вида через <code>$sum</code> с <code>$cond</code> из главы 4.2: единица, если вид совпал, иначе ноль.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>вакансии и резюме по городам</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"city"</span>: <span class="n">1</span>, <span class="s">"kind"</span>: <span class="s">"вакансия"</span>}},
+    {<span class="s">"$unionWith"</span>: {
+        <span class="s">"coll"</span>: <span class="s">"resumes"</span>,
+        <span class="s">"pipeline"</span>: [{<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"city"</span>: <span class="n">1</span>, <span class="s">"kind"</span>: <span class="s">"резюме"</span>}}],
+    }},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$city"</span>,
+        <span class="s">"vacancies"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$kind"</span>, <span class="s">"вакансия"</span>]}, <span class="n">1</span>, <span class="n">0</span>]}},
+        <span class="s">"resumes"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$kind"</span>, <span class="s">"резюме"</span>]}, <span class="n">1</span>, <span class="n">0</span>]}},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>вакансии и резюме по городам</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"kind"</span>, <span class="s">"вакансия"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"resumes"</span>),
+    <span class="f">kvp</span>(<span class="s">"pipeline"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$project"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"kind"</span>, <span class="s">"резюме"</span>))))))))));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$city"</span>),
+    <span class="f">kvp</span>(<span class="s">"vacancies"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$kind"</span>, <span class="s">"вакансия"</span>))),
+                <span class="n">1</span>,
+                <span class="n">0</span>)))))),
+    <span class="f">kvp</span>(<span class="s">"resumes"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$kind"</span>, <span class="s">"резюме"</span>))), <span class="n">1</span>, <span class="n">0</span>))))))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : vacancies.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>вакансии и резюме по городам</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"city"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"kind"</span>, Value: <span class="s">"вакансия"</span>}}}},
+    {{Key: <span class="s">"$unionWith"</span>, Value: bson.D{
+        {Key: <span class="s">"coll"</span>, Value: <span class="s">"resumes"</span>},
+        {Key: <span class="s">"pipeline"</span>, Value: bson.A{
+            bson.D{
+                {Key: <span class="s">"$project"</span>, Value: bson.D{
+                    {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+                    {Key: <span class="s">"city"</span>, Value: <span class="n">1</span>},
+                    {Key: <span class="s">"kind"</span>, Value: <span class="s">"резюме"</span>}}}}}}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$city"</span>},
+        {Key: <span class="s">"vacancies"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$cond"</span>, Value: bson.A{
+                    bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$kind"</span>, <span class="s">"вакансия"</span>}}},
+                    <span class="n">1</span>,
+                    <span class="n">0</span>}}}}}},
+        {Key: <span class="s">"resumes"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$cond"</span>, Value: bson.A{
+                    bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$kind"</span>, <span class="s">"резюме"</span>}}},
+                    <span class="n">1</span>,
+                    <span class="n">0</span>}}}}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := vacancies.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>вакансии и резюме по городам</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"kind"</span> =&gt; <span class="s">"вакансия"</span> } },
+  { <span class="s">"$unionWith"</span> =&gt; {
+    <span class="s">"coll"</span> =&gt; <span class="s">"resumes"</span>,
+    <span class="s">"pipeline"</span> =&gt; [{ <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"kind"</span> =&gt; <span class="s">"резюме"</span> } }],
+  } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$city"</span>,
+    <span class="s">"vacancies"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [{ <span class="s">"$eq"</span> =&gt; [<span class="s">"$kind"</span>, <span class="s">"вакансия"</span>] }, <span class="n">1</span>, <span class="n">0</span>] } },
+    <span class="s">"resumes"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [{ <span class="s">"$eq"</span> =&gt; [<span class="s">"$kind"</span>, <span class="s">"резюме"</span>] }, <span class="n">1</span>, <span class="n">0</span>] } },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+vacancies.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Казань', 'vacancies': 1, 'resumes': 1}
+{'_id': 'Москва', 'vacancies': 3, 'resumes': 1}
+{'_id': 'Новосибирск', 'vacancies': 0, 'resumes': 1}
+{'_id': 'Санкт-Петербург', 'vacancies': 1, 'resumes': 1}
+{'_id': 'Ярославль', 'vacancies': 3, 'resumes': 5}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Казань", "vacancies" : 1, "resumes" : 1 }
+{ "_id" : "Москва", "vacancies" : 3, "resumes" : 1 }
+{ "_id" : "Новосибирск", "vacancies" : 0, "resumes" : 1 }
+{ "_id" : "Санкт-Петербург", "vacancies" : 1, "resumes" : 1 }
+{ "_id" : "Ярославль", "vacancies" : 3, "resumes" : 5 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Казань","vacancies":1,"resumes":1}
+{"_id":"Москва","vacancies":3,"resumes":1}
+{"_id":"Новосибирск","vacancies":0,"resumes":1}
+{"_id":"Санкт-Петербург","vacancies":1,"resumes":1}
+{"_id":"Ярославль","vacancies":3,"resumes":5}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Казань", "vacancies"=&gt;1, "resumes"=&gt;1}
+{"_id"=&gt;"Москва", "vacancies"=&gt;3, "resumes"=&gt;1}
+{"_id"=&gt;"Новосибирск", "vacancies"=&gt;0, "resumes"=&gt;1}
+{"_id"=&gt;"Санкт-Петербург", "vacancies"=&gt;1, "resumes"=&gt;1}
+{"_id"=&gt;"Ярославль", "vacancies"=&gt;3, "resumes"=&gt;5}</pre>
+        </figure>
+        <p>В Москве три вакансии на одно резюме, в Ярославле — три вакансии на пять резюме. В Новосибирске есть резюме, но нет ни одной вакансии; в Казани и Санкт-Петербурге — по одной вакансии и одному резюме. Город попал в отчёт, если он есть хотя бы в одной из коллекций.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Вакансии и резюме по городам</span><span>8 вакансий · 9 резюме</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Город</th><th>Вакансий</th><th>Резюме</th><th>На одно резюме</th></tr></thead>
+              <tbody>
+                <tr><td>Казань</td><td>1</td><td>1</td><td>1</td></tr>
+                <tr class="on"><td>Москва</td><td>3</td><td>1</td><td>3</td></tr>
+                <tr class="no"><td>Новосибирск</td><td>0</td><td>1</td><td>0</td></tr>
+                <tr><td>Санкт-Петербург</td><td>1</td><td>1</td><td>1</td></tr>
+                <tr><td>Ярославль</td><td>3</td><td>5</td><td>0,6</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Последний столбец посчитан по выводу примера. Без поля <code>kind</code> группировка дала бы только общее число документов по городу.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Стадии до и после $unionWith</h2>
+        <p>Стадии, которые стоят до <code>$unionWith</code>, обрабатывают только основную коллекцию. Стадии после — весь объединённый поток. Пример ставит один и тот же <code>$match</code> по Москве до объединения и после.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>стадия до $unionWith и после</span></figcaption>
+<pre>before = [
+    {<span class="s">"$match"</span>: {<span class="s">"city"</span>: <span class="s">"Москва"</span>}},
+    {<span class="s">"$unionWith"</span>: <span class="s">"resumes"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+after = [
+    {<span class="s">"$unionWith"</span>: <span class="s">"resumes"</span>},
+    {<span class="s">"$match"</span>: {<span class="s">"city"</span>: <span class="s">"Москва"</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $match до $unionWith"</span>)
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">aggregate</span>(before):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── $match после $unionWith"</span>)
+<span class="k">for</span> doc <span class="k">in</span> vacancies.<span class="f">aggregate</span>(after):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>стадия до $unionWith и после</span></figcaption>
+<pre>mongocxx::pipeline before;
+before.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>)));
+before.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="s">"resumes"</span>)));
+before.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+mongocxx::pipeline after;
+after.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="s">"resumes"</span>)));
+after.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"Москва"</span>)));
+after.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+std::cout &lt;&lt; <span class="s">"── $match до $unionWith"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : vacancies.<span class="f">aggregate</span>(before)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── $match после $unionWith"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : vacancies.<span class="f">aggregate</span>(after)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>стадия до $unionWith и после</span></figcaption>
+<pre>before := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>}}}},
+    {{Key: <span class="s">"$unionWith"</span>, Value: <span class="s">"resumes"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+after := mongo.Pipeline{
+    {{Key: <span class="s">"$unionWith"</span>, Value: <span class="s">"resumes"</span>}},
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"city"</span>, Value: <span class="s">"Москва"</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $match до $unionWith"</span>)
+cursor, _ := vacancies.<span class="f">Aggregate</span>(ctx, before)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $match после $unionWith"</span>)
+cursor, _ = vacancies.<span class="f">Aggregate</span>(ctx, after)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>стадия до $unionWith и после</span></figcaption>
+<pre>before = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span> } },
+  { <span class="s">"$unionWith"</span> =&gt; <span class="s">"resumes"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+after = [
+  { <span class="s">"$unionWith"</span> =&gt; <span class="s">"resumes"</span> },
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"city"</span> =&gt; <span class="s">"Москва"</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $match до $unionWith"</span>
+vacancies.<span class="f">aggregate</span>(before).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── $match после $unionWith"</span>
+vacancies.<span class="f">aggregate</span>(after).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unionWith
+{'docs': 12}
+── $match после $unionWith
+{'docs': 4}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unionWith
+{ "docs" : 12 }
+── $match после $unionWith
+{ "docs" : 4 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unionWith
+{"docs":12}
+── $match после $unionWith
+{"docs":4}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $match до $unionWith
+{"docs"=&gt;12}
+── $match после $unionWith
+{"docs"=&gt;4}</pre>
+        </figure>
+        <p><code>$match</code> до объединения дал 12 документов: три московские вакансии и все девять резюме — резюме условие не проверяли. После объединения документов 4: условие проверено у всех. Условие для второй коллекции записывают либо в её <code>pipeline</code>, как в §1, либо общей стадией после <code>$unionWith</code>.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Одна коллекция дважды</h2>
+        <p>Вторая коллекция может совпадать с основной. Так одним запросом получают два разных среза одних данных. Пример выводит два самых дорогих и два самых дешёвых заказа: основной поток сортирует по убыванию суммы, конвейер <code>$unionWith</code> — по возрастанию. У двух самых дешёвых заказов суммы равны, поэтому вторым ключом сортировки стоит номер.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>два самых дорогих и два самых дешёвых заказа</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: -<span class="n">1</span>, <span class="s">"number"</span>: <span class="n">1</span>}},
+    {<span class="s">"$limit"</span>: <span class="n">2</span>},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>}},
+    {<span class="s">"$unionWith"</span>: {
+        <span class="s">"coll"</span>: <span class="s">"orders"</span>,
+        <span class="s">"pipeline"</span>: [
+            {<span class="s">"$sort"</span>: {<span class="s">"total"</span>: <span class="n">1</span>, <span class="s">"number"</span>: <span class="n">1</span>}},
+            {<span class="s">"$limit"</span>: <span class="n">2</span>},
+            {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"total"</span>: <span class="n">1</span>}},
+        ],
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>два самых дорогих и два самых дешёвых заказа</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, -<span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">limit</span>(<span class="n">2</span>);
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"orders"</span>),
+    <span class="f">kvp</span>(<span class="s">"pipeline"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sort"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>)))),
+        <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$limit"</span>, <span class="n">2</span>)),
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$project"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"total"</span>, <span class="n">1</span>))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>два самых дорогих и два самых дешёвых заказа</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: -<span class="n">1</span>}, {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">2</span>}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$unionWith"</span>, Value: bson.D{
+        {Key: <span class="s">"coll"</span>, Value: <span class="s">"orders"</span>},
+        {Key: <span class="s">"pipeline"</span>, Value: bson.A{
+            bson.D{
+                {Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}, {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>}}}},
+            bson.D{{Key: <span class="s">"$limit"</span>, Value: <span class="n">2</span>}},
+            bson.D{
+                {Key: <span class="s">"$project"</span>, Value: bson.D{
+                    {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+                    {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+                    {Key: <span class="s">"total"</span>, Value: <span class="n">1</span>}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>два самых дорогих и два самых дешёвых заказа</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; -<span class="n">1</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">2</span> },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"total"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$unionWith"</span> =&gt; {
+    <span class="s">"coll"</span> =&gt; <span class="s">"orders"</span>,
+    <span class="s">"pipeline"</span> =&gt; [
+      { <span class="s">"$sort"</span> =&gt; { <span class="s">"total"</span> =&gt; <span class="n">1</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span> } },
+      { <span class="s">"$limit"</span> =&gt; <span class="n">2</span> },
+      { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"total"</span> =&gt; <span class="n">1</span> } },
+    ],
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0120', 'total': 457930}
+{'number': '2026-0063', 'total': 413410}
+{'number': '2026-0006', 'total': 2370}
+{'number': '2026-0068', 'total': 2370}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0120", "total" : 457930 }
+{ "number" : "2026-0063", "total" : 413410 }
+{ "number" : "2026-0006", "total" : 2370 }
+{ "number" : "2026-0068", "total" : 2370 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0120","total":457930}
+{"number":"2026-0063","total":413410}
+{"number":"2026-0006","total":2370}
+{"number":"2026-0068","total":2370}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0120", "total"=&gt;457930}
+{"number"=&gt;"2026-0063", "total"=&gt;413410}
+{"number"=&gt;"2026-0006", "total"=&gt;2370}
+{"number"=&gt;"2026-0068", "total"=&gt;2370}</pre>
+        </figure>
+        <p>Первые два документа — заказы 2026-0120 на 457 930 и 2026-0063 на 413 410. Следующие два — 2026-0006 и 2026-0068, оба на 2 370. Без второго ключа два последних заказа могли бы меняться местами от запуска к запуску.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Города из двух коллекций магазина</h2>
+        <p>Город есть у покупателя (<code>city</code>) и у доставки заказа (<code>delivery.city</code>). Пример объединяет оба источника, приводит поле к имени <code>city</code> и считает по каждому городу покупателей и доставки.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>города из двух коллекций магазина</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"city"</span>: <span class="n">1</span>, <span class="s">"from"</span>: <span class="s">"customers"</span>}},
+    {<span class="s">"$unionWith"</span>: {
+        <span class="s">"coll"</span>: <span class="s">"orders"</span>,
+        <span class="s">"pipeline"</span>: [
+            {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"city"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"from"</span>: <span class="s">"orders"</span>}},
+        ],
+    }},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$city"</span>,
+        <span class="s">"customers"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$from"</span>, <span class="s">"customers"</span>]}, <span class="n">1</span>, <span class="n">0</span>]}},
+        <span class="s">"deliveries"</span>: {<span class="s">"$sum"</span>: {<span class="s">"$cond"</span>: [{<span class="s">"$eq"</span>: [<span class="s">"$from"</span>, <span class="s">"orders"</span>]}, <span class="n">1</span>, <span class="n">0</span>]}},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>города из двух коллекций магазина</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"customers"</span>)));
+pipeline.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"orders"</span>),
+    <span class="f">kvp</span>(<span class="s">"pipeline"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$project"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+                <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"$delivery.city"</span>),
+                <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"orders"</span>))))))))));
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$city"</span>),
+    <span class="f">kvp</span>(<span class="s">"customers"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(
+                <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$from"</span>, <span class="s">"customers"</span>))),
+                <span class="n">1</span>,
+                <span class="n">0</span>)))))),
+    <span class="f">kvp</span>(<span class="s">"deliveries"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$cond"</span>, <span class="f">make_array</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$eq"</span>, <span class="f">make_array</span>(<span class="s">"$from"</span>, <span class="s">"orders"</span>))), <span class="n">1</span>, <span class="n">0</span>))))))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>города из двух коллекций магазина</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"city"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"customers"</span>}}}},
+    {{Key: <span class="s">"$unionWith"</span>, Value: bson.D{
+        {Key: <span class="s">"coll"</span>, Value: <span class="s">"orders"</span>},
+        {Key: <span class="s">"pipeline"</span>, Value: bson.A{
+            bson.D{
+                {Key: <span class="s">"$project"</span>, Value: bson.D{
+                    {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+                    {Key: <span class="s">"city"</span>, Value: <span class="s">"$delivery.city"</span>},
+                    {Key: <span class="s">"from"</span>, Value: <span class="s">"orders"</span>}}}}}}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$city"</span>},
+        {Key: <span class="s">"customers"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$cond"</span>, Value: bson.A{
+                    bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$from"</span>, <span class="s">"customers"</span>}}},
+                    <span class="n">1</span>,
+                    <span class="n">0</span>}}}}}},
+        {Key: <span class="s">"deliveries"</span>, Value: bson.D{
+            {Key: <span class="s">"$sum"</span>, Value: bson.D{
+                {Key: <span class="s">"$cond"</span>, Value: bson.A{
+                    bson.D{{Key: <span class="s">"$eq"</span>, Value: bson.A{<span class="s">"$from"</span>, <span class="s">"orders"</span>}}},
+                    <span class="n">1</span>,
+                    <span class="n">0</span>}}}}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>города из двух коллекций магазина</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"city"</span> =&gt; <span class="n">1</span>, <span class="s">"from"</span> =&gt; <span class="s">"customers"</span> } },
+  { <span class="s">"$unionWith"</span> =&gt; {
+    <span class="s">"coll"</span> =&gt; <span class="s">"orders"</span>,
+    <span class="s">"pipeline"</span> =&gt; [
+      { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"city"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"from"</span> =&gt; <span class="s">"orders"</span> } },
+    ],
+  } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$city"</span>,
+    <span class="s">"customers"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [{ <span class="s">"$eq"</span> =&gt; [<span class="s">"$from"</span>, <span class="s">"customers"</span>] }, <span class="n">1</span>, <span class="n">0</span>] } },
+    <span class="s">"deliveries"</span> =&gt; { <span class="s">"$sum"</span> =&gt; { <span class="s">"$cond"</span> =&gt; [{ <span class="s">"$eq"</span> =&gt; [<span class="s">"$from"</span>, <span class="s">"orders"</span>] }, <span class="n">1</span>, <span class="n">0</span>] } },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Екатеринбург', 'customers': 4, 'deliveries': 28}
+{'_id': 'Москва', 'customers': 3, 'deliveries': 18}
+{'_id': 'Новосибирск', 'customers': 6, 'deliveries': 35}
+{'_id': 'Санкт-Петербург', 'customers': 3, 'deliveries': 18}
+{'_id': 'Ярославль', 'customers': 4, 'deliveries': 21}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Екатеринбург", "customers" : 4, "deliveries" : 28 }
+{ "_id" : "Москва", "customers" : 3, "deliveries" : 18 }
+{ "_id" : "Новосибирск", "customers" : 6, "deliveries" : 35 }
+{ "_id" : "Санкт-Петербург", "customers" : 3, "deliveries" : 18 }
+{ "_id" : "Ярославль", "customers" : 4, "deliveries" : 21 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Екатеринбург","customers":4,"deliveries":28}
+{"_id":"Москва","customers":3,"deliveries":18}
+{"_id":"Новосибирск","customers":6,"deliveries":35}
+{"_id":"Санкт-Петербург","customers":3,"deliveries":18}
+{"_id":"Ярославль","customers":4,"deliveries":21}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Екатеринбург", "customers"=&gt;4, "deliveries"=&gt;28}
+{"_id"=&gt;"Москва", "customers"=&gt;3, "deliveries"=&gt;18}
+{"_id"=&gt;"Новосибирск", "customers"=&gt;6, "deliveries"=&gt;35}
+{"_id"=&gt;"Санкт-Петербург", "customers"=&gt;3, "deliveries"=&gt;18}
+{"_id"=&gt;"Ярославль", "customers"=&gt;4, "deliveries"=&gt;21}</pre>
+        </figure>
+        <p>В Новосибирске 6 покупателей и 35 доставок, в Екатеринбурге — 4 и 28, в Ярославле — 4 и 21, в Москве и Санкт-Петербурге — по 3 покупателя и 18 доставок. Доставок в сумме 120, покупателей — 20: каждый документ обеих коллекций попал в поток один раз.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Коллекция, которой нет в базе</h2>
+        <p><code>$unionWith</code>, как и <code>$lookup</code>, работает в пределах одной базы. Коллекция <code>employees</code> есть в базе <code>org</code>, но не в <code>shop</code>. Пример считает покупателей без объединения и с объединением с <code>employees</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>коллекция, которой нет в базе</span></figcaption>
+<pre>only_customers = [
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+with_employees = [
+    {<span class="s">"$unionWith"</span>: <span class="s">"employees"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── покупатели"</span>)
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(only_customers):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── покупатели и employees"</span>)
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(with_employees):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>коллекция, которой нет в базе</span></figcaption>
+<pre>mongocxx::pipeline only_customers;
+only_customers.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+mongocxx::pipeline with_employees;
+with_employees.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$unionWith"</span>, <span class="s">"employees"</span>)));
+with_employees.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+std::cout &lt;&lt; <span class="s">"── покупатели"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(only_customers)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── покупатели и employees"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(with_employees)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>коллекция, которой нет в базе</span></figcaption>
+<pre>onlyCustomers := mongo.Pipeline{
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+withEmployees := mongo.Pipeline{
+    {{Key: <span class="s">"$unionWith"</span>, Value: <span class="s">"employees"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── покупатели"</span>)
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, onlyCustomers)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── покупатели и employees"</span>)
+cursor, _ = customers.<span class="f">Aggregate</span>(ctx, withEmployees)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>коллекция, которой нет в базе</span></figcaption>
+<pre>only_customers = [
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+with_employees = [
+  { <span class="s">"$unionWith"</span> =&gt; <span class="s">"employees"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── покупатели"</span>
+customers.<span class="f">aggregate</span>(only_customers).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── покупатели и employees"</span>
+customers.<span class="f">aggregate</span>(with_employees).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── покупатели
+{'docs': 20}
+── покупатели и employees
+{'docs': 20}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── покупатели
+{ "docs" : 20 }
+── покупатели и employees
+{ "docs" : 20 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── покупатели
+{"docs":20}
+── покупатели и employees
+{"docs":20}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── покупатели
+{"docs"=&gt;20}
+── покупатели и employees
+{"docs"=&gt;20}</pre>
+        </figure>
+        <p>Оба счёта — 20. Ошибки нет: в базе <code>shop</code> коллекции <code>employees</code> нет, и сервер добавил в поток ноль документов. Такую ошибку видно, только если сверить число документов с ожидаемым.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>$unionWith в Compass</h2>
+        <p>На кадре — конвейер из §2 на вкладке <b>Aggregations</b> коллекции <code>hh.vacancies</code>: <code>$project</code> с отметкой «вакансия», <code>$unionWith</code> резюме с отметкой «резюме», <code>$group</code> и <code>$sort</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/166-vacancies-unionwith.png" alt="Compass, вкладка Aggregations коллекции hh.vacancies: стадия $unionWith добавляет резюме, стадия $group считает вакансии и резюме по городам">
+          <figcaption>Compass · вакансии и резюме в одном потоке</figcaption>
+        </figure>
+        <p>Кадр начинается со стадии <code>$unionWith</code>: в редакторе — коллекция <code>resumes</code> и её конвейер с отметкой «резюме». Под стадией подпись <b>Sample of 10 documents</b>, а не 17: предпросмотр Compass показывает не больше 10 документов, и первыми идут вакансии с <code>kind: "вакансия"</code>. Полный поток из 17 документов обрабатывает следующая стадия: под <code>$group</code> — пять городов с полями <code>vacancies</code> и <code>resumes</code>, например Ярославль — 3 и 5.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unionWith": "employees"}</code> в базе <code>shop</code></td><td>Ошибки нет, документов не прибавилось: коллекции <code>employees</code> в этой базе нет</td><td><code>$unionWith</code> добавляет коллекции той же базы; проверять имя коллекции и счёт документов</td></tr>
+              <tr><td>Стадия до <code>$unionWith</code> и ожидание, что она действует на обе коллекции</td><td>Стадии до <code>$unionWith</code> обрабатывают только основную коллекцию</td><td>Условие для второй коллекции — в её <code>pipeline</code> или общей стадией после <code>$unionWith</code></td></tr>
+              <tr><td>Документы двух коллекций с разными именами полей</td><td>У части документов поля нет, и группировка по нему даёт ключ <code>null</code></td><td>Привести поля к одним именам: <code>{"$project": {"title": "$position"}}</code> в <code>pipeline</code></td></tr>
+              <tr><td>Ожидание порядка без <code>$sort</code></td><td>Документы второй коллекции идут после документов первой; общий порядок не задан</td><td>Сортировать после <code>$unionWith</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unionWith": "employees"}</code> в базе <code>shop</code></td><td>Ошибки нет, документов не прибавилось: коллекции <code>employees</code> в этой базе нет</td><td><code>$unionWith</code> добавляет коллекции той же базы; проверять имя коллекции и счёт документов</td></tr>
+              <tr><td>Стадия до <code>$unionWith</code> и ожидание, что она действует на обе коллекции</td><td>Стадии до <code>$unionWith</code> обрабатывают только основную коллекцию</td><td>Условие для второй коллекции — в её <code>pipeline</code> или общей стадией после <code>$unionWith</code></td></tr>
+              <tr><td>Документы двух коллекций с разными именами полей</td><td>У части документов поля нет, и группировка по нему даёт ключ <code>null</code></td><td>Привести поля к одним именам: <code>{"$project": {"title": "$position"}}</code> в <code>pipeline</code></td></tr>
+              <tr><td>Ожидание порядка без <code>$sort</code></td><td>Документы второй коллекции идут после документов первой; общий порядок не задан</td><td>Сортировать после <code>$unionWith</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unionWith": "employees"}</code> в базе <code>shop</code></td><td>Ошибки нет, документов не прибавилось: коллекции <code>employees</code> в этой базе нет</td><td><code>$unionWith</code> добавляет коллекции той же базы; проверять имя коллекции и счёт документов</td></tr>
+              <tr><td>Стадия до <code>$unionWith</code> и ожидание, что она действует на обе коллекции</td><td>Стадии до <code>$unionWith</code> обрабатывают только основную коллекцию</td><td>Условие для второй коллекции — в её <code>pipeline</code> или общей стадией после <code>$unionWith</code></td></tr>
+              <tr><td>Документы двух коллекций с разными именами полей</td><td>У части документов поля нет, и группировка по нему даёт ключ <code>null</code></td><td>Привести поля к одним именам: <code>{"$project": {"title": "$position"}}</code> в <code>pipeline</code></td></tr>
+              <tr><td>Ожидание порядка без <code>$sort</code></td><td>Документы второй коллекции идут после документов первой; общий порядок не задан</td><td>Сортировать после <code>$unionWith</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$unionWith": "employees"}</code> в базе <code>shop</code></td><td>Ошибки нет, документов не прибавилось: коллекции <code>employees</code> в этой базе нет</td><td><code>$unionWith</code> добавляет коллекции той же базы; проверять имя коллекции и счёт документов</td></tr>
+              <tr><td>Стадия до <code>$unionWith</code> и ожидание, что она действует на обе коллекции</td><td>Стадии до <code>$unionWith</code> обрабатывают только основную коллекцию</td><td>Условие для второй коллекции — в её <code>pipeline</code> или общей стадией после <code>$unionWith</code></td></tr>
+              <tr><td>Документы двух коллекций с разными именами полей</td><td>У части документов поля нет, и группировка по нему даёт ключ <code>null</code></td><td>Привести поля к одним именам: <code>{"$project": {"title": "$position"}}</code> в <code>pipeline</code></td></tr>
+              <tr><td>Ожидание порядка без <code>$sort</code></td><td>Документы второй коллекции идут после документов первой; общий порядок не задан</td><td>Сортировать после <code>$unionWith</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Проверьте себя</h2>
+        <details>
+          <summary>Сколько документов будет после <code>$unionWith</code> коллекции из 9 документов, если в основном потоке 8?</summary>
+          <p>17: документы второй коллекции добавляются после документов основной.</p>
+        </details>
+        <details>
+          <summary>Как различить после объединения документы двух коллекций?</summary>
+          <p>Добавить каждому документу поле с источником до объединения: в основной коллекции — стадией <code>$project</code>, во второй — в её <code>pipeline</code>.</p>
+        </details>
+        <details>
+          <summary>Почему <code>$match</code> до <code>$unionWith</code> не отбирает документы второй коллекции?</summary>
+          <p>Стадии до <code>$unionWith</code> обрабатывают только основную коллекцию. Для второй условие ставят в её <code>pipeline</code> или после объединения.</p>
+        </details>
+        <details>
+          <summary>Чем <code>$unionWith</code> отличается от <code>$lookup</code>?</summary>
+          <p><code>$lookup</code> кладёт найденные документы в массив внутри каждого документа, и число документов не меняется. <code>$unionWith</code> добавляет документы в поток.</p>
+        </details>
+        <details>
+          <summary>Что произойдёт, если указать коллекцию из другой базы?</summary>
+          <p>Ничего не добавится и ошибки не будет: сервер ищет коллекцию с этим именем в текущей базе.</p>
+        </details>
+
+        <h2 id="s10"><span class="sec">§10</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch6_4</code>. Данные — базы <code>shop</code> и <code>hh</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Три коллекции</b>Посчитать по городу компании, вакансии и резюме, объединив три коллекции базы <code>hh</code>.</li>
+          <li><b>Ярославль</b>Объединить ярославские вакансии и резюме и посчитать документы по должности, по убыванию числа и по названию.</li>
+          <li><b>Самый дорогой и самый дешёвый товар</b>Одним запросом вывести название и цену самого дорогого и самого дешёвого товара магазина.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Три коллекции: Казань — 1, 1, 1; Москва — 3, 3, 1; Новосибирск — 0, 0, 1; Санкт-Петербург — 1, 1, 1; Ярославль — 3, 3, 5.</p>
+          <p>Ярославль: Junior Python-разработчик — 3; Backend-разработчик .NET, Backend-разработчик C#, Аналитик данных, Инженер сопровождения БД, Тестировщик — по 1.</p>
+          <p>Товары: Ноутбук Apple MacBook Air 13 — 114 990, Кабель USB-C 2 м — 790.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Добавить коллекцию</b>
+            <code>{"$unionWith": "resumes"}</code>
+          </div>
+          <div>
+            <b>С обработкой</b>
+            <code>{"$unionWith": {"coll": "resumes", "pipeline": [{"$project": {"_id": 0, "title": "$position"}}]}}</code>
+          </div>
+          <div>
+            <b>Отметить источник</b>
+            <code>{"$project": {"_id": 0, "city": 1, "kind": "вакансия"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Добавить коллекцию</b>
+            <code>make_document(kvp("$unionWith", "resumes"))</code>
+          </div>
+          <div>
+            <b>С обработкой</b>
+            <code>make_document(kvp("$unionWith", make_document(kvp("coll", "resumes"), kvp("pipeline", make_array(make_document(kvp("$project", make_document(kvp("_id", 0), kvp("title", "$position")))))))))</code>
+          </div>
+          <div>
+            <b>Отметить источник</b>
+            <code>make_document(kvp("$project", make_document(kvp("_id", 0), kvp("city", 1), kvp("kind", "вакансия"))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Добавить коллекцию</b>
+            <code>bson.D{{Key: "$unionWith", Value: "resumes"}}</code>
+          </div>
+          <div>
+            <b>С обработкой</b>
+            <code>bson.D{{Key: "$unionWith", Value: bson.D{{Key: "coll", Value: "resumes"}, {Key: "pipeline", Value: bson.A{bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: 0}, {Key: "title", Value: "$position"}}}}}}}}}</code>
+          </div>
+          <div>
+            <b>Отметить источник</b>
+            <code>bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: 0}, {Key: "city", Value: 1}, {Key: "kind", Value: "вакансия"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Добавить коллекцию</b>
+            <code>{ "$unionWith" =&gt; "resumes" }</code>
+          </div>
+          <div>
+            <b>С обработкой</b>
+            <code>{ "$unionWith" =&gt; { "coll" =&gt; "resumes", "pipeline" =&gt; [{ "$project" =&gt; { "_id" =&gt; 0, "title" =&gt; "$position" } }] } }</code>
+          </div>
+          <div>
+            <b>Отметить источник</b>
+            <code>{ "$project" =&gt; { "_id" =&gt; 0, "city" =&gt; 1, "kind" =&gt; "вакансия" } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$unionWith</code> добавляет в поток документы другой коллекции той же базы после документов основной; повторы не убираются. Конвейер в <code>pipeline</code> обрабатывает документы второй коллекции до объединения: отбирает, переименовывает поля, ставит отметку источника.</p>
+        <p>Стадии до <code>$unionWith</code> действуют только на основную коллекцию, после — на весь поток. Коллекцию можно объединить с ней самой, чтобы получить два среза одним запросом.</p>
+        <p>Коллекция, которой нет в базе, ничего не добавляет и ошибки не даёт; результат сверяют по числу документов.</p>
+
+        <div class="pager"><a href="../43-graphlookup/index.html">← 6.3 $graphLookup: иерархии</a><a href="../45-merge/index.html">6.5 $merge и $out →</a></div>
+
+        <div class="colophon">
+          <span>Глава 6.4 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

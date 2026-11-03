@@ -1,0 +1,1611 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>6.5 $merge и $out: результат конвейера в коллекцию · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ и найденная пара, таблицы, полосы. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 6 · Связи между коллекциями</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 6 · связи между коллекциями</p>
+          <p class="running__folio">6.5</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">6.5</span>
+          <h1>$merge и $out:<br>результат конвейера в коллекцию</h1>
+          <p class="lead">До этой главы результат конвейера уходил в программу и пропадал после её завершения. $merge и $out записывают его в коллекцию, которую потом читают обычным find. В главе разобрана витрина продаж по городам, повторный запуск с разными правилами для совпавших документов, накопление итогов, связь по своему полю и уникальный индекс, запрет повторов и полная замена коллекции стадией $out.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Средний</dd></div>
+          <div><dt>Связанные темы</dt><dd>$group (глава 4.4), $lookup (глава 6.1), уникальные индексы (глава 3.2), $set (глава 4.3), find и сортировка (главы 1.4 и 1.6)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Сохранять готовые отчёты в коллекцию-витрину, обновлять её новыми данными и не пересчитывать отчёт заново при каждом чтении</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава меняет песочницу. Перед началом верните базы в исходное состояние: <code>docker compose run --rm reset</code> или скрипт из <a href="../00-uchebnye-bazy/index.html#s6">главы 1.0, §6</a>.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-6.5-python.zip" download><code>mongodb-glava-6.5-python.zip</code></a>, 63 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-6.5-ruby.zip" download><code>mongodb-glava-6.5-ruby.zip</code></a>, 62 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-6.5-go.zip" download><code>mongodb-glava-6.5-go.zip</code></a>, 68 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-6.5-cpp.zip" download><code>mongodb-glava-6.5-cpp.zip</code></a>, 66 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch6_5.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch6_5.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch6_5.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch6_5.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch6_5.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch6_5.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch6_5.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch6_5.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch6_5.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch6_5.go</code> · в Docker: <code>docker compose run --rm go lessons/ch6_5.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch6_5.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch6_5.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Витрина: стадия $merge</a></li>
+            <li><a href="#s2">Повторный запуск: whenMatched</a></li>
+            <li><a href="#s3">Накопление итогов</a></li>
+            <li><a href="#s4">Связь по своему полю: on</a></li>
+            <li><a href="#s5">Только новые документы: fail</a></li>
+            <li><a href="#s6">Полная замена: $out</a></li>
+            <li><a href="#s7">$merge только в конце</a></li>
+            <li><a href="#s8">$merge в Compass</a></li>
+            <li><a href="#s9">Частые ошибки</a></li>
+            <li><a href="#s10">Проверьте себя</a></li>
+            <li><a href="#s11">Самостоятельная работа</a></li>
+            <li><a href="#s12">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Витрина: стадия $merge</h2>
+        <p>Руководитель каждое утро смотрит сводку продаж по городам. Если пересчитывать её по всем заказам при каждом просмотре, ждать приходится долго. Поэтому сводку считают один раз и вывешивают на доску, а при новых продажах дописывают.</p>
+        <p>Коллекция, где хранится заранее посчитанный отчёт, называется <span class="term">витриной</span>. Её документы читают обычным <code>find</code>, без конвейера. <span class="term">Стадия $merge</span> записывает результат конвейера в коллекцию: каждый документ потока добавляется в неё или сливается с документом, у которого тот же <code>_id</code>. Если коллекции нет, <code>$merge</code> её создаёт. Цель задаётся параметром <code>into</code>: <code>{"into": {"db": "sandbox", "coll": "city_sales"}}</code>. Без имени базы коллекция создаётся в той же базе, где выполняется конвейер, — для заказов это <code>shop</code>, поэтому в книге база указывается всегда.</p>
+        <p>Пример очищает песочницу от прошлого запуска, считает доставленные заказы и выручку по городам, записывает их в <code>sandbox.city_sales</code> и читает витрину <code>find</code> по возрастанию <code>_id</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$merge: витрина продаж по городам</span></figcaption>
+<pre>city_sales = sandbox[<span class="s">"city_sales"</span>]
+city_sales.<span class="f">drop</span>()
+
+showcase = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}}},
+]
+
+orders.<span class="f">aggregate</span>(showcase)
+
+<span class="k">for</span> doc <span class="k">in</span> city_sales.<span class="f">find</span>().<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$merge: витрина продаж по городам</span></figcaption>
+<pre><span class="k">auto</span> city_sales = sandbox[<span class="s">"city_sales"</span>];
+city_sales.<span class="f">drop</span>();
+
+mongocxx::pipeline showcase;
+showcase.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+showcase.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+showcase.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>)))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(showcase)) {}
+
+mongocxx::options::find opts;
+opts.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : city_sales.<span class="f">find</span>({}, opts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$merge: витрина продаж по городам</span></figcaption>
+<pre>citySales := sandbox.<span class="f">Collection</span>(<span class="s">"city_sales"</span>)
+citySales.<span class="f">Drop</span>(ctx)
+
+showcase := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}}}}},
+}
+
+orders.<span class="f">Aggregate</span>(ctx, showcase)
+
+cursor, _ := citySales.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$merge: витрина продаж по городам</span></figcaption>
+<pre>city_sales = sandbox[:city_sales]
+city_sales.drop
+
+showcase = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$merge"</span> =&gt; { <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> } } },
+]
+
+orders.<span class="f">aggregate</span>(showcase).to_a
+
+city_sales.find.<span class="f">sort</span>(_id: <span class="n">1</span>).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'Екатеринбург', 'orders': 16, 'revenue': 1390470}
+{'_id': 'Москва', 'orders': 12, 'revenue': 1387760}
+{'_id': 'Новосибирск', 'orders': 17, 'revenue': 2536840}
+{'_id': 'Санкт-Петербург', 'orders': 10, 'revenue': 1169540}
+{'_id': 'Ярославль', 'orders': 14, 'revenue': 2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "Екатеринбург", "orders" : 16, "revenue" : 1390470 }
+{ "_id" : "Москва", "orders" : 12, "revenue" : 1387760 }
+{ "_id" : "Новосибирск", "orders" : 17, "revenue" : 2536840 }
+{ "_id" : "Санкт-Петербург", "orders" : 10, "revenue" : 1169540 }
+{ "_id" : "Ярославль", "orders" : 14, "revenue" : 2048020 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"Екатеринбург","orders":16,"revenue":1390470}
+{"_id":"Москва","orders":12,"revenue":1387760}
+{"_id":"Новосибирск","orders":17,"revenue":2536840}
+{"_id":"Санкт-Петербург","orders":10,"revenue":1169540}
+{"_id":"Ярославль","orders":14,"revenue":2048020}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"Екатеринбург", "orders"=&gt;16, "revenue"=&gt;1390470}
+{"_id"=&gt;"Москва", "orders"=&gt;12, "revenue"=&gt;1387760}
+{"_id"=&gt;"Новосибирск", "orders"=&gt;17, "revenue"=&gt;2536840}
+{"_id"=&gt;"Санкт-Петербург", "orders"=&gt;10, "revenue"=&gt;1169540}
+{"_id"=&gt;"Ярославль", "orders"=&gt;14, "revenue"=&gt;2048020}</pre>
+        </figure>
+        <p>В витрине пять документов — по городу на документ. <code>_id</code> — название города: его задала группировка, и <code>$merge</code> записал документы как есть. Сам конвейер ничего не вернул программе: все документы ушли в коллекцию, поэтому витрину читает отдельный <code>find</code>.</p>
+        <p data-lang="ruby">В Ruby <code>aggregate</code> только описывает запрос; сервер выполняет его при чтении результата. Поэтому конвейер с <code>$merge</code> завершается вызовом <code>.to_a</code> — без него запись не произойдёт.</p>
+        <p data-lang="cpp">В C++ запрос выполняется при чтении курсора, который вернул <code>aggregate</code>. Поэтому конвейер с <code>$merge</code> запускается пустым циклом по курсору — без него запись не произойдёт.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Откуда и куда идут документы</span><span>shop.orders → sandbox.city_sales</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Шаг</th><th>Где</th><th>Документов</th></tr></thead>
+              <tbody>
+                <tr><td>$match · доставлен</td><td>shop.orders</td><td>120 → 69</td></tr>
+                <tr><td>$group · город</td><td>поток конвейера</td><td>69 → 5</td></tr>
+                <tr class="on"><td>$merge</td><td>sandbox.city_sales</td><td>5 записано, программе — 0</td></tr>
+                <tr><td>find</td><td>sandbox.city_sales</td><td>5 прочитано</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Конвейер читает одну базу, а пишет в другую. Заказы магазина не меняются.</p>
+        </div>
+
+        <h2 id="s2"><span class="sec">§2</span>Повторный запуск: whenMatched</h2>
+        <p>Когда <code>$merge</code> записывает документ, а в коллекции уже есть документ с тем же <code>_id</code>, действие задаёт параметр <span class="term">whenMatched</span>. По умолчанию — <code>"merge"</code>: поля нового документа дописываются в старый, совпадающие поля перезаписываются, остальные остаются. <code>"replace"</code> заменяет старый документ новым целиком. Параметр <span class="term">whenNotMatched</span> задаёт действие для документа без пары: <code>"insert"</code> (по умолчанию) добавляет его, <code>"discard"</code> отбрасывает.</p>
+        <p>Пример строит витрину из §1, затем дважды записывает в неё число заказов в пути по городам: сначала с <code>merge</code>, потом с <code>replace</code>. В обоих запусках <code>whenNotMatched</code> — <code>"discard"</code>: новых городов в витрину не добавлять.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>повторный запуск: whenMatched merge и replace</span></figcaption>
+<pre>city_sales = sandbox[<span class="s">"city_sales"</span>]
+city_sales.<span class="f">drop</span>()
+
+showcase = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}}},
+]
+
+add_transit = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"in_transit"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+    {<span class="s">"$merge"</span>: {
+        <span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>},
+        <span class="s">"whenMatched"</span>: <span class="s">"merge"</span>,
+        <span class="s">"whenNotMatched"</span>: <span class="s">"discard"</span>,
+    }},
+]
+
+replace_transit = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"в пути"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"in_transit"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+    {<span class="s">"$merge"</span>: {
+        <span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>},
+        <span class="s">"whenMatched"</span>: <span class="s">"replace"</span>,
+        <span class="s">"whenNotMatched"</span>: <span class="s">"discard"</span>,
+    }},
+]
+
+orders.<span class="f">aggregate</span>(showcase)
+
+<span class="f">print</span>(<span class="s">"── whenMatched merge: поле в пути добавлено"</span>)
+orders.<span class="f">aggregate</span>(add_transit)
+
+<span class="k">for</span> doc <span class="k">in</span> city_sales.<span class="f">find</span>().<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── whenMatched replace: документы заменены"</span>)
+orders.<span class="f">aggregate</span>(replace_transit)
+
+<span class="k">for</span> doc <span class="k">in</span> city_sales.<span class="f">find</span>().<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>повторный запуск: whenMatched merge и replace</span></figcaption>
+<pre><span class="k">auto</span> city_sales = sandbox[<span class="s">"city_sales"</span>];
+city_sales.<span class="f">drop</span>();
+
+mongocxx::pipeline showcase;
+showcase.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+showcase.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+showcase.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>)))))));
+
+mongocxx::pipeline add_transit;
+add_transit.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+add_transit.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"in_transit"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+add_transit.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>))),
+    <span class="f">kvp</span>(<span class="s">"whenMatched"</span>, <span class="s">"merge"</span>),
+    <span class="f">kvp</span>(<span class="s">"whenNotMatched"</span>, <span class="s">"discard"</span>)))));
+
+mongocxx::pipeline replace_transit;
+replace_transit.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"в пути"</span>)));
+replace_transit.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"in_transit"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+replace_transit.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>))),
+    <span class="f">kvp</span>(<span class="s">"whenMatched"</span>, <span class="s">"replace"</span>),
+    <span class="f">kvp</span>(<span class="s">"whenNotMatched"</span>, <span class="s">"discard"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(showcase)) {}
+
+std::cout &lt;&lt; <span class="s">"── whenMatched merge: поле в пути добавлено"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(add_transit)) {}
+
+mongocxx::options::find opts;
+opts.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : city_sales.<span class="f">find</span>({}, opts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── whenMatched replace: документы заменены"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(replace_transit)) {}
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : city_sales.<span class="f">find</span>({}, opts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>повторный запуск: whenMatched merge и replace</span></figcaption>
+<pre>citySales := sandbox.<span class="f">Collection</span>(<span class="s">"city_sales"</span>)
+citySales.<span class="f">Drop</span>(ctx)
+
+showcase := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}}}}},
+}
+
+addTransit := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"in_transit"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}},
+        {Key: <span class="s">"whenMatched"</span>, Value: <span class="s">"merge"</span>},
+        {Key: <span class="s">"whenNotMatched"</span>, Value: <span class="s">"discard"</span>}}}},
+}
+
+replaceTransit := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"в пути"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"in_transit"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}},
+        {Key: <span class="s">"whenMatched"</span>, Value: <span class="s">"replace"</span>},
+        {Key: <span class="s">"whenNotMatched"</span>, Value: <span class="s">"discard"</span>}}}},
+}
+
+orders.<span class="f">Aggregate</span>(ctx, showcase)
+
+fmt.<span class="f">Println</span>(<span class="s">"── whenMatched merge: поле в пути добавлено"</span>)
+orders.<span class="f">Aggregate</span>(ctx, addTransit)
+
+cursor, _ := citySales.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── whenMatched replace: документы заменены"</span>)
+orders.<span class="f">Aggregate</span>(ctx, replaceTransit)
+
+cursor, _ = citySales.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>повторный запуск: whenMatched merge и replace</span></figcaption>
+<pre>city_sales = sandbox[:city_sales]
+city_sales.drop
+
+showcase = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$merge"</span> =&gt; { <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> } } },
+]
+
+add_transit = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"in_transit"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+  { <span class="s">"$merge"</span> =&gt; {
+    <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> },
+    <span class="s">"whenMatched"</span> =&gt; <span class="s">"merge"</span>,
+    <span class="s">"whenNotMatched"</span> =&gt; <span class="s">"discard"</span>,
+  } },
+]
+
+replace_transit = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"в пути"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"in_transit"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+  { <span class="s">"$merge"</span> =&gt; {
+    <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> },
+    <span class="s">"whenMatched"</span> =&gt; <span class="s">"replace"</span>,
+    <span class="s">"whenNotMatched"</span> =&gt; <span class="s">"discard"</span>,
+  } },
+]
+
+orders.<span class="f">aggregate</span>(showcase).to_a
+
+<span class="k">puts</span> <span class="s">"── whenMatched merge: поле в пути добавлено"</span>
+orders.<span class="f">aggregate</span>(add_transit).to_a
+
+city_sales.find.<span class="f">sort</span>(_id: <span class="n">1</span>).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── whenMatched replace: документы заменены"</span>
+orders.<span class="f">aggregate</span>(replace_transit).to_a
+
+city_sales.find.<span class="f">sort</span>(_id: <span class="n">1</span>).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── whenMatched merge: поле в пути добавлено
+{'_id': 'Екатеринбург', 'orders': 16, 'revenue': 1390470, 'in_transit': 4}
+{'_id': 'Москва', 'orders': 12, 'revenue': 1387760, 'in_transit': 1}
+{'_id': 'Новосибирск', 'orders': 17, 'revenue': 2536840, 'in_transit': 5}
+{'_id': 'Санкт-Петербург', 'orders': 10, 'revenue': 1169540}
+{'_id': 'Ярославль', 'orders': 14, 'revenue': 2048020, 'in_transit': 3}
+── whenMatched replace: документы заменены
+{'_id': 'Екатеринбург', 'in_transit': 4}
+{'_id': 'Москва', 'in_transit': 1}
+{'_id': 'Новосибирск', 'in_transit': 5}
+{'_id': 'Санкт-Петербург', 'orders': 10, 'revenue': 1169540}
+{'_id': 'Ярославль', 'in_transit': 3}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── whenMatched merge: поле в пути добавлено
+{ "_id" : "Екатеринбург", "orders" : 16, "revenue" : 1390470, "in_transit" : 4 }
+{ "_id" : "Москва", "orders" : 12, "revenue" : 1387760, "in_transit" : 1 }
+{ "_id" : "Новосибирск", "orders" : 17, "revenue" : 2536840, "in_transit" : 5 }
+{ "_id" : "Санкт-Петербург", "orders" : 10, "revenue" : 1169540 }
+{ "_id" : "Ярославль", "orders" : 14, "revenue" : 2048020, "in_transit" : 3 }
+── whenMatched replace: документы заменены
+{ "_id" : "Екатеринбург", "in_transit" : 4 }
+{ "_id" : "Москва", "in_transit" : 1 }
+{ "_id" : "Новосибирск", "in_transit" : 5 }
+{ "_id" : "Санкт-Петербург", "orders" : 10, "revenue" : 1169540 }
+{ "_id" : "Ярославль", "in_transit" : 3 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── whenMatched merge: поле в пути добавлено
+{"_id":"Екатеринбург","orders":16,"revenue":1390470,"in_transit":4}
+{"_id":"Москва","orders":12,"revenue":1387760,"in_transit":1}
+{"_id":"Новосибирск","orders":17,"revenue":2536840,"in_transit":5}
+{"_id":"Санкт-Петербург","orders":10,"revenue":1169540}
+{"_id":"Ярославль","orders":14,"revenue":2048020,"in_transit":3}
+── whenMatched replace: документы заменены
+{"_id":"Екатеринбург","in_transit":4}
+{"_id":"Москва","in_transit":1}
+{"_id":"Новосибирск","in_transit":5}
+{"_id":"Санкт-Петербург","orders":10,"revenue":1169540}
+{"_id":"Ярославль","in_transit":3}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── whenMatched merge: поле в пути добавлено
+{"_id"=&gt;"Екатеринбург", "orders"=&gt;16, "revenue"=&gt;1390470, "in_transit"=&gt;4}
+{"_id"=&gt;"Москва", "orders"=&gt;12, "revenue"=&gt;1387760, "in_transit"=&gt;1}
+{"_id"=&gt;"Новосибирск", "orders"=&gt;17, "revenue"=&gt;2536840, "in_transit"=&gt;5}
+{"_id"=&gt;"Санкт-Петербург", "orders"=&gt;10, "revenue"=&gt;1169540}
+{"_id"=&gt;"Ярославль", "orders"=&gt;14, "revenue"=&gt;2048020, "in_transit"=&gt;3}
+── whenMatched replace: документы заменены
+{"_id"=&gt;"Екатеринбург", "in_transit"=&gt;4}
+{"_id"=&gt;"Москва", "in_transit"=&gt;1}
+{"_id"=&gt;"Новосибирск", "in_transit"=&gt;5}
+{"_id"=&gt;"Санкт-Петербург", "orders"=&gt;10, "revenue"=&gt;1169540}
+{"_id"=&gt;"Ярославль", "in_transit"=&gt;3}</pre>
+        </figure>
+        <p>После <code>merge</code> у четырёх городов появилось поле <code>in_transit</code>, а <code>orders</code> и <code>revenue</code> остались. У Санкт-Петербурга заказов в пути нет: в потоке не было документа для него, и витрина его не тронула. После <code>replace</code> у тех же четырёх городов осталось только <code>in_transit</code>: старые документы заменены новыми, в которых выручки нет.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Документ Новосибирска после каждого запуска</span><span>одна коллекция, три состояния</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Запуск</th><th>orders</th><th>revenue</th><th>in_transit</th></tr></thead>
+              <tbody>
+                <tr><td>витрина из §1</td><td>17</td><td>2536840</td><td>—</td></tr>
+                <tr class="on"><td>whenMatched: merge</td><td>17</td><td>2536840</td><td>5</td></tr>
+                <tr class="no"><td>whenMatched: replace</td><td>—</td><td>—</td><td>5</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note"><code>merge</code> дописывает поля, <code>replace</code> заменяет документ целиком. Документ Санкт-Петербурга не изменился ни разу: <code>$merge</code> трогает только те документы витрины, для которых в потоке есть пара.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Накопление итогов</h2>
+        <p>Вместо слова <code>whenMatched</code> может получить конвейер. Он обрабатывает старый документ витрины, а новый документ доступен в нём как переменная <code>$$new</code>. Так новые числа прибавляют к старым, а не записывают поверх. Пример строит витрину из §1 и прибавляет к ней заказы, которые собираются.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>whenMatched с конвейером: прибавить новые заказы</span></figcaption>
+<pre>city_sales = sandbox[<span class="s">"city_sales"</span>]
+city_sales.<span class="f">drop</span>()
+
+showcase = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}}},
+]
+
+add_assembling = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"собирается"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$merge"</span>: {
+        <span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>},
+        <span class="s">"whenMatched"</span>: [
+            {<span class="s">"$set"</span>: {
+                <span class="s">"orders"</span>: {<span class="s">"$add"</span>: [<span class="s">"$orders"</span>, <span class="s">"$$new.orders"</span>]},
+                <span class="s">"revenue"</span>: {<span class="s">"$add"</span>: [<span class="s">"$revenue"</span>, <span class="s">"$$new.revenue"</span>]},
+            }},
+        ],
+    }},
+]
+
+orders.<span class="f">aggregate</span>(showcase)
+
+<span class="f">print</span>(<span class="s">"── прибавлены заказы, которые собираются"</span>)
+orders.<span class="f">aggregate</span>(add_assembling)
+
+<span class="k">for</span> doc <span class="k">in</span> city_sales.<span class="f">find</span>().<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>whenMatched с конвейером: прибавить новые заказы</span></figcaption>
+<pre><span class="k">auto</span> city_sales = sandbox[<span class="s">"city_sales"</span>];
+city_sales.<span class="f">drop</span>();
+
+mongocxx::pipeline showcase;
+showcase.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+showcase.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+showcase.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>)))))));
+
+mongocxx::pipeline add_assembling;
+add_assembling.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"собирается"</span>)));
+add_assembling.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+add_assembling.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>))),
+    <span class="f">kvp</span>(<span class="s">"whenMatched"</span>, <span class="f">make_array</span>(
+        <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"$set"</span>, <span class="f">make_document</span>(
+                <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$add"</span>, <span class="f">make_array</span>(<span class="s">"$orders"</span>, <span class="s">"$$new.orders"</span>)))),
+                <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$add"</span>, <span class="f">make_array</span>(<span class="s">"$revenue"</span>, <span class="s">"$$new.revenue"</span>)))))))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(showcase)) {}
+
+std::cout &lt;&lt; <span class="s">"── прибавлены заказы, которые собираются"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(add_assembling)) {}
+
+mongocxx::options::find opts;
+opts.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : city_sales.<span class="f">find</span>({}, opts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>whenMatched с конвейером: прибавить новые заказы</span></figcaption>
+<pre>citySales := sandbox.<span class="f">Collection</span>(<span class="s">"city_sales"</span>)
+citySales.<span class="f">Drop</span>(ctx)
+
+showcase := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}}}}},
+}
+
+addAssembling := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"собирается"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}},
+        {Key: <span class="s">"whenMatched"</span>, Value: bson.A{
+            bson.D{
+                {Key: <span class="s">"$set"</span>, Value: bson.D{
+                    {Key: <span class="s">"orders"</span>, Value: bson.D{
+                        {Key: <span class="s">"$add"</span>, Value: bson.A{<span class="s">"$orders"</span>, <span class="s">"$$new.orders"</span>}}}},
+                    {Key: <span class="s">"revenue"</span>, Value: bson.D{
+                        {Key: <span class="s">"$add"</span>, Value: bson.A{<span class="s">"$revenue"</span>, <span class="s">"$$new.revenue"</span>}}}}}}}}}}}},
+}
+
+orders.<span class="f">Aggregate</span>(ctx, showcase)
+
+fmt.<span class="f">Println</span>(<span class="s">"── прибавлены заказы, которые собираются"</span>)
+orders.<span class="f">Aggregate</span>(ctx, addAssembling)
+
+cursor, _ := citySales.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>whenMatched с конвейером: прибавить новые заказы</span></figcaption>
+<pre>city_sales = sandbox[:city_sales]
+city_sales.drop
+
+showcase = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$merge"</span> =&gt; { <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> } } },
+]
+
+add_assembling = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"собирается"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$merge"</span> =&gt; {
+    <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> },
+    <span class="s">"whenMatched"</span> =&gt; [
+      { <span class="s">"$set"</span> =&gt; {
+        <span class="s">"orders"</span> =&gt; { <span class="s">"$add"</span> =&gt; [<span class="s">"$orders"</span>, <span class="s">"$$new.orders"</span>] },
+        <span class="s">"revenue"</span> =&gt; { <span class="s">"$add"</span> =&gt; [<span class="s">"$revenue"</span>, <span class="s">"$$new.revenue"</span>] },
+      } },
+    ],
+  } },
+]
+
+orders.<span class="f">aggregate</span>(showcase).to_a
+
+<span class="k">puts</span> <span class="s">"── прибавлены заказы, которые собираются"</span>
+orders.<span class="f">aggregate</span>(add_assembling).to_a
+
+city_sales.find.<span class="f">sort</span>(_id: <span class="n">1</span>).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── прибавлены заказы, которые собираются
+{'_id': 'Екатеринбург', 'orders': 20, 'revenue': 2154700}
+{'_id': 'Москва', 'orders': 13, 'revenue': 1459950}
+{'_id': 'Новосибирск', 'orders': 25, 'revenue': 3512320}
+{'_id': 'Санкт-Петербург', 'orders': 12, 'revenue': 1512460}
+{'_id': 'Ярославль', 'orders': 17, 'revenue': 2742570}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── прибавлены заказы, которые собираются
+{ "_id" : "Екатеринбург", "orders" : 20, "revenue" : 2154700 }
+{ "_id" : "Москва", "orders" : 13, "revenue" : 1459950 }
+{ "_id" : "Новосибирск", "orders" : 25, "revenue" : 3512320 }
+{ "_id" : "Санкт-Петербург", "orders" : 12, "revenue" : 1512460 }
+{ "_id" : "Ярославль", "orders" : 17, "revenue" : 2742570 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── прибавлены заказы, которые собираются
+{"_id":"Екатеринбург","orders":20,"revenue":2154700}
+{"_id":"Москва","orders":13,"revenue":1459950}
+{"_id":"Новосибирск","orders":25,"revenue":3512320}
+{"_id":"Санкт-Петербург","orders":12,"revenue":1512460}
+{"_id":"Ярославль","orders":17,"revenue":2742570}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── прибавлены заказы, которые собираются
+{"_id"=&gt;"Екатеринбург", "orders"=&gt;20, "revenue"=&gt;2154700}
+{"_id"=&gt;"Москва", "orders"=&gt;13, "revenue"=&gt;1459950}
+{"_id"=&gt;"Новосибирск", "orders"=&gt;25, "revenue"=&gt;3512320}
+{"_id"=&gt;"Санкт-Петербург", "orders"=&gt;12, "revenue"=&gt;1512460}
+{"_id"=&gt;"Ярославль", "orders"=&gt;17, "revenue"=&gt;2742570}</pre>
+        </figure>
+        <p>У Новосибирска было 17 заказов на 2 536 840, стало 25 на 3 512 320: прибавились 8 собираемых заказов. У каждого города <code>orders</code> и <code>revenue</code> выросли на число и сумму его собираемых заказов. <code>$set</code> внутри конвейера — та же стадия, что в главе 4.3; <code>"$orders"</code> в нём — поле старого документа витрины, <code>"$$new.orders"</code> — поле нового.</p>
+        <p>Так обновляют витрину по частям: каждый день записывают итоги только за этот день, не пересчитывая все заказы.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Связь по своему полю: on</h2>
+        <p>По умолчанию <code>$merge</code> ищет пару по <code>_id</code>. Параметр <span class="term">on</span> задаёт другое поле, например <code>city</code>. Тогда серверу нужна гарантия, что в коллекции-цели значение этого поля встречается не больше одного раза, — уникальный индекс из главы 3.2. Пример записывает в <code>sandbox.city_stats</code> документы с полем <code>city</code> без <code>_id</code>: сначала без индекса, затем создаёт уникальный индекс и повторяет запись.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>поле on: связь по city и уникальный индекс</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+city_stats = sandbox[<span class="s">"city_stats"</span>]
+city_stats.<span class="f">drop</span>()
+
+by_city_name = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"city"</span>: <span class="s">"$_id"</span>, <span class="s">"orders"</span>: <span class="n">1</span>}},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_stats"</span>}, <span class="s">"on"</span>: <span class="s">"city"</span>}},
+]
+
+<span class="f">print</span>(<span class="s">"── on: city без индекса"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(by_city_name):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── on: city с уникальным индексом"</span>)
+city_stats.<span class="f">create_index</span>(<span class="s">"city"</span>, unique=<span class="k">True</span>)
+orders.<span class="f">aggregate</span>(by_city_name)
+<span class="k">for</span> doc <span class="k">in</span> city_stats.<span class="f">find</span>({}, {<span class="s">"_id"</span>: <span class="n">0</span>}).<span class="f">sort</span>(<span class="s">"city"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>поле on: связь по city и уникальный индекс</span></figcaption>
+<pre><span class="k">auto</span> city_stats = sandbox[<span class="s">"city_stats"</span>];
+city_stats.<span class="f">drop</span>();
+
+mongocxx::pipeline by_city_name;
+by_city_name.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+by_city_name.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+by_city_name.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"city"</span>, <span class="s">"$_id"</span>), <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="n">1</span>)));
+by_city_name.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_stats"</span>))),
+    <span class="f">kvp</span>(<span class="s">"on"</span>, <span class="s">"city"</span>)))));
+
+std::cout &lt;&lt; <span class="s">"── on: city без индекса"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_city_name)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── on: city с уникальным индексом"</span> &lt;&lt; std::endl;
+mongocxx::options::index unique;
+unique.<span class="f">unique</span>(<span class="k">true</span>);
+city_stats.<span class="f">create_index</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>)), unique);
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(by_city_name)) {}
+mongocxx::options::find opts;
+opts.<span class="f">projection</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>)));
+opts.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"city"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : city_stats.<span class="f">find</span>({}, opts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>поле on: связь по city и уникальный индекс</span></figcaption>
+<pre>cityStats := sandbox.<span class="f">Collection</span>(<span class="s">"city_stats"</span>)
+cityStats.<span class="f">Drop</span>(ctx)
+
+byCityName := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"city"</span>, Value: <span class="s">"$_id"</span>},
+        {Key: <span class="s">"orders"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_stats"</span>}}},
+        {Key: <span class="s">"on"</span>, Value: <span class="s">"city"</span>}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── on: city без индекса"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, byCityName)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── on: city с уникальным индексом"</span>)
+cityStats.<span class="f">Indexes</span>().<span class="f">CreateOne</span>(ctx, mongo.IndexModel{
+    Keys:    bson.D{{Key: <span class="s">"city"</span>, Value: <span class="n">1</span>}},
+    Options: options.<span class="f">Index</span>().<span class="f">SetUnique</span>(<span class="k">true</span>),
+})
+orders.<span class="f">Aggregate</span>(ctx, byCityName)
+opts := options.<span class="f">Find</span>().<span class="f">SetProjection</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>}}).<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"city"</span>, Value: <span class="n">1</span>}})
+cursor, _ := cityStats.<span class="f">Find</span>(ctx, bson.D{}, opts)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>поле on: связь по city и уникальный индекс</span></figcaption>
+<pre>city_stats = sandbox[:city_stats]
+city_stats.drop
+
+by_city_name = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"city"</span> =&gt; <span class="s">"$_id"</span>, <span class="s">"orders"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$merge"</span> =&gt; {
+    <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_stats"</span> },
+    <span class="s">"on"</span> =&gt; <span class="s">"city"</span>,
+  } },
+]
+
+<span class="k">puts</span> <span class="s">"── on: city без индекса"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(by_city_name).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── on: city с уникальным индексом"</span>
+city_stats.indexes.<span class="f">create_one</span>({ city: <span class="n">1</span> }, unique: <span class="k">true</span>)
+orders.<span class="f">aggregate</span>(by_city_name).to_a
+city_stats.find.<span class="f">projection</span>(_id: <span class="n">0</span>).<span class="f">sort</span>(city: <span class="n">1</span>).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── on: city без индекса
+код 51183
+Cannot find index to verify that join fields will be unique
+── on: city с уникальным индексом
+{'city': 'Екатеринбург', 'orders': 16}
+{'city': 'Москва', 'orders': 12}
+{'city': 'Новосибирск', 'orders': 17}
+{'city': 'Санкт-Петербург', 'orders': 10}
+{'city': 'Ярославль', 'orders': 14}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── on: city без индекса
+код 51183
+Cannot find index to verify that join fields will be unique: server error code 51183: generic server error
+── on: city с уникальным индексом
+{ "city" : "Екатеринбург", "orders" : 16 }
+{ "city" : "Москва", "orders" : 12 }
+{ "city" : "Новосибирск", "orders" : 17 }
+{ "city" : "Санкт-Петербург", "orders" : 10 }
+{ "city" : "Ярославль", "orders" : 14 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── on: city без индекса
+код 51183
+Cannot find index to verify that join fields will be unique
+── on: city с уникальным индексом
+{"city":"Екатеринбург","orders":16}
+{"city":"Москва","orders":12}
+{"city":"Новосибирск","orders":17}
+{"city":"Санкт-Петербург","orders":10}
+{"city":"Ярославль","orders":14}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── on: city без индекса
+код 51183
+Cannot find index to verify that join fields will be unique
+── on: city с уникальным индексом
+{"city"=&gt;"Екатеринбург", "orders"=&gt;16}
+{"city"=&gt;"Москва", "orders"=&gt;12}
+{"city"=&gt;"Новосибирск", "orders"=&gt;17}
+{"city"=&gt;"Санкт-Петербург", "orders"=&gt;10}
+{"city"=&gt;"Ярославль", "orders"=&gt;14}</pre>
+        </figure>
+        <p>Без индекса — ошибка 51183: сервер не может проверить, что <code>city</code> однозначно указывает на документ. С уникальным индексом по <code>city</code> запись прошла, в коллекции пять документов. Каждому документу сервер выдал новый <code>_id</code> — в выводе он скрыт, потому что меняется от запуска к запуску.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>Только новые документы: fail</h2>
+        <p>Значение <code>"whenMatched": "fail"</code> запрещает перезаписывать документы: если пара нашлась, запись останавливается с ошибкой. Так защищают данные, которые записываются один раз, например итоги закрытого месяца. Пример строит витрину и запускает тот же конвейер второй раз с <code>fail</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>whenMatched fail: запись только новых документов</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+city_sales = sandbox[<span class="s">"city_sales"</span>]
+city_sales.<span class="f">drop</span>()
+
+showcase = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}}},
+]
+
+again_fail = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"_id"</span>: <span class="n">1</span>}},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}, <span class="s">"whenMatched"</span>: <span class="s">"fail"</span>}},
+]
+
+orders.<span class="f">aggregate</span>(showcase)
+
+<span class="f">print</span>(<span class="s">"── повторный запуск с fail"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(again_fail):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>whenMatched fail: запись только новых документов</span></figcaption>
+<pre><span class="k">auto</span> city_sales = sandbox[<span class="s">"city_sales"</span>];
+city_sales.<span class="f">drop</span>();
+
+mongocxx::pipeline showcase;
+showcase.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+showcase.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+showcase.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>)))))));
+
+mongocxx::pipeline again_fail;
+again_fail.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+again_fail.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+again_fail.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+again_fail.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>))),
+    <span class="f">kvp</span>(<span class="s">"whenMatched"</span>, <span class="s">"fail"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(showcase)) {}
+
+std::cout &lt;&lt; <span class="s">"── повторный запуск с fail"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(again_fail)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>whenMatched fail: запись только новых документов</span></figcaption>
+<pre>citySales := sandbox.<span class="f">Collection</span>(<span class="s">"city_sales"</span>)
+citySales.<span class="f">Drop</span>(ctx)
+
+showcase := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}}}}},
+}
+
+againFail := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}},
+        {Key: <span class="s">"whenMatched"</span>, Value: <span class="s">"fail"</span>}}}},
+}
+
+orders.<span class="f">Aggregate</span>(ctx, showcase)
+
+fmt.<span class="f">Println</span>(<span class="s">"── повторный запуск с fail"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, againFail)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>whenMatched fail: запись только новых документов</span></figcaption>
+<pre>city_sales = sandbox[:city_sales]
+city_sales.drop
+
+showcase = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$merge"</span> =&gt; { <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> } } },
+]
+
+again_fail = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">1</span> } },
+  { <span class="s">"$merge"</span> =&gt; {
+    <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> },
+    <span class="s">"whenMatched"</span> =&gt; <span class="s">"fail"</span>,
+  } },
+]
+
+orders.<span class="f">aggregate</span>(showcase).to_a
+
+<span class="k">puts</span> <span class="s">"── повторный запуск с fail"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(again_fail).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── повторный запуск с fail
+код 11000
+PlanExecutor error during aggregation :: caused by :: $merge with whenMatched: fail found an existing document with the same values for the 'on' fields :: caused by :: E11000 duplicate key error collection: sandbox.city_sales index: _id_ dup key: { _id: "Екатеринбург" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── повторный запуск с fail
+код 11000
+PlanExecutor error during aggregation :: caused by :: $merge with whenMatched: fail found an existing document with the same values for the 'on' fields :: caused by :: E11000 duplicate key error collection: sandbox.city_sales index: _id_ dup key: { _id: "Екатеринбург" }: server error code 11000: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── повторный запуск с fail
+код 11000
+PlanExecutor error during aggregation :: caused by :: $merge with whenMatched: fail found an existing document with the same values for the 'on' fields :: caused by :: E11000 duplicate key error collection: sandbox.city_sales index: _id_ dup key: { _id: "Екатеринбург" }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── повторный запуск с fail
+код 11000
+PlanExecutor error during aggregation :: caused by :: $merge with whenMatched: fail found an existing document with the same values for the 'on' fields :: caused by :: E11000 duplicate key error collection: sandbox.city_sales index: _id_ dup key: { _id: "Екатеринбург" }</pre>
+        </figure>
+        <p>Во втором конвейере перед <code>$merge</code> стоит <code>$sort</code>: города записываются по алфавиту, и ошибка всегда возникает на первом из них — Екатеринбурге. Второй запуск дал ошибку 11000 — та же ошибка повтора ключа, что при вставке документа с занятым <code>_id</code> в главе 1.3. Документы, записанные до ошибки, остаются в коллекции: <code>$merge</code> не откатывает уже сделанную запись.</p>
+
+        <h2 id="s6"><span class="sec">§6</span>Полная замена: $out</h2>
+        <p><span class="term">Стадия $out</span> тоже записывает результат в коллекцию, но по-другому: коллекция-цель заменяется целиком. Старые документы удаляются, остаются только новые. Пример строит витрину из §1, затем записывает стадией <code>$out</code> в ту же коллекцию число отменённых заказов по городам.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$out: коллекция заменяется целиком</span></figcaption>
+<pre>city_sales = sandbox[<span class="s">"city_sales"</span>]
+city_sales.<span class="f">drop</span>()
+
+showcase = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}}},
+]
+
+cancelled = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"отменён"</span>}},
+    {<span class="s">"$group"</span>: {<span class="s">"_id"</span>: <span class="s">"$delivery.city"</span>, <span class="s">"cancelled"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>}}},
+    {<span class="s">"$out"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"city_sales"</span>}},
+]
+
+orders.<span class="f">aggregate</span>(showcase)
+
+<span class="f">print</span>(<span class="s">"── после $out: отменённые заказы по городам"</span>)
+orders.<span class="f">aggregate</span>(cancelled)
+
+<span class="k">for</span> doc <span class="k">in</span> city_sales.<span class="f">find</span>().<span class="f">sort</span>(<span class="s">"_id"</span>, <span class="n">1</span>):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$out: коллекция заменяется целиком</span></figcaption>
+<pre><span class="k">auto</span> city_sales = sandbox[<span class="s">"city_sales"</span>];
+city_sales.<span class="f">drop</span>();
+
+mongocxx::pipeline showcase;
+showcase.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+showcase.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+showcase.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>)))))));
+
+mongocxx::pipeline cancelled;
+cancelled.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"отменён"</span>)));
+cancelled.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$delivery.city"</span>),
+    <span class="f">kvp</span>(<span class="s">"cancelled"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>)))));
+cancelled.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$out"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>),
+    <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"city_sales"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(showcase)) {}
+
+std::cout &lt;&lt; <span class="s">"── после $out: отменённые заказы по городам"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(cancelled)) {}
+
+mongocxx::options::find opts;
+opts.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">1</span>)));
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : city_sales.<span class="f">find</span>({}, opts)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$out: коллекция заменяется целиком</span></figcaption>
+<pre>citySales := sandbox.<span class="f">Collection</span>(<span class="s">"city_sales"</span>)
+citySales.<span class="f">Drop</span>(ctx)
+
+showcase := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{
+            {Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>},
+            {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}}}}},
+}
+
+cancelled := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"отменён"</span>}}}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$delivery.city"</span>},
+        {Key: <span class="s">"cancelled"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}}}}},
+    {{Key: <span class="s">"$out"</span>, Value: bson.D{{Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>}, {Key: <span class="s">"coll"</span>, Value: <span class="s">"city_sales"</span>}}}},
+}
+
+orders.<span class="f">Aggregate</span>(ctx, showcase)
+
+fmt.<span class="f">Println</span>(<span class="s">"── после $out: отменённые заказы по городам"</span>)
+orders.<span class="f">Aggregate</span>(ctx, cancelled)
+
+cursor, _ := citySales.<span class="f">Find</span>(ctx, bson.D{}, options.<span class="f">Find</span>().<span class="f">SetSort</span>(bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="n">1</span>}}))
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$out: коллекция заменяется целиком</span></figcaption>
+<pre>city_sales = sandbox[:city_sales]
+city_sales.drop
+
+showcase = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$merge"</span> =&gt; { <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> } } },
+]
+
+cancelled = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"отменён"</span> } },
+  { <span class="s">"$group"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"$delivery.city"</span>, <span class="s">"cancelled"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> } } },
+  { <span class="s">"$out"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"city_sales"</span> } },
+]
+
+orders.<span class="f">aggregate</span>(showcase).to_a
+
+<span class="k">puts</span> <span class="s">"── после $out: отменённые заказы по городам"</span>
+orders.<span class="f">aggregate</span>(cancelled).to_a
+
+city_sales.find.<span class="f">sort</span>(_id: <span class="n">1</span>).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── после $out: отменённые заказы по городам
+{'_id': 'Екатеринбург', 'cancelled': 4}
+{'_id': 'Москва', 'cancelled': 4}
+{'_id': 'Новосибирск', 'cancelled': 5}
+{'_id': 'Санкт-Петербург', 'cancelled': 6}
+{'_id': 'Ярославль', 'cancelled': 1}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── после $out: отменённые заказы по городам
+{ "_id" : "Екатеринбург", "cancelled" : 4 }
+{ "_id" : "Москва", "cancelled" : 4 }
+{ "_id" : "Новосибирск", "cancelled" : 5 }
+{ "_id" : "Санкт-Петербург", "cancelled" : 6 }
+{ "_id" : "Ярославль", "cancelled" : 1 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── после $out: отменённые заказы по городам
+{"_id":"Екатеринбург","cancelled":4}
+{"_id":"Москва","cancelled":4}
+{"_id":"Новосибирск","cancelled":5}
+{"_id":"Санкт-Петербург","cancelled":6}
+{"_id":"Ярославль","cancelled":1}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── после $out: отменённые заказы по городам
+{"_id"=&gt;"Екатеринбург", "cancelled"=&gt;4}
+{"_id"=&gt;"Москва", "cancelled"=&gt;4}
+{"_id"=&gt;"Новосибирск", "cancelled"=&gt;5}
+{"_id"=&gt;"Санкт-Петербург", "cancelled"=&gt;6}
+{"_id"=&gt;"Ярославль", "cancelled"=&gt;1}</pre>
+        </figure>
+        <p>В коллекции пять документов, у каждого только поле <code>cancelled</code>: выручки и числа доставленных заказов больше нет. <code>$merge</code> с <code>replace</code> заменил бы только совпавшие документы, <code>$out</code> заменил всю коллекцию. <code>$out</code> подходит, когда отчёт каждый раз пересчитывается полностью; когда витрину обновляют по частям — <code>$merge</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>$merge и $out</span><span>что остаётся в коллекции</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Стадия</th><th>Документы с парой</th><th>Документы без пары в потоке</th><th>Остальные документы коллекции</th></tr></thead>
+              <tbody>
+                <tr><td>$merge, merge</td><td>поля дописываются</td><td>вставляются</td><td>остаются</td></tr>
+                <tr><td>$merge, replace</td><td>заменяются</td><td>вставляются</td><td>остаются</td></tr>
+                <tr><td>$merge, fail</td><td>ошибка 11000</td><td>вставляются</td><td>остаются</td></tr>
+                <tr class="no"><td>$out</td><td colspan="2">коллекция = результат конвейера</td><td>удаляются</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Строки <code>$merge</code> — при <code>whenNotMatched: "insert"</code>, значении по умолчанию.</p>
+        </div>
+
+        <h2 id="s7"><span class="sec">§7</span>$merge только в конце</h2>
+        <p>После записи в коллекцию в потоке ничего не остаётся, поэтому <code>$merge</code> и <code>$out</code> — всегда последняя стадия.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$merge не последней стадией</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+not_last = [
+    {<span class="s">"$merge"</span>: {<span class="s">"into"</span>: {<span class="s">"db"</span>: <span class="s">"sandbox"</span>, <span class="s">"coll"</span>: <span class="s">"tmp"</span>}}},
+    {<span class="s">"$limit"</span>: <span class="n">1</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $merge перед $limit"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(not_last):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$merge не последней стадией</span></figcaption>
+<pre>mongocxx::pipeline not_last;
+not_last.<span class="f">append_stage</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$merge"</span>, <span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"into"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"sandbox"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"tmp"</span>)))))));
+not_last.<span class="f">limit</span>(<span class="n">1</span>);
+
+std::cout &lt;&lt; <span class="s">"── $merge перед $limit"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(not_last)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$merge не последней стадией</span></figcaption>
+<pre>notLast := mongo.Pipeline{
+    {{Key: <span class="s">"$merge"</span>, Value: bson.D{
+        {Key: <span class="s">"into"</span>, Value: bson.D{{Key: <span class="s">"db"</span>, Value: <span class="s">"sandbox"</span>}, {Key: <span class="s">"coll"</span>, Value: <span class="s">"tmp"</span>}}}}}},
+    {{Key: <span class="s">"$limit"</span>, Value: <span class="n">1</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $merge перед $limit"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, notLast)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$merge не последней стадией</span></figcaption>
+<pre>not_last = [
+  { <span class="s">"$merge"</span> =&gt; { <span class="s">"into"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"sandbox"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"tmp"</span> } } },
+  { <span class="s">"$limit"</span> =&gt; <span class="n">1</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $merge перед $limit"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(not_last).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $merge перед $limit
+код 40601
+$merge can only be the final stage in the pipeline</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $merge перед $limit
+код 40601
+$merge can only be the final stage in the pipeline: server error code 40601: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $merge перед $limit
+код 40601
+$merge can only be the final stage in the pipeline</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $merge перед $limit
+код 40601
+$merge can only be the final stage in the pipeline</pre>
+        </figure>
+        <p>Ошибка 40601: <code>$merge</code> может стоять только в конце конвейера. Сервер проверяет это при разборе запроса, до чтения документов, — ни одного документа не записано.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>$merge в Compass</h2>
+        <p>На кадре — конвейер из §1 на вкладке <b>Aggregations</b> коллекции <code>shop.orders</code>: <code>$match</code>, <code>$group</code> и <code>$merge</code> в коллекцию песочницы.</p>
+        <figure class="shot">
+          <img src="../../shots/167-orders-merge.png" alt="Compass, вкладка Aggregations коллекции shop.orders: последняя стадия $merge в sandbox.city_sales, вместо образца документов — пояснение о записи">
+          <figcaption>Compass · стадия <code>$merge</code> в конце конвейера</figcaption>
+        </figure>
+        <p>Под стадией <code>$group</code> — <b>Sample of 5 documents</b>, пять городов с числом заказов и выручкой. У стадии <code>$merge</code> образца документов нет. Вместо него Compass пишет <b>Documents will be saved to sandbox.city_sales</b> и поясняет, что <code>$merge</code> сохранит результат в указанную коллекцию. Предпросмотр запись не выполняет — она произойдёт только при запуске конвейера кнопкой <b>Run</b>. Пока конвейер собирается, данные не меняются.</p>
+
+        <h2 id="s9"><span class="sec">§9</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$merge": "city_sales"}</code> в конвейере по <code>shop.orders</code></td><td>Коллекция создаётся в базе <code>shop</code>, рядом с заказами: имя без базы — коллекция той же базы</td><td>Указывать базу явно: <code>{"into": {"db": "sandbox", "coll": "city_sales"}}</code></td></tr>
+              <tr><td><code>"on": "city"</code> без индекса</td><td>Ошибка 51183: сервер не может проверить, что значение <code>city</code> одно на документ</td><td>Создать уникальный индекс по полю <code>on</code> до запуска</td></tr>
+              <tr><td><code>$merge</code> не последней стадией</td><td>Ошибка 40601: после записи стадий быть не может</td><td>Ставить <code>$merge</code> и <code>$out</code> в конец конвейера</td></tr>
+              <tr><td><code>$out</code> для обновления витрины</td><td>Коллекция заменяется целиком: документы и поля, которых нет в новом результате, пропадают</td><td><code>$merge</code> с подходящим <code>whenMatched</code>, если нужно обновить часть документов</td></tr>
+              <tr><td><code>"whenMatched": "fail"</code> при повторном запуске</td><td>Ошибка 11000 на первом совпавшем документе; документы, записанные до неё, остаются</td><td><code>fail</code> — для данных, которые точно новые; для повторных запусков — <code>merge</code> или <code>replace</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$merge": "city_sales"}</code> в конвейере по <code>shop.orders</code></td><td>Коллекция создаётся в базе <code>shop</code>, рядом с заказами: имя без базы — коллекция той же базы</td><td>Указывать базу явно: <code>{"into": {"db": "sandbox", "coll": "city_sales"}}</code></td></tr>
+              <tr><td><code>"on": "city"</code> без индекса</td><td>Ошибка 51183: сервер не может проверить, что значение <code>city</code> одно на документ</td><td>Создать уникальный индекс по полю <code>on</code> до запуска</td></tr>
+              <tr><td><code>$merge</code> не последней стадией</td><td>Ошибка 40601: после записи стадий быть не может</td><td>Ставить <code>$merge</code> и <code>$out</code> в конец конвейера</td></tr>
+              <tr><td><code>$out</code> для обновления витрины</td><td>Коллекция заменяется целиком: документы и поля, которых нет в новом результате, пропадают</td><td><code>$merge</code> с подходящим <code>whenMatched</code>, если нужно обновить часть документов</td></tr>
+              <tr><td><code>"whenMatched": "fail"</code> при повторном запуске</td><td>Ошибка 11000 на первом совпавшем документе; документы, записанные до неё, остаются</td><td><code>fail</code> — для данных, которые точно новые; для повторных запусков — <code>merge</code> или <code>replace</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$merge": "city_sales"}</code> в конвейере по <code>shop.orders</code></td><td>Коллекция создаётся в базе <code>shop</code>, рядом с заказами: имя без базы — коллекция той же базы</td><td>Указывать базу явно: <code>{"into": {"db": "sandbox", "coll": "city_sales"}}</code></td></tr>
+              <tr><td><code>"on": "city"</code> без индекса</td><td>Ошибка 51183: сервер не может проверить, что значение <code>city</code> одно на документ</td><td>Создать уникальный индекс по полю <code>on</code> до запуска</td></tr>
+              <tr><td><code>$merge</code> не последней стадией</td><td>Ошибка 40601: после записи стадий быть не может</td><td>Ставить <code>$merge</code> и <code>$out</code> в конец конвейера</td></tr>
+              <tr><td><code>$out</code> для обновления витрины</td><td>Коллекция заменяется целиком: документы и поля, которых нет в новом результате, пропадают</td><td><code>$merge</code> с подходящим <code>whenMatched</code>, если нужно обновить часть документов</td></tr>
+              <tr><td><code>"whenMatched": "fail"</code> при повторном запуске</td><td>Ошибка 11000 на первом совпавшем документе; документы, записанные до неё, остаются</td><td><code>fail</code> — для данных, которые точно новые; для повторных запусков — <code>merge</code> или <code>replace</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>{"$merge": "city_sales"}</code> в конвейере по <code>shop.orders</code></td><td>Коллекция создаётся в базе <code>shop</code>, рядом с заказами: имя без базы — коллекция той же базы</td><td>Указывать базу явно: <code>{"into": {"db": "sandbox", "coll": "city_sales"}}</code></td></tr>
+              <tr><td><code>"on": "city"</code> без индекса</td><td>Ошибка 51183: сервер не может проверить, что значение <code>city</code> одно на документ</td><td>Создать уникальный индекс по полю <code>on</code> до запуска</td></tr>
+              <tr><td><code>$merge</code> не последней стадией</td><td>Ошибка 40601: после записи стадий быть не может</td><td>Ставить <code>$merge</code> и <code>$out</code> в конец конвейера</td></tr>
+              <tr><td><code>$out</code> для обновления витрины</td><td>Коллекция заменяется целиком: документы и поля, которых нет в новом результате, пропадают</td><td><code>$merge</code> с подходящим <code>whenMatched</code>, если нужно обновить часть документов</td></tr>
+              <tr><td><code>"whenMatched": "fail"</code> при повторном запуске</td><td>Ошибка 11000 на первом совпавшем документе; документы, записанные до неё, остаются</td><td><code>fail</code> — для данных, которые точно новые; для повторных запусков — <code>merge</code> или <code>replace</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s10"><span class="sec">§10</span>Проверьте себя</h2>
+        <details>
+          <summary>Что вернёт программе конвейер, который заканчивается <code>$merge</code>?</summary>
+          <p>Ничего: документы записаны в коллекцию. Чтобы их увидеть, коллекцию читают <code>find</code>.</p>
+        </details>
+        <details>
+          <summary>Чем <code>whenMatched: "merge"</code> отличается от <code>"replace"</code>?</summary>
+          <p><code>merge</code> дописывает поля нового документа в старый, остальные поля старого остаются. <code>replace</code> заменяет старый документ новым целиком.</p>
+        </details>
+        <details>
+          <summary>Как прибавить новые числа к числам в витрине?</summary>
+          <p>Записать в <code>whenMatched</code> конвейер: <code>[{"$set": {"orders": {"$add": ["$orders", "$$new.orders"]}}}]</code>.</p>
+        </details>
+        <details>
+          <summary>Что нужно, чтобы <code>$merge</code> искал пару по полю <code>city</code>?</summary>
+          <p>Параметр <code>"on": "city"</code> и уникальный индекс по <code>city</code> в коллекции-цели, иначе ошибка 51183.</p>
+        </details>
+        <details>
+          <summary>Когда выбирают <code>$out</code>, а когда <code>$merge</code>?</summary>
+          <p><code>$out</code> — когда отчёт каждый раз пересчитывается полностью и коллекцию можно заменить. <code>$merge</code> — когда витрину обновляют по частям и старые документы нужно сохранить.</p>
+        </details>
+
+        <h2 id="s11"><span class="sec">§11</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch6_5</code>. Писать — только в базу <code>sandbox</code>; перед началом верните базы в исходное состояние.</p>
+        <ol class="steps">
+          <li><b>Витрина категорий</b>Записать в <code>sandbox.category_sales</code> по категории число позиций и выручку доставленных заказов (<code>$unwind</code> по <code>items</code>, выручка — <code>qty × price</code>). Прочитать витрину по возрастанию <code>_id</code>.</li>
+          <li><b>Позиции в пути</b>Дописать в ту же витрину поле <code>in_transit</code> — число позиций в заказах в пути — через <code>$merge</code> с <code>whenMatched: "merge"</code>.</li>
+          <li><b>Проверка</b>Убедиться, что поля <code>lines</code> и <code>revenue</code> после второго шага не изменились.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Витрина категорий: аксессуары — 21 позиция, 92 950; комплектующие — 29, 623 040; ноутбуки — 36, 4 448 230; периферия — 32, 802 490; смартфоны — 33, 2 565 920.</p>
+          <p>Позиции в пути: аксессуары — 2, комплектующие — 6, ноутбуки — 8, периферия — 9, смартфоны — 7.</p>
+        </details>
+
+        <h2 id="s12"><span class="sec">§12</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Записать результат</b>
+            <code>{"$merge": {"into": {"db": "sandbox", "coll": "city_sales"}}}</code>
+          </div>
+          <div>
+            <b>Что делать с совпавшими</b>
+            <code>{"whenMatched": "merge", "whenNotMatched": "discard"}</code>
+          </div>
+          <div>
+            <b>Прибавить к старому</b>
+            <code>{"whenMatched": [{"$set": {"orders": {"$add": ["$orders", "$$new.orders"]}}}]}</code>
+          </div>
+          <div>
+            <b>Заменить коллекцию</b>
+            <code>{"$out": {"db": "sandbox", "coll": "city_sales"}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Записать результат</b>
+            <code>make_document(kvp("$merge", make_document(kvp("into", make_document(kvp("db", "sandbox"), kvp("coll", "city_sales"))))))</code>
+          </div>
+          <div>
+            <b>Что делать с совпавшими</b>
+            <code>make_document(kvp("whenMatched", "merge"), kvp("whenNotMatched", "discard"))</code>
+          </div>
+          <div>
+            <b>Прибавить к старому</b>
+            <code>make_document(kvp("whenMatched", make_array(make_document(kvp("$set", make_document(kvp("orders", make_document(kvp("$add", make_array("$orders", "$$new.orders"))))))))))</code>
+          </div>
+          <div>
+            <b>Заменить коллекцию</b>
+            <code>make_document(kvp("$out", make_document(kvp("db", "sandbox"), kvp("coll", "city_sales"))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Записать результат</b>
+            <code>bson.D{{Key: "$merge", Value: bson.D{{Key: "into", Value: bson.D{{Key: "db", Value: "sandbox"}, {Key: "coll", Value: "city_sales"}}}}}}</code>
+          </div>
+          <div>
+            <b>Что делать с совпавшими</b>
+            <code>bson.D{{Key: "whenMatched", Value: "merge"}, {Key: "whenNotMatched", Value: "discard"}}</code>
+          </div>
+          <div>
+            <b>Прибавить к старому</b>
+            <code>bson.D{{Key: "whenMatched", Value: bson.A{bson.D{{Key: "$set", Value: bson.D{{Key: "orders", Value: bson.D{{Key: "$add", Value: bson.A{"$orders", "$$new.orders"}}}}}}}}}}</code>
+          </div>
+          <div>
+            <b>Заменить коллекцию</b>
+            <code>bson.D{{Key: "$out", Value: bson.D{{Key: "db", Value: "sandbox"}, {Key: "coll", Value: "city_sales"}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Записать результат</b>
+            <code>{ "$merge" =&gt; { "into" =&gt; { "db" =&gt; "sandbox", "coll" =&gt; "city_sales" } } }</code>
+          </div>
+          <div>
+            <b>Что делать с совпавшими</b>
+            <code>{ "whenMatched" =&gt; "merge", "whenNotMatched" =&gt; "discard" }</code>
+          </div>
+          <div>
+            <b>Прибавить к старому</b>
+            <code>{ "whenMatched" =&gt; [{ "$set" =&gt; { "orders" =&gt; { "$add" =&gt; ["$orders", "$$new.orders"] } } }] }</code>
+          </div>
+          <div>
+            <b>Заменить коллекцию</b>
+            <code>{ "$out" =&gt; { "db" =&gt; "sandbox", "coll" =&gt; "city_sales" } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$merge</code> записывает документы конвейера в коллекцию <code>into</code> и создаёт её при необходимости. Пару документ ищет по <code>_id</code> или по полю <code>on</code> с уникальным индексом. <code>whenMatched</code> решает, что делать с совпавшим документом: дописать поля, заменить, оставить, остановиться с ошибкой или выполнить конвейер с переменной <code>$$new</code>; <code>whenNotMatched</code> — вставить новый документ или отбросить.</p>
+        <p><code>$out</code> заменяет коллекцию целиком результатом конвейера. Обе стадии стоят только в конце конвейера и ничего не возвращают программе; результат читают из коллекции.</p>
+        <p>Базу цели указывают явно: без неё коллекция создаётся в той базе, где выполняется конвейер.</p>
+
+        <div class="pager"><a href="../44-unionwith/index.html">← 6.4 $unionWith</a><a href="../../index.html">Оглавление →</a></div>
+
+        <div class="colophon">
+          <span>Глава 6.5 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>

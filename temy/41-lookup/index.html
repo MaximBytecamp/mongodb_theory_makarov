@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F1EFE6">
+  <title>6.1 $lookup: соединение коллекций · Справочник по MongoDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,600;0,7..72,700;1,7..72,400&family=Pixelify+Sans:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+  <script>
+    /* Язык драйвера проставляется до отрисовки: иначе при загрузке мелькает Python. */
+    try { document.documentElement.dataset.lang = localStorage.getItem('mongodb-book-lang') || 'python'; } catch (e) {}
+    /* Система — до отрисовки по той же причине; без сохранённого выбора определяется по браузеру. */
+    (function () {
+      var os = null;
+      try { os = localStorage.getItem('mongodb-book-os'); } catch (e) {}
+      if (!os) {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        os = /win/i.test(p) ? 'win' : /mac|iphone|ipad/i.test(p) ? 'mac' : 'linux';
+      }
+      document.documentElement.dataset.os = os;
+    })();
+  </script>
+  <style>
+    .steps { counter-reset: step; margin: 18px 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; margin: 0 0 12px; padding: 12px 16px 12px 52px; border: 2px solid var(--ink); background: var(--page); }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 11px; width: 26px; height: 26px; display: grid; place-items: center; background: var(--ink); color: var(--leaf-bright); font: 700 13px/1 var(--mono); }
+    .steps > li > b:first-child { display: block; margin-bottom: 3px; }
+    /* Схемы главы: документ и найденная пара, таблицы, полосы. */
+    .scheme { margin: 20px 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--page); }
+    .scheme__body { padding: 14px 16px 10px; overflow-x: auto; }
+    .scheme__note { margin: 0; padding: 9px 16px 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+    .pipeline__stage em { font: 500 12.5px/1.45 var(--mono); text-transform: none; letter-spacing: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .split b { display: block; margin-bottom: 6px; font: 600 12.5px/1.4 var(--mono); }
+    .split__arrow { font: 700 13px/1.3 var(--mono); color: var(--leaf); white-space: nowrap; }
+    .split__arrow::after { content: " →"; }
+    .split .card { display: grid; margin: 0 0 8px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--paper); font: 400 12.5px/1.55 var(--mono); }
+    .split .card .in { padding-left: 14px; }
+    .on1 { background: #C8EEDA; } .on2 { background: #E4DDF5; } .on3 { background: #F7E2D4; }
+    table.mt { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--mono); background: transparent; }
+    table.mt th { padding: 5px 8px; text-align: left; font: 600 12px/1.4 var(--mono); letter-spacing: 0; text-transform: none; background: transparent; border-bottom: 2px solid var(--ink); }
+    table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.mt tr.on td { background: var(--leaf-pale); font-weight: 700; }
+    table.mt tr.no td { background: var(--clay-pale); }
+    table.mt td.ok { color: var(--leaf); font-weight: 700; }
+    table.mt td.bad { color: var(--clay); font-weight: 700; }
+    .dist { display: grid; gap: 7px; }
+    .dist > div { display: grid; grid-template-columns: 230px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font: 400 12.5px/1.3 var(--mono); }
+    .dist i { display: block; height: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .dist i b { display: block; height: 100%; background: var(--ink-faint); }
+    .dist i b.on { background: var(--leaf-bright); }
+    .dist > div > span:last-child { text-align: right; font-weight: 700; }
+    .arr { display: flex; flex-wrap: wrap; gap: 0; font: 400 12.5px/1.4 var(--mono); }
+    .arr__cell { display: grid; grid-template-rows: auto 1fr auto; min-width: 150px; flex: 1 1 150px; border: 2px solid var(--ink); margin: 0 -2px 0 0; background: var(--paper); text-align: center; }
+    .arr__cell i { font: 700 12px/1.6 var(--mono); font-style: normal; color: var(--ink-soft); background: var(--page); }
+    .arr__cell i:first-child { border-bottom: 1px solid var(--rule); }
+    .arr__cell i:last-child { border-top: 1px solid var(--rule); color: var(--clay); }
+    .arr__cell span { padding: 8px 8px; }
+    .arr__cell.on1 span { background: #C8EEDA; } .arr__cell.on2 span { background: #E4DDF5; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .split__arrow { justify-self: center; } .split__arrow::after { content: " ↓"; } }
+    @media (max-width: 560px) { table.mt { font-size: 12px; } table.mt th, table.mt td { padding: 4px 5px; } .dist > div { grid-template-columns: 1fr 76px; } .dist > div > span:first-child { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="book">
+    <div class="book__body">
+      <div class="spine"><span>Модуль 6 · Связи между коллекциями</span></div>
+
+      <main class="leaf">
+        <div class="running">
+          <p class="eyebrow"><a href="../../index.html" style="text-decoration:none;color:inherit">Справочник по MongoDB</a> · модуль 6 · связи между коллекциями</p>
+          <p class="running__folio">6.1</p>
+        </div>
+
+        <header class="chapter-head">
+          <span class="chapter-num">6.1</span>
+          <h1>$lookup: соединение<br>коллекций</h1>
+          <p class="lead">Глава открывает модуль о связях между коллекциями. $lookup находит для каждого документа связанные документы другой коллекции и кладёт их в массив. В главе разобраны связи «один к одному» и «один ко многим», документы без пары, $unwind после $lookup и массив в поле связи. Отдельно показаны две записи, которые сервер принимает без ошибки, но которые дают неверный результат.</p>
+        </header>
+
+        <dl class="passport">
+          <div><dt>Категория</dt><dd>Агрегация</dd></div>
+          <div><dt>Уровень</dt><dd>Начальный</dd></div>
+          <div><dt>Связанные темы</dt><dd>$unwind (глава 4.6), $group (глава 4.4), $size и $map (главы 5.1 и 5.3), вложенные документы и ссылки (глава 1.2)</dd></div>
+          <div><dt>Зачем это знать</dt><dd>Собирать в одном ответе данные, которые хранятся в разных коллекциях: покупателя рядом с заказом, вакансии рядом с компанией</dd></div>
+        </dl>
+
+        <div class="runbox">
+          <p class="runbox__head">Как запускать примеры этой главы</p>
+          <div class="runbox__row"><b>Базы</b><span>Глава только читает данные — сбрасывать базы не нужно.</span></div>
+          <div class="runbox__row"><b>Архив</b><span><span data-lang="python"><a href="primery/mongodb-glava-6.1-python.zip" download><code>mongodb-glava-6.1-python.zip</code></a>, 63 КБ</span><span data-lang="ruby"><a href="primery/mongodb-glava-6.1-ruby.zip" download><code>mongodb-glava-6.1-ruby.zip</code></a>, 63 КБ</span><span data-lang="go"><a href="primery/mongodb-glava-6.1-go.zip" download><code>mongodb-glava-6.1-go.zip</code></a>, 70 КБ</span><span data-lang="cpp"><a href="primery/mongodb-glava-6.1-cpp.zip" download><code>mongodb-glava-6.1-cpp.zip</code></a>, 68 КБ</span> — все примеры главы готовыми программами, базы и стенд в Docker. В <code>README.md</code> — запуск в Docker, если Compass нет или он не подключается, и на установленном сервере с Compass, а также что должна напечатать каждая программа.</span></div>
+          <div class="runbox__row"><b>Файл</b><span><span data-lang="python"><code>lessons/ch6_1.py</code> — пример вставляется в конец файла</span><span data-lang="ruby"><code>lessons/ch6_1.rb</code> — пример вставляется в конец файла</span><span data-lang="go"><code>lessons/ch6_1.go</code> — пример внутрь скобок в конце <code>main</code>, функции и типы — выше <code>main</code></span><span data-lang="cpp"><code>lessons/ch6_1.cpp</code> — пример внутрь скобок в конце <code>main</code>, функции — выше <code>main</code></span></span></div>
+          <div class="runbox__row"><b>Запуск</b><span><span data-lang="python"><span data-os="win"><code>cd lessons</code>, затем <code>python ch6_1.py</code></span><span data-os="mac linux"><code>cd lessons</code>, затем <code>python3 ch6_1.py</code></span> · в Docker: <code>docker compose run --rm python lessons/ch6_1.py</code></span><span data-lang="ruby"><code>cd lessons</code>, затем <code>ruby ch6_1.rb</code> · в Docker: <code>docker compose run --rm ruby lessons/ch6_1.rb</code></span><span data-lang="go"><code>cd lessons</code>, затем <code>go run ch6_1.go</code> · в Docker: <code>docker compose run --rm go lessons/ch6_1.go</code></span><span data-lang="cpp"><span data-os="mac"><code>cd lessons</code>, затем <code>g++ -std=c++17 ch6_1.cpp -o prog $(pkg-config --cflags --libs libmongocxx1) &amp;&amp; ./prog</code> · </span>в Docker: <code>docker compose run --rm cpp lessons/ch6_1.cpp</code></span></span></div>
+          <div class="runbox__row"><b>Порядок</b><span>Каждый пример вставляется вместо предыдущего и запускается один раз, по порядку, — так получены все выводы главы. Подробно — <a href="../00-uchebnye-bazy/index.html#s10">глава 1.0, §10</a>.</span></div>
+        </div>
+
+        <nav class="contents">
+          <b>В этой главе</b>
+          <ol>
+            <li><a href="#s1">Стадия $lookup</a></li>
+            <li><a href="#s2">Документ вместо массива: $unwind</a></li>
+            <li><a href="#s3">Один ко многим</a></li>
+            <li><a href="#s4">Документы без пары</a></li>
+            <li><a href="#s5">$unwind и документы без пары</a></li>
+            <li><a href="#s6">Массив в localField</a></li>
+            <li><a href="#s7">Опечатка в from</a></li>
+            <li><a href="#s8">Поле связи отсутствует</a></li>
+            <li><a href="#s9">Записи, которые сервер не принимает</a></li>
+            <li><a href="#s10">$lookup в Compass</a></li>
+            <li><a href="#s11">Частые ошибки</a></li>
+            <li><a href="#s12">Проверьте себя</a></li>
+            <li><a href="#s13">Самостоятельная работа</a></li>
+            <li><a href="#s14">Шпаргалка</a></li>
+          </ol>
+        </nav>
+
+        <h2 id="s1"><span class="sec">§1</span>Стадия $lookup</h2>
+        <p>На бланке заказа записан не адрес покупателя, а номер его карточки: c-007. Чтобы узнать имя и город, оператор берёт картотеку покупателей и находит карточку с этим номером.</p>
+        <p>В магазине так устроены заказы и покупатели. Заказ хранит поле <code>customer_id</code>, а имя, город и сегмент покупателя лежат в коллекции <code>customers</code>, в документе с тем же <code>_id</code>. Такая связь называется <span class="term">ссылкой</span>: документ хранит не сами данные, а значение, по которому их можно найти. До этой главы каждый запрос работал с одной коллекцией, и данные по ссылке приходилось искать вторым запросом.</p>
+        <p><span class="term">Стадия $lookup</span> делает поиск по ссылке внутри конвейера. Для каждого документа потока она находит в другой коллекции документы с подходящим значением поля и добавляет их массивом в новое поле. Четыре параметра:</p>
+        <figure class="code" data-run="no">
+          <figcaption><span>Запись стадии</span><span>четыре параметра</span></figcaption>
+<pre>{<span class="s">"$lookup"</span>: {<span class="s">"from"</span>: <span class="s">"customers"</span>, <span class="s">"localField"</span>: <span class="s">"customer_id"</span>, <span class="s">"foreignField"</span>: <span class="s">"_id"</span>, <span class="s">"as"</span>: <span class="s">"customer"</span>}}</pre>
+        </figure>
+        <p><code>from</code> — коллекция, где искать. <code>localField</code> — поле документа потока, значение которого ищется. <code>foreignField</code> — поле документов из <code>from</code>, с которым значение сравнивается на равенство. <code>as</code> — имя нового поля для найденных документов. Пример находит покупателя заказа 2026-0002.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$lookup: покупатель заказа</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"customers"</span>,
+        <span class="s">"localField"</span>: <span class="s">"customer_id"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"customer"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"number"</span>: <span class="n">1</span>,
+        <span class="s">"customer_id"</span>: <span class="n">1</span>,
+        <span class="s">"customer.name"</span>: <span class="n">1</span>,
+        <span class="s">"customer.city"</span>: <span class="n">1</span>,
+        <span class="s">"customer.segment"</span>: <span class="n">1</span>,
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$lookup: покупатель заказа</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"customers"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"customer_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"customer"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"customer_id"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"customer.name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"customer.city"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"customer.segment"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$lookup: покупатель заказа</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"customers"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"customer_id"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"customer"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"customer_id"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"customer.name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"customer.city"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"customer.segment"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$lookup: покупатель заказа</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"customers"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"customer_id"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"customer"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"number"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"customer_id"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"customer.name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"customer.city"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"customer.segment"</span> =&gt; <span class="n">1</span>,
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0002', 'customer_id': 'c-007', 'customer': [{'name': 'Елена Круглова', 'city': 'Новосибирск', 'segment': 'постоянный'}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0002", "customer_id" : "c-007", "customer" : [ { "name" : "Елена Круглова", "city" : "Новосибирск", "segment" : "постоянный" } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0002","customer_id":"c-007","customer":[{"name":"Елена Круглова","city":"Новосибирск","segment":"постоянный"}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0002", "customer_id"=&gt;"c-007", "customer"=&gt;[{"name"=&gt;"Елена Круглова", "city"=&gt;"Новосибирск", "segment"=&gt;"постоянный"}]}</pre>
+        </figure>
+        <p>У заказа появилось поле <code>customer</code> — массив из одного документа: Елена Круглова из Новосибирска, сегмент «постоянный». Массив, а не документ, потому что <code>$lookup</code> не знает заранее, сколько документов найдётся: ноль, один или много. Проекция оставила у найденного документа три поля, как у вложенного документа в главе 4.2.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Поиск по ссылке для заказа 2026-0002</span><span>orders → customers</span></div>
+          <div class="scheme__body">
+            <div class="split">
+              <div><b>shop.orders</b>
+                <div class="card"><span>number: 2026-0002</span><span class="on1">customer_id: c-007</span><span>status, items, total …</span></div>
+              </div>
+              <div class="split__arrow">localField = foreignField</div>
+              <div><b>shop.customers</b>
+                <div class="card"><span class="on1">_id: c-007</span><span>name: Елена Круглова</span><span>city: Новосибирск</span><span>segment: постоянный</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="scheme__note">Сервер берёт значение <code>customer_id</code> у заказа и ищет в <code>customers</code> документы, у которых <code>_id</code> равно ему. Все найденные документы попадают в массив <code>customer</code>. Документ заказа при этом остаётся один.</p>
+        </div>
+        <p>В SQL такая операция называется <span class="term">левым внешним соединением</span> (LEFT JOIN): каждый документ потока остаётся, даже если пары не нашлось. Отличие от SQL — в форме результата: строки таблиц не склеиваются, найденные документы вкладываются массивом.</p>
+
+        <h2 id="s2"><span class="sec">§2</span>Документ вместо массива: $unwind</h2>
+        <p>Когда пара всегда одна, массив из одного элемента неудобен: к полю покупателя приходится обращаться через массив. Стадия <code>$unwind</code> из главы 4.6 превращает такой массив во вложенный документ — из одного документа с массивом из одного элемента получается один документ. Дальше к сегменту покупателя можно обращаться путём <code>"$customer.segment"</code>.</p>
+        <p>Пример считает выручку доставленных заказов по сегментам покупателей. Сегмента в заказе нет, он есть только у покупателя, поэтому без соединения такой отчёт не собрать.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>выручка по сегментам покупателей</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"status"</span>: <span class="s">"доставлен"</span>}},
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"customers"</span>,
+        <span class="s">"localField"</span>: <span class="s">"customer_id"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"customer"</span>,
+    }},
+    {<span class="s">"$unwind"</span>: <span class="s">"$customer"</span>},
+    {<span class="s">"$group"</span>: {
+        <span class="s">"_id"</span>: <span class="s">"$customer.segment"</span>,
+        <span class="s">"orders"</span>: {<span class="s">"$sum"</span>: <span class="n">1</span>},
+        <span class="s">"revenue"</span>: {<span class="s">"$sum"</span>: <span class="s">"$total"</span>},
+    }},
+    {<span class="s">"$sort"</span>: {<span class="s">"revenue"</span>: -<span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>выручка по сегментам покупателей</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"status"</span>, <span class="s">"доставлен"</span>)));
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"customers"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"customer_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"customer"</span>)));
+pipeline.<span class="f">unwind</span>(<span class="s">"$customer"</span>);
+pipeline.<span class="f">group</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"$customer.segment"</span>),
+    <span class="f">kvp</span>(<span class="s">"orders"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="n">1</span>))),
+    <span class="f">kvp</span>(<span class="s">"revenue"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$sum"</span>, <span class="s">"$total"</span>)))));
+pipeline.<span class="f">sort</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"revenue"</span>, -<span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>выручка по сегментам покупателей</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"status"</span>, Value: <span class="s">"доставлен"</span>}}}},
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"customers"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"customer_id"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"customer"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$customer"</span>}},
+    {{Key: <span class="s">"$group"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="s">"$customer.segment"</span>},
+        {Key: <span class="s">"orders"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="n">1</span>}}},
+        {Key: <span class="s">"revenue"</span>, Value: bson.D{{Key: <span class="s">"$sum"</span>, Value: <span class="s">"$total"</span>}}}}}},
+    {{Key: <span class="s">"$sort"</span>, Value: bson.D{{Key: <span class="s">"revenue"</span>, Value: -<span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>выручка по сегментам покупателей</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"status"</span> =&gt; <span class="s">"доставлен"</span> } },
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"customers"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"customer_id"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"customer"</span>,
+  } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$customer"</span> },
+  { <span class="s">"$group"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="s">"$customer.segment"</span>,
+    <span class="s">"orders"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="n">1</span> },
+    <span class="s">"revenue"</span> =&gt; { <span class="s">"$sum"</span> =&gt; <span class="s">"$total"</span> },
+  } },
+  { <span class="s">"$sort"</span> =&gt; { <span class="s">"revenue"</span> =&gt; -<span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'постоянный', 'orders': 33, 'revenue': 4252190}
+{'_id': 'vip', 'orders': 30, 'revenue': 3791840}
+{'_id': 'новый', 'orders': 6, 'revenue': 488600}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "постоянный", "orders" : 33, "revenue" : 4252190 }
+{ "_id" : "vip", "orders" : 30, "revenue" : 3791840 }
+{ "_id" : "новый", "orders" : 6, "revenue" : 488600 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"постоянный","orders":33,"revenue":4252190}
+{"_id":"vip","orders":30,"revenue":3791840}
+{"_id":"новый","orders":6,"revenue":488600}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"постоянный", "orders"=&gt;33, "revenue"=&gt;4252190}
+{"_id"=&gt;"vip", "orders"=&gt;30, "revenue"=&gt;3791840}
+{"_id"=&gt;"новый", "orders"=&gt;6, "revenue"=&gt;488600}</pre>
+        </figure>
+        <p>Постоянные покупатели принесли 4 252 190 за 33 доставленных заказа, vip — 3 791 840 за 30, новые — 488 600 за 6. Вместе 69 заказов, как в главе 4.4: <code>$unwind</code> не потерял и не размножил заказы, потому что у каждого заказа ровно один покупатель.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Выручка доставленных заказов по сегментам</span><span>69 заказов · 8 532 630</span></div>
+          <div class="scheme__body">
+            <div class="dist">
+              <div><span>постоянный · 33 заказа</span><i><b class="on" style="width:100%"></b></i><span>4252190</span></div>
+              <div><span>vip · 30 заказов</span><i><b class="on" style="width:89.2%"></b></i><span>3791840</span></div>
+              <div><span>новый · 6 заказов</span><i><b class="on" style="width:11.5%"></b></i><span>488600</span></div>
+            </div>
+          </div>
+          <p class="scheme__note">Порядок стадий: <code>$match</code> по заказам, затем <code>$lookup</code>. Так сервер ищет покупателей только для 69 доставленных заказов, а не для всех 120.</p>
+        </div>
+
+        <h2 id="s3"><span class="sec">§3</span>Один ко многим</h2>
+        <p>Связь можно пройти и в обратную сторону: от покупателя к его заказам. Тогда <code>localField</code> — <code>_id</code> покупателя, а <code>foreignField</code> — <code>customer_id</code> заказа. У одного покупателя заказов несколько, и массив получает несколько документов. Пример выводит для трёх покупателей число заказов и их номера.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>покупатель и все его заказы</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: {<span class="s">"$in"</span>: [<span class="s">"c-001"</span>, <span class="s">"c-007"</span>, <span class="s">"c-020"</span>]}}},
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"orders"</span>,
+        <span class="s">"localField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"customer_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"orders"</span>,
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"name"</span>: <span class="n">1</span>, <span class="s">"count"</span>: {<span class="s">"$size"</span>: <span class="s">"$orders"</span>}, <span class="s">"numbers"</span>: <span class="s">"$orders.number"</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>покупатель и все его заказы</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$in"</span>, <span class="f">make_array</span>(<span class="s">"c-001"</span>, <span class="s">"c-007"</span>, <span class="s">"c-020"</span>))))));
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"orders"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"customer_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"orders"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$orders"</span>))),
+    <span class="f">kvp</span>(<span class="s">"numbers"</span>, <span class="s">"$orders.number"</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>покупатель и все его заказы</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: bson.D{{Key: <span class="s">"$in"</span>, Value: bson.A{<span class="s">"c-001"</span>, <span class="s">"c-007"</span>, <span class="s">"c-020"</span>}}}}}}},
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"orders"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"customer_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"orders"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$orders"</span>}}},
+        {Key: <span class="s">"numbers"</span>, Value: <span class="s">"$orders.number"</span>}}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>покупатель и все его заказы</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; { <span class="s">"$in"</span> =&gt; [<span class="s">"c-001"</span>, <span class="s">"c-007"</span>, <span class="s">"c-020"</span>] } } },
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"orders"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"customer_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"orders"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"count"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$orders"</span> },
+    <span class="s">"numbers"</span> =&gt; <span class="s">"$orders.number"</span>,
+  } },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'_id': 'c-001', 'name': 'Анна Белова', 'count': 5, 'numbers': ['2026-0012', '2026-0035', '2026-0055', '2026-0059', '2026-0086']}
+{'_id': 'c-007', 'name': 'Елена Круглова', 'count': 8, 'numbers': ['2026-0002', '2026-0003', '2026-0036', '2026-0056', '2026-0064', '2026-0085', '2026-0095', '2026-0117']}
+{'_id': 'c-020', 'name': 'Егор Мельник', 'count': 2, 'numbers': ['2026-0010', '2026-0092']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "_id" : "c-001", "name" : "Анна Белова", "count" : 5, "numbers" : [ "2026-0012", "2026-0035", "2026-0055", "2026-0059", "2026-0086" ] }
+{ "_id" : "c-007", "name" : "Елена Круглова", "count" : 8, "numbers" : [ "2026-0002", "2026-0003", "2026-0036", "2026-0056", "2026-0064", "2026-0085", "2026-0095", "2026-0117" ] }
+{ "_id" : "c-020", "name" : "Егор Мельник", "count" : 2, "numbers" : [ "2026-0010", "2026-0092" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id":"c-001","name":"Анна Белова","count":5,"numbers":["2026-0012","2026-0035","2026-0055","2026-0059","2026-0086"]}
+{"_id":"c-007","name":"Елена Круглова","count":8,"numbers":["2026-0002","2026-0003","2026-0036","2026-0056","2026-0064","2026-0085","2026-0095","2026-0117"]}
+{"_id":"c-020","name":"Егор Мельник","count":2,"numbers":["2026-0010","2026-0092"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"_id"=&gt;"c-001", "name"=&gt;"Анна Белова", "count"=&gt;5, "numbers"=&gt;["2026-0012", "2026-0035", "2026-0055", "2026-0059", "2026-0086"]}
+{"_id"=&gt;"c-007", "name"=&gt;"Елена Круглова", "count"=&gt;8, "numbers"=&gt;["2026-0002", "2026-0003", "2026-0036", "2026-0056", "2026-0064", "2026-0085", "2026-0095", "2026-0117"]}
+{"_id"=&gt;"c-020", "name"=&gt;"Егор Мельник", "count"=&gt;2, "numbers"=&gt;["2026-0010", "2026-0092"]}</pre>
+        </figure>
+        <p>У Анны Беловой пять заказов, у Елены Кругловой — восемь, среди них и заказ 2026-0002 из §1, у Егора Мельника — два. Длина массива — число заказов, путь <code>"$orders.number"</code> — их номера, как путь к полю элементов в главе 5.1. Порядок заказов в массиве — порядок документов в коллекции <code>orders</code>.</p>
+
+        <h2 id="s4"><span class="sec">§4</span>Документы без пары</h2>
+        <p>В базе <code>hh</code> у вакансии есть поле <code>company</code> с названием компании, а в коллекции <code>companies</code> — карточки компаний. Не у каждой компании есть открытая вакансия. Пример соединяет компании с их вакансиями.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>компании и их вакансии</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"vacancies"</span>,
+        <span class="s">"localField"</span>: <span class="s">"name"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"company"</span>,
+        <span class="s">"as"</span>: <span class="s">"vacancies"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"name"</span>: <span class="n">1</span>,
+        <span class="s">"count"</span>: {<span class="s">"$size"</span>: <span class="s">"$vacancies"</span>},
+        <span class="s">"titles"</span>: <span class="s">"$vacancies.title"</span>,
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> companies.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>компании и их вакансии</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"vacancies"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"name"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"company"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"vacancies"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"count"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$vacancies"</span>))),
+    <span class="f">kvp</span>(<span class="s">"titles"</span>, <span class="s">"$vacancies.title"</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : companies.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>компании и их вакансии</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"vacancies"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"name"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"company"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"vacancies"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"count"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$vacancies"</span>}}},
+        {Key: <span class="s">"titles"</span>, Value: <span class="s">"$vacancies.title"</span>}}}},
+}
+
+cursor, _ := companies.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>компании и их вакансии</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"vacancies"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"name"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"company"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"vacancies"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"name"</span> =&gt; <span class="n">1</span>,
+    <span class="s">"count"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$vacancies"</span> },
+    <span class="s">"titles"</span> =&gt; <span class="s">"$vacancies.title"</span>,
+  } },
+]
+
+companies.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Мосэнергосвязь', 'count': 1, 'titles': ['Администратор баз данных']}
+{'name': 'МедСофт', 'count': 1, 'titles': ['Тестировщик']}
+{'name': 'Яндекс', 'count': 0, 'titles': []}
+{'name': 'Retail Lab', 'count': 1, 'titles': ['Frontend-разработчик']}
+{'name': 'ЯрКом', 'count': 1, 'titles': ['Инженер сопровождения БД']}
+{'name': 'Тензор', 'count': 2, 'titles': ['Junior Python-разработчик', 'Backend-разработчик .NET']}
+{'name': 'ИП Сорокин', 'count': 0, 'titles': []}
+{'name': 'Ozon Tech', 'count': 2, 'titles': ['Аналитик данных', 'Data-инженер']}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Мосэнергосвязь", "count" : 1, "titles" : [ "Администратор баз данных" ] }
+{ "name" : "МедСофт", "count" : 1, "titles" : [ "Тестировщик" ] }
+{ "name" : "Яндекс", "count" : 0, "titles" : [ ] }
+{ "name" : "Retail Lab", "count" : 1, "titles" : [ "Frontend-разработчик" ] }
+{ "name" : "ЯрКом", "count" : 1, "titles" : [ "Инженер сопровождения БД" ] }
+{ "name" : "Тензор", "count" : 2, "titles" : [ "Junior Python-разработчик", "Backend-разработчик .NET" ] }
+{ "name" : "ИП Сорокин", "count" : 0, "titles" : [ ] }
+{ "name" : "Ozon Tech", "count" : 2, "titles" : [ "Аналитик данных", "Data-инженер" ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Мосэнергосвязь","count":1,"titles":["Администратор баз данных"]}
+{"name":"МедСофт","count":1,"titles":["Тестировщик"]}
+{"name":"Яндекс","count":0,"titles":[]}
+{"name":"Retail Lab","count":1,"titles":["Frontend-разработчик"]}
+{"name":"ЯрКом","count":1,"titles":["Инженер сопровождения БД"]}
+{"name":"Тензор","count":2,"titles":["Junior Python-разработчик","Backend-разработчик .NET"]}
+{"name":"ИП Сорокин","count":0,"titles":[]}
+{"name":"Ozon Tech","count":2,"titles":["Аналитик данных","Data-инженер"]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Мосэнергосвязь", "count"=&gt;1, "titles"=&gt;["Администратор баз данных"]}
+{"name"=&gt;"МедСофт", "count"=&gt;1, "titles"=&gt;["Тестировщик"]}
+{"name"=&gt;"Яндекс", "count"=&gt;0, "titles"=&gt;[]}
+{"name"=&gt;"Retail Lab", "count"=&gt;1, "titles"=&gt;["Frontend-разработчик"]}
+{"name"=&gt;"ЯрКом", "count"=&gt;1, "titles"=&gt;["Инженер сопровождения БД"]}
+{"name"=&gt;"Тензор", "count"=&gt;2, "titles"=&gt;["Junior Python-разработчик", "Backend-разработчик .NET"]}
+{"name"=&gt;"ИП Сорокин", "count"=&gt;0, "titles"=&gt;[]}
+{"name"=&gt;"Ozon Tech", "count"=&gt;2, "titles"=&gt;["Аналитик данных", "Data-инженер"]}</pre>
+        </figure>
+        <p>Все восемь компаний остались в результате. У Тензора и Ozon Tech по две вакансии, у четырёх компаний по одной. У Яндекса и ИП Сорокин вакансий нет — массив пустой, длина 0. Это и есть «левое» соединение: документ без пары не исчезает, его массив просто пустой.</p>
+
+        <h2 id="s5"><span class="sec">§5</span>$unwind и документы без пары</h2>
+        <p>В §2 <code>$unwind</code> не терял документы, потому что у каждого заказа есть покупатель. У компаний без вакансий массив пустой, а пустой массив, как показано в главе 4.6, не даёт ни одного документа. Пример считает документы после <code>$unwind</code> обычным способом и с параметром <code>preserveNullAndEmptyArrays</code>.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>$unwind после $lookup: куда деваются компании без вакансий</span></figcaption>
+<pre>plain = [
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"vacancies"</span>,
+        <span class="s">"localField"</span>: <span class="s">"name"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"company"</span>,
+        <span class="s">"as"</span>: <span class="s">"vacancies"</span>,
+    }},
+    {<span class="s">"$unwind"</span>: <span class="s">"$vacancies"</span>},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+kept = [
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"vacancies"</span>,
+        <span class="s">"localField"</span>: <span class="s">"name"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"company"</span>,
+        <span class="s">"as"</span>: <span class="s">"vacancies"</span>,
+    }},
+    {<span class="s">"$unwind"</span>: {<span class="s">"path"</span>: <span class="s">"$vacancies"</span>, <span class="s">"preserveNullAndEmptyArrays"</span>: <span class="k">True</span>}},
+    {<span class="s">"$count"</span>: <span class="s">"docs"</span>},
+]
+
+<span class="f">print</span>(<span class="s">"── $lookup и $unwind"</span>)
+<span class="k">for</span> doc <span class="k">in</span> companies.<span class="f">aggregate</span>(plain):
+    <span class="f">print</span>(doc)
+
+<span class="f">print</span>(<span class="s">"── с preserveNullAndEmptyArrays"</span>)
+<span class="k">for</span> doc <span class="k">in</span> companies.<span class="f">aggregate</span>(kept):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>$unwind после $lookup: куда деваются компании без вакансий</span></figcaption>
+<pre>mongocxx::pipeline plain;
+plain.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"vacancies"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"name"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"company"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"vacancies"</span>)));
+plain.<span class="f">unwind</span>(<span class="s">"$vacancies"</span>);
+plain.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+mongocxx::pipeline kept;
+kept.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"vacancies"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"name"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"company"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"vacancies"</span>)));
+kept.<span class="f">unwind</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"path"</span>, <span class="s">"$vacancies"</span>), <span class="f">kvp</span>(<span class="s">"preserveNullAndEmptyArrays"</span>, <span class="k">true</span>)));
+kept.<span class="f">count</span>(<span class="s">"docs"</span>);
+
+std::cout &lt;&lt; <span class="s">"── $lookup и $unwind"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : companies.<span class="f">aggregate</span>(plain)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── с preserveNullAndEmptyArrays"</span> &lt;&lt; std::endl;
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : companies.<span class="f">aggregate</span>(kept)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>$unwind после $lookup: куда деваются компании без вакансий</span></figcaption>
+<pre>plain := mongo.Pipeline{
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"vacancies"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"name"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"company"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"vacancies"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: <span class="s">"$vacancies"</span>}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+kept := mongo.Pipeline{
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"vacancies"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"name"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"company"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"vacancies"</span>}}}},
+    {{Key: <span class="s">"$unwind"</span>, Value: bson.D{
+        {Key: <span class="s">"path"</span>, Value: <span class="s">"$vacancies"</span>},
+        {Key: <span class="s">"preserveNullAndEmptyArrays"</span>, Value: <span class="k">true</span>}}}},
+    {{Key: <span class="s">"$count"</span>, Value: <span class="s">"docs"</span>}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── $lookup и $unwind"</span>)
+cursor, _ := companies.<span class="f">Aggregate</span>(ctx, plain)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── с preserveNullAndEmptyArrays"</span>)
+cursor, _ = companies.<span class="f">Aggregate</span>(ctx, kept)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>$unwind после $lookup: куда деваются компании без вакансий</span></figcaption>
+<pre>plain = [
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"vacancies"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"name"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"company"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"vacancies"</span>,
+  } },
+  { <span class="s">"$unwind"</span> =&gt; <span class="s">"$vacancies"</span> },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+kept = [
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"vacancies"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"name"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"company"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"vacancies"</span>,
+  } },
+  { <span class="s">"$unwind"</span> =&gt; { <span class="s">"path"</span> =&gt; <span class="s">"$vacancies"</span>, <span class="s">"preserveNullAndEmptyArrays"</span> =&gt; <span class="k">true</span> } },
+  { <span class="s">"$count"</span> =&gt; <span class="s">"docs"</span> },
+]
+
+<span class="k">puts</span> <span class="s">"── $lookup и $unwind"</span>
+companies.<span class="f">aggregate</span>(plain).each { |doc| <span class="k">puts</span> doc.inspect }
+
+<span class="k">puts</span> <span class="s">"── с preserveNullAndEmptyArrays"</span>
+companies.<span class="f">aggregate</span>(kept).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $lookup и $unwind
+{'docs': 8}
+── с preserveNullAndEmptyArrays
+{'docs': 10}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $lookup и $unwind
+{ "docs" : 8 }
+── с preserveNullAndEmptyArrays
+{ "docs" : 10 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $lookup и $unwind
+{"docs":8}
+── с preserveNullAndEmptyArrays
+{"docs":10}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── $lookup и $unwind
+{"docs"=&gt;8}
+── с preserveNullAndEmptyArrays
+{"docs"=&gt;10}</pre>
+        </figure>
+        <p>Обычный <code>$unwind</code> дал 8 документов — по одному на вакансию; Яндекс и ИП Сорокин исчезли. С <code>preserveNullAndEmptyArrays</code> документов 10: две компании без вакансий остались, поля <code>vacancies</code> у них нет. Пара <code>$lookup</code> и обычного <code>$unwind</code> работает как внутреннее соединение (INNER JOIN), с параметром — как левое.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Компании после $lookup и $unwind</span><span>8 компаний</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Компания</th><th>Вакансий</th><th>$unwind</th><th>с preserveNull…</th></tr></thead>
+              <tbody>
+                <tr><td>Тензор, Ozon Tech</td><td>по 2</td><td>по 2 документа</td><td>по 2 документа</td></tr>
+                <tr><td>Мосэнергосвязь, МедСофт, Retail Lab, ЯрКом</td><td>по 1</td><td>по 1 документу</td><td>по 1 документу</td></tr>
+                <tr class="no"><td>Яндекс, ИП Сорокин</td><td>0</td><td class="bad">исчезают</td><td class="ok">по 1 документу без vacancies</td></tr>
+                <tr class="on"><td>Всего</td><td>8</td><td>8</td><td>10</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Число документов после <code>$unwind</code> — сумма длин массивов. Документы с пустым массивом добавляет только параметр <code>preserveNullAndEmptyArrays</code>.</p>
+        </div>
+
+        <h2 id="s6"><span class="sec">§6</span>Массив в localField</h2>
+        <p>Позиции заказа ссылаются на товары по артикулу: у каждой позиции поле <code>sku</code>. Путь <code>"items.sku"</code> — массив артикулов. Если <code>localField</code> — массив, <code>$lookup</code> находит документы, у которых <code>foreignField</code> равно любому из его элементов. Пример находит товары заказа 2026-0002 и выводит у каждого артикул и рейтинг.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>localField — массив: товары позиций заказа</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"products"</span>,
+        <span class="s">"localField"</span>: <span class="s">"items.sku"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"sku"</span>,
+        <span class="s">"as"</span>: <span class="s">"goods"</span>,
+    }},
+    {<span class="s">"$project"</span>: {
+        <span class="s">"_id"</span>: <span class="n">0</span>,
+        <span class="s">"skus"</span>: <span class="s">"$items.sku"</span>,
+        <span class="s">"goods"</span>: {<span class="s">"$map"</span>: {
+            <span class="s">"input"</span>: <span class="s">"$goods"</span>,
+            <span class="s">"in"</span>: {<span class="s">"sku"</span>: <span class="s">"$$this.sku"</span>, <span class="s">"rating"</span>: <span class="s">"$$this.rating"</span>},
+        }},
+    }},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>localField — массив: товары позиций заказа</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"products"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"items.sku"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"sku"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"goods"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"skus"</span>, <span class="s">"$items.sku"</span>),
+    <span class="f">kvp</span>(<span class="s">"goods"</span>, <span class="f">make_document</span>(
+        <span class="f">kvp</span>(<span class="s">"$map"</span>, <span class="f">make_document</span>(
+            <span class="f">kvp</span>(<span class="s">"input"</span>, <span class="s">"$goods"</span>),
+            <span class="f">kvp</span>(<span class="s">"in"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"sku"</span>, <span class="s">"$$this.sku"</span>), <span class="f">kvp</span>(<span class="s">"rating"</span>, <span class="s">"$$this.rating"</span>)))))))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>localField — массив: товары позиций заказа</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"products"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"items.sku"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"sku"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"goods"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"skus"</span>, Value: <span class="s">"$items.sku"</span>},
+        {Key: <span class="s">"goods"</span>, Value: bson.D{
+            {Key: <span class="s">"$map"</span>, Value: bson.D{
+                {Key: <span class="s">"input"</span>, Value: <span class="s">"$goods"</span>},
+                {Key: <span class="s">"in"</span>, Value: bson.D{
+                    {Key: <span class="s">"sku"</span>, Value: <span class="s">"$$this.sku"</span>},
+                    {Key: <span class="s">"rating"</span>, Value: <span class="s">"$$this.rating"</span>}}}}}}}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>localField — массив: товары позиций заказа</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"products"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"items.sku"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"sku"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"goods"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; {
+    <span class="s">"_id"</span> =&gt; <span class="n">0</span>,
+    <span class="s">"skus"</span> =&gt; <span class="s">"$items.sku"</span>,
+    <span class="s">"goods"</span> =&gt; { <span class="s">"$map"</span> =&gt; {
+      <span class="s">"input"</span> =&gt; <span class="s">"$goods"</span>,
+      <span class="s">"in"</span> =&gt; { <span class="s">"sku"</span> =&gt; <span class="s">"$$this.sku"</span>, <span class="s">"rating"</span> =&gt; <span class="s">"$$this.rating"</span> },
+    } },
+  } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'skus': ['SKU-NB-002', 'SKU-PR-014', 'SKU-PR-013'], 'goods': [{'sku': 'SKU-NB-002', 'rating': 4.3}, {'sku': 'SKU-PR-013', 'rating': 4.3}, {'sku': 'SKU-PR-014', 'rating': 4.9}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "skus" : [ "SKU-NB-002", "SKU-PR-014", "SKU-PR-013" ], "goods" : [ { "sku" : "SKU-NB-002", "rating" : 4.2999999999999998224 }, { "sku" : "SKU-PR-013", "rating" : 4.2999999999999998224 }, { "sku" : "SKU-PR-014", "rating" : 4.9000000000000003553 } ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"skus":["SKU-NB-002","SKU-PR-014","SKU-PR-013"],"goods":[{"sku":"SKU-NB-002","rating":4.3},{"sku":"SKU-PR-013","rating":4.3},{"sku":"SKU-PR-014","rating":4.9}]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"skus"=&gt;["SKU-NB-002", "SKU-PR-014", "SKU-PR-013"], "goods"=&gt;[{"sku"=&gt;"SKU-NB-002", "rating"=&gt;4.3}, {"sku"=&gt;"SKU-PR-013", "rating"=&gt;4.3}, {"sku"=&gt;"SKU-PR-014", "rating"=&gt;4.9}]}</pre>
+        </figure>
+        <p>Найдены три товара — по одному на артикул. Порядок в <code>goods</code> отличается от порядка в <code>skus</code>: ноутбук, наушники, веб-камера вместо ноутбука, веб-камеры, наушников. Найденные документы идут в порядке коллекции <code>products</code>, а не в порядке массива. Если порядок важен, найденные товары сопоставляют с позициями по артикулу.</p>
+
+        <h2 id="s7"><span class="sec">§7</span>Опечатка в from</h2>
+        <p>Коллекция в <code>from</code> указана как <code>customer</code> — без последней буквы. Пример повторяет запрос из §1 с этой опечаткой.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>в from — коллекция, которой нет</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"o-0002"</span>}},
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"customer"</span>,
+        <span class="s">"localField"</span>: <span class="s">"customer_id"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"customer"</span>,
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"number"</span>: <span class="n">1</span>, <span class="s">"customer"</span>: <span class="n">1</span>}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>в from — коллекция, которой нет</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"o-0002"</span>)));
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"customer"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"customer_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"customer"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>), <span class="f">kvp</span>(<span class="s">"number"</span>, <span class="n">1</span>), <span class="f">kvp</span>(<span class="s">"customer"</span>, <span class="n">1</span>)));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>в from — коллекция, которой нет</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"o-0002"</span>}}}},
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"customer"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"customer_id"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"customer"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"number"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"customer"</span>, Value: <span class="n">1</span>}}}},
+}
+
+cursor, _ := orders.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>в from — коллекция, которой нет</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"o-0002"</span> } },
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"customer"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"customer_id"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"customer"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"number"</span> =&gt; <span class="n">1</span>, <span class="s">"customer"</span> =&gt; <span class="n">1</span> } },
+]
+
+orders.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'number': '2026-0002', 'customer': []}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "number" : "2026-0002", "customer" : [ ] }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number":"2026-0002","customer":[]}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"number"=&gt;"2026-0002", "customer"=&gt;[]}</pre>
+        </figure>
+        <p>Ошибки нет: <code>customer</code> — пустой массив. Сервер ищет в коллекции, которой нет, а несуществующая коллекция для чтения — то же, что пустая. Если <code>$lookup</code> вернул пустой массив у всех документов сразу, первым делом проверяют имя коллекции в <code>from</code>.</p>
+
+        <h2 id="s8"><span class="sec">§8</span>Поле связи отсутствует</h2>
+        <p>Если у документа нет поля из <code>localField</code>, сервер считает его значение равным <code>null</code>. А <code>null</code> в сравнении на равенство подходит к документам, у которых поля <code>foreignField</code> нет, — так же работает фильтр <code>{"поле": null}</code> из главы 2.5. Пример ищет для покупательницы c-001 заказы по полю <code>referrer</code>, которого у покупателей нет, и сравнивает его с полем <code>promo</code> заказов.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>поля из localField нет у документа</span></figcaption>
+<pre>pipeline = [
+    {<span class="s">"$match"</span>: {<span class="s">"_id"</span>: <span class="s">"c-001"</span>}},
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"orders"</span>,
+        <span class="s">"localField"</span>: <span class="s">"referrer"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"promo"</span>,
+        <span class="s">"as"</span>: <span class="s">"found"</span>,
+    }},
+    {<span class="s">"$project"</span>: {<span class="s">"_id"</span>: <span class="n">0</span>, <span class="s">"name"</span>: <span class="n">1</span>, <span class="s">"found"</span>: {<span class="s">"$size"</span>: <span class="s">"$found"</span>}}},
+]
+
+<span class="k">for</span> doc <span class="k">in</span> customers.<span class="f">aggregate</span>(pipeline):
+    <span class="f">print</span>(doc)</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>поля из localField нет у документа</span></figcaption>
+<pre>mongocxx::pipeline pipeline;
+pipeline.<span class="f">match</span>(<span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="s">"c-001"</span>)));
+pipeline.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"orders"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"referrer"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"promo"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"found"</span>)));
+pipeline.<span class="f">project</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"_id"</span>, <span class="n">0</span>),
+    <span class="f">kvp</span>(<span class="s">"name"</span>, <span class="n">1</span>),
+    <span class="f">kvp</span>(<span class="s">"found"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"$size"</span>, <span class="s">"$found"</span>)))));
+
+<span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : customers.<span class="f">aggregate</span>(pipeline)) {
+    std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc, bsoncxx::ExtendedJsonMode::k_relaxed) &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>поля из localField нет у документа</span></figcaption>
+<pre>pipeline := mongo.Pipeline{
+    {{Key: <span class="s">"$match"</span>, Value: bson.D{{Key: <span class="s">"_id"</span>, Value: <span class="s">"c-001"</span>}}}},
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"orders"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"referrer"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"promo"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"found"</span>}}}},
+    {{Key: <span class="s">"$project"</span>, Value: bson.D{
+        {Key: <span class="s">"_id"</span>, Value: <span class="n">0</span>},
+        {Key: <span class="s">"name"</span>, Value: <span class="n">1</span>},
+        {Key: <span class="s">"found"</span>, Value: bson.D{{Key: <span class="s">"$size"</span>, Value: <span class="s">"$found"</span>}}}}}},
+}
+
+cursor, _ := customers.<span class="f">Aggregate</span>(ctx, pipeline)
+<span class="k">for</span> cursor.<span class="f">Next</span>(ctx) {
+    <span class="k">var</span> doc bson.D
+    cursor.<span class="f">Decode</span>(&amp;doc)
+    out, _ := bson.<span class="f">MarshalExtJSON</span>(doc, <span class="k">false</span>, <span class="k">false</span>)
+    fmt.<span class="f">Println</span>(<span class="k">string</span>(out))
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>поля из localField нет у документа</span></figcaption>
+<pre>pipeline = [
+  { <span class="s">"$match"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="s">"c-001"</span> } },
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"orders"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"referrer"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"promo"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"found"</span>,
+  } },
+  { <span class="s">"$project"</span> =&gt; { <span class="s">"_id"</span> =&gt; <span class="n">0</span>, <span class="s">"name"</span> =&gt; <span class="n">1</span>, <span class="s">"found"</span> =&gt; { <span class="s">"$size"</span> =&gt; <span class="s">"$found"</span> } } },
+]
+
+customers.<span class="f">aggregate</span>(pipeline).each { |doc| <span class="k">puts</span> doc.inspect }</pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{'name': 'Анна Белова', 'found': 80}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{ "name" : "Анна Белова", "found" : 80 }</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name":"Анна Белова","found":80}</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>{"name"=&gt;"Анна Белова", "found"=&gt;80}</pre>
+        </figure>
+        <p>Найдено 80 заказов — все заказы без промокода. Ни один из них к покупательнице не относится. Ошибки нет, а результат похож на настоящий. Поэтому перед <code>$lookup</code> по необязательному полю отбирают документы, у которых поле есть: <code>{"$match": {"referrer": {"$exists": true}}}</code>.</p>
+        <div class="scheme">
+          <div class="doc__bar"><span>Сравнение при отсутствующем localField</span><span>c-001 → 80 заказов</span></div>
+          <div class="scheme__body">
+            <table class="mt">
+              <thead><tr><th>Заказы</th><th>promo</th><th>Равно отсутствующему referrer?</th><th>Попали в found</th></tr></thead>
+              <tbody>
+                <tr class="no"><td>80 заказов без промокода</td><td>поля нет</td><td class="bad">да — оба отсутствуют</td><td>80</td></tr>
+                <tr><td>40 заказов с промокодом</td><td>SPRING10, LOYAL15, FIRST5</td><td>нет</td><td>0</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scheme__note">Отсутствующее поле с обеих сторон считается совпадением. Так легко получить «найденные» документы, которые с исходным никак не связаны.</p>
+        </div>
+
+        <h2 id="s9"><span class="sec">§9</span>Записи, которые сервер не принимает</h2>
+        <p>Две записи <code>$lookup</code> сервер отклоняет при разборе запроса.</p>
+        <div class="duo">
+          <figure class="code" data-lang="python">
+            <figcaption><span>Python · PyMongo</span><span>записи $lookup, которые сервер не принимает</span></figcaption>
+<pre><span class="k">from</span> pymongo.errors <span class="k">import</span> OperationFailure
+
+no_as = [
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: <span class="s">"customers"</span>,
+        <span class="s">"localField"</span>: <span class="s">"customer_id"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"_id"</span>,
+    }},
+]
+
+other_db = [
+    {<span class="s">"$lookup"</span>: {
+        <span class="s">"from"</span>: {<span class="s">"db"</span>: <span class="s">"org"</span>, <span class="s">"coll"</span>: <span class="s">"employees"</span>},
+        <span class="s">"localField"</span>: <span class="s">"customer_id"</span>,
+        <span class="s">"foreignField"</span>: <span class="s">"_id"</span>,
+        <span class="s">"as"</span>: <span class="s">"x"</span>,
+    }},
+]
+
+<span class="f">print</span>(<span class="s">"── нет as"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(no_as):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])
+
+<span class="f">print</span>(<span class="s">"── коллекция другой базы"</span>)
+<span class="k">try</span>:
+    <span class="k">for</span> doc <span class="k">in</span> orders.<span class="f">aggregate</span>(other_db):
+        <span class="f">print</span>(doc)
+<span class="k">except</span> OperationFailure <span class="k">as</span> e:
+    <span class="f">print</span>(<span class="s">"код"</span>, e.code)
+    <span class="f">print</span>(e.details[<span class="s">"errmsg"</span>])</pre>
+          </figure>
+          <figure class="code" data-lang="cpp">
+            <figcaption><span>C++ · mongocxx</span><span>записи $lookup, которые сервер не принимает</span></figcaption>
+<pre>mongocxx::pipeline no_as;
+no_as.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="s">"customers"</span>),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"customer_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"_id"</span>)));
+
+mongocxx::pipeline other_db;
+other_db.<span class="f">lookup</span>(<span class="f">make_document</span>(
+    <span class="f">kvp</span>(<span class="s">"from"</span>, <span class="f">make_document</span>(<span class="f">kvp</span>(<span class="s">"db"</span>, <span class="s">"org"</span>), <span class="f">kvp</span>(<span class="s">"coll"</span>, <span class="s">"employees"</span>))),
+    <span class="f">kvp</span>(<span class="s">"localField"</span>, <span class="s">"customer_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"foreignField"</span>, <span class="s">"_id"</span>),
+    <span class="f">kvp</span>(<span class="s">"as"</span>, <span class="s">"x"</span>)));
+
+std::cout &lt;&lt; <span class="s">"── нет as"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(no_as)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}
+
+std::cout &lt;&lt; <span class="s">"── коллекция другой базы"</span> &lt;&lt; std::endl;
+<span class="k">try</span> {
+    <span class="k">for</span> (<span class="k">auto</span>&amp;&amp; doc : orders.<span class="f">aggregate</span>(other_db)) {
+        std::cout &lt;&lt; bsoncxx::<span class="f">to_json</span>(doc) &lt;&lt; std::endl;
+    }
+} <span class="k">catch</span> (<span class="k">const</span> mongocxx::operation_exception&amp; e) {
+    std::cout &lt;&lt; <span class="s">"код "</span> &lt;&lt; e.<span class="f">code</span>().<span class="f">value</span>() &lt;&lt; std::endl;
+    std::cout &lt;&lt; e.<span class="f">what</span>() &lt;&lt; std::endl;
+}</pre>
+          </figure>
+          <figure class="code" data-lang="go">
+            <figcaption><span>Go · mongo-driver</span><span>записи $lookup, которые сервер не принимает</span></figcaption>
+<pre>noAs := mongo.Pipeline{
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: <span class="s">"customers"</span>},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"customer_id"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"_id"</span>}}}},
+}
+
+otherDb := mongo.Pipeline{
+    {{Key: <span class="s">"$lookup"</span>, Value: bson.D{
+        {Key: <span class="s">"from"</span>, Value: bson.D{{Key: <span class="s">"db"</span>, Value: <span class="s">"org"</span>}, {Key: <span class="s">"coll"</span>, Value: <span class="s">"employees"</span>}}},
+        {Key: <span class="s">"localField"</span>, Value: <span class="s">"customer_id"</span>},
+        {Key: <span class="s">"foreignField"</span>, Value: <span class="s">"_id"</span>},
+        {Key: <span class="s">"as"</span>, Value: <span class="s">"x"</span>}}}},
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── нет as"</span>)
+_, err := orders.<span class="f">Aggregate</span>(ctx, noAs)
+<span class="k">var</span> ce mongo.CommandError
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}
+
+fmt.<span class="f">Println</span>(<span class="s">"── коллекция другой базы"</span>)
+_, err = orders.<span class="f">Aggregate</span>(ctx, otherDb)
+<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;ce) {
+    fmt.<span class="f">Println</span>(<span class="s">"код"</span>, ce.Code)
+    fmt.<span class="f">Println</span>(ce.Message)
+}</pre>
+          </figure>
+          <figure class="code" data-lang="ruby">
+            <figcaption><span>Ruby · mongo</span><span>записи $lookup, которые сервер не принимает</span></figcaption>
+<pre>no_as = [
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; <span class="s">"customers"</span>,
+    <span class="s">"localField"</span> =&gt; <span class="s">"customer_id"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"_id"</span>,
+  } },
+]
+
+other_db = [
+  { <span class="s">"$lookup"</span> =&gt; {
+    <span class="s">"from"</span> =&gt; { <span class="s">"db"</span> =&gt; <span class="s">"org"</span>, <span class="s">"coll"</span> =&gt; <span class="s">"employees"</span> },
+    <span class="s">"localField"</span> =&gt; <span class="s">"customer_id"</span>,
+    <span class="s">"foreignField"</span> =&gt; <span class="s">"_id"</span>,
+    <span class="s">"as"</span> =&gt; <span class="s">"x"</span>,
+  } },
+]
+
+<span class="k">puts</span> <span class="s">"── нет as"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(no_as).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span>
+
+<span class="k">puts</span> <span class="s">"── коллекция другой базы"</span>
+<span class="k">begin</span>
+  orders.<span class="f">aggregate</span>(other_db).each { |doc| <span class="k">puts</span> doc.inspect }
+<span class="k">rescue</span> Mongo::Error::OperationFailure =&gt; e
+  <span class="k">puts</span> <span class="s">"код #{e.code}"</span>
+  <span class="k">puts</span> e.document[<span class="s">"errmsg"</span>]
+<span class="k">end</span></pre>
+          </figure>
+        </div>
+        <figure class="code code--out" data-lang="python">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет as
+код 9
+must specify 'as' field for a $lookup
+── коллекция другой базы
+код 9
+$lookup with syntax {from: {db:&lt;&gt;, coll:&lt;&gt;},..} is not supported for db: org and coll: employees</pre>
+        </figure>
+        <figure class="code code--out" data-lang="cpp">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет as
+код 9
+must specify 'as' field for a $lookup: server error code 9: generic server error
+── коллекция другой базы
+код 9
+$lookup with syntax {from: {db:&lt;&gt;, coll:&lt;&gt;},..} is not supported for db: org and coll: employees: server error code 9: generic server error</pre>
+        </figure>
+        <figure class="code code--out" data-lang="go">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет as
+код 9
+must specify 'as' field for a $lookup
+── коллекция другой базы
+код 9
+$lookup with syntax {from: {db:&lt;&gt;, coll:&lt;&gt;},..} is not supported for db: org and coll: employees</pre>
+        </figure>
+        <figure class="code code--out" data-lang="ruby">
+          <figcaption><span>Вывод в терминал</span><span>результат запуска</span></figcaption>
+<pre>── нет as
+код 9
+must specify 'as' field for a $lookup
+── коллекция другой базы
+код 9
+$lookup with syntax {from: {db:&lt;&gt;, coll:&lt;&gt;},..} is not supported for db: org and coll: employees</pre>
+        </figure>
+        <p>Без <code>as</code> — ошибка 9: результату нужно имя поля. Документ <code>{"db": "org", "coll": "employees"}</code> в <code>from</code> — тоже ошибка 9: <code>$lookup</code> соединяет коллекции одной базы. Конвейер по <code>shop.orders</code> может искать только в коллекциях базы <code>shop</code>.</p>
+
+        <h2 id="s10"><span class="sec">§10</span>$lookup в Compass</h2>
+        <p>На кадре — конвейер из §1 на вкладке <b>Aggregations</b> коллекции <code>shop.orders</code>: <code>$match</code> по заказу o-0002, <code>$lookup</code> в коллекцию покупателей и <code>$project</code>.</p>
+        <figure class="shot">
+          <img src="../../shots/163-orders-lookup.png" alt="Compass, вкладка Aggregations коллекции shop.orders: стадия $lookup с полем customer — массивом из одного документа">
+          <figcaption>Compass · заказ 2026-0002 и его покупатель</figcaption>
+        </figure>
+        <p>Кадр начинается со стадии <code>$lookup</code>: в её редакторе — четыре параметра, как в коде. Справа — образец результата, <b>Sample of 1 document</b>: заказ со всеми полями, поле <code>customer</code> ниже края образца, его видно прокруткой. Под стадией <code>$project</code> остались <code>number</code>, <code>customer_id</code> и <code>customer</code> с отметкой <b>Array (1)</b> — массив из одного документа покупателя; треугольник слева раскрывает его.</p>
+
+        <h2 id="s11"><span class="sec">§11</span>Частые ошибки</h2>
+        <div class="table-scroll errors-table" data-lang="python">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"from": "customer"</code></td><td>Пустой массив у каждого документа без ошибки: коллекции с таким именем нет, совпадений нет</td><td>Проверить имя коллекции: <code>"customers"</code>; пустой результат у всех документов — признак опечатки</td></tr>
+              <tr><td><code>localField</code> — поле, которого нет у документа</td><td>Сервер сравнивает отсутствующее значение с <code>foreignField</code> и присоединяет все документы, где этого поля тоже нет</td><td>Перед <code>$lookup</code> отобрать документы, у которых поле есть: <code>{"$match": {"поле": {"$exists": true}}}</code></td></tr>
+              <tr><td><code>{"$unwind": "$vacancies"}</code> после <code>$lookup</code></td><td>Документы без совпадений исчезают из потока: пустой массив не даёт ни одного документа</td><td><code>{"path": "$vacancies", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>$lookup</code> без <code>as</code></td><td>Ошибка 9: имя поля для результата обязательно</td><td><code>"as": "customer"</code></td></tr>
+              <tr><td><code>"from": {"db": "org", "coll": "employees"}</code></td><td>Ошибка 9: <code>$lookup</code> соединяет коллекции одной базы</td><td>Соединять коллекции одной базы; данные другой базы сначала перенести стадией <code>$merge</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="cpp">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"from": "customer"</code></td><td>Пустой массив у каждого документа без ошибки: коллекции с таким именем нет, совпадений нет</td><td>Проверить имя коллекции: <code>"customers"</code>; пустой результат у всех документов — признак опечатки</td></tr>
+              <tr><td><code>localField</code> — поле, которого нет у документа</td><td>Сервер сравнивает отсутствующее значение с <code>foreignField</code> и присоединяет все документы, где этого поля тоже нет</td><td>Перед <code>$lookup</code> отобрать документы, у которых поле есть: <code>{"$match": {"поле": {"$exists": true}}}</code></td></tr>
+              <tr><td><code>{"$unwind": "$vacancies"}</code> после <code>$lookup</code></td><td>Документы без совпадений исчезают из потока: пустой массив не даёт ни одного документа</td><td><code>{"path": "$vacancies", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>$lookup</code> без <code>as</code></td><td>Ошибка 9: имя поля для результата обязательно</td><td><code>"as": "customer"</code></td></tr>
+              <tr><td><code>"from": {"db": "org", "coll": "employees"}</code></td><td>Ошибка 9: <code>$lookup</code> соединяет коллекции одной базы</td><td>Соединять коллекции одной базы; данные другой базы сначала перенести стадией <code>$merge</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="go">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"from": "customer"</code></td><td>Пустой массив у каждого документа без ошибки: коллекции с таким именем нет, совпадений нет</td><td>Проверить имя коллекции: <code>"customers"</code>; пустой результат у всех документов — признак опечатки</td></tr>
+              <tr><td><code>localField</code> — поле, которого нет у документа</td><td>Сервер сравнивает отсутствующее значение с <code>foreignField</code> и присоединяет все документы, где этого поля тоже нет</td><td>Перед <code>$lookup</code> отобрать документы, у которых поле есть: <code>{"$match": {"поле": {"$exists": true}}}</code></td></tr>
+              <tr><td><code>{"$unwind": "$vacancies"}</code> после <code>$lookup</code></td><td>Документы без совпадений исчезают из потока: пустой массив не даёт ни одного документа</td><td><code>{"path": "$vacancies", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>$lookup</code> без <code>as</code></td><td>Ошибка 9: имя поля для результата обязательно</td><td><code>"as": "customer"</code></td></tr>
+              <tr><td><code>"from": {"db": "org", "coll": "employees"}</code></td><td>Ошибка 9: <code>$lookup</code> соединяет коллекции одной базы</td><td>Соединять коллекции одной базы; данные другой базы сначала перенести стадией <code>$merge</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll errors-table" data-lang="ruby">
+          <table>
+            <thead><tr><th>Что написано</th><th>Что происходит</th><th>Как правильно</th></tr></thead>
+            <tbody>
+              <tr><td><code>"from": "customer"</code></td><td>Пустой массив у каждого документа без ошибки: коллекции с таким именем нет, совпадений нет</td><td>Проверить имя коллекции: <code>"customers"</code>; пустой результат у всех документов — признак опечатки</td></tr>
+              <tr><td><code>localField</code> — поле, которого нет у документа</td><td>Сервер сравнивает отсутствующее значение с <code>foreignField</code> и присоединяет все документы, где этого поля тоже нет</td><td>Перед <code>$lookup</code> отобрать документы, у которых поле есть: <code>{"$match": {"поле": {"$exists": true}}}</code></td></tr>
+              <tr><td><code>{"$unwind": "$vacancies"}</code> после <code>$lookup</code></td><td>Документы без совпадений исчезают из потока: пустой массив не даёт ни одного документа</td><td><code>{"path": "$vacancies", "preserveNullAndEmptyArrays": true}</code></td></tr>
+              <tr><td><code>$lookup</code> без <code>as</code></td><td>Ошибка 9: имя поля для результата обязательно</td><td><code>"as": "customer"</code></td></tr>
+              <tr><td><code>"from": {"db": "org", "coll": "employees"}</code></td><td>Ошибка 9: <code>$lookup</code> соединяет коллекции одной базы</td><td>Соединять коллекции одной базы; данные другой базы сначала перенести стадией <code>$merge</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="s12"><span class="sec">§12</span>Проверьте себя</h2>
+        <details>
+          <summary>Почему результат <code>$lookup</code> — массив, даже если пара всегда одна?</summary>
+          <p>Сервер не знает заранее, сколько документов найдётся. Если пара одна, массив превращают в документ стадией <code>$unwind</code>.</p>
+        </details>
+        <details>
+          <summary>Что будет с документом, для которого пары не нашлось?</summary>
+          <p>Он остаётся в потоке с пустым массивом. Исчезнет он, только если после <code>$lookup</code> стоит <code>$unwind</code> без <code>preserveNullAndEmptyArrays</code>.</p>
+        </details>
+        <details>
+          <summary>Что вернёт <code>$lookup</code>, если в <code>from</code> опечатка?</summary>
+          <p>Пустой массив у каждого документа, без ошибки.</p>
+        </details>
+        <details>
+          <summary>Почему поиск по полю, которого нет у документа, находит лишние документы?</summary>
+          <p>Отсутствующее значение сравнивается как <code>null</code> и совпадает с документами, у которых нет поля <code>foreignField</code>.</p>
+        </details>
+        <details>
+          <summary>Можно ли соединить заказы из <code>shop</code> с сотрудниками из <code>org</code>?</summary>
+          <p>Нет: <code>$lookup</code> работает с коллекциями одной базы; запись <code>from</code> с другой базой даёт ошибку 9.</p>
+        </details>
+
+        <h2 id="s13"><span class="sec">§13</span>Самостоятельная работа</h2>
+        <p>Работа выполняется на языке, выбранном в шапке главы, в заготовке <code>lessons/ch6_1</code>. Данные — базы <code>shop</code> и <code>hh</code>, глава их не меняет.</p>
+        <ol class="steps">
+          <li><b>Покупатели крупных заказов</b>Для заказов в пути на сумму от 200 000 вывести номер, сумму и имя покупателя по возрастанию номера.</li>
+          <li><b>Заказы по сегментам</b>Посчитать все 120 заказов по сегменту покупателя.</li>
+          <li><b>Спрос на ноутбуки</b>Для каждого ноутбука посчитать заказы, в которых он есть: соединить <code>products</code> с <code>orders</code> по <code>sku</code> и <code>items.sku</code>.</li>
+          <li><b>Вакансии по отраслям</b>Посчитать по отрасли компании (<code>industry</code>) число компаний и их вакансий.</li>
+        </ol>
+        <details>
+          <summary>Ответ для самопроверки</summary>
+          <p>Крупные заказы в пути: 2026-0025 — 211 760, Юлия Ефимова; 2026-0028 — 244 460, Игорь Титов; 2026-0085 — 225 320, Елена Круглова.</p>
+          <p>Заказы по сегментам: постоянный — 65, vip — 46, новый — 9.</p>
+          <p>Спрос на ноутбуки: Apple MacBook Air 13 — 19, Acer Nitro V15 — 14, Lenovo IdeaPad 3 — 14, ASUS VivoBook 15 — 12, HP Pavilion 14 — 8.</p>
+          <p>Вакансии по отраслям: e-commerce — 1 компания, 2 вакансии; ПО для бизнеса — 1 и 2; аналитика, интеграция, медицина, телеком — по 1 и 1; веб-студия и технологии — по 1 компании без вакансий.</p>
+        </details>
+
+        <h2 id="s14"><span class="sec">§14</span>Шпаргалка</h2>
+        <div class="cheat" data-lang="python">
+          <div>
+            <b>Соединить по полю</b>
+            <code>{"$lookup": {"from": "customers", "localField": "customer_id", "foreignField": "_id", "as": "customer"}}</code>
+          </div>
+          <div>
+            <b>Один к одному — документ</b>
+            <code>{"$unwind": "$customer"}</code>
+          </div>
+          <div>
+            <b>Сколько найдено</b>
+            <code>{"count": {"$size": "$orders"}}</code>
+          </div>
+          <div>
+            <b>Не терять документы без пары</b>
+            <code>{"$unwind": {"path": "$vacancies", "preserveNullAndEmptyArrays": True}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="cpp">
+          <div>
+            <b>Соединить по полю</b>
+            <code>make_document(kvp("$lookup", make_document(kvp("from", "customers"), kvp("localField", "customer_id"), kvp("foreignField", "_id"), kvp("as", "customer"))))</code>
+          </div>
+          <div>
+            <b>Один к одному — документ</b>
+            <code>make_document(kvp("$unwind", "$customer"))</code>
+          </div>
+          <div>
+            <b>Сколько найдено</b>
+            <code>make_document(kvp("count", make_document(kvp("$size", "$orders"))))</code>
+          </div>
+          <div>
+            <b>Не терять документы без пары</b>
+            <code>make_document(kvp("$unwind", make_document(kvp("path", "$vacancies"), kvp("preserveNullAndEmptyArrays", true))))</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="go">
+          <div>
+            <b>Соединить по полю</b>
+            <code>bson.D{{Key: "$lookup", Value: bson.D{{Key: "from", Value: "customers"}, {Key: "localField", Value: "customer_id"}, {Key: "foreignField", Value: "_id"}, {Key: "as", Value: "customer"}}}}</code>
+          </div>
+          <div>
+            <b>Один к одному — документ</b>
+            <code>bson.D{{Key: "$unwind", Value: "$customer"}}</code>
+          </div>
+          <div>
+            <b>Сколько найдено</b>
+            <code>bson.D{{Key: "count", Value: bson.D{{Key: "$size", Value: "$orders"}}}}</code>
+          </div>
+          <div>
+            <b>Не терять документы без пары</b>
+            <code>bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$vacancies"}, {Key: "preserveNullAndEmptyArrays", Value: true}}}}</code>
+          </div>
+        </div>
+        <div class="cheat" data-lang="ruby">
+          <div>
+            <b>Соединить по полю</b>
+            <code>{ "$lookup" =&gt; { "from" =&gt; "customers", "localField" =&gt; "customer_id", "foreignField" =&gt; "_id", "as" =&gt; "customer" } }</code>
+          </div>
+          <div>
+            <b>Один к одному — документ</b>
+            <code>{ "$unwind" =&gt; "$customer" }</code>
+          </div>
+          <div>
+            <b>Сколько найдено</b>
+            <code>{ "count" =&gt; { "$size" =&gt; "$orders" } }</code>
+          </div>
+          <div>
+            <b>Не терять документы без пары</b>
+            <code>{ "$unwind" =&gt; { "path" =&gt; "$vacancies", "preserveNullAndEmptyArrays" =&gt; true } }</code>
+          </div>
+        </div>
+
+        <h3>Итог главы</h3>
+        <p><code>$lookup</code> находит для каждого документа документы коллекции <code>from</code>, у которых <code>foreignField</code> равно <code>localField</code>, и кладёт их массивом в поле <code>as</code>. Документ без пары остаётся с пустым массивом. Если <code>localField</code> — массив, подходит совпадение с любым элементом; найденные документы идут в порядке коллекции <code>from</code>.</p>
+        <p>Когда пара одна, массив превращают в документ стадией <code>$unwind</code>. Обычный <code>$unwind</code> убирает документы без пары, с <code>preserveNullAndEmptyArrays</code> — оставляет.</p>
+        <p>Опечатка в <code>from</code> и отсутствующее поле связи не дают ошибки, но дают неверный результат: пустые массивы или чужие документы. Соединяются только коллекции одной базы.</p>
+
+        <div class="pager"><a href="../39-let/index.html">← 5.5 $let: переменные внутри выражения</a><a href="../42-lookup-pipeline/index.html">6.2 $lookup с конвейером →</a></div>
+
+        <div class="colophon">
+          <span>Глава 6.1 · Справочник по MongoDB</span>
+          <span class="author-line">Автор: Макаров Максим Николаевич</span>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../book.js"></script>
+</body>
+</html>
